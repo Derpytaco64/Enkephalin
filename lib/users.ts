@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { hashPassword } from 'better-auth/crypto';
 import { db } from '@/db';
 import { accounts, users } from '@/db/schema';
+import { isUniqueViolation } from '@/lib/db-errors';
 
 export const MIN_PASSWORD_LENGTH = 8;
 
@@ -43,17 +44,7 @@ export async function createCredentialUser(input: {
   return { id, email };
 }
 
-/**
- * Postgres unique_violation, i.e. the email is already registered. Drizzle
- * wraps driver errors in its own Error, so the driver's code sits on the
- * cause rather than on what was thrown.
- */
+/** The email is already registered. */
 export function isDuplicateEmail(err: unknown): boolean {
-  let current: unknown = err;
-  for (let depth = 0; depth < 5 && current; depth += 1) {
-    if (typeof current !== 'object') return false;
-    if ((current as { code?: unknown }).code === '23505') return true;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return false;
+  return isUniqueViolation(err);
 }

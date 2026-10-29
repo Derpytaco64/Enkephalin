@@ -11,6 +11,10 @@ export default defineConfig({
     env: { DATABASE_URL: TEST_DATABASE_URL },
     // postgres-js wants real node builtins, which forks give us.
     pool: 'forks',
+    // One shared database, so files must not run at the same time: each
+    // truncates the tables it seeds, and in parallel they wipe each other's
+    // fixtures mid-test.
+    fileParallelism: false,
     hookTimeout: 90_000,
     testTimeout: 20_000,
   },
