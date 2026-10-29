@@ -281,6 +281,15 @@ this split with no asterisk at all, and *Adcirca\** points at an indication the 
 the asterisk only ever seeds a **suggestion** (2 drugs), while any drug with competing brands *and*
 multiple indications is flagged for human pairing regardless.
 
+**The sheet lists some generics twice.** Sildenafil appears on two rows — Revatio for pulmonary
+hypertension at 20 mg three times a day, and Viagra for erectile dysfunction at 50 mg before
+activity — both slugged `sildenafil`. The importer folds them into one drug and links each brand
+to the indications from its own row, with that row's dosing on `drug_brands.dosing_override`. No
+guessing is involved: the sheet pairs them by putting them on separate rows. Imported naively the
+second row wins and both brands cover both indications, so the app teaches Viagra for pulmonary
+hypertension. The extractor numbers ids per row, so both rows reuse `sildenafil--ind-0`; the merge
+re-keys them per row or the collision silently recreates the same wrong pairing.
+
 **Brand families decide what "competing" means.** *Wellbutrin / Wellbutrin SR / Wellbutrin XL* is one
 brand in three release forms; *Zyban* is a different brand. 23 of the 73 multi-brand drugs collapse
 this way, and collapsing them cuts the pairing review from 7 drugs to **5** — Depakote/Depakote ER
@@ -493,7 +502,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 0 | **done — first run verified 2026-10-29** — scaffold, theme tokens, Dockerfile, compose, Drizzle schema, migrate-on-start, healthcheck. Node 26.13 + Docker 29.9 installed; first migration generated (21 tables) and applied on boot; `docker compose up` serves `/` and `/api/health` with both services healthy |
 | 1 | **done — 2026-10-29** — better-auth, login, invite-gated register, roles, admin seeded from env, `/admin/invites`. No migration needed: the auth tables already matched better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
-| 3 | **done** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`. Remaining: `sync-content.ts` to load it into Postgres |
+| 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | Browse + search + filters + drug profile (bulk of the UI) |
 | 5 | Shared study-config component + flashcards + SRS |
 | 6 | Quiz + distractor generation + scoring + history |
@@ -603,8 +612,12 @@ reachable one-handed; browse table degrades to cards.
    fluoxetine, lamotrigine, tirzepatide. Tirzepatide is the one that matters most —
    Mounjaro/Diabetes vs Zepbound/Weight management. Four brands additionally carry a
    `default_pairing_suspect` warning.
-3. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
-4. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
+3. **Estradiol's variant dosing is not imported.** The sheet gives it newline-separated product
+   families (Vivelle-Dot / Alora / Climara, then Femring / Estring / Vagifem / Divigel) against
+   "product dependent" dosing. The importer refuses to turn that into brand rows rather than
+   guess; `drug_brands.dosing_override` is where a human puts it in the drug editor.
+4. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
+5. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
    remaining question is only whether individual courses get their own tags.
-5. **Not in v1, deliberately:** PWA/offline, pill images, interaction checking, shared classmate
+6. **Not in v1, deliberately:** PWA/offline, pill images, interaction checking, shared classmate
    decks, analytics dashboards. All additive on this schema.
