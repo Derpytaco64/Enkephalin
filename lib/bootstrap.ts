@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { siteSettings, users } from '@/db/schema';
+import { fieldDefs, siteSettings, users } from '@/db/schema';
+import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { createCredentialUser } from '@/lib/users';
 
 async function ensureSiteSettings() {
@@ -8,6 +9,15 @@ async function ensureSiteSettings() {
     .insert(siteSettings)
     .values({ id: 1, siteName: process.env.SITE_NAME || 'Enkephalin' })
     .onConflictDoNothing();
+}
+
+/**
+ * Seeds the field set the class sheet defines. Existing keys are left alone:
+ * an admin may have renamed a label or reordered the list, and re-seeding on
+ * every boot must not undo that.
+ */
+async function ensureFieldDefs() {
+  await db.insert(fieldDefs).values(CORE_FIELD_DEFS).onConflictDoNothing({ target: fieldDefs.key });
 }
 
 /** Seeds the first admin from env, via the same path invited users take. */
@@ -42,6 +52,7 @@ async function ensureAdmin() {
 export async function bootstrap() {
   try {
     await ensureSiteSettings();
+    await ensureFieldDefs();
     await ensureAdmin();
   } catch (err) {
     // A seeding failure must not stop the server from serving, but it must be

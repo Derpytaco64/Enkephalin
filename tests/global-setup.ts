@@ -4,11 +4,49 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { TEST_DATABASE_URL, TEST_DB_CONTAINER, TEST_DB_PORT } from './test-db';
 
+/**
+ * Surfaces docker's stderr. Without it a failure here reaches you as vitest's
+ * "No test files found" plus a sourcemap TypeError from its error printer,
+ * which reads like a broken config and is not one.
+ */
 function docker(args: string[]) {
-  return execFileSync('docker', args, { stdio: 'pipe' }).toString();
+  try {
+    return execFileSync('docker', args, { stdio: ['ignore', 'pipe', 'pipe'] }).toString();
+  } catch (err) {
+    const { stderr, message } = err as { stderr?: Buffer; message?: string };
+    throw new Error(`docker ${args.join(' ')} failed: ${stderr?.toString().trim() || message}`);
+  }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Retried because the published port can still be held for a moment after a
+ * previous run's container goes away, and a first attempt then fails with
+ * "port is already allocated".
+ */
+async function startContainer() {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      docker([
+        'run', '-d', '--rm', '--name', TEST_DB_CONTAINER,
+        '-e', 'POSTGRES_USER=enkephalin',
+        '-e', 'POSTGRES_PASSWORD=test',
+        '-e', 'POSTGRES_DB=enkephalin_test',
+        '-p', `127.0.0.1:${TEST_DB_PORT}:5432`,
+        'postgres:17-alpine',
+      ]);
+      return;
+    } catch (err) {
+      lastError = err;
+      await sleep(2000);
+    }
+  }
+
+  throw lastError;
+}
 
 /**
  * Tests run against a real Postgres, never a mock: a mocked database cannot
@@ -23,14 +61,7 @@ export async function setup() {
     // not running, which is the normal case
   }
 
-  docker([
-    'run', '-d', '--rm', '--name', TEST_DB_CONTAINER,
-    '-e', 'POSTGRES_USER=enkephalin',
-    '-e', 'POSTGRES_PASSWORD=test',
-    '-e', 'POSTGRES_DB=enkephalin_test',
-    '-p', `127.0.0.1:${TEST_DB_PORT}:5432`,
-    'postgres:17-alpine',
-  ]);
+  await startContainer();
 
   const deadline = Date.now() + 60_000;
   for (;;) {
