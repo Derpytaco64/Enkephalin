@@ -491,7 +491,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | Phase | Deliverable |
 |---|---|
 | 0 | **done — first run verified 2026-10-29** — scaffold, theme tokens, Dockerfile, compose, Drizzle schema, migrate-on-start, healthcheck. Node 26.13 + Docker 29.9 installed; first migration generated (21 tables) and applied on boot; `docker compose up` serves `/` and `/api/health` with both services healthy |
-| 1 | better-auth, login/register, invite gate, roles, first admin seeded from env |
+| 1 | **in progress** — better-auth, login/register, invite gate, roles, first admin seeded from env. Needs no migration: the auth tables already match better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`. Remaining: `sync-content.ts` to load it into Postgres |
 | 4 | Browse + search + filters + drug profile (bulk of the UI) |
@@ -503,6 +503,41 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phases 3 and 9 need the class sheet.
+
+### Phase 1 — auth, invites, and roles
+
+No migration. `users`, `sessions`, `accounts` and `verifications` already match better-auth 1.7's
+models, and `invites` + `invite_redemptions` already support multi-use codes. Every env var the
+flow needs is passed through compose.
+
+**Decisions** (2026-10-29)
+
+| Question | Choice | Why |
+|---|---|---|
+| Where the admin seed runs | In-process on boot, from `instrumentation.ts`, skipped if an admin already exists | The password must be hashed by better-auth or login silently fails, and better-auth is only resolvable inside the bundled server — the runner image copies just `tsx`, `drizzle-orm` and `postgres` |
+| Roles | Our own `users.role` + `users.status` | better-auth's admin plugin would need `banned`/`banReason`/`banExpires` added, leaving `banned` and `status` as two answers to "can this person log in". Phase 8's user management is a few lines against our columns; only impersonation is unique to the plugin, and it is not a feature here |
+| Email verification | Off; the seeded admin is marked verified | No SMTP is configured. Defers phase 8's "trigger password reset", which needs a mailer first |
+
+**Build order** — each step verifiable before the next:
+
+1. **Auth core** — `lib/auth.ts` (drizzle adapter with `usePlural: true`, since our tables are
+   plural; `role` and `status` declared as additional fields so they ride along in the session),
+   `lib/auth-client.ts`, `app/api/auth/[...all]/route.ts`. Bootstrap seeds the `site_settings`
+   singleton, which no row exists for yet, and the admin from env.
+2. **Session helpers and guards** — `lib/session.ts` exposing `getSession`, `requireUser` and
+   `requireAdmin`. `middleware.ts` does only the cheap cookie redirect; the authoritative check
+   lives in layouts. A disabled user's session is revoked on its next request, and a student
+   reaching `/admin` gets a real 403 page.
+3. **Login and register pages** — `app/(auth)/login`, `app/(auth)/register`, sign-out.
+4. **Invite gate** — `lib/invites.ts`. Claiming a code is one atomic statement
+   (`update invites set uses = uses + 1 where id = ? and uses < max_uses and revoked_at is null
+   and (expires_at is null or expires_at > now()) returning *`) so two classmates racing the last
+   use of a code cannot both win. Registration honours `site_settings.registration_mode`.
+5. **Minimal `/admin/invites`** — generate, list, revoke. Pulled forward from phase 8 because an
+   invite gate with no way to mint a code cannot be tested.
+6. **Tests** — the auth cases under Verification below.
+
+Password reset, email change, the full user admin and the audit-log UI stay in phase 8.
 
 ---
 
