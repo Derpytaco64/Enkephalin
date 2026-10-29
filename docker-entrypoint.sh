@@ -4,5 +4,5 @@
 # start a half-working one.
 set -e
 echo "running migrations..."
-./node_modules/tsx/dist/cli.mjs db/migrate.ts
+node --experimental-strip-types db/migrate.ts
 exec "$@"

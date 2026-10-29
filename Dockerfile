@@ -20,11 +20,15 @@ RUN addgroup -S app && adduser -S app -G app
 # next.config sets output:'standalone', so the server ships without
 # node_modules. Migrations are the exception: the runtime needs the SQL files,
 # the migrate script, and the few packages it imports.
+#
+# The entrypoint runs db/migrate.ts through node's own type stripping rather
+# than tsx: tsx needs esbuild, whose position in the tree moves when the
+# lockfile changes, and a hand-copied dep that silently vanishes breaks the
+# migration step with no warning until boot.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/db ./db
-COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
 COPY --from=builder /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 COPY --from=builder /app/node_modules/postgres ./node_modules/postgres
 COPY docker-entrypoint.sh /usr/local/bin/
