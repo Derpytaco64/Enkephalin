@@ -1,8 +1,7 @@
-import { randomUUID } from 'node:crypto';
-import { hashPassword } from 'better-auth/crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { accounts, siteSettings, users } from '@/db/schema';
+import { siteSettings, users } from '@/db/schema';
+import { createCredentialUser } from '@/lib/users';
 
 async function ensureSiteSettings() {
   await db
@@ -11,11 +10,7 @@ async function ensureSiteSettings() {
     .onConflictDoNothing();
 }
 
-/**
- * Seeds the first admin from env. Hashing goes through better-auth's own
- * hasher rather than the sign-up API, which expects a request context for its
- * cookie handling and has none during boot.
- */
+/** Seeds the first admin from env, via the same path invited users take. */
 async function ensureAdmin() {
   const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.role, 'admin')).limit(1);
   if (admin) return;
@@ -34,23 +29,12 @@ async function ensureAdmin() {
     return;
   }
 
-  const userId = randomUUID();
-  await db.transaction(async (tx) => {
-    await tx.insert(users).values({
-      id: userId,
-      email,
-      name: 'Admin',
-      role: 'admin',
-      status: 'active',
-      emailVerified: true,
-    });
-    await tx.insert(accounts).values({
-      id: randomUUID(),
-      userId,
-      accountId: userId,
-      providerId: 'credential',
-      password: await hashPassword(password),
-    });
+  await createCredentialUser({
+    email,
+    password,
+    name: 'Admin',
+    role: 'admin',
+    emailVerified: true,
   });
   console.log(`[bootstrap] seeded admin ${email}`);
 }

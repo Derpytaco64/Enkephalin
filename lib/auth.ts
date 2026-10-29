@@ -14,6 +14,11 @@ export const auth = betterAuth({
     // No mailer is configured yet, so requiring verification would lock
     // everyone out. See PLAN.md, phase 1 decisions.
     requireEmailVerification: false,
+    // The handler at /api/auth/[...all] mounts better-auth's own sign-up
+    // endpoint, which would let anyone create an account and bypass the
+    // invite gate entirely. Accounts are created only by lib/users.ts, which
+    // the gated register action calls after a code is claimed.
+    disableSignUp: true,
   },
   user: {
     additionalFields: {
