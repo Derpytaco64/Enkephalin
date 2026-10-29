@@ -10,5 +10,7 @@ next-env.d.ts
 __pycache__/
 .DS_Store
 
-# Course material — keep local, never publish (school's copyright, not ours)
+# Provenance, kept local and never published: the course doc is the school's
+# material, the photo is a personal note. Both predate the repo's first commit.
 2026 - top-drugs-master-doc-blackboard-posting.pdf
+PXL_20261028_223347704.jpg
