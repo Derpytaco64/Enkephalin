@@ -491,7 +491,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | Phase | Deliverable |
 |---|---|
 | 0 | **done — first run verified 2026-10-29** — scaffold, theme tokens, Dockerfile, compose, Drizzle schema, migrate-on-start, healthcheck. Node 26.13 + Docker 29.9 installed; first migration generated (21 tables) and applied on boot; `docker compose up` serves `/` and `/api/health` with both services healthy |
-| 1 | **in progress** — better-auth, login/register, invite gate, roles, first admin seeded from env. Needs no migration: the auth tables already match better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
+| 1 | **done — 2026-10-29** — better-auth, login, invite-gated register, roles, admin seeded from env, `/admin/invites`. No migration needed: the auth tables already matched better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`. Remaining: `sync-content.ts` to load it into Postgres |
 | 4 | Browse + search + filters + drug profile (bulk of the UI) |
@@ -537,7 +537,11 @@ flow needs is passed through compose.
    use of a code cannot both win. Registration honours `site_settings.registration_mode`.
 5. **Minimal `/admin/invites`** — generate, list, revoke. Pulled forward from phase 8 because an
    invite gate with no way to mint a code cannot be tested.
-6. **Tests** — the auth cases under Verification below.
+6. **Tests** — `npm test` runs vitest against a throwaway Postgres container that global setup
+   starts, migrates and drops, so a run can never touch the development database. Mocking it
+   would defeat the point: only a real database can show that the invite claim is atomic.
+   Guard behaviour (redirects, 403, session death on disable) is covered over HTTP rather than
+   in vitest, since it needs the Next request context; see Verification.
 
 Password reset, email change, the full user admin and the audit-log UI stay in phase 8.
 
