@@ -534,7 +534,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 1 | **done — 2026-10-29** — better-auth, login, invite-gated register, roles, admin seeded from env, `/admin/invites`. No migration needed: the auth tables already matched better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
-| 4 | Browse + search + filters + drug profile (bulk of the UI) |
+| 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
 | 5 | Shared study-config component + flashcards + SRS + [blocks](#blocks-cram-inside-a-session) |
 | 6 | Quiz + distractor generation + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |

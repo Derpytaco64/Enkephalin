@@ -20,6 +20,9 @@ export async function SiteHeader() {
         <div className="flex items-center gap-4 text-sm">
           {session ? (
             <>
+              <Link href="/drugs" className="text-[var(--accent)] underline">
+                Drugs
+              </Link>
               {session.user.role === 'admin' && (
                 <Link href="/admin" className="text-[var(--accent)] underline">
                   Admin
