@@ -1,0 +1,3965 @@
+{
+ "source": "2026 - top-drugs-master-doc-blackboard-posting.pdf",
+ "year_levels": {
+  "generic": [
+   "P1",
+   "P2",
+   "P3"
+  ],
+  "brand": [
+   "P1",
+   "P2",
+   "P3"
+  ],
+  "indication": [
+   "P1",
+   "P2",
+   "P3"
+  ],
+  "dosing": [
+   "P2",
+   "P3"
+  ],
+  "controlled": [
+   "P2",
+   "P3"
+  ],
+  "moa": [
+   "P3"
+  ],
+  "bbw": [
+   "P3"
+  ]
+ },
+ "count": 237,
+ "drugs": [
+  {
+   "generic": "Acetylcysteine",
+   "brands": [
+    "Acetadote"
+   ],
+   "indications": [
+    "Acetaminophen overdose"
+   ],
+   "dosing": "300 mg/kg total dose administered as a 21-hour IV infusion regimen consisting of 3 doses. First load over 1 hour, second over 4 hours, third over 16 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Hepatoprotective by restoring hepatic glutathione and enhancing the nontoxic sulfate conjugation of acetaminophen",
+   "bbw": "",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Acyclovir",
+   "brands": [
+    "Zovirax"
+   ],
+   "indications": [
+    "Antiviral"
+   ],
+   "dosing": "200 mg orally every 4 hours for 5 doses/day for 10 days",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits DNA synthesis and viral replication by competing with deoxyguanosine triphosphate for viral DNA polymerase and being incorporated into viral DNA",
+   "bbw": "",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Albuterol sulfate",
+   "brands": [
+    "Proventil",
+    "Ventolin",
+    "Proair"
+   ],
+   "indications": [
+    "Asthma",
+    "COPD",
+    "Bronchospasm"
+   ],
+   "dosing": "1-2 inhalations (90mcg HFA) every 4-6 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Short acting beta 2 adrenergic agonist that relaxes bronchial smooth muscle",
+   "bbw": "",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Alendronate",
+   "brands": [
+    "Fosamax"
+   ],
+   "indications": [
+    "Osteoporosis"
+   ],
+   "dosing": "10 mg orally once daily OR 70 mg once weekly",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Adheres to sites of bone reabsorption, inhibiting osteoclast activity. Normal bone is formed on top of alendronate, which is then incorporated into the bone matrix",
+   "bbw": "",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Allopurinol",
+   "brands": [
+    "Zyloprim"
+   ],
+   "indications": [
+    "Gout"
+   ],
+   "dosing": "200-300 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Competitive inhibition of xanthine oxidase which prevents the conversion of hypoxanthine to xanthine to uric acid",
+   "bbw": "",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Alprazolam",
+   "brands": [
+    "Xanax",
+    "Xanax XR"
+   ],
+   "indications": [
+    "Anxiety"
+   ],
+   "dosing": "0.25-0.5 mg by mouth three times a day prn",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Binds to the GABA(A) receptor in the central nervous system and facilitates the action of GABA, an inhibitory neurotransmitter",
+   "bbw": "Concomitant use with opioids increases the risk of profound sedation, respiratory depression, coma, and death. Risk of abuse, misuse and addiction which can lead to overdose or death. Continued use may lead to dependence, avoid abrupt discontinuation to prevent withdrawal reactions.",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Alteplase",
+   "brands": [
+    "Activase"
+   ],
+   "indications": [
+    "Acute ischemic stroke"
+   ],
+   "dosing": "Load with 0.09 mg/kg IV over 1 minute, followed by 0.81 mg/kg continuous infusion over 60 minutes (MAX 90 mg)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Initiates local fibrinolysis by binding to fibrin in the thrombus and converts entrapped plasminogen to plasmin",
+   "bbw": "",
+   "variants": [],
+   "source_page": 1
+  },
+  {
+   "generic": "Amiodarone",
+   "brands": [
+    "Cordarone",
+    "Pacerone",
+    "Nexterone"
+   ],
+   "indications": [
+    "Arrhythmia"
+   ],
+   "dosing": "200-400 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Class III antiarrhythmic that lengthens cardiac action potential by prolonging intranodal conduction and refractoriness of the AV node",
+   "bbw": "Use only intended for life-threatening arrhythmias due to risk of toxicity. Pulmonary and hepatic toxicity may occur during therapy. May exacerbate arrhythmias and therefore should be initiated where continuous ECG and cardiac resuscitation are available.",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Amitriptyline",
+   "brands": [
+    "Elavil"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "10-100 mg by mouth in divided doses or at bedtime",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prevents reuptake of norepinephrine and serotonin at the presynaptic nerve terminal which increases activity at post synaptic terminals",
+   "bbw": "Can increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Amlodipine",
+   "brands": [
+    "Norvasc"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "5 mg by mouth once daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Dihydropyridine calcium channel blocker. Inhibits calcium influx in vascular smooth muscle (more than cardiac muscle)",
+   "bbw": "",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Amoxicillin",
+   "brands": [
+    "Amoxil",
+    "Moxatag",
+    "Trimox"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "250-500 mg by mouth every 8 hours OR 500-875 mg every 12 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Amoxicillin/ Clavulanate",
+   "brands": [
+    "Augmentin",
+    "Augmentin XR"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "500/125 mg by mouth every 8 hours OR 875/125 mg every 12 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme and inhibition of beta-lactamase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Amphetamine/ Dextroamphetamine salts",
+   "brands": [
+    "Adderall",
+    "Adderall XR"
+   ],
+   "indications": [
+    "ADHD"
+   ],
+   "dosing": "5-20 mg (XR) by mouth once a day",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Releases norepinephrine and dopamine from storage sites causing stimulation on adrenergic receptors",
+   "bbw": "High potential for abuse and dependence. Misuse may cause sudden death or serious cardiovascular adverse events",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Ampicillin/ Sulbactam",
+   "brands": [
+    "Unasyn"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "1.5 g IV infusion every 6 hours (dose is combination of ampicillin and sulbactam)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme and inhibition of beta-lactamase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Anastrozole",
+   "brands": [
+    "Arimidex"
+   ],
+   "indications": [
+    "Breast cancer"
+   ],
+   "dosing": "1 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective non-steroidal aromatase inhibitor which prevents the conversion of androstenedione to estrone and testosterone to estradiol. This decreases tumor mass or delays tumor progression",
+   "bbw": "",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Apixaban",
+   "brands": [
+    "Eliquis"
+   ],
+   "indications": [
+    "Anticoagulation"
+   ],
+   "dosing": "5 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selectively inhibits Factor Xa which reduces thrombin formation",
+   "bbw": "Premature discontinuation increases risk of thrombosis Risk of epidural or spinal hematomas when used in patients undergoing epidural or spinal anesthesia resulting in permanent paralysis",
+   "variants": [],
+   "source_page": 2
+  },
+  {
+   "generic": "Aripiprazole",
+   "brands": [
+    "Abilify",
+    "Abilify Maintena"
+   ],
+   "indications": [
+    "Schizophrenia"
+   ],
+   "dosing": "10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Action MAY be combination of partial agonist activity at dopamine type 2 receptor and serotonin (5- HT1A and antagonism effects at 5- HT2 receptors",
+   "bbw": "Increased mortality in elderly patients with dementia-related psychosis. Increased risk of suicidal thoughts and actions in children, adolescents, and young adults.",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Atenolol",
+   "brands": [
+    "Tenormin"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "50 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Cardioselective beta 1 adrenergic blocker",
+   "bbw": "Abrupt discontinuation in patients with coronary artery disease may cause severe exacerbation of angina, myocardial infarction, or ventricular arrhythmias",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Atomoxetine",
+   "brands": [
+    "Strattera"
+   ],
+   "indications": [
+    "ADHD"
+   ],
+   "dosing": "80 mg by mouth once a day OR 40 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY work by selective inhibition of the pre-synaptic norepinephrine transporter",
+   "bbw": "Can increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Atorvastatin",
+   "brands": [
+    "Lipitor"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective competitive inhibitor of HMG-CoA reductase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Azelastine",
+   "brands": [
+    "Astelin",
+    "Astepro"
+   ],
+   "indications": [
+    "Rhinitis"
+   ],
+   "dosing": "2 sprays per nostril twice a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Histamine H1 receptor antagonist in peripheral tissues",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Azithromycin",
+   "brands": [
+    "Zithromax",
+    "Zmax"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "500 mg by mouth on day 1, 250 mg by mouth on days 2-5",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Suppresses protein synthesis by binding to the 50 S ribosomal subunit",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Baclofen",
+   "brands": [
+    "Lioresal"
+   ],
+   "indications": [
+    "Musculoskeletal pain/spasm"
+   ],
+   "dosing": "10 mg by mouth three times a day as needed",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY work through hyperpolarization of afferent terminals resulting in inhibition of monosynaptic and polysynaptic reflexes",
+   "bbw": "Abrupt discontinuation of intrathecal baclofen can result in rhabdomyolysis, multiple organ-system failure, and death",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Benzonatate",
+   "brands": [
+    "Tessalon"
+   ],
+   "indications": [
+    "Antitussive"
+   ],
+   "dosing": "100 mg three time daily as needed",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Topical anesthetic activity in respiratory stretch receptors",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Bimatoprost (ophthalmic)",
+   "brands": [
+    "Lumigan",
+    "Latisse"
+   ],
+   "indications": [
+    "Glaucoma"
+   ],
+   "dosing": "1 drop into affected eye(s) once daily in the evening",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Synthetic prostaglandin analog which reduces intraocular pressure by increasing the outflow of the aqueous humor",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Brimonidine Tartrate (ophthalmic)",
+   "brands": [
+    "Alphagan-P"
+   ],
+   "indications": [
+    "Glaucoma"
+   ],
+   "dosing": "1 drop into affected eye(s) three times daily 8 hours apart",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 2 adrenergic agonist which reduced production of aqueous humor and increased outflow",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Budesonide",
+   "brands": [
+    "Pulmicort"
+   ],
+   "indications": [
+    "Asthma"
+   ],
+   "dosing": "360 mcg inhaled two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Budesonide/ Formoterol",
+   "brands": [
+    "Symbicort"
+   ],
+   "indications": [
+    "Asthma",
+    "COPD"
+   ],
+   "dosing": "2 inhalations of 160 mcg/4.5 mcg MDI two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes and long-acting beta 2 adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Bupropion",
+   "brands": [
+    "Wellbutrin",
+    "Wellbutrin SR",
+    "Wellbutrin XL",
+    "Zyban*"
+   ],
+   "indications": [
+    "Depression",
+    "Smoking cessation*"
+   ],
+   "dosing": "150 mg ER once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of norepinephrine and dopamine in the central nervous system",
+   "bbw": "Can increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 3
+  },
+  {
+   "generic": "Buspirone",
+   "brands": [
+    "BuSpar"
+   ],
+   "indications": [
+    "Anxiety"
+   ],
+   "dosing": "5 mg by mouth three times a day as needed",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY alter brain chemistry by increasing metabolism of norepinephrine, moderate presynaptic dopamine agonist, serotonin agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Butalbital, Acetaminophen and Caffeine",
+   "brands": [
+    "Fioricet"
+   ],
+   "indications": [
+    "Tension headache"
+   ],
+   "dosing": "Capsule – 50 mg/300 mg/40 mg Tablet – 50 mg/325 mg/40 mg Dose - 1-2 capsule/tablet every four hours as needed not to exceed 6 capsules/tablets per day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Butalbital – CNS depressant by activating inhibitory GABA receptors and inhibition of AMPA receptors Acetaminophen – Inhibits CNS prostaglandin synthesis and block pain impulse generation Caffeine – CNS stimulant by inhibition of phosphodiesterase increasing levels of c-AMP",
+   "bbw": "Acetaminophen has been associated with liver failure typically at dosing exceeding 4000 mg/day",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Carbamazepine",
+   "brands": [
+    "Tegretol",
+    "Tegretol XR",
+    "Carbatrol ER",
+    "Equetro ER"
+   ],
+   "indications": [
+    "Seizure"
+   ],
+   "dosing": "400 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Na+ channel antagonist; delays recovery of inactive Na+ channels",
+   "bbw": "Serious and fatal dermatologic skin reactions can occur with a strong association in patients with HLA- B*1502 variance. Can cause aplastic anemia and agranulocytosis",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Carbidopa/Levodopa",
+   "brands": [
+    "Sinemet",
+    "Sinemet CR",
+    "Rytary"
+   ],
+   "indications": [
+    "Parkinson’s disease"
+   ],
+   "dosing": "25/100 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Levodopa is a precursor to dopamine Carbidopa is a DOPA-decarboxylase inhibitor and prevents the breakdown of levodopa before it crosses the blood brain barrier Combined these increase the dopamine available to the central nervous system",
+   "bbw": "",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Cariprazine",
+   "brands": [
+    "Vraylar"
+   ],
+   "indications": [
+    "Antipsychotic"
+   ],
+   "dosing": "1.5 mg by mouth once daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Partial agonist at D2 and 5-HT1A receptors, high affinity for dopamine, binds to histamine receptors",
+   "bbw": "Increased mortality in elderly patients with dementia related psychosis Antidepressants increase the risk of suicidal thoughts and actions",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Carisoprodol",
+   "brands": [
+    "Soma"
+   ],
+   "indications": [
+    "Pain relief of musculoskeletal conditions"
+   ],
+   "dosing": "250-350 mg by mouth three days per day and at bedtime",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Central depressant resulting in musculoskeletal relaxation",
+   "bbw": "",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Carvedilol",
+   "brands": [
+    "Coreg",
+    "Coreg CR"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "6.25 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Non-selective beta- and alpha-1 adrenergic blocking activity",
+   "bbw": "",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Cefazolin",
+   "brands": [
+    "Ancef"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "1-2 g IV every 8 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Cefdinir",
+   "brands": [
+    "Omnicef"
+   ],
+   "indications": [
+    "Bacterial infections"
+   ],
+   "dosing": "600 mg by mouth daily in 1or 2 divided doses",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 4
+  },
+  {
+   "generic": "Cefepime",
+   "brands": [
+    "Maxipime"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "1-2 g IV every 8 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Ceftriaxone",
+   "brands": [
+    "Rocephin"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "1-2 g IV/IM every 24 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Celecoxib",
+   "brands": [
+    "Celebrex"
+   ],
+   "indications": [
+    "Pain",
+    "Osteoarthritis"
+   ],
+   "dosing": "200 mg by mouth daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits prostaglandin synthesis through selective inhibition of cyclooxygenase 2",
+   "bbw": "May cause increased risk of serious and fatal cardiovascular thrombotic events. Have been associated with gastrointestinal bleeding, ulceration, and perforation.",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Cephalexin",
+   "brands": [
+    "Keflex"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "500 mg by mouth every 12 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Chlorhexidine",
+   "brands": [
+    "Peridex",
+    "Periogard"
+   ],
+   "indications": [
+    "Gingivitis"
+   ],
+   "dosing": "Swish oral rinse for 30 seconds two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Disrupts the plasma membrane of the bacterial cell",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Chlorthalidone",
+   "brands": [
+    "Hygroton"
+   ],
+   "indications": [
+    "Edema"
+   ],
+   "dosing": "12.5 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits reabsorption of sodium and chloride at the cortical diluting segment of the ascending loop of Henle",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Ciprofloxacin",
+   "brands": [
+    "Cipro",
+    "Cipro XR"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "500 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prevents synthesis of bacterial DNA by interfering with the enzyme DNA gyrase",
+   "bbw": "May cause serious adverse reactions including tendonitis, tendon rupture, peripheral neuropathy, central nervous system effects, and exacerbation of myasthenia gravis",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Cisatracurium",
+   "brands": [
+    "Nimbex"
+   ],
+   "indications": [
+    "Paralytic"
+   ],
+   "dosing": "Initial IV bolus: 0.1-0.2 mg/kg, Continuous infusion: 1-3 mcg/kg/min",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Competes with acetylcholine for cholinergic receptors inhibiting neuromuscular transmission",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Citalopram",
+   "brands": [
+    "Celexa"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin in the central nervous system",
+   "bbw": "Antidepressants increase the risk of suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Clindamycin",
+   "brands": [
+    "Cleocin"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "300 mg by mouth every 6 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Suppresses protein synthesis by binding to the 50 S ribosomal subunit",
+   "bbw": "Can cause severe and fatal colitis due to C. difficile",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Clonazepam",
+   "brands": [
+    "Klonopin"
+   ],
+   "indications": [
+    "Panic disorder"
+   ],
+   "dosing": "0.25 mg by mouth two times a day",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Binds to the GABA(A) receptor in the central nervous system and facilitates the action of GABA, an inhibitory neurotransmitter",
+   "bbw": "Concomitant use with opioids increases the risk of respiratory depression, coma, and death. Risk of abuse, misuse and addiction which can lead to overdose or death. Continued use may lead to dependence, avoid abrupt discontinuation to prevent withdrawal reactions",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Clonidine",
+   "brands": [
+    "Catapres",
+    "Catapres-TTS",
+    "Nexiclon XR"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "0.1 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 2 adrenergic receptor agonist resulting in reduced sympathetic outflow from the CNS",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Clonidine ER",
+   "brands": [
+    "Kapvay"
+   ],
+   "indications": [
+    "ADHD"
+   ],
+   "dosing": "0.1 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 2 adrenergic receptor agonist resulting in reduced sympathetic outflow from the CNS",
+   "bbw": "",
+   "variants": [],
+   "source_page": 5
+  },
+  {
+   "generic": "Clopidogrel",
+   "brands": [
+    "Plavix"
+   ],
+   "indications": [
+    "Reduction of atherosclerotic events in patients with atherosclerosis"
+   ],
+   "dosing": "75 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits platelet aggregation by irreversibly modifying platelet receptors",
+   "bbw": "Do not use in patients identified with two loss of function alleles of the CYP2C219 gene",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Clozapine",
+   "brands": [
+    "Clozaril",
+    "Versacloz"
+   ],
+   "indications": [
+    "Schizophrenia"
+   ],
+   "dosing": "Initial 12.5 mg by mouth 1-2 times a day (MAX 900 mg/day)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Antagonism of dopamine type 2 and 5-HT2A receptors. Antagonist at adrenergic, cholinergic, histaminergic, and serotonergic receptors",
+   "bbw": "Severe neutropenia Orthostatic hypotension, bradycardia and syncope Seizures Myocarditis and cardiomyopathy and mitral valve incompetence Increased mortality in elderly patients with dementia-related psychosis",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Codeine phosphate with Guaifenesin",
+   "brands": [
+    "Mytussin AC",
+    "Robitussin AC"
+   ],
+   "indications": [
+    "Antitussive"
+   ],
+   "dosing": "5-10 mL by mouth every 4-6 hours not to exceed 60 mL per 24 hours",
+   "schedule": "CV",
+   "schedule_note": "",
+   "moa": "Guaifenesin thins bronchial mucus Codeine suppresses the cough reflex in the medulla oblangata",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Colestipol Hydrochloride",
+   "brands": [
+    "Colestid"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "Tablets – 2 grams by mouth 1-2 times per day Granules – 5 grams by mouth 1-2 times per day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Binds bile acids which are then excreted in the feces",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Cyanocobalamin Vitamin B-12",
+   "brands": [
+    "Nascobal"
+   ],
+   "indications": [
+    "Vitamin B12 deficiency"
+   ],
+   "dosing": "1000 mcg intramuscular or subcutaneously once per month",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Vitamin that is required for the synthesis of DNA and maintenance of normal erythropoiesis",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Cyclobenzaprine",
+   "brands": [
+    "Amrix",
+    "Flexeril",
+    "Fexmid"
+   ],
+   "indications": [
+    "Musculoskeletal pain/spasm"
+   ],
+   "dosing": "10 mg by mouth 3 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Acts in the brain stem to reduce tonic somatic motor activity",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Cyclosporin Emulsion (ophthalmic)",
+   "brands": [
+    "Restasis"
+   ],
+   "indications": [
+    "Keratoconjuncti vitis sicca (Dry eye syndrome)"
+   ],
+   "dosing": "Instill 1 drop in each eye twice daily at 12 hour intervals",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Immunomodulator that may block the release of proinflammatory cytokines",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Dapagliflozin",
+   "brands": [
+    "Farxiga"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "5-10 mg by mouth in the morning",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits sodium-glucose co- transporter 2 (SGLT2) which increases urinary glucose excretion",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Desvenlafaxine",
+   "brands": [
+    "Pristiq"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "50 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin and norepinephrine in the central nervous system",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Dexmedetomidine",
+   "brands": [
+    "Precedex"
+   ],
+   "indications": [
+    "Sedation"
+   ],
+   "dosing": "0.2-1.5 mcg/kg/hour",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 2 adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 6
+  },
+  {
+   "generic": "Diazepam",
+   "brands": [
+    "Valium"
+   ],
+   "indications": [
+    "Anxiety"
+   ],
+   "dosing": "2 mg by mouth every 4 hours as needed",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Binds to the GABA(A) receptor in the central nervous system and facilitates the action of GABA, an inhibitory neurotransmitter",
+   "bbw": "Concomitant use with opioids increases the risk for respiratory depression, coma, and death. Risk of abuse, misuse and addiction which can lead to overdose or death. Continued use may lead to dependence, avoid abrupt discontinuation to prevent withdrawal reactions",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Diclofenac",
+   "brands": [
+    "Voltaren",
+    "Voltaren XR"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "50 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits prostaglandin synthesis through non-specific inhibition of cyclooxygenase",
+   "bbw": "May cause increased risk of serious and fatal cardiovascular thrombotic events. Have been associated with gastrointestinal bleeding, ulceration, and perforation.",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Diclofenac (topical)",
+   "brands": [
+    "Voltaren Gel"
+   ],
+   "indications": [
+    "Osteoarthritis"
+   ],
+   "dosing": "Apply 2 g to affected area of upper extremity or 4 g to lower extremity up to four times a day, maximum total body dose 32 g/day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits prostaglandin synthesis through non-specific inhibition of cyclooxygenase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Dicyclomine",
+   "brands": [
+    "Bentyl"
+   ],
+   "indications": [
+    "Irritable bowel syndrome"
+   ],
+   "dosing": "20 mg by mouth up to four times a day 30 minutes before meals",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of acetylcholine at postganglionic parasympathetic receptor sites in multiple tissues",
+   "bbw": "",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Digoxin",
+   "brands": [
+    "Lanoxin",
+    "Digitek"
+   ],
+   "indications": [
+    "Heart failure",
+    "Atrial fibrillation"
+   ],
+   "dosing": "0.125-0.25 mg by mouth once a day (dose individualized based on serum levels)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits membrane bound Na+/K+ ATPase which increases intracellular Na+ concentration and a slightly decreased intracellular K+ concentration leading to increased extracellular Ca++ influx increased contraction force/velocity of heart",
+   "bbw": "",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Diltiazem",
+   "brands": [
+    "Cardizem",
+    "Cardizem CD",
+    "Cartia",
+    "Dilacor",
+    "Dilt-XR",
+    "Tiazac"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "240 mg by mouth divided 1-2 times daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Calcium channel blocker which inhibits calcium influx in vascular smooth muscle (more than in cardiac muscle)",
+   "bbw": "",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Dipyridamole and Aspirin",
+   "brands": [
+    "Aggrenox"
+   ],
+   "indications": [
+    "Ischemic stroke prevention"
+   ],
+   "dosing": "200 mg/25 mg capsule by mouth twice daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Dipyridamole inhibits platelet aggregation Aspirin inhibits prostaglandin and thromboxane A2 production",
+   "bbw": "",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Divalproex sodium",
+   "brands": [
+    "Depakote",
+    "Depakote ER"
+   ],
+   "indications": [
+    "Seizures",
+    "Bipolar disorder"
+   ],
+   "dosing": "250 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY be related to voltage gated sodium channel blockade and increased brain levels of GABA",
+   "bbw": "Serious and fatal hepatotoxicity Life threatening pancreatitis Do not use in pregnancy due to neural tube defects Increased risk of liver failure and death in patients with mitochondrial disease",
+   "variants": [],
+   "source_page": 7
+  },
+  {
+   "generic": "Dobutamine",
+   "brands": [
+    "Dobutrex"
+   ],
+   "indications": [
+    "Heart failure"
+   ],
+   "dosing": "Initial dose: 2-5 mcg/kg/minute IV titrated to clinical effect",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates beta-2 and alpha-1 receptors to increase myocardial contractility and heart rate",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Dofetilide",
+   "brands": [
+    "Tikosyn"
+   ],
+   "indications": [
+    "Atrial fibrillation",
+    "Atrial flutter"
+   ],
+   "dosing": "500 mg by mouth twice daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Class III antiarrhythmic Blockade of cardiac ion channel carrying the rapid component of the delayed rectifier potassium current",
+   "bbw": "To minimize risk of inducing an arrythmia, hospitalize patients when initiating therapy for continuous EKG monitoring and monitoring renal function",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Donepezil",
+   "brands": [
+    "Aricept"
+   ],
+   "indications": [
+    "Alzheimer’s disease"
+   ],
+   "dosing": "5-10 mg by mouth at bedtime",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Reversible acetylcholinesterase inhibitor working centrally to increase acetylcholine available at cholinergic synapses",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Dopamine",
+   "brands": [
+    "Intropin"
+   ],
+   "indications": [
+    "Shock"
+   ],
+   "dosing": "1-20 mcg/kg/minute IV titrated to clinical effect",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Agonist at dopaminergic, alpha-, and beta-adrenergic receptors; precursor for norepinephrine synthesis",
+   "bbw": "Extravasation can result in peripheral ischemia. Treat with phentolamine",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Doxycycline",
+   "brands": [
+    "Vibramycin",
+    "Doryx"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "100 mg by mouth every 12 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prevents bacterial protein synthesis by competitively binding to the 30 S ribosomal subunit",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Duloxetine",
+   "brands": [
+    "Cymbalta"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "40-60 mg by mouth one time a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin and norepinephrine in the central nervous system",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Empagliflozin",
+   "brands": [
+    "Jardiance"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "10-25 mg by mouth daily in the morning",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits sodium-glucose co- transporter 2 (SGLT2) which increases urinary glucose excretion",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Enoxaparin",
+   "brands": [
+    "Lovenox"
+   ],
+   "indications": [
+    "Anticoagulation"
+   ],
+   "dosing": "1 mg/kg subcutaneous every 12 hours OR 1.5 mg/kg once daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits Factor Xa (and to a lesser extent IIa) which reduces thrombin formation",
+   "bbw": "Risk of epidural or spinal hematomas when used in patients undergoing epidural or spinal anesthesia resulting in permanent paralysis",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Ephedrine",
+   "brands": [
+    "Akovaz",
+    "Emerphed"
+   ],
+   "indications": [
+    "Hypotension caused by anesthesia"
+   ],
+   "dosing": "IV bolus: 5-10 mg once, may repeat dose (MAX total 50 mg)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Releases norepinephrine from tissue stores resulting in alpha- and beta- adrenergic stimulation",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Epinephrine",
+   "brands": [
+    "EpiPen",
+    "Auvi-Q",
+    "Adrenalin"
+   ],
+   "indications": [
+    "Anaphylaxis"
+   ],
+   "dosing": "Inject 0.3 mg IM, may repeat dose if patient not responding",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Sympathomimetic catecholamine that acts on both alpha- and beta- adrenergic receptors causing vasoconstriction (alpha), cardiac stimulation (beta-1), and relaxation of bronchial smooth muscles (beta-2)",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Epoprostenol",
+   "brands": [
+    "Veletri",
+    "Flolan"
+   ],
+   "indications": [
+    "Pulmonary hypertension"
+   ],
+   "dosing": "Initial 2 ng/kg/min IV, titrate up in increments of 1-2 ng/kg/min every 15 minutes. Usual dose is 25-40 ng/kg/min.",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Directly stimulates vasodilation of all vascular beds. It activates intracellular adenylate cyclase which inhibits platelet aggregation. Also known as prostacyclin (PGI2).",
+   "bbw": "",
+   "variants": [],
+   "source_page": 8
+  },
+  {
+   "generic": "Escitalopram",
+   "brands": [
+    "Lexapro"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin in the central nervous system",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Esomeprazole",
+   "brands": [
+    "Nexium"
+   ],
+   "indications": [
+    "GERD"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits H+/K+ ATPase enzyme system at the secretory surface of the gastric parietal cell",
+   "bbw": "",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Estradiol Oral Topical Vaginal",
+   "brands": [
+    "Estrace"
+   ],
+   "indications": [
+    "Menopausal vasomotor symptoms"
+   ],
+   "dosing": "0.5 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Replaces estrogen post menopause. Promotes growth and development of vagina, uterus, and fallopian tubes, and enlargement of the breast",
+   "bbw": "Increased risk of endometrial cancer with unopposed systemic estrogen in women with a uterus Please note – some vaginal products are absorbed systemically",
+   "variants": [
+    {
+     "brand": "Vivelle-Dot\nAlora\nClimara",
+     "dosing": "Product dependent:\nPatches are typically\napplied 1-2 times per\nweek per product labeling"
+    },
+    {
+     "brand": "Femring\nEstring\nVagifem\nDivigel\nMany other\nproducts",
+     "dosing": "Product dependent"
+    }
+   ],
+   "source_page": 9
+  },
+  {
+   "generic": "Eszopiclone",
+   "brands": [
+    "Lunesta"
+   ],
+   "indications": [
+    "Insomnia"
+   ],
+   "dosing": "2 mg by mouth at bedtime",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "MOA unknown, thought to bind or interact with GABA receptor complexes",
+   "bbw": "Sleepwalking, sleep driving, and engaging in other activities while not fully awake",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Evolocumab",
+   "brands": [
+    "Repatha"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "140 mg subcutaneously every 2 weeks or 420 mg subcutaneously once per month",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Monoclonal antibody that binds PCSK9 to increase the number of LDL receptors available to clear LDL from the blood",
+   "bbw": "",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Ezetimibe",
+   "brands": [
+    "Zetia"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits intestinal absorption of cholesterol and related phytosterols",
+   "bbw": "",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Famotidine",
+   "brands": [
+    "Pepcid"
+   ],
+   "indications": [
+    "GERD"
+   ],
+   "dosing": "20 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Competitive inhibition of histamine at H2 receptors of the gastric parietal cells, which inhibits gastric acid secretion",
+   "bbw": "",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Fenofibrate (nanocrystallized)",
+   "brands": [
+    "Tricor"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "145 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Activates peroxisome proliferator activated receptor-a resulting in increased lipolysis and elimination of triglycerides",
+   "bbw": "",
+   "variants": [],
+   "source_page": 9
+  },
+  {
+   "generic": "Fentanyl Transdermal Patch",
+   "brands": [
+    "Duragesic"
+   ],
+   "indications": [
+    "Chronic pain"
+   ],
+   "dosing": "1 patch applied topically every 72 hours, remove and replace at the end of 72 hour period",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Opioid receptor agonist",
+   "bbw": "Serious, life-threatening respiratory depression may occur. Can be addictive, abused, and misused which can lead to overdose and death. Accidental exposure can be fatal, especially in children. Concomitant use with CYP3A4 inhibitors, benzodiazepines, alcohol, or other CNS depressants can result in respiratory depression and coma. Use in pregnancy can cause neonatal withdrawal. Required REMS to ensure benefits outweigh risks. Exposure of application site to heat sources may increase absorption and result in overdose.",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Finasteride",
+   "brands": [
+    "Proscar"
+   ],
+   "indications": [
+    "BPH"
+   ],
+   "dosing": "5 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Competitively inhibits the enzyme 5- alpha-reducatese, resulting in decreased metabolism of testosterone to DHT",
+   "bbw": "",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Fluconazole",
+   "brands": [
+    "Diflucan"
+   ],
+   "indications": [
+    "Candida infection"
+   ],
+   "dosing": "150 mg by mouth as a single dose or may require daily treatment",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of fungal ergosterol synthesis via inhibition of fungal C14 demethylase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Fluoxetine",
+   "brands": [
+    "Prozac",
+    "Sarafem*"
+   ],
+   "indications": [
+    "Depression",
+    "Premenstrual dysphoria disorder*"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin in the central nervous system",
+   "bbw": "Antidepressants increase risk of suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Fluticasone furoate/Vilanterol",
+   "brands": [
+    "Breo Ellipta"
+   ],
+   "indications": [
+    "COPD"
+   ],
+   "dosing": "1 inhalation of 100/25 mcg daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes and long-acting beta 2 adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Fluticasone furoate/ Umeclidinium bromide/ Vilanterol",
+   "brands": [
+    "Trelegy Ellipta"
+   ],
+   "indications": [
+    "COPD"
+   ],
+   "dosing": "1 inhalation of 100/62.5 /25 mcg daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes, competitively inhibits action of M3 receptors in bronchial smooth muscle, and long-acting beta 2 adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Fluticasone propionate (nasal)",
+   "brands": [
+    "Flonase"
+   ],
+   "indications": [
+    "Allergic rhinitis"
+   ],
+   "dosing": "2 sprays in each nostril once daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Fluticasone/ Salmeterol",
+   "brands": [
+    "Advair"
+   ],
+   "indications": [
+    "Asthma"
+   ],
+   "dosing": "1 diskus inhalation or 2 HFA inhalations two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes and long-acting beta 2 adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 10
+  },
+  {
+   "generic": "Folic acid",
+   "brands": [
+    "Generic/No brand name"
+   ],
+   "indications": [
+    "Folic acid deficiency"
+   ],
+   "dosing": "Up to 1 mg by mouth daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Vitamin that is required for the synthesis of thymidylate, purine nucleotides, and maintenance of normal erythropoiesis",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Fremanezumab-vfrm",
+   "brands": [
+    "Ajovy"
+   ],
+   "indications": [
+    "Migraine"
+   ],
+   "dosing": "225 mg subcutaneously monthly or 675 mg subcutaneously every 3 months",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Humanized monoclonal antibody that binds to calcitonin gene related peptide (CGRP) ligand and blocks binding to the receptor",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Furosemide",
+   "brands": [
+    "Lasix"
+   ],
+   "indications": [
+    "Edema"
+   ],
+   "dosing": "20 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Loop diuretic which inhibits reabsorption of sodium and chloride in the proximal and distal tubules and in the loop of Henle",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Gabapentin",
+   "brands": [
+    "Neurontin",
+    "Gralise"
+   ],
+   "indications": [
+    "Neuropathic pain"
+   ],
+   "dosing": "300 mg by mouth three times a day",
+   "schedule": "CV",
+   "schedule_note": "in ND, but not federally – verify in your state of practice",
+   "moa": "Ca2+ channel antagonist; binds with alpha 2 subunit of Ca2+ channel",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Glimepiride",
+   "brands": [
+    "Amaryl"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "1-4 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates insulin synthesis and release from beta cells in the pancreatic islets",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Glipizide",
+   "brands": [
+    "Glucotrol",
+    "Glucotrol XL"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "5-15 mg by mouth once a day OR 10-20 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates insulin synthesis and release from beta cells in the pancreatic islets",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Guanfacine ER",
+   "brands": [
+    "Intuniv"
+   ],
+   "indications": [
+    "ADHD"
+   ],
+   "dosing": "1 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 2 adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Heparin",
+   "brands": [
+    "Generic/No brand name"
+   ],
+   "indications": [
+    "Anticoagulation"
+   ],
+   "dosing": "5,000 units subcutaneous every 8 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inactivates thrombin and activated Factor Xa through an antithrombin dependent mechanism",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Hydrochlorothiazide",
+   "brands": [
+    "Microzide"
+   ],
+   "indications": [
+    "Edema"
+   ],
+   "dosing": "25 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits reabsorption of sodium and chloride at the distal renal tubule",
+   "bbw": "",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Hydrocodone/ Acetaminophen",
+   "brands": [
+    "Lortab",
+    "Vicodin",
+    "Norco"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "1-2 tablets (5/300 mg per tablet) by mouth every 4- 6 hours as needed",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Opioid receptor agonist/inhibition of prostaglandin synthesis in the central nervous system",
+   "bbw": "Opioids can be addictive, abused, and misused which can lead to overdose and death. REMS. Serious life- threatening respiratory depression may occur. Accidental exposure can be fatal, especially in children. Use in pregnancy can cause neonatal withdrawal. 3A4 interactions. Acetaminophen can cause hepatotoxicity. Concomitant use with benzodiazepines, alcohol, or other CNS depressants.",
+   "variants": [],
+   "source_page": 11
+  },
+  {
+   "generic": "Hydrocortisone sodium succinate",
+   "brands": [
+    "Solu-Cortef"
+   ],
+   "indications": [
+    "Inflammatory disorders"
+   ],
+   "dosing": "100 mg IV, may require additional dosing",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Hydroxychloroquine",
+   "brands": [
+    "Plaquenil"
+   ],
+   "indications": [
+    "Rheumatoid arthritis"
+   ],
+   "dosing": "200-400 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MOA not well understood",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Hydroxyzine hydrochloride",
+   "brands": [
+    "Atarax"
+   ],
+   "indications": [
+    "Pruritis"
+   ],
+   "dosing": "25 mg by mouth up to 4 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Histamine 1 receptor agonist in peripheral tissue",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Ibuprofen",
+   "brands": [
+    "Advil",
+    "Motrin"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "400-800 mg by mouth 3-4 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits prostaglandin synthesis through non-specific COX-1 and COX-2 inhibition",
+   "bbw": "May increase risk of serious cardiovascular thrombotic events, myocardial infarction, stroke, gastrointestinal bleeding, ulcerations, and perforation",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Icosapent ethyl",
+   "brands": [
+    "Vascepa"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "2 g by mouth two times a day with food",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Eicosapentaenoic acid (EPA), the active metabolite, reduces hepatic VLDL-triglyceride synthesis and/or secretion and increases triglyceride clearance from circulating VLDL particles",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Insulin aspart",
+   "brands": [
+    "Novolog"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "Short acting Individualized dosing administered within 5-10 minutes of meals",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Activates specific enzymes, promotes the transport of monosaccharides across cell membranes and facilitates the transformation of intracellular amino acids into proteins",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Insulin degludec",
+   "brands": [
+    "Tresiba"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "Long acting Individualized dosing administered once daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Activates specific enzymes, promotes the transport of monosaccharides across cell membranes and facilitates the transformation of intracellular amino acids into proteins",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Insulin glargine",
+   "brands": [
+    "Lantus",
+    "Toujeo",
+    "Basaglar",
+    "Semglee"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "Long acting Individualized dosing administered once daily at bedtime",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Activates specific enzymes, promotes the transport of monosaccharides across cell membranes and facilitates the transformation of intracellular amino acids into proteins",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Irbesartan",
+   "brands": [
+    "Avapro"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "150-300 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Angiotensin II antagonist. Blocks the binding of angiotensin II to the ATI receptor",
+   "bbw": "Fetal toxicity: discontinue as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Iron sucrose",
+   "brands": [
+    "Venofer"
+   ],
+   "indications": [
+    "Iron deficiency"
+   ],
+   "dosing": "100 mg IV per dose; repeat doses may be given until requirements are met",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Used by body for normal erythropoiesis",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Isosorbide mononitrate",
+   "brands": [
+    "Imdur"
+   ],
+   "indications": [
+    "Angina pectoris"
+   ],
+   "dosing": "30-120 mg by mouth in the morning",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Nitric oxide donor; vasodilation",
+   "bbw": "",
+   "variants": [],
+   "source_page": 12
+  },
+  {
+   "generic": "Ketorolac",
+   "brands": [
+    "Toradol"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "30 mg IV every 6 hours for a maximum of 5 days",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits prostaglandin synthesis through non-specific COX-1 and COX-2 inhibition",
+   "bbw": "Only indicated short-term, up to 5 days. Serious cardiovascular events thrombotic events, serious GI bleeding, ulceration and perforation, renal risk, risk of bleeding Contraindicated for intrathecal or epidural administration. Severe hypersensitivity reactions may occur. Contraindicated in patients with advanced renal impairment. Contraindicated in labor and delivery. Contraindicated in patients currently receiving aspirin or NSAIDs. Adjust dose for patients over 65 years and patients weighing less than 50kg",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Lactulose",
+   "brands": [
+    "Kristalose",
+    "Constulose",
+    "Enulose"
+   ],
+   "indications": [
+    "Constipation"
+   ],
+   "dosing": "10-20 g by mouth daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Increases osmotic pressure in colon and increases pH resulting in increased water content of stool",
+   "bbw": "",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Lamotrigine",
+   "brands": [
+    "Lamictal",
+    "Lamictal XR",
+    "Lamictal ODT",
+    "Lamictal CD"
+   ],
+   "indications": [
+    "Bipolar disorder",
+    "Seizures"
+   ],
+   "dosing": "25 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Na+ antagonist; AMPA receptor antagonist",
+   "bbw": "Serious life-threatening rashes have been reported",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Lansoprazole",
+   "brands": [
+    "Prevacid"
+   ],
+   "indications": [
+    "GERD"
+   ],
+   "dosing": "15 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits H+/K+ ATPase enzyme system at the secretory surface of the gastric parietal cell",
+   "bbw": "",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Latanoprost",
+   "brands": [
+    "Xalatan"
+   ],
+   "indications": [
+    "Glaucoma"
+   ],
+   "dosing": "One drop into affected eye once a day in the evening",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prostaglandin F2-alpha analog believed to reduce intraocular pressure by increasing the outflow of the aqueous humor",
+   "bbw": "",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Levetiracetam",
+   "brands": [
+    "Keppra"
+   ],
+   "indications": [
+    "Seizure"
+   ],
+   "dosing": "500 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Decreases glutamate release by inhibiting synaptic vesicle glycoprotein, SV2",
+   "bbw": "",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Levofloxacin",
+   "brands": [
+    "Levaquin"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "500 mg by mouth once a day x 10-14 days OR 750 mg by mouth once a day x 5 days",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of bacterial DNA gyrase and topoisomerase IV",
+   "bbw": "Increased risk of tendonitis and tendon rupture. Risk is enhanced with patients over 60 years of age, in patients taking corticosteroid drugs and patients with kidney, heart or lung transplants. May exacerbate myasthenia gravis",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Levothyroxine",
+   "brands": [
+    "Synthroid",
+    "Levoxyl",
+    "Levothyroid"
+   ],
+   "indications": [
+    "Hypothyroidism"
+   ],
+   "dosing": "25-300 mcg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Synthetic form of thyroxine involved in normal metabolism, growth, and development",
+   "bbw": "Do not use for treatment of obesity or for weight loss in euthyroid patients. Large doses may cause serious and fatal toxicity",
+   "variants": [],
+   "source_page": 13
+  },
+  {
+   "generic": "Linaclotide",
+   "brands": [
+    "Linzess"
+   ],
+   "indications": [
+    "Irritable bowel syndrome with constipation"
+   ],
+   "dosing": "290 mcg by mouth once daily on an empty stomach 30 minutes before the first meal of the day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Linaclotide and its active metabolite bind and agonize guanylate cyclase-C on the luminal surface of intestinal epithelium resulting in increased GI transit",
+   "bbw": "Risk of serious dehydration in pediatric patients under 2 years of age - Contraindicated in patients under 2 years",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Linezolid",
+   "brands": [
+    "Zyvox"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "600 mg by mouth every 12 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of bacterial protein synthesis by binding to the 23 S site on the 50 S ribosomal subunit",
+   "bbw": "",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Lisdexamfetamine",
+   "brands": [
+    "Vyvanse"
+   ],
+   "indications": [
+    "ADHD"
+   ],
+   "dosing": "30 mg by mouth once a day in the morning",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Releases norepinephrine and dopamine from storage sites causing stimulation on adrenergic receptors",
+   "bbw": "CNS stimulants have a high potential for abuse and dependence",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Lisinopril",
+   "brands": [
+    "Zestril",
+    "Prinivil"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Angiotensin-converting enzyme inhibitor",
+   "bbw": "Fetal toxicity: discontinue as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Lisinopril/Hydrochlorothiazi de",
+   "brands": [
+    "Zestoretic",
+    "Prinzide"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "10/12.5 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Angiotensin-converting enzyme inhibitor and lowers plasma volume by decreasing sodium and water reabsorption",
+   "bbw": "Fetal toxicity: discontinue as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Lithium",
+   "brands": [
+    "Lithonate",
+    "Lithotabs",
+    "Lithobid"
+   ],
+   "indications": [
+    "Bipolar disorder"
+   ],
+   "dosing": "300 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY increase reuptake of norepinephrine and dopamine or antagonize their release from nerve terminals",
+   "bbw": "Toxicity is closely related to serum levels",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Lorazepam",
+   "brands": [
+    "Ativan"
+   ],
+   "indications": [
+    "Anxiety"
+   ],
+   "dosing": "0.5 mg 2-3 times a day",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Binds to the GABA(A) receptor in the central nervous system and facilitates the action of GABA, an inhibitory neurotransmitter",
+   "bbw": "Concomitant use with opioids increases the risk of respiratory depression, coma, and death. Abuse, misuse, and addiction. Dependence and withdrawal reactions.",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Losartan",
+   "brands": [
+    "Cozaar"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "50 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Angiotensin II antagonist, blocks the binding of angiotensin II to the AT1 receptor",
+   "bbw": "Fetal toxicity: discontinue drug as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Meloxicam",
+   "brands": [
+    "Mobic"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "7.5 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits prostaglandin synthesis through non-specific inhibition of cyclooxygenase",
+   "bbw": "May cause an increased risk of serious cardiovascular thrombotic events, myocardial infarction, and stroke. NSAIDs have been involved in rare cases of GI bleeding incidents",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Memantine",
+   "brands": [
+    "Namenda"
+   ],
+   "indications": [
+    "Alzheimer’s disease"
+   ],
+   "dosing": "5-10 mg daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Non-competitive N-methyl-D- aspartate (NMDA) receptor antagonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Meropenem",
+   "brands": [
+    "Merrem"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "500 mg IV every 6 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via inhibition of peptidoglycan transpeptidase enzyme",
+   "bbw": "",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Metformin",
+   "brands": [
+    "Glucophage",
+    "Glucophage XR",
+    "Glumetza",
+    "Riomet"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "500 mg by mouth two times a day with food OR 850 mg by mouth once a day with morning meal",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Decreases intestinal absorption of glucose, suppresses hepatic gluconeogenesis, and improves insulin sensitivity",
+   "bbw": "May cause serious or fatal lactic acidosis",
+   "variants": [],
+   "source_page": 14
+  },
+  {
+   "generic": "Methadone",
+   "brands": [
+    "Methadose",
+    "Dolophine"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "2.5-10 mg every 8-12 hours as needed",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Mu-opioid receptor agonist",
+   "bbw": "Addiction, abuse, and misuse. REMS compliant education encouraged. Life- threatening respiratory depression. Life-threatening QT prolongation. Accidental exposure, Neonatal withdrawal syndrome. Many interactions with cytochrome P450 inhibitors. Risks from concomitant use with benzodiazepines or other CNS depressants.",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Methenamine",
+   "brands": [
+    "Hiprex"
+   ],
+   "indications": [
+    "Urinary tract infection prevention"
+   ],
+   "dosing": "1 gram by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Hydrolyzed to formaldehyde which has nonspecific bactericidal action, may also aid in maintaining urine acidity and suppressing bacterial growth",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Methocarbamol",
+   "brands": [
+    "Robaxin"
+   ],
+   "indications": [
+    "Musculoskeletal pain/spasm"
+   ],
+   "dosing": "750 mg by mouth four times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY work in the spinal cord by inhibiting the flexor and crossed extensor reflexes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Methotrexate",
+   "brands": [
+    "Trexall"
+   ],
+   "indications": [
+    "Rheumatoid arthritis"
+   ],
+   "dosing": "7.5-25 mg by mouth once weekly",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Anti-inflammatory AND folate antimetabolite that inhibits DNA synthesis, repair, and cellular replication",
+   "bbw": "May cause bone marrow suppression, renal, GI, hepatic, pulmonary toxicities, hypersensitivity, and dermatologic reactions, Contraindicated in pregnancy",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Methylphenidate",
+   "brands": [
+    "Ritalin",
+    "Methylin",
+    "Metadate",
+    "Concerta"
+   ],
+   "indications": [
+    "ADHD"
+   ],
+   "dosing": "20 mg by mouth two times a day, before breakfast and lunch",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Releases norepinephrine and dopamine from storage sites causing stimulation on adrenergic receptors",
+   "bbw": "CNS stimulants have a high potential for abuse and dependence",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Methylprednisolone (oral)",
+   "brands": [
+    "Medrol"
+   ],
+   "indications": [
+    "Inflammatory disorders"
+   ],
+   "dosing": "Individualized – normal doses range from 4-48 mg by mouth per day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Methylprednisolone sodium succinate (parenteral)",
+   "brands": [
+    "Solu-Medrol"
+   ],
+   "indications": [
+    "Inflammatory disorders"
+   ],
+   "dosing": "Individualized",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Metoprolol succinate",
+   "brands": [
+    "Toprol XL"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "25-100 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Cardioselective beta 1 adrenergic blocker",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Metoprolol tartrate",
+   "brands": [
+    "Lopressor"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "50 mg by mouth twice a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Cardioselective beta 1 adrenergic blocker",
+   "bbw": "Avoid abrupt discontinuation due to risk of myocardial infarction",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Metronidazole",
+   "brands": [
+    "Flagyl"
+   ],
+   "indications": [
+    "Antibiotic"
+   ],
+   "dosing": "250-500 mg by mouth three times daily for 7 days",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Converted to unstable intermediates in susceptible bacteria which then bind to bacterial DNA causing DNA strand breakage and cell death",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Micafungin",
+   "brands": [
+    "Mycamine"
+   ],
+   "indications": [
+    "Fungal infection"
+   ],
+   "dosing": "100 mg once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits synthesis of 1, 3-beta-D- glucan, an essential component of fungal cell walls",
+   "bbw": "",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Midazolam",
+   "brands": [
+    "Versed"
+   ],
+   "indications": [
+    "Sedation"
+   ],
+   "dosing": "Individualized",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Binds to the GABA(A) receptor in the central nervous system",
+   "bbw": "Associated with respiratory depression and respiratory arrest. Concomitant use with opioids may result in profound sedation, respiratory depression, coma, and death. Abuse, misuse, and addiction. Dependence and withdrawal reactions",
+   "variants": [],
+   "source_page": 15
+  },
+  {
+   "generic": "Minocycline",
+   "brands": [
+    "Minocin",
+    "Dynacin",
+    "Solodyn ER"
+   ],
+   "indications": [
+    "Antibiotic"
+   ],
+   "dosing": "200 mg by mouth initially then 100 mg every 12 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prevents protein synthesis by binding to the 30 S ribosomal subunit",
+   "bbw": "",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Mirabegron",
+   "brands": [
+    "Myrbetriq"
+   ],
+   "indications": [
+    "Overactive bladder"
+   ],
+   "dosing": "25 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Beta-3 adrenergic agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Mirtazapine",
+   "brands": [
+    "Remeron"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "15 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Central pre-synaptic alpha 2 antagonist. Antagonist of 5-HT2 and 5-HT3 receptors. Inhibitor of histamine H1 receptors and alpha 1 and muscarinic receptors",
+   "bbw": "Antidepressants can increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Montelukast",
+   "brands": [
+    "Singulair"
+   ],
+   "indications": [
+    "Allergic rhinitis"
+   ],
+   "dosing": "10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "CysLT1 receptor antagonist",
+   "bbw": "May cause serious neuropsychiatric events",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Morphine",
+   "brands": [
+    "MS Contin",
+    "Roxanol",
+    "Kadian"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "ER formulations – 15 mg by mouth once a day Dosing is individualized",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Opioid receptor agonist",
+   "bbw": "Monitor for at least 24 hours after first dose if given intrathecal or epidural route. Do not consume alcohol with ER capsules. Addiction, abuse, misuse. REMS. Serious or life-threatening respiratory depression. Neonatal withdrawal syndrome. Accidental exposure can be fatal, especially in children. Use in pregnancy can cause neonatal withdrawal syndrome. Concomitant use with benzodiazepines, alcohol, or other CNS depressants can result in respiratory depression, coma, and death",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Mupirocin",
+   "brands": [
+    "Bactroban"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "Apply three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial protein synthesis by reversibly and specifically binding to the bacterial isoleucyl transfer-RNA synthesis",
+   "bbw": "",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Naloxone",
+   "brands": [
+    "Narcan"
+   ],
+   "indications": [
+    "Opioid overdose"
+   ],
+   "dosing": "0.4-2 mg IV/IM/subQ every 2-3 minutes as needed up to 10 mg",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective mu-opioid receptor antagonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Nitrofurantoin",
+   "brands": [
+    "Macrodantin",
+    "Macrobid",
+    "Furadantin"
+   ],
+   "indications": [
+    "Urinary tract infection"
+   ],
+   "dosing": "100 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of acetyl-coenzyme A which interferes with carbohydrate metabolism",
+   "bbw": "",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Norepinephrine",
+   "brands": [
+    "Levophed"
+   ],
+   "indications": [
+    "Shock"
+   ],
+   "dosing": "0.05-0.15 mcg/kg/minute, titrated to goal mean arterial pressure",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Sympathomimetic amine that acts on both alpha- and beta-1 adrenergic receptors causing peripheral vasoconstriction (alpha) and inotropic stimulation of the heart and coronary artery vasodilation (beta)",
+   "bbw": "",
+   "variants": [],
+   "source_page": 16
+  },
+  {
+   "generic": "Norethindrone/Ethinyl estradiol/Ferrous fumarate",
+   "brands": [
+    "Loestrin FE",
+    "Loestrin FE 24",
+    "Microgestin FE",
+    "Junel FE",
+    "Minastrin 24"
+   ],
+   "indications": [
+    "Contraception"
+   ],
+   "dosing": "One tablet by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Suppresses LH and FSH resulting in inhibition of ovulation. Thickening of cervical mucous may also contribute",
+   "bbw": "Cigarette smoking increases risk of CV events. Increased risk of endometrial and breast cancers, cardiovascular disease, and dementia. Discuss risks and benefits with patients",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Norgestimate/Ethinyl estradiol",
+   "brands": [
+    "Ortho-Cyclen",
+    "Sprintec",
+    "Estarylla"
+   ],
+   "indications": [
+    "Contraception"
+   ],
+   "dosing": "One tablet by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Suppresses LH and FSH resulting in inhibition of ovulation. Thickening of cervical mucous may also contribute",
+   "bbw": "Cigarette smoking increases risk of CV events",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Nortriptyline",
+   "brands": [
+    "Pamelor"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "50 mg by mouth daily in single or divided doses",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prevents reuptake of norepinephrine and serotonin at the presynaptic nerve terminal which increases activity at post synaptic terminals",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Nystatin (topical)",
+   "brands": [
+    "Nystop"
+   ],
+   "indications": [
+    "Fungal infection"
+   ],
+   "dosing": "Apply to affected area 2-3 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Binds to ergosterol in the fungal cell membrane which causes pores in the membrane to leak cell contents and leads to cell death",
+   "bbw": "",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Ofloxacin Ophthalmic",
+   "brands": [
+    "Ocuflox"
+   ],
+   "indications": [
+    "Antibiotic"
+   ],
+   "dosing": "1-2 drops into conjunctival sac every 2-4 hours while awake for two days followed by four times daily for the next five days",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits DNA Gyrase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Olanzapine",
+   "brands": [
+    "Zyprexa",
+    "Zyprexa Relprevv"
+   ],
+   "indications": [
+    "Schizophrenia"
+   ],
+   "dosing": "10-15 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY be related to dopamine D2 and serotonin 5-HT2 receptor antagonism in CNS",
+   "bbw": "Increased mortality in elderly patients with dementia-related psychosis. Post injection delirium and sedation syndrome with extended release injectable formulation",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Olmesartan",
+   "brands": [
+    "Benicar"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Angiotensin II antagonist. Blocks the binding of angiotensin II to the AT1 receptor",
+   "bbw": "Fetal toxicity: discontinue drug as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Omega-3-Acid Ethyl Esters",
+   "brands": [
+    "Lovasa"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "4 grams daily in 1 or 2 doses with meals",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "MAY be inhibition of Acyl CoA, decreases lipogenesis in the liver",
+   "bbw": "",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Omeprazole",
+   "brands": [
+    "Prilosec"
+   ],
+   "indications": [
+    "GERD"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits H+/K+ ATPase enzyme system at the secretory surface of the gastric parietal cell",
+   "bbw": "",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Ondansetron",
+   "brands": [
+    "Zofran"
+   ],
+   "indications": [
+    "Nausea and vomiting"
+   ],
+   "dosing": "8 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective 5-HT3 receptor antagonism",
+   "bbw": "",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Oxcarbazepine",
+   "brands": [
+    "Trileptal",
+    "Oxtellar XR"
+   ],
+   "indications": [
+    "Seizure"
+   ],
+   "dosing": "300 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Na+ channel antagonist; delays recovery of inactive Na+ channels",
+   "bbw": "",
+   "variants": [],
+   "source_page": 17
+  },
+  {
+   "generic": "Oxybutynin",
+   "brands": [
+    "Ditropan",
+    "Ditropan XL"
+   ],
+   "indications": [
+    "Overactive bladder"
+   ],
+   "dosing": "5 mg XR by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of the muscarinic action of acetylcholine on smooth muscle resulting in relaxation of bladder",
+   "bbw": "",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Oxycodone",
+   "brands": [
+    "OxyContin",
+    "Roxicodone"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "Immediate release product: 5 mg by mouth every 4-6 hours as needed Extended release product: 10-20 mg by mouth two times a day",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Opioid receptor agonist",
+   "bbw": "Opioids can be addictive, abused and misused which can lead to overdose and death. REMS. Serious life- threatening respiratory depression may occur. Accidental exposure can be fatal, especially in children. Use in pregnancy can cause neonatal withdrawal syndrome. Use with benzodiazepines, alcohol, or other CNS depressants can result in respiratory depression, coma, and death",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Oxycodone/Acetaminophen",
+   "brands": [
+    "Percocet",
+    "Roxicet",
+    "Endocet"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "1 tablet by mouth every 6 hours as needed",
+   "schedule": "CII",
+   "schedule_note": "",
+   "moa": "Opioid receptor agonist and inhibition of prostaglandin synthesis in CNS",
+   "bbw": "Opioids can be addictive, abused and misused which can lead to overdose and death. REMS. Serious life- threatening respiratory depression may occur. Accidental exposure can be fatal, especially in children. Use in pregnancy can cause neonatal withdrawal syndrome. Use with benzodiazepines, alcohol, or other CNS depressants can result in respiratory depression, coma, and death",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Oxytocin",
+   "brands": [
+    "Pitocin"
+   ],
+   "indications": [
+    "Labor induction"
+   ],
+   "dosing": "Initial: 0.5-1 milliunit/min IV; gradually increase dose in increments of 1-2 milliunits until desired contraction pattern has been established",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Increases intracellular concentrations of calcium in the uterine myometrial tissue prompting uterine contractions",
+   "bbw": "Oxytocin is not indicated for elective induction of labor",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Paliperidone",
+   "brands": [
+    "Invega"
+   ],
+   "indications": [
+    "Antipsychotic"
+   ],
+   "dosing": "6 mg by mouth once daily in the morning",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Direct antagonism of dopamine (D2) and serotonin (5-HT2) receptor in the central nervous system",
+   "bbw": "",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Pantoprazole",
+   "brands": [
+    "Protonix"
+   ],
+   "indications": [
+    "GERD"
+   ],
+   "dosing": "40 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits H+/K+ ATPase enzyme system at the secretory surface of the gastric parietal cell",
+   "bbw": "",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Paroxetine",
+   "brands": [
+    "Paxil",
+    "Paxil XR",
+    "Pexeva"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin in the central nervous system",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Phentermine Hydrochloride",
+   "brands": [
+    "Adipex-P",
+    "Ionamin"
+   ],
+   "indications": [
+    "Weight management"
+   ],
+   "dosing": "1 tablet/capsule take before breakfast or 1-2 hours after breakfast",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Sympathomimetic amine",
+   "bbw": "",
+   "variants": [],
+   "source_page": 18
+  },
+  {
+   "generic": "Phenylephrine",
+   "brands": [
+    "Generic/No brand name"
+   ],
+   "indications": [
+    "Shock"
+   ],
+   "dosing": "0.5-2 mcg/kg/minute continuous IV infusion, titrate to desired MAP",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha adrenergic agonist that produces peripheral vasoconstriction and increased arterial pressure",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Phenytoin",
+   "brands": [
+    "Dilantin"
+   ],
+   "indications": [
+    "Seizure"
+   ],
+   "dosing": "100 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Na+ channel antagonist; delays recovery of inactive Na+ channels",
+   "bbw": "Cardiovascular risk associated with rapid injection",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Phytonadione Vitamin K",
+   "brands": [
+    "Mephyton"
+   ],
+   "indications": [
+    "Warfarin overdose"
+   ],
+   "dosing": "2.5-10 mg by mouth or up to 25 mg orally",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Promotes liver synthesis of clotting factors. Exact MOA not well understood",
+   "bbw": "Serious hypersensitivity reactions or anaphylaxis may occur with intramuscular or intravenous administration",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Pioglitazone",
+   "brands": [
+    "Actos"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "15-30 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "May decrease insulin resistance by binding to peroxisome proliferator- activated receptor-gamma (PPAR)",
+   "bbw": "Contraindicated in patients with CHF",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Piperacillin/Tazobactam",
+   "brands": [
+    "Zosyn"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "3.375 g IV every 6 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of bacterial cell wall synthesis via inhibiting peptidoglycan transpeptidase + beta-lactamase inhibition",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Potassium chloride",
+   "brands": [
+    "Klor-Con",
+    "K-Dur",
+    "Micro-K"
+   ],
+   "indications": [
+    "Hypokalemia"
+   ],
+   "dosing": "20-80 mEq by mouth per day in single or divided doses",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Main intracellular cation of most body tissues",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Pramipexole",
+   "brands": [
+    "Mirapex"
+   ],
+   "indications": [
+    "Restless leg syndrome"
+   ],
+   "dosing": "0.125 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "D3 receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Pravastatin",
+   "brands": [
+    "Pravachol"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective competitive inhibitor of HMG-CoA reductase",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Prazosin",
+   "brands": [
+    "Minipress"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "1 mg by mouth 2-3 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective antagonism of postsynaptic alpha 1 adrenergic receptors",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Prednisolone Acetate (Ophthalmic)",
+   "brands": [
+    "Pred Forte",
+    "Pred Mild",
+    "Omnipred"
+   ],
+   "indications": [
+    "Ophthalmic anti- inflammatory"
+   ],
+   "dosing": "2 drops in affected eye four times daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Prednisone",
+   "brands": [
+    "Deltasone"
+   ],
+   "indications": [
+    "Inflammatory disorders"
+   ],
+   "dosing": "2.5-10 mg by mouth daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Pregabalin",
+   "brands": [
+    "Lyrica"
+   ],
+   "indications": [
+    "Neuropathic pain"
+   ],
+   "dosing": "75 mg by mouth two times a day OR 50 mg by mouth three times a day",
+   "schedule": "CV",
+   "schedule_note": "",
+   "moa": "Ca2+ channel antagonist; binds with alpha 2 subunit of Ca2+ channel",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Progesterone",
+   "brands": [
+    "Prometrium"
+   ],
+   "indications": [
+    "Endometrial hyperplasia prophylaxis"
+   ],
+   "dosing": "200 mg by mouth once a day in the evening for 12 days every 28 day cycle",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Increases synthesis of RNA by interacting with DNA causing transformation of proliferative endometrium into secretory endometrium",
+   "bbw": "Increases risk of CV disorders, breast cancer, endometrial cancer, and in women over age of 65, probable dementia",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Propofol",
+   "brands": [
+    "Diprivan"
+   ],
+   "indications": [
+    "Sedation"
+   ],
+   "dosing": "5 mcg/kg/minute titrated to clinical effect",
+   "schedule": "CIV",
+   "schedule_note": "in ND, but not federally",
+   "moa": "May work through GABA-a receptor modulation increasing time chloride channels are open and increasing Cl- in cells",
+   "bbw": "",
+   "variants": [],
+   "source_page": 19
+  },
+  {
+   "generic": "Propranolol",
+   "brands": [
+    "Inderal",
+    "Inderal LA",
+    "Innopran XL"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "80 mg by mouth per day in single or divided doses",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Non-selective beta-adrenergic blocker",
+   "bbw": "",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Quetiapine",
+   "brands": [
+    "Seroquel",
+    "Seroquel XR"
+   ],
+   "indications": [
+    "Schizophrenia"
+   ],
+   "dosing": "25 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Related to dopamine D2 and serotonin 5-HT2 receptor antagonism in CNS",
+   "bbw": "Increased mortality in elderly patients with dementia-related psychosis. Increased risk of suicidal actions and thoughts in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Ramipril",
+   "brands": [
+    "Altace"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "2.5-20 mg by mouth divided 1-2 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Angiotensin-converting enzyme inhibitor",
+   "bbw": "Fetal toxicity: discontinue drug as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Rimegepant",
+   "brands": [
+    "Nurtec"
+   ],
+   "indications": [
+    "Migraine"
+   ],
+   "dosing": "Acute treatment – 75 mg by mouth as a single dose Preventative treatment – 75 mg by mouth every other day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Calcitonin gene-related peptide receptor antagonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Risperidone",
+   "brands": [
+    "Risperdal",
+    "Risperdal Consta",
+    "Perseris"
+   ],
+   "indications": [
+    "Schizophrenia"
+   ],
+   "dosing": "1 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Related to dopamine D2 and serotonin 5-HT2 receptor antagonism in CNS",
+   "bbw": "Increased mortality in elderly patients with dementia related psychosis",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Rivaroxaban",
+   "brands": [
+    "Xarelto"
+   ],
+   "indications": [
+    "Anticoagulation"
+   ],
+   "dosing": "Extremely variable (reference indication and renal function)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Factor Xa inhibitor",
+   "bbw": "Premature discontinuation of therapy increases the risk of thrombotic events. May cause spinal or epidural hematoma",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Rizatriptan Benzoate",
+   "brands": [
+    "Maxalt",
+    "Maxalt MLT"
+   ],
+   "indications": [
+    "Migraine"
+   ],
+   "dosing": "5-10 mg by mouth at the first sign of a migraine",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective agonist of vascular 5-HT1 receptor causing vasoconstriction",
+   "bbw": "",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Rocuronium",
+   "brands": [
+    "Zemuron"
+   ],
+   "indications": [
+    "Tracheal intubation"
+   ],
+   "dosing": "0.45-0.6 mg/kg IV (individualized)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks acetylcholine from binding to receptors inhibiting depolarization",
+   "bbw": "",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Ropinirole",
+   "brands": [
+    "Requip",
+    "Requip XL"
+   ],
+   "indications": [
+    "Parkinson’s disease"
+   ],
+   "dosing": "0.25 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Dopamine agonist activity (high affinity to D3 receptor)",
+   "bbw": "",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Rosuvastatin",
+   "brands": [
+    "Crestor"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "10-20 mg by mouth once a day (up to 40 mg)",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "HMG-CoA reductase inhibitor",
+   "bbw": "",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Sacubitril/Valsartan",
+   "brands": [
+    "Entresto"
+   ],
+   "indications": [
+    "Heart failure"
+   ],
+   "dosing": "97/103 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Prodrug metabolized to the active metabolite LBQ657, which inhibits neprilysin, increasing levels of peptides and angiotensin receptor blocker to selectively block the AT1 receptor and inhibit angiotensin-II dependent aldosterone release",
+   "bbw": "Fetal toxicity: discontinue drug as soon as pregnancy is detected",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Semaglutide",
+   "brands": [
+    "Ozempic"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "Initial dose 0.25 mg injected subQ once weekly",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Human glucagon-like peptide-1(GLP- 1) receptor agonist",
+   "bbw": "Contraindicated in patients with personal or family history of medullary thyroid cancer or multiple endocrine neoplasia syndrome type 2",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Sertraline",
+   "brands": [
+    "Zoloft"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "50 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin in the central nervous system",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 20
+  },
+  {
+   "generic": "Sildenafil",
+   "brands": [
+    "Revatio"
+   ],
+   "indications": [
+    "Pulmonary hypertension"
+   ],
+   "dosing": "20 mg by mouth three times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Phosphodiesterase type 5 inhibitor which prevents degradation of cGMP resulting in smooth muscle relaxation",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Sildenafil",
+   "brands": [
+    "Viagra"
+   ],
+   "indications": [
+    "Erectile dysfunction"
+   ],
+   "dosing": "50 mg by mouth 1 hour prior to sexual activity",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Phosphodiesterase type 5 inhibitor which prevents degradation of cGMP resulting in smooth muscle relaxation",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Simvastatin",
+   "brands": [
+    "Zocor"
+   ],
+   "indications": [
+    "Dyslipidemia"
+   ],
+   "dosing": "20-40 mg by mouth in the evening",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "HMG-CoA reductase inhibitor",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Sitagliptin",
+   "brands": [
+    "Januvia"
+   ],
+   "indications": [
+    "Diabetes"
+   ],
+   "dosing": "100 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Dipeptidyl peptidase-4 enzyme inhibitor",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Solifenacin",
+   "brands": [
+    "Vesicare"
+   ],
+   "indications": [
+    "Overactive bladder"
+   ],
+   "dosing": "5-10 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits muscarinic receptors",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Sotalol",
+   "brands": [
+    "Betapace"
+   ],
+   "indications": [
+    "Arrhythmia"
+   ],
+   "dosing": "80 mg by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Beta-blocker which contains both Class II and Class III antiarrhythmic properties",
+   "bbw": "Can cause life-threatening ventricular tachycardia associated with QT prolongation",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Spironolactone",
+   "brands": [
+    "Aldactone"
+   ],
+   "indications": [
+    "Edema"
+   ],
+   "dosing": "100 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "K sparing diuretic – aldosterone antagonist (primarily at the aldosterone-dependent Na/K exchange sites in the distal convoluted tubule)",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Succinylcholine",
+   "brands": [
+    "Quelicin",
+    "Anectine"
+   ],
+   "indications": [
+    "Tracheal intubation"
+   ],
+   "dosing": "0.6 mg/kg IV",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Depolarization of the end motor plate",
+   "bbw": "Risk of cardiac arrest from hyperkalemic rhabdomyolysis",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Sucralfate",
+   "brands": [
+    "Carafate"
+   ],
+   "indications": [
+    "Duodenal ulcer"
+   ],
+   "dosing": "1 g by mouth four times a day on an empty stomach",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "May form ulcer-adherent complex that covers ulcer site and protects it against further attack by acid, pepsin, and bile",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Sulfamethoxazole/Trimethop rim",
+   "brands": [
+    "Bactrim",
+    "Septra"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "DS – 1 tablet by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibition of bacterial dihydrofolic acid and tetrahydrofolic acid synthesis",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Sumatriptan",
+   "brands": [
+    "Imitrex"
+   ],
+   "indications": [
+    "Migraine"
+   ],
+   "dosing": "50 mg by mouth at first sign of migraine",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective agonist of vascular 5-HT1 receptor causing vasoconstriction",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Tadalafil",
+   "brands": [
+    "Cialis",
+    "Adcirca*"
+   ],
+   "indications": [
+    "Erectile dysfunction"
+   ],
+   "dosing": "10 mg by mouth one hour prior to sexual activity",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Phosphodiesterase type 5 inhibitor which prevents degradation of cGMP resulting in smooth muscle relaxation",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Tamoxifen",
+   "brands": [
+    "Nolvadex"
+   ],
+   "indications": [
+    "Breast cancer"
+   ],
+   "dosing": "20-40 mg by mouth in two divided doses",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Competes with estrogen for binding sites in target tissues",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Tamsulosin",
+   "brands": [
+    "Flomax"
+   ],
+   "indications": [
+    "Benign prostatic hypertrophy (BPH)"
+   ],
+   "dosing": "0.4 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 1A-adrenoreceptor antagonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Telmisartan",
+   "brands": [
+    "Micardis"
+   ],
+   "indications": [
+    "Hypertension"
+   ],
+   "dosing": "20-80 mg by mouth daily",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks vasoconstrictor and aldosterone secreting effects of angiotensin II by selectively blocking the binding of angiotensin II to the ATI receptor in tissues",
+   "bbw": "",
+   "variants": [],
+   "source_page": 21
+  },
+  {
+   "generic": "Terbinafine",
+   "brands": [
+    "Lamisil"
+   ],
+   "indications": [
+    "Antifungal"
+   ],
+   "dosing": "250 mg by mouth daily for 6-12 weeks for nail infection Topical cream – apply to affected area 1-2 times daily for 7 days",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits squalene epoxidase, an enzyme found in fungi",
+   "bbw": "",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Testosterone",
+   "brands": [
+    "Androgel"
+   ],
+   "indications": [
+    "Male hypogonadism"
+   ],
+   "dosing": "50 mg applied topically once a day to upper arms and shoulders",
+   "schedule": "CIII",
+   "schedule_note": "",
+   "moa": "Stimulation of mRNA resulting in synthesis of specific proteins and enzymes that carry out its actions",
+   "bbw": "Certain formulations may increase blood pressure. Secondary exposure has caused virilization in children. Serious pulmonary oil microembolism reactions can occur after injection",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Tirzepatide",
+   "brands": [
+    "Mounjaro",
+    "Zepbound"
+   ],
+   "indications": [
+    "Diabetes",
+    "Obstructive sleep apnea",
+    "Weight management"
+   ],
+   "dosing": "Initial dose 2.5 mg subcutaneously once weekly",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Glucose-dependent insulinotropic polypeptide (GIP) receptor agonist and human glucagon-like peptide- 1(GLP-1) receptor agonist",
+   "bbw": "Contraindicated in patients with personal or family history of medullary thyroid cancer or multiple endocrine neoplasia syndrome type 2",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Tizanidine",
+   "brands": [
+    "Zanaflex"
+   ],
+   "indications": [
+    "Musculoskeletal pain/spasm"
+   ],
+   "dosing": "4 mg by mouth every 6-8 hours",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Alpha 2-adrenergic receptor agonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Tolterodine",
+   "brands": [
+    "Detrol",
+    "Detrol LA"
+   ],
+   "indications": [
+    "Overactive bladder"
+   ],
+   "dosing": "4 mg by mouth once a day in an LA capsule",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Muscarinic receptor antagonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Topiramate",
+   "brands": [
+    "Topamax",
+    "Trokendi XR"
+   ],
+   "indications": [
+    "Seizure"
+   ],
+   "dosing": "50 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Na+ channel antagonist; GABA-a receptor agonist; AMPA receptor antagonist",
+   "bbw": "",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Tramadol",
+   "brands": [
+    "Ultram",
+    "Ultram ER"
+   ],
+   "indications": [
+    "Pain"
+   ],
+   "dosing": "50-100 mg by mouth every 4-6 hours as needed",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Opioid receptor agonist AND blocks reuptake of norepinephrine and serotonin",
+   "bbw": "Addiction, abuse, and misuse. REMS. Life-threatening respiratory depression. Accidental exposure. Ultra-rapid metabolism increases risk of respiratory depression in children. Neonatal opioid withdrawal syndrome. Interactions with drugs affecting cytochrome P450 enzymes. Risks from concomitant use with benzodiazepines or other CNS depressants",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Trazodone",
+   "brands": [
+    "Desyrel"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "150 mg by mouth daily in single or divided doses",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits serotonin reuptake by brain synaptosomes",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Triamcinolone Acetonide (topical)",
+   "brands": [
+    "Kenalog"
+   ],
+   "indications": [
+    "Inflammatory disorders"
+   ],
+   "dosing": "Apply 2-4 times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Stimulates synthesis of anti- inflammatory properties and enzymes",
+   "bbw": "",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Triamterene/ Hydrochlorothiazide",
+   "brands": [
+    "Dyazide",
+    "Maxzide"
+   ],
+   "indications": [
+    "Edema"
+   ],
+   "dosing": "1-2 doses by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits reabsorption of Na+ in exchange for K+ at the distal renal tubule/ inhibits the reabsorption of Na+ and Cl- at the distal renal tubule",
+   "bbw": "Hyperkalemia can occur",
+   "variants": [],
+   "source_page": 22
+  },
+  {
+   "generic": "Ursodiol",
+   "brands": [
+    "Actigall"
+   ],
+   "indications": [
+    "Gall bladder disease"
+   ],
+   "dosing": "300 mg two times a day by mouth with food",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Dissolves cholesterol containing gall stones. Replaces/displaces toxic concentrations of endogenous hydrophobic bile acids that tend to accumulate in cholestatic liver disease",
+   "bbw": "",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Valacyclovir",
+   "brands": [
+    "Valtrex"
+   ],
+   "indications": [
+    "Viral infection"
+   ],
+   "dosing": "1 g by mouth two times a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Hepatic metabolism to acyclovir which inhibits viral DNA synthesis",
+   "bbw": "",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Vancomycin",
+   "brands": [
+    "Vancocin"
+   ],
+   "indications": [
+    "Bacterial infection"
+   ],
+   "dosing": "Individualized doses Monitor trough levels",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits bacterial cell wall synthesis via inhibition of peptidoglycan transglycosylase",
+   "bbw": "Risk of embryo-fetal toxicity due to some excipients",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Venlafaxine",
+   "brands": [
+    "Effexor",
+    "Effexor XR"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "75 mg XR by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Blocks neuronal uptake of serotonin and norepinephrine in the central nervous system",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Vilazodone Hydrochloride",
+   "brands": [
+    "Viibryd"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "40 mg by mouth one daily with food",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Selective inhibition of serotonin reuptake in the CNS and partial agonist of 5-HT (1A) receptors",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Vortioxetine",
+   "brands": [
+    "Trintellix"
+   ],
+   "indications": [
+    "Depression"
+   ],
+   "dosing": "20 mg by mouth once a day",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Inhibits the reuptake of serotonin; antagonizes 5-HT3, 5-HT1D, and 5- HT7 receptors; agonizes 5-HT1A receptors; and is a 5-HT1B receptor partial agonist",
+   "bbw": "Antidepressants increase suicidal thoughts and actions in children, adolescents, and young adults",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Warfarin",
+   "brands": [
+    "Coumadin",
+    "Jantoven"
+   ],
+   "indications": [
+    "Anticoagulation"
+   ],
+   "dosing": "5 mg by mouth once a day. Individualize dose regimen by monitoring INR",
+   "schedule": "",
+   "schedule_note": "",
+   "moa": "Antagonizes vitamin K resulting in a decreased hepatic synthesis of vitamin K dependent clotting factors",
+   "bbw": "Increases the risk of fatal bleeding. Perform regular monitoring of INR",
+   "variants": [],
+   "source_page": 23
+  },
+  {
+   "generic": "Zolpidem",
+   "brands": [
+    "Ambien",
+    "Ambien CR",
+    "Intermezzo",
+    "Zolpimist"
+   ],
+   "indications": [
+    "Insomnia"
+   ],
+   "dosing": "5-12.5 mg by mouth at bedtime",
+   "schedule": "CIV",
+   "schedule_note": "",
+   "moa": "Selective agonist of GABA-BZ1 receptor",
+   "bbw": "Complex sleep behaviors including sleep-walking, sleep-driving, and engaging in other activities while not fully awake",
+   "variants": [],
+   "source_page": 23
+  }
+ ]
+}

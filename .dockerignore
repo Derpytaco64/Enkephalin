@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.env
+.env.local
+*.pdf
+*.jpg
+.rxnav-cache
+__pycache__

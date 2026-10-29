@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/* Every colour is a token with a light and a dark value, so the per-user
+   palette editor has exactly one place to override and nothing in a component
+   hardcodes a colour. Light is defined on bare :root; dark is redefined twice —
+   once for the system preference (guarded so an explicit light choice wins) and
+   once for an explicit dark choice — so the toggle works in both directions. */
+
+:root {
+  --bg: #fcfcfd;
+  --surface: #ffffff;
+  --border: #e4e4e7;
+  --fg: #18181b;
+  --muted: #6b7280;
+  --accent: #1f6feb;
+  --accent-fg: #ffffff;
+  --danger: #b42318;
+  --ok: #067647;
+
+  /* Controlled-substance ramp: ordinal, CII strongest through CV faintest.
+     Every badge carries its text too — colour is never the only signal, which
+     also covers colour-vision deficiency. */
+  --sched-c2: #b42318;
+  --sched-c3: #b54708;
+  --sched-c4: #854a0e;
+  --sched-c5: #7a5b1d;
+  --sched-none: #6b7280;
+
+  /* Categorical palette assigned by stable class id, so a drug class is the
+     same colour on every page and across sessions. */
+  --class-1: #1f6feb;
+  --class-2: #067647;
+  --class-3: #7e22ce;
+  --class-4: #b54708;
+  --class-5: #0e7490;
+  --class-6: #a21caf;
+  --class-7: #4d7c0f;
+  --class-8: #be123c;
+
+  /* Verification states, used as thin markers rather than fills. */
+  --unverified: #b54708;
+  --verified: #067647;
+  --flagged: #b42318;
+  --not-applicable: #9ca3af;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0d10;
+    --surface: #14171c;
+    --border: #272b33;
+    --fg: #ececf1;
+    --muted: #9aa1ad;
+    --accent: #6ea8fe;
+    --accent-fg: #0b0d10;
+    --danger: #ff8b80;
+    --ok: #5ddba4;
+
+    --sched-c2: #ff8b80;
+    --sched-c3: #ffa06a;
+    --sched-c4: #ffc46b;
+    --sched-c5: #e2cc8f;
+    --sched-none: #9aa1ad;
+
+    --class-1: #6ea8fe;
+    --class-2: #5ddba4;
+    --class-3: #c99bff;
+    --class-4: #ffa06a;
+    --class-5: #5fd3e8;
+    --class-6: #f184e0;
+    --class-7: #a9d84f;
+    --class-8: #ff8fab;
+
+    --unverified: #ffa06a;
+    --verified: #5ddba4;
+    --flagged: #ff8b80;
+    --not-applicable: #6b7280;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0d10;
+  --surface: #14171c;
+  --border: #272b33;
+  --fg: #ececf1;
+  --muted: #9aa1ad;
+  --accent: #6ea8fe;
+  --accent-fg: #0b0d10;
+  --danger: #ff8b80;
+  --ok: #5ddba4;
+
+  --sched-c2: #ff8b80;
+  --sched-c3: #ffa06a;
+  --sched-c4: #ffc46b;
+  --sched-c5: #e2cc8f;
+  --sched-none: #9aa1ad;
+
+  --class-1: #6ea8fe;
+  --class-2: #5ddba4;
+  --class-3: #c99bff;
+  --class-4: #ffa06a;
+  --class-5: #5fd3e8;
+  --class-6: #f184e0;
+  --class-7: #a9d84f;
+  --class-8: #ff8fab;
+
+  --unverified: #ffa06a;
+  --verified: #5ddba4;
+  --flagged: #ff8b80;
+  --not-applicable: #6b7280;
+}
+
+html { color-scheme: light dark; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}

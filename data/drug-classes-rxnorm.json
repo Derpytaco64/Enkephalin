@@ -1,0 +1,4877 @@
+{
+ "source": "data/top-drugs-2026.json",
+ "count": 237,
+ "drugs": [
+  {
+   "generic": "Acetylcysteine",
+   "primary_class": "Antidote",
+   "needs_review": false,
+   "rxcui": "197",
+   "matched_as": "Acetylcysteine",
+   "path": "direct",
+   "epc": [
+    "Antidote",
+    "Antidote for Acetaminophen Overdose",
+    "Mucolytic"
+   ],
+   "atc": [
+    "Antidotes",
+    "Mucolytics",
+    "Other ophthalmologicals"
+   ],
+   "moa": [
+    "Reduction Activity"
+   ],
+   "va": [
+    "ANTIDOTES/DETERRENTS,OTHER",
+    "HERBS/ALTERNATIVE THERAPIES",
+    "MUCOLYTICS"
+   ]
+  },
+  {
+   "generic": "Acyclovir",
+   "primary_class": "Herpes Simplex Virus Nucleoside Analog DNA Polymerase Inhibitor",
+   "needs_review": false,
+   "rxcui": "281",
+   "matched_as": "Acyclovir",
+   "path": "direct",
+   "epc": [
+    "Herpes Simplex Virus Nucleoside Analog DNA Polymerase Inhibitor",
+    "Herpes Zoster Virus Nucleoside Analog DNA Polymerase Inhibitor",
+    "Herpesvirus Nucleoside Analog DNA Polymerase Inhibitor"
+   ],
+   "atc": [
+    "Antivirals",
+    "Nucleosides and nucleotides excl. reverse transcriptase inhibitors"
+   ],
+   "moa": [
+    "DNA Polymerase Inhibitors"
+   ],
+   "va": [
+    "ANTIVIRAL,TOPICAL",
+    "ANTIVIRALS"
+   ]
+  },
+  {
+   "generic": "Albuterol sulfate",
+   "primary_class": "beta2-Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "142153",
+   "matched_as": "Albuterol sulfate",
+   "path": "direct",
+   "epc": [
+    "beta2-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Selective beta-2-adrenoreceptor agonists"
+   ],
+   "moa": [
+    "Adrenergic beta2-Agonists"
+   ],
+   "va": []
+  },
+  {
+   "generic": "Alendronate",
+   "primary_class": "Bisphosphonate",
+   "needs_review": false,
+   "rxcui": "46041",
+   "matched_as": "Alendronate",
+   "path": "direct",
+   "epc": [
+    "Bisphosphonate"
+   ],
+   "atc": [
+    "Bisphosphonates"
+   ],
+   "moa": [],
+   "va": [
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
+   ]
+  },
+  {
+   "generic": "Allopurinol",
+   "primary_class": "Xanthine Oxidase Inhibitor",
+   "needs_review": false,
+   "rxcui": "519",
+   "matched_as": "Allopurinol",
+   "path": "direct",
+   "epc": [
+    "Xanthine Oxidase Inhibitor"
+   ],
+   "atc": [
+    "Preparations inhibiting uric acid production"
+   ],
+   "moa": [
+    "Xanthine Oxidase Inhibitors"
+   ],
+   "va": [
+    "ANTIGOUT AGENTS"
+   ]
+  },
+  {
+   "generic": "Alprazolam",
+   "primary_class": "Benzodiazepine",
+   "needs_review": false,
+   "rxcui": "596",
+   "matched_as": "Alprazolam",
+   "path": "direct",
+   "epc": [
+    "Benzodiazepine"
+   ],
+   "atc": [
+    "Benzodiazepine derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "BENZODIAZEPINE DERIVATIVE SEDATIVES/HYPNOTICS"
+   ]
+  },
+  {
+   "generic": "Alteplase",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "8410",
+   "matched_as": "Alteplase",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Enzymes",
+    "Other ophthalmologicals"
+   ],
+   "moa": [],
+   "va": [
+    "THROMBOLYTICS"
+   ]
+  },
+  {
+   "generic": "Amiodarone",
+   "primary_class": "Antiarrhythmic",
+   "needs_review": false,
+   "rxcui": "703",
+   "matched_as": "Amiodarone",
+   "path": "direct",
+   "epc": [
+    "Antiarrhythmic"
+   ],
+   "atc": [
+    "Antiarrhythmics, class III"
+   ],
+   "moa": [
+    "Cytochrome P450 1A2 Inhibitors",
+    "Cytochrome P450 2C9 Inhibitors",
+    "Cytochrome P450 2D6 Inhibitors",
+    "Cytochrome P450 3A Inhibitors",
+    "P-Glycoprotein Inhibitors"
+   ],
+   "va": [
+    "ANTIARRHYTHMICS"
+   ]
+  },
+  {
+   "generic": "Amitriptyline",
+   "primary_class": "Tricyclic Antidepressant",
+   "needs_review": false,
+   "rxcui": "704",
+   "matched_as": "Amitriptyline",
+   "path": "direct",
+   "epc": [
+    "Tricyclic Antidepressant"
+   ],
+   "atc": [
+    "Non-selective monoamine reuptake inhibitors"
+   ],
+   "moa": [],
+   "va": [
+    "CNS MEDICATIONS,OTHER",
+    "TRICYCLIC ANTIDEPRESSANTS"
+   ]
+  },
+  {
+   "generic": "Amlodipine",
+   "primary_class": "Calcium Channel Blocker",
+   "needs_review": false,
+   "rxcui": "17767",
+   "matched_as": "Amlodipine",
+   "path": "direct",
+   "epc": [
+    "Calcium Channel Blocker",
+    "Dihydropyridine Calcium Channel Blocker"
+   ],
+   "atc": [
+    "ACE inhibitors and calcium channel blockers",
+    "Angiotensin II receptor blockers (ARBs) and calcium channel blockers",
+    "Angiotensin II receptor blockers (ARBs), other combinations",
+    "Dihydropyridine derivatives",
+    "Lipid modifying agents in combination with other drugs",
+    "Renin-inhibitors"
+   ],
+   "moa": [
+    "Calcium Channel Antagonists",
+    "Cytochrome P450 3A Inhibitors"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "CALCIUM CHANNEL BLOCKERS"
+   ]
+  },
+  {
+   "generic": "Amoxicillin",
+   "primary_class": "Penicillin-class Antibacterial",
+   "needs_review": false,
+   "rxcui": "723",
+   "matched_as": "Amoxicillin",
+   "path": "direct",
+   "epc": [
+    "Penicillin-class Antibacterial"
+   ],
+   "atc": [
+    "Combinations for eradication of Helicobacter pylori",
+    "Penicillins with extended spectrum"
+   ],
+   "moa": [],
+   "va": [
+    "H. PYLORI AGENTS",
+    "PENICILLINS,AMINO DERIVATIVES"
+   ]
+  },
+  {
+   "generic": "Amoxicillin/ Clavulanate",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "19711",
+   "matched_as": "Amoxicillin/ Clavulanate",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Penicillins with extended spectrum"
+   ],
+   "moa": [],
+   "va": [
+    "PENICILLINS,AMINO DERIVATIVES"
+   ]
+  },
+  {
+   "generic": "Amphetamine/ Dextroamphetamine salts",
+   "primary_class": "Central Nervous System Stimulant",
+   "needs_review": false,
+   "rxcui": "253146",
+   "matched_as": "Amphetamine/Dextroamphetamine",
+   "path": "normalized",
+   "epc": [
+    "Central Nervous System Stimulant"
+   ],
+   "atc": [
+    "Centrally acting sympathomimetics"
+   ],
+   "moa": [],
+   "va": []
+  },
+  {
+   "generic": "Ampicillin/ Sulbactam",
+   "primary_class": "Penicillin-class Antibacterial",
+   "needs_review": false,
+   "rxcui": "1009148",
+   "matched_as": "Ampicillin/ Sulbactam",
+   "path": "direct",
+   "epc": [
+    "Penicillin-class Antibacterial",
+    "beta Lactamase Inhibitor"
+   ],
+   "atc": [
+    "Antibiotics",
+    "Beta-lactamase inhibitors",
+    "Combinations of penicillins, incl. beta-lactamase inhibitors",
+    "Penicillins with extended spectrum"
+   ],
+   "moa": [
+    "beta Lactamase Inhibitors"
+   ],
+   "va": [
+    "PENICILLINS,AMINO DERIVATIVES"
+   ]
+  },
+  {
+   "generic": "Anastrozole",
+   "primary_class": "Aromatase Inhibitor",
+   "needs_review": false,
+   "rxcui": "84857",
+   "matched_as": "Anastrozole",
+   "path": "direct",
+   "epc": [
+    "Aromatase Inhibitor"
+   ],
+   "atc": [
+    "Aromatase inhibitors"
+   ],
+   "moa": [
+    "Aromatase Inhibitors"
+   ],
+   "va": [
+    "ANTINEOPLASTIC,OTHER"
+   ]
+  },
+  {
+   "generic": "Apixaban",
+   "primary_class": "Factor Xa Inhibitor",
+   "needs_review": false,
+   "rxcui": "1364430",
+   "matched_as": "Apixaban",
+   "path": "direct",
+   "epc": [
+    "Factor Xa Inhibitor"
+   ],
+   "atc": [
+    "Direct factor Xa inhibitors"
+   ],
+   "moa": [
+    "Factor Xa Inhibitors"
+   ],
+   "va": [
+    "ANTICOAGULANTS"
+   ]
+  },
+  {
+   "generic": "Aripiprazole",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "89013",
+   "matched_as": "Aripiprazole",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Other antipsychotics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Atenolol",
+   "primary_class": "beta-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "1202",
+   "matched_as": "Atenolol",
+   "path": "direct",
+   "epc": [
+    "beta-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Beta blocking agents and calcium channel blockers",
+    "Beta blocking agents, selective"
+   ],
+   "moa": [
+    "Adrenergic beta-Antagonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "BETA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Atomoxetine",
+   "primary_class": "Norepinephrine Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "38400",
+   "matched_as": "Atomoxetine",
+   "path": "direct",
+   "epc": [
+    "Norepinephrine Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Centrally acting sympathomimetics"
+   ],
+   "moa": [
+    "Norepinephrine Uptake Inhibitors"
+   ],
+   "va": [
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Atorvastatin",
+   "primary_class": "HMG-CoA Reductase Inhibitor",
+   "needs_review": false,
+   "rxcui": "83367",
+   "matched_as": "Atorvastatin",
+   "path": "direct",
+   "epc": [
+    "HMG-CoA Reductase Inhibitor"
+   ],
+   "atc": [
+    "Combinations of various lipid modifying agents",
+    "HMG CoA reductase inhibitors",
+    "Lipid modifying agents in combination with other drugs"
+   ],
+   "moa": [
+    "Hydroxymethylglutaryl-CoA Reductase Inhibitors"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS",
+    "CALCIUM CHANNEL BLOCKERS"
+   ]
+  },
+  {
+   "generic": "Azelastine",
+   "primary_class": "Histamine-1 Receptor Antagonist",
+   "needs_review": false,
+   "rxcui": "18603",
+   "matched_as": "Azelastine",
+   "path": "direct",
+   "epc": [
+    "Histamine-1 Receptor Antagonist"
+   ],
+   "atc": [
+    "Antiallergic agents, excl. corticosteroids",
+    "Other antiallergics",
+    "Other antihistamines for systemic use"
+   ],
+   "moa": [
+    "Histamine H1 Receptor Antagonists"
+   ],
+   "va": [
+    "ANTIHISTAMINES,NASAL",
+    "OPHTHALMICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Azithromycin",
+   "primary_class": "Macrolide Antimicrobial",
+   "needs_review": false,
+   "rxcui": "18631",
+   "matched_as": "Azithromycin",
+   "path": "direct",
+   "epc": [
+    "Macrolide Antimicrobial"
+   ],
+   "atc": [
+    "Antibiotics",
+    "Macrolides"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIBACTERIALS,TOPICAL OPHTHALMIC",
+    "ERYTHROMYCINS/MACROLIDES"
+   ]
+  },
+  {
+   "generic": "Baclofen",
+   "primary_class": "gamma-Aminobutyric Acid-ergic Agonist",
+   "needs_review": false,
+   "rxcui": "1292",
+   "matched_as": "Baclofen",
+   "path": "direct",
+   "epc": [
+    "gamma-Aminobutyric Acid-ergic Agonist"
+   ],
+   "atc": [
+    "Other centrally acting agents"
+   ],
+   "moa": [
+    "GABA A Agonists",
+    "GABA B Agonists"
+   ],
+   "va": [
+    "SKELETAL MUSCLE RELAXANTS"
+   ]
+  },
+  {
+   "generic": "Benzonatate",
+   "primary_class": "Non-narcotic Antitussive",
+   "needs_review": false,
+   "rxcui": "18993",
+   "matched_as": "Benzonatate",
+   "path": "direct",
+   "epc": [
+    "Non-narcotic Antitussive"
+   ],
+   "atc": [
+    "Other cough suppressants"
+   ],
+   "moa": [],
+   "va": [
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS"
+   ]
+  },
+  {
+   "generic": "Bimatoprost (ophthalmic)",
+   "primary_class": "Prostaglandin Analog",
+   "needs_review": false,
+   "rxcui": "1161198",
+   "matched_as": "Bimatoprost (ophthalmic)",
+   "path": "direct",
+   "epc": [
+    "Prostaglandin Analog"
+   ],
+   "atc": [
+    "Prostaglandin analogues"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIGLAUCOMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Brimonidine Tartrate (ophthalmic)",
+   "primary_class": "alpha-Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "39171",
+   "matched_as": "Brimonidine Tartrate",
+   "path": "normalized",
+   "epc": [
+    "alpha-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Other dermatologicals",
+    "Sympathomimetics in glaucoma therapy",
+    "Sympathomimetics used as decongestants"
+   ],
+   "moa": [
+    "Adrenergic alpha-Agonists"
+   ],
+   "va": [
+    "ANTIGLAUCOMA COMBINATIONS,TOPICAL OPHTHALMIC",
+    "ANTIGLAUCOMA,OTHER",
+    "OPHTHALMICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Budesonide",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "19831",
+   "matched_as": "Budesonide",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
+    "Corticosteroids",
+    "Corticosteroids acting locally",
+    "Corticosteroids, potent (group III)",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTIASTHMA,OTHER",
+    "GLUCOCORTICOIDS"
+   ]
+  },
+  {
+   "generic": "Budesonide/ Formoterol",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "389132",
+   "matched_as": "Budesonide/ Formoterol",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid",
+    "beta2-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
+    "Corticosteroids",
+    "Corticosteroids acting locally",
+    "Corticosteroids, potent (group III)",
+    "Glucocorticoids",
+    "Selective beta-2-adrenoreceptor agonists"
+   ],
+   "moa": [
+    "Adrenergic beta2-Agonists",
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTIASTHMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Bupropion",
+   "primary_class": "Aminoketone",
+   "needs_review": false,
+   "rxcui": "42347",
+   "matched_as": "Bupropion",
+   "path": "direct",
+   "epc": [
+    "Aminoketone"
+   ],
+   "atc": [
+    "Centrally acting antiobesity products",
+    "Other antidepressants"
+   ],
+   "moa": [
+    "Dopamine Uptake Inhibitors",
+    "Norepinephrine Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER",
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Buspirone",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "1827",
+   "matched_as": "Buspirone",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Azaspirodecanedione derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "SEDATIVES/HYPNOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Butalbital, Acetaminophen and Caffeine",
+   "primary_class": "Barbiturate",
+   "needs_review": false,
+   "rxcui": "19860",
+   "matched_as": "Butalbital",
+   "path": "normalized",
+   "epc": [
+    "Barbiturate"
+   ],
+   "atc": [],
+   "moa": [],
+   "va": [
+    "NON-OPIOID ANALGESICS",
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Carbamazepine",
+   "primary_class": "Mood Stabilizer",
+   "needs_review": false,
+   "rxcui": "2002",
+   "matched_as": "Carbamazepine",
+   "path": "direct",
+   "epc": [
+    "Mood Stabilizer"
+   ],
+   "atc": [
+    "Carboxamide derivatives"
+   ],
+   "moa": [
+    "Cytochrome P450 1A2 Inducers",
+    "Cytochrome P450 2B6 Inducers",
+    "Cytochrome P450 2C19 Inducers",
+    "Cytochrome P450 2C9 Inducers",
+    "Cytochrome P450 3A4 Inducers"
+   ],
+   "va": [
+    "ANTICONVULSANTS"
+   ]
+  },
+  {
+   "generic": "Carbidopa/Levodopa",
+   "primary_class": "Aromatic Amino Acid",
+   "needs_review": false,
+   "rxcui": "103990",
+   "matched_as": "Carbidopa/Levodopa",
+   "path": "direct",
+   "epc": [
+    "Aromatic Amino Acid",
+    "Aromatic Amino Acid Decarboxylation Inhibitor"
+   ],
+   "atc": [
+    "Dopa and dopa derivatives"
+   ],
+   "moa": [
+    "DOPA Decarboxylase Inhibitors"
+   ],
+   "va": [
+    "ANTIPARKINSON AGENTS"
+   ]
+  },
+  {
+   "generic": "Cariprazine",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "1667655",
+   "matched_as": "Cariprazine",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Other antipsychotics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Carisoprodol",
+   "primary_class": "Muscle Relaxant",
+   "needs_review": false,
+   "rxcui": "2101",
+   "matched_as": "Carisoprodol",
+   "path": "direct",
+   "epc": [
+    "Muscle Relaxant"
+   ],
+   "atc": [
+    "Carbamic acid esters"
+   ],
+   "moa": [],
+   "va": [
+    "OPIOID ANALGESICS",
+    "SKELETAL MUSCLE RELAXANTS"
+   ]
+  },
+  {
+   "generic": "Carvedilol",
+   "primary_class": "alpha-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "20352",
+   "matched_as": "Carvedilol",
+   "path": "direct",
+   "epc": [
+    "alpha-Adrenergic Blocker",
+    "beta-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Alpha and beta blocking agents"
+   ],
+   "moa": [
+    "Adrenergic alpha-Antagonists",
+    "Adrenergic beta1-Antagonists",
+    "Adrenergic beta2-Antagonists"
+   ],
+   "va": [
+    "BETA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Cefazolin",
+   "primary_class": "Cephalosporin Antibacterial",
+   "needs_review": false,
+   "rxcui": "2180",
+   "matched_as": "Cefazolin",
+   "path": "direct",
+   "epc": [
+    "Cephalosporin Antibacterial"
+   ],
+   "atc": [
+    "First-generation cephalosporins"
+   ],
+   "moa": [],
+   "va": [
+    "CEPHALOSPORIN 1ST GENERATION"
+   ]
+  },
+  {
+   "generic": "Cefdinir",
+   "primary_class": "Cephalosporin Antibacterial",
+   "needs_review": false,
+   "rxcui": "25037",
+   "matched_as": "Cefdinir",
+   "path": "direct",
+   "epc": [
+    "Cephalosporin Antibacterial"
+   ],
+   "atc": [
+    "Third-generation cephalosporins"
+   ],
+   "moa": [],
+   "va": [
+    "CEPHALOSPORIN 3RD GENERATION"
+   ]
+  },
+  {
+   "generic": "Cefepime",
+   "primary_class": "Cephalosporin Antibacterial",
+   "needs_review": false,
+   "rxcui": "20481",
+   "matched_as": "Cefepime",
+   "path": "direct",
+   "epc": [
+    "Cephalosporin Antibacterial"
+   ],
+   "atc": [
+    "Fourth-generation cephalosporins"
+   ],
+   "moa": [],
+   "va": [
+    "CEPHALOSPORIN 4TH GENERATION"
+   ]
+  },
+  {
+   "generic": "Ceftriaxone",
+   "primary_class": "Cephalosporin Antibacterial",
+   "needs_review": false,
+   "rxcui": "2193",
+   "matched_as": "Ceftriaxone",
+   "path": "direct",
+   "epc": [
+    "Cephalosporin Antibacterial"
+   ],
+   "atc": [
+    "Third-generation cephalosporins"
+   ],
+   "moa": [],
+   "va": [
+    "CEPHALOSPORIN 3RD GENERATION"
+   ]
+  },
+  {
+   "generic": "Celecoxib",
+   "primary_class": "Nonsteroidal Anti-inflammatory Drug",
+   "needs_review": false,
+   "rxcui": "140587",
+   "matched_as": "Celecoxib",
+   "path": "direct",
+   "epc": [
+    "Nonsteroidal Anti-inflammatory Drug"
+   ],
+   "atc": [
+    "Coxibs",
+    "Dihydropyridine derivatives",
+    "Opioids in combination with non-opioid analgesics",
+    "Other antineoplastic agents"
+   ],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
+   "va": [
+    "CALCIUM CHANNEL BLOCKERS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
+   ]
+  },
+  {
+   "generic": "Cephalexin",
+   "primary_class": "Cephalosporin Antibacterial",
+   "needs_review": false,
+   "rxcui": "2231",
+   "matched_as": "Cephalexin",
+   "path": "direct",
+   "epc": [
+    "Cephalosporin Antibacterial"
+   ],
+   "atc": [
+    "First-generation cephalosporins"
+   ],
+   "moa": [],
+   "va": [
+    "CEPHALOSPORIN 1ST GENERATION"
+   ]
+  },
+  {
+   "generic": "Chlorhexidine",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "2358",
+   "matched_as": "Chlorhexidine",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Antiinfectives",
+    "Antiinfectives and antiseptics for local oral treatment",
+    "Antiseptics",
+    "Biguanides and amidines",
+    "Medicated dressings with antiinfectives",
+    "Other antiinfectives"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIBACTERIAL,TOPICAL",
+    "MOUTHWASHES"
+   ]
+  },
+  {
+   "generic": "Chlorthalidone",
+   "primary_class": "Thiazide-like Diuretic",
+   "needs_review": false,
+   "rxcui": "2409",
+   "matched_as": "Chlorthalidone",
+   "path": "direct",
+   "epc": [
+    "Thiazide-like Diuretic"
+   ],
+   "atc": [
+    "Sulfonamides, plain"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "THIAZIDES/RELATED DIURETICS"
+   ]
+  },
+  {
+   "generic": "Ciprofloxacin",
+   "primary_class": "Fluoroquinolone Antibacterial",
+   "needs_review": false,
+   "rxcui": "2551",
+   "matched_as": "Ciprofloxacin",
+   "path": "direct",
+   "epc": [
+    "Fluoroquinolone Antibacterial"
+   ],
+   "atc": [
+    "Antiinfectives",
+    "Fluoroquinolones"
+   ],
+   "moa": [
+    "Cytochrome P450 1A2 Inhibitors"
+   ],
+   "va": [
+    "ANTI-INFECTIVE/ANTI-INFLAMMATORY COMBINATIONS,TOPICAL OTIC",
+    "ANTI-INFECTIVES,TOPICAL OTIC OTHER",
+    "ANTIBACTERIALS,TOPICAL OPHTHALMIC",
+    "QUINOLONES"
+   ]
+  },
+  {
+   "generic": "Cisatracurium",
+   "primary_class": "Nondepolarizing Neuromuscular Blocker",
+   "needs_review": false,
+   "rxcui": "319864",
+   "matched_as": "Cisatracurium",
+   "path": "direct",
+   "epc": [
+    "Nondepolarizing Neuromuscular Blocker"
+   ],
+   "atc": [
+    "Other quaternary ammonium compounds"
+   ],
+   "moa": [],
+   "va": [
+    "NEUROMUSCULAR BLOCKING AGENTS"
+   ]
+  },
+  {
+   "generic": "Citalopram",
+   "primary_class": "Serotonin Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "2556",
+   "matched_as": "Citalopram",
+   "path": "direct",
+   "epc": [
+    "Serotonin Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Selective serotonin reuptake inhibitors"
+   ],
+   "moa": [
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Clindamycin",
+   "primary_class": "Lincosamide Antibacterial",
+   "needs_review": false,
+   "rxcui": "2582",
+   "matched_as": "Clindamycin",
+   "path": "direct",
+   "epc": [
+    "Lincosamide Antibacterial"
+   ],
+   "atc": [
+    "Antibiotics",
+    "Antiinfectives for treatment of acne",
+    "Lincosamides"
+   ],
+   "moa": [],
+   "va": [
+    "ANTI-INFECTIVES,VAGINAL",
+    "ANTIACNE AGENTS,TOPICAL",
+    "LINCOMYCINS"
+   ]
+  },
+  {
+   "generic": "Clonazepam",
+   "primary_class": "Benzodiazepine",
+   "needs_review": false,
+   "rxcui": "2598",
+   "matched_as": "Clonazepam",
+   "path": "direct",
+   "epc": [
+    "Benzodiazepine"
+   ],
+   "atc": [
+    "Benzodiazepine derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "BENZODIAZEPINE DERIVATIVE SEDATIVES/HYPNOTICS"
+   ]
+  },
+  {
+   "generic": "Clonidine",
+   "primary_class": "Central alpha-2 Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "2599",
+   "matched_as": "Clonidine",
+   "path": "direct",
+   "epc": [
+    "Central alpha-2 Adrenergic Agonist"
+   ],
+   "atc": [
+    "Imidazoline receptor agonists",
+    "Other antimigraine preparations",
+    "Sympathomimetics in glaucoma therapy"
+   ],
+   "moa": [
+    "Adrenergic alpha2-Agonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVES,OTHER",
+    "NON-OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Clonidine ER",
+   "primary_class": "Central alpha-2 Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "2599",
+   "matched_as": "Clonidine",
+   "path": "normalized",
+   "epc": [
+    "Central alpha-2 Adrenergic Agonist"
+   ],
+   "atc": [
+    "Imidazoline receptor agonists",
+    "Other antimigraine preparations",
+    "Sympathomimetics in glaucoma therapy"
+   ],
+   "moa": [
+    "Adrenergic alpha2-Agonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVES,OTHER",
+    "NON-OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Clopidogrel",
+   "primary_class": "P2Y12 Platelet Inhibitor",
+   "needs_review": false,
+   "rxcui": "32968",
+   "matched_as": "Clopidogrel",
+   "path": "direct",
+   "epc": [
+    "P2Y12 Platelet Inhibitor"
+   ],
+   "atc": [
+    "Platelet aggregation inhibitors excl. heparin"
+   ],
+   "moa": [
+    "Cytochrome P450 2C8 Inhibitors",
+    "P2Y12 Receptor Antagonists"
+   ],
+   "va": [
+    "PLATELET AGGREGATION INHIBITORS"
+   ]
+  },
+  {
+   "generic": "Clozapine",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "2626",
+   "matched_as": "Clozapine",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Diazepines, oxazepines, thiazepines and oxepines"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Codeine phosphate with Guaifenesin",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "2670",
+   "matched_as": "Codeine",
+   "path": "normalized",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Opioids in combination with non-opioid analgesics",
+    "Opium alkaloids and derivatives"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS",
+    "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS"
+   ]
+  },
+  {
+   "generic": "Colestipol Hydrochloride",
+   "primary_class": "Bile Acid Sequestrant",
+   "needs_review": false,
+   "rxcui": "104485",
+   "matched_as": "Colestipol Hydrochloride",
+   "path": "direct",
+   "epc": [
+    "Bile Acid Sequestrant"
+   ],
+   "atc": [
+    "Bile acid sequestrants"
+   ],
+   "moa": [
+    "Bile-acid Binding Activity"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Cyanocobalamin Vitamin B-12",
+   "primary_class": "Vitamin B12",
+   "needs_review": false,
+   "rxcui": "11248",
+   "matched_as": "Cyanocobalamin",
+   "path": "normalized",
+   "epc": [
+    "Vitamin B12"
+   ],
+   "atc": [
+    "Vitamin B12 (cyanocobalamin and analogues)"
+   ],
+   "moa": [],
+   "va": [
+    "CYANOCOBALAMIN",
+    "MULTIVITAMINS",
+    "MULTIVITAMINS WITH MINERALS",
+    "VITAMIN B,OTHER"
+   ]
+  },
+  {
+   "generic": "Cyclobenzaprine",
+   "primary_class": "Muscle Relaxant",
+   "needs_review": false,
+   "rxcui": "21949",
+   "matched_as": "Cyclobenzaprine",
+   "path": "direct",
+   "epc": [
+    "Muscle Relaxant"
+   ],
+   "atc": [
+    "Other centrally acting agents"
+   ],
+   "moa": [],
+   "va": [
+    "SKELETAL MUSCLE RELAXANTS"
+   ]
+  },
+  {
+   "generic": "Cyclosporin Emulsion (ophthalmic)",
+   "primary_class": "Calcineurin Inhibitor Immunosuppressant",
+   "needs_review": false,
+   "rxcui": "378766",
+   "matched_as": "Cyclosporin Emulsion (ophthalmic)",
+   "path": "direct",
+   "epc": [
+    "Calcineurin Inhibitor Immunosuppressant"
+   ],
+   "atc": [
+    "Calcineurin inhibitors",
+    "Other ophthalmologicals"
+   ],
+   "moa": [
+    "Calcineurin Inhibitors",
+    "Cytochrome P450 3A4 Inhibitors",
+    "P-Glycoprotein Inhibitors"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORIES,TOPICAL OPHTHALMIC"
+   ]
+  },
+  {
+   "generic": "Dapagliflozin",
+   "primary_class": "Sodium-Glucose Cotransporter 2 Inhibitor",
+   "needs_review": false,
+   "rxcui": "1488564",
+   "matched_as": "Dapagliflozin",
+   "path": "direct",
+   "epc": [
+    "Sodium-Glucose Cotransporter 2 Inhibitor"
+   ],
+   "atc": [
+    "Combinations of oral blood glucose lowering drugs",
+    "Sodium-glucose co-transporter 2 (SGLT2) inhibitors"
+   ],
+   "moa": [
+    "Sodium-Glucose Transporter 2 Inhibitors"
+   ],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Desvenlafaxine",
+   "primary_class": "Serotonin and Norepinephrine Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "734064",
+   "matched_as": "Desvenlafaxine",
+   "path": "direct",
+   "epc": [
+    "Serotonin and Norepinephrine Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [
+    "Cytochrome P450 2D6 Inhibitors",
+    "Norepinephrine Uptake Inhibitors",
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Dexmedetomidine",
+   "primary_class": "Central alpha-2 Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "48937",
+   "matched_as": "Dexmedetomidine",
+   "path": "direct",
+   "epc": [
+    "Central alpha-2 Adrenergic Agonist"
+   ],
+   "atc": [
+    "Other hypnotics and sedatives"
+   ],
+   "moa": [
+    "Adrenergic alpha2-Agonists"
+   ],
+   "va": [
+    "SEDATIVES/HYPNOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Diazepam",
+   "primary_class": "Benzodiazepine",
+   "needs_review": false,
+   "rxcui": "3322",
+   "matched_as": "Diazepam",
+   "path": "direct",
+   "epc": [
+    "Benzodiazepine"
+   ],
+   "atc": [
+    "Benzodiazepine derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "BENZODIAZEPINE DERIVATIVE SEDATIVES/HYPNOTICS"
+   ]
+  },
+  {
+   "generic": "Diclofenac",
+   "primary_class": "Nonsteroidal Anti-inflammatory Drug",
+   "needs_review": false,
+   "rxcui": "3355",
+   "matched_as": "Diclofenac",
+   "path": "direct",
+   "epc": [
+    "Nonsteroidal Anti-inflammatory Drug"
+   ],
+   "atc": [
+    "Acetic acid derivatives and related substances",
+    "Antiinflammatory agents, non-steroids",
+    "Antiinflammatory preparations, non-steroids for topical use",
+    "Other dermatologicals"
+   ],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORIES,TOPICAL OPHTHALMIC",
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "MUSCULOSKELETAL AGENTS,OTHER",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
+   ]
+  },
+  {
+   "generic": "Diclofenac (topical)",
+   "primary_class": "Nonsteroidal Anti-inflammatory Drug",
+   "needs_review": false,
+   "rxcui": "1151155",
+   "matched_as": "Diclofenac (topical)",
+   "path": "direct",
+   "epc": [
+    "Nonsteroidal Anti-inflammatory Drug"
+   ],
+   "atc": [
+    "Acetic acid derivatives and related substances",
+    "Antiinflammatory agents, non-steroids",
+    "Antiinflammatory preparations, non-steroids for topical use",
+    "Other dermatologicals"
+   ],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
+   ]
+  },
+  {
+   "generic": "Dicyclomine",
+   "primary_class": "Anticholinergic",
+   "needs_review": false,
+   "rxcui": "3361",
+   "matched_as": "Dicyclomine",
+   "path": "direct",
+   "epc": [
+    "Anticholinergic"
+   ],
+   "atc": [
+    "Synthetic anticholinergics, esters with tertiary amino group"
+   ],
+   "moa": [
+    "Cholinergic Antagonists"
+   ],
+   "va": [
+    "PARASYMPATHOLYTICS"
+   ]
+  },
+  {
+   "generic": "Digoxin",
+   "primary_class": "Cardiac Glycoside",
+   "needs_review": false,
+   "rxcui": "3407",
+   "matched_as": "Digoxin",
+   "path": "direct",
+   "epc": [
+    "Cardiac Glycoside"
+   ],
+   "atc": [
+    "Digitalis glycosides"
+   ],
+   "moa": [],
+   "va": [
+    "DIGITALIS GLYCOSIDES"
+   ]
+  },
+  {
+   "generic": "Diltiazem",
+   "primary_class": "Calcium Channel Blocker",
+   "needs_review": false,
+   "rxcui": "3443",
+   "matched_as": "Diltiazem",
+   "path": "direct",
+   "epc": [
+    "Calcium Channel Blocker"
+   ],
+   "atc": [
+    "Benzothiazepine derivatives",
+    "Muscle relaxants"
+   ],
+   "moa": [
+    "Calcium Channel Antagonists",
+    "Cytochrome P450 3A4 Inhibitors"
+   ],
+   "va": [
+    "CALCIUM CHANNEL BLOCKERS"
+   ]
+  },
+  {
+   "generic": "Dipyridamole and Aspirin",
+   "primary_class": "Platelet Aggregation Inhibitor",
+   "needs_review": false,
+   "rxcui": "3521",
+   "matched_as": "Dipyridamole",
+   "path": "normalized",
+   "epc": [
+    "Platelet Aggregation Inhibitor"
+   ],
+   "atc": [
+    "Platelet aggregation inhibitors excl. heparin"
+   ],
+   "moa": [],
+   "va": [
+    "DIAGNOSTICS,OTHER",
+    "PLATELET AGGREGATION INHIBITORS"
+   ]
+  },
+  {
+   "generic": "Divalproex sodium",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "266856",
+   "matched_as": "Divalproex sodium",
+   "path": "direct",
+   "epc": [],
+   "atc": [],
+   "moa": [],
+   "va": [
+    "ANTICONVULSANTS"
+   ]
+  },
+  {
+   "generic": "Dobutamine",
+   "primary_class": "beta-Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "3616",
+   "matched_as": "Dobutamine",
+   "path": "direct",
+   "epc": [
+    "beta-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Adrenergic and dopaminergic agents"
+   ],
+   "moa": [
+    "Adrenergic beta-Agonists"
+   ],
+   "va": [
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Dofetilide",
+   "primary_class": "Antiarrhythmic",
+   "needs_review": false,
+   "rxcui": "49247",
+   "matched_as": "Dofetilide",
+   "path": "direct",
+   "epc": [
+    "Antiarrhythmic"
+   ],
+   "atc": [
+    "Antiarrhythmics, class III"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIARRHYTHMICS"
+   ]
+  },
+  {
+   "generic": "Donepezil",
+   "primary_class": "Cholinesterase Inhibitor",
+   "needs_review": false,
+   "rxcui": "135447",
+   "matched_as": "Donepezil",
+   "path": "direct",
+   "epc": [
+    "Cholinesterase Inhibitor"
+   ],
+   "atc": [
+    "Anticholinesterases"
+   ],
+   "moa": [
+    "Cholinesterase Inhibitors"
+   ],
+   "va": [
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Dopamine",
+   "primary_class": "Catecholamine",
+   "needs_review": false,
+   "rxcui": "3628",
+   "matched_as": "Dopamine",
+   "path": "direct",
+   "epc": [
+    "Catecholamine"
+   ],
+   "atc": [
+    "Adrenergic and dopaminergic agents"
+   ],
+   "moa": [],
+   "va": [
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Doxycycline",
+   "primary_class": "Tetracycline-class Drug",
+   "needs_review": false,
+   "rxcui": "3640",
+   "matched_as": "Doxycycline",
+   "path": "direct",
+   "epc": [
+    "Tetracycline-class Drug"
+   ],
+   "atc": [
+    "Antiinfectives and antiseptics for local oral treatment",
+    "Tetracyclines"
+   ],
+   "moa": [],
+   "va": [
+    "TETRACYCLINES"
+   ]
+  },
+  {
+   "generic": "Duloxetine",
+   "primary_class": "Serotonin and Norepinephrine Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "72625",
+   "matched_as": "Duloxetine",
+   "path": "direct",
+   "epc": [
+    "Serotonin and Norepinephrine Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [
+    "Norepinephrine Uptake Inhibitors",
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Empagliflozin",
+   "primary_class": "Sodium-Glucose Cotransporter 2 Inhibitor",
+   "needs_review": false,
+   "rxcui": "1545653",
+   "matched_as": "Empagliflozin",
+   "path": "direct",
+   "epc": [
+    "Sodium-Glucose Cotransporter 2 Inhibitor"
+   ],
+   "atc": [
+    "Combinations of oral blood glucose lowering drugs",
+    "Sodium-glucose co-transporter 2 (SGLT2) inhibitors"
+   ],
+   "moa": [
+    "Sodium-Glucose Transporter 2 Inhibitors"
+   ],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Enoxaparin",
+   "primary_class": "Low Molecular Weight Heparin",
+   "needs_review": false,
+   "rxcui": "67108",
+   "matched_as": "Enoxaparin",
+   "path": "direct",
+   "epc": [
+    "Low Molecular Weight Heparin"
+   ],
+   "atc": [
+    "Heparin group"
+   ],
+   "moa": [],
+   "va": [
+    "ANTICOAGULANTS"
+   ]
+  },
+  {
+   "generic": "Ephedrine",
+   "primary_class": "Norepinephrine Releasing Agent",
+   "needs_review": false,
+   "rxcui": "3966",
+   "matched_as": "Ephedrine",
+   "path": "direct",
+   "epc": [
+    "Norepinephrine Releasing Agent",
+    "alpha-Adrenergic Agonist",
+    "beta-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Adrenergic and dopaminergic agents",
+    "Alpha- and beta-adrenoreceptor agonists",
+    "Sympathomimetics excl. antiglaucoma preparations",
+    "Sympathomimetics, combinations excl. corticosteroids",
+    "Sympathomimetics, plain"
+   ],
+   "moa": [
+    "Adrenergic alpha-Agonists",
+    "Adrenergic beta-Agonists"
+   ],
+   "va": [
+    "BRONCHODILATORS,SYMPATHOMIMETIC,ORAL",
+    "DECONGESTANT/EXPECTORANT",
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Epinephrine",
+   "primary_class": "Catecholamine",
+   "needs_review": false,
+   "rxcui": "3992",
+   "matched_as": "Epinephrine",
+   "path": "direct",
+   "epc": [
+    "Catecholamine",
+    "alpha-Adrenergic Agonist",
+    "beta-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Adrenergic and dopaminergic agents",
+    "Alpha- and beta-adrenoreceptor agonists",
+    "Local hemostatics",
+    "Other agents for local oral treatment",
+    "Sympathomimetics in glaucoma therapy",
+    "Sympathomimetics, plain"
+   ],
+   "moa": [
+    "Adrenergic alpha-Agonists",
+    "Adrenergic beta-Agonists"
+   ],
+   "va": [
+    "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION",
+    "LOCAL ANESTHETICS,INJECTION",
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Epoprostenol",
+   "primary_class": "Prostacycline Vasodilator",
+   "needs_review": false,
+   "rxcui": "8814",
+   "matched_as": "Epoprostenol",
+   "path": "direct",
+   "epc": [
+    "Prostacycline Vasodilator"
+   ],
+   "atc": [
+    "Platelet aggregation inhibitors excl. heparin"
+   ],
+   "moa": [],
+   "va": [
+    "PROSTAGLANDINS"
+   ]
+  },
+  {
+   "generic": "Escitalopram",
+   "primary_class": "Serotonin Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "321988",
+   "matched_as": "Escitalopram",
+   "path": "direct",
+   "epc": [
+    "Serotonin Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Selective serotonin reuptake inhibitors"
+   ],
+   "moa": [
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Esomeprazole",
+   "primary_class": "Proton Pump Inhibitor",
+   "needs_review": false,
+   "rxcui": "283742",
+   "matched_as": "Esomeprazole",
+   "path": "direct",
+   "epc": [
+    "Proton Pump Inhibitor"
+   ],
+   "atc": [
+    "Propionic acid derivatives",
+    "Proton pump inhibitors"
+   ],
+   "moa": [
+    "Cytochrome P450 2C19 Inhibitors",
+    "Proton Pump Inhibitors"
+   ],
+   "va": [
+    "GASTRIC MEDICATIONS,OTHER",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
+   ]
+  },
+  {
+   "generic": "Estradiol Oral Topical Vaginal",
+   "primary_class": "Estrogen",
+   "needs_review": false,
+   "rxcui": "4083",
+   "matched_as": "Estradiol",
+   "path": "normalized",
+   "epc": [
+    "Estrogen",
+    "Radioactive Diagnostic Agent"
+   ],
+   "atc": [
+    "Natural and semisynthetic estrogens, plain",
+    "Progestogens and estrogens, fixed combinations",
+    "Progestogens and estrogens, sequential preparations"
+   ],
+   "moa": [
+    "Estrogen Receptor Agonists",
+    "Positron Emitting Activity"
+   ],
+   "va": [
+    "ANTINEOPLASTIC HORMONES",
+    "CONTRACEPTIVES,SYSTEMIC",
+    "ESTROGENS",
+    "ESTROGENS,VAGINAL",
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
+   ]
+  },
+  {
+   "generic": "Eszopiclone",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "461016",
+   "matched_as": "Eszopiclone",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Benzodiazepine related drugs"
+   ],
+   "moa": [],
+   "va": [
+    "SEDATIVES/HYPNOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Evolocumab",
+   "primary_class": "PCSK9 Inhibitor",
+   "needs_review": false,
+   "rxcui": "1665684",
+   "matched_as": "Evolocumab",
+   "path": "direct",
+   "epc": [
+    "PCSK9 Inhibitor"
+   ],
+   "atc": [
+    "Other lipid modifying agents"
+   ],
+   "moa": [
+    "PCSK9 Inhibitors"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Ezetimibe",
+   "primary_class": "Dietary Cholesterol Absorption Inhibitor",
+   "needs_review": false,
+   "rxcui": "341248",
+   "matched_as": "Ezetimibe",
+   "path": "direct",
+   "epc": [
+    "Dietary Cholesterol Absorption Inhibitor"
+   ],
+   "atc": [
+    "Combinations of various lipid modifying agents",
+    "Other lipid modifying agents"
+   ],
+   "moa": [],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Famotidine",
+   "primary_class": "Histamine-2 Receptor Antagonist",
+   "needs_review": false,
+   "rxcui": "4278",
+   "matched_as": "Famotidine",
+   "path": "direct",
+   "epc": [
+    "Histamine-2 Receptor Antagonist"
+   ],
+   "atc": [
+    "H2-receptor antagonists"
+   ],
+   "moa": [
+    "Histamine H2 Receptor Antagonists"
+   ],
+   "va": [
+    "ANTACIDS,OTHER",
+    "HISTAMINE ANTAGONISTS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
+   ]
+  },
+  {
+   "generic": "Fenofibrate (nanocrystallized)",
+   "primary_class": "Peroxisome Proliferator-activated Receptor alpha Agonist",
+   "needs_review": false,
+   "rxcui": "8703",
+   "matched_as": "Fenofibrate",
+   "path": "normalized",
+   "epc": [
+    "Peroxisome Proliferator-activated Receptor alpha Agonist"
+   ],
+   "atc": [
+    "Combinations of various lipid modifying agents",
+    "Fibrates"
+   ],
+   "moa": [
+    "Peroxisome Proliferator-activated Receptor alpha Agonists"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Fentanyl Transdermal Patch",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "4337",
+   "matched_as": "Fentanyl",
+   "path": "normalized",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Opioid anesthetics",
+    "Phenylpiperidine derivatives"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Finasteride",
+   "primary_class": "5-alpha Reductase Inhibitor",
+   "needs_review": false,
+   "rxcui": "25025",
+   "matched_as": "Finasteride",
+   "path": "direct",
+   "epc": [
+    "5-alpha Reductase Inhibitor"
+   ],
+   "atc": [
+    "Other dermatologicals",
+    "Testosterone-5-alpha reductase inhibitors"
+   ],
+   "moa": [
+    "5-alpha Reductase Inhibitors"
+   ],
+   "va": [
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
+   ]
+  },
+  {
+   "generic": "Fluconazole",
+   "primary_class": "Azole Antifungal",
+   "needs_review": false,
+   "rxcui": "4450",
+   "matched_as": "Fluconazole",
+   "path": "direct",
+   "epc": [
+    "Azole Antifungal"
+   ],
+   "atc": [
+    "Imidazole and triazole derivatives",
+    "Triazole and tetrazole derivatives"
+   ],
+   "moa": [
+    "Cytochrome P450 2C19 Inhibitors",
+    "Cytochrome P450 2C9 Inhibitors",
+    "Cytochrome P450 3A4 Inhibitors"
+   ],
+   "va": [
+    "ANTIFUNGALS"
+   ]
+  },
+  {
+   "generic": "Fluoxetine",
+   "primary_class": "Serotonin Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "4493",
+   "matched_as": "Fluoxetine",
+   "path": "direct",
+   "epc": [
+    "Serotonin Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Selective serotonin reuptake inhibitors"
+   ],
+   "moa": [
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER",
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Fluticasone furoate/Vilanterol",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "1424888",
+   "matched_as": "Fluticasone furoate/Vilanterol",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid",
+    "beta2-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Corticosteroids",
+    "Corticosteroids, potent (group III)",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Adrenergic beta2-Agonists",
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTIASTHMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Fluticasone furoate/ Umeclidinium bromide/ Vilanterol",
+   "primary_class": "Anticholinergic",
+   "needs_review": false,
+   "rxcui": "1945038",
+   "matched_as": "Fluticasone furoate/ Umeclidinium bromide/ Vilanterol",
+   "path": "direct",
+   "epc": [
+    "Anticholinergic",
+    "Corticosteroid",
+    "beta2-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Corticosteroids",
+    "Corticosteroids, potent (group III)",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Adrenergic beta2-Agonists",
+    "Cholinergic Antagonists",
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTIASTHMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Fluticasone propionate (nasal)",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "1165656",
+   "matched_as": "Fluticasone propionate (nasal)",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids",
+    "Corticosteroids, potent (group III)",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORIES,NASAL"
+   ]
+  },
+  {
+   "generic": "Fluticasone/ Salmeterol",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "284635",
+   "matched_as": "Fluticasone/ Salmeterol",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid",
+    "beta2-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
+    "Corticosteroids",
+    "Corticosteroids, potent (group III)",
+    "Glucocorticoids",
+    "Selective beta-2-adrenoreceptor agonists"
+   ],
+   "moa": [
+    "Adrenergic beta2-Agonists",
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTIASTHMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Folic acid",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "4511",
+   "matched_as": "Folic acid",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Folic acid and derivatives",
+    "Iron in combination with folic acid",
+    "Other diagnostic agents"
+   ],
+   "moa": [],
+   "va": [
+    "FOLIC ACID/LEUCOVORIN",
+    "MULTIVITAMINS",
+    "MULTIVITAMINS WITH MINERALS",
+    "VITAMIN B,OTHER",
+    "VITAMIN COMBINATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Fremanezumab-vfrm",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "2056690",
+   "matched_as": "Fremanezumab-vfrm",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Calcitonin gene-related peptide (CGRP) antagonists"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIMIGRAINE AGENTS"
+   ]
+  },
+  {
+   "generic": "Furosemide",
+   "primary_class": "Loop Diuretic",
+   "needs_review": false,
+   "rxcui": "4603",
+   "matched_as": "Furosemide",
+   "path": "direct",
+   "epc": [
+    "Loop Diuretic"
+   ],
+   "atc": [
+    "Sulfonamides and potassium in combination",
+    "Sulfonamides, plain"
+   ],
+   "moa": [],
+   "va": [
+    "LOOP DIURETICS"
+   ]
+  },
+  {
+   "generic": "Gabapentin",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "25480",
+   "matched_as": "Gabapentin",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Gabapentinoids"
+   ],
+   "moa": [],
+   "va": [
+    "ANTICONVULSANTS",
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Glimepiride",
+   "primary_class": "Sulfonylurea",
+   "needs_review": false,
+   "rxcui": "25789",
+   "matched_as": "Glimepiride",
+   "path": "direct",
+   "epc": [
+    "Sulfonylurea"
+   ],
+   "atc": [
+    "Combinations of oral blood glucose lowering drugs",
+    "Sulfonylureas"
+   ],
+   "moa": [],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Glipizide",
+   "primary_class": "Sulfonylurea",
+   "needs_review": false,
+   "rxcui": "4821",
+   "matched_as": "Glipizide",
+   "path": "direct",
+   "epc": [
+    "Sulfonylurea"
+   ],
+   "atc": [
+    "Sulfonylureas"
+   ],
+   "moa": [],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Guanfacine ER",
+   "primary_class": "Central alpha-2 Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "40114",
+   "matched_as": "Guanfacine",
+   "path": "normalized",
+   "epc": [
+    "Central alpha-2 Adrenergic Agonist"
+   ],
+   "atc": [
+    "Imidazoline receptor agonists"
+   ],
+   "moa": [
+    "Adrenergic alpha2-Agonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVES,OTHER",
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Heparin",
+   "primary_class": "Anti-coagulant",
+   "needs_review": false,
+   "rxcui": "235473",
+   "matched_as": "Heparin",
+   "path": "direct",
+   "epc": [
+    "Anti-coagulant",
+    "Unfractionated Heparin"
+   ],
+   "atc": [
+    "Heparin group",
+    "Heparins or heparinoids for topical use",
+    "Other ophthalmologicals"
+   ],
+   "moa": [],
+   "va": []
+  },
+  {
+   "generic": "Hydrochlorothiazide",
+   "primary_class": "Thiazide Diuretic",
+   "needs_review": false,
+   "rxcui": "5487",
+   "matched_as": "Hydrochlorothiazide",
+   "path": "direct",
+   "epc": [
+    "Thiazide Diuretic"
+   ],
+   "atc": [
+    "Angiotensin II receptor blockers (ARBs), other combinations",
+    "Renin-inhibitors",
+    "Thiazides, plain"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+    "THIAZIDES/RELATED DIURETICS"
+   ]
+  },
+  {
+   "generic": "Hydrocodone/ Acetaminophen",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "214182",
+   "matched_as": "Hydrocodone/ Acetaminophen",
+   "path": "direct",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Anilides",
+    "Opium alkaloids and derivatives"
+   ],
+   "moa": [
+    "Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Hydrocortisone sodium succinate",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "235483",
+   "matched_as": "Hydrocortisone sodium succinate",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids",
+    "Corticosteroids acting locally",
+    "Corticosteroids for local oral treatment",
+    "Corticosteroids, plain",
+    "Corticosteroids, weak (group I)",
+    "Corticosteroids, weak, other combinations",
+    "Corticosteroids/antiinfectives/mydriatics in combination",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": []
+  },
+  {
+   "generic": "Hydroxychloroquine",
+   "primary_class": "Antimalarial",
+   "needs_review": false,
+   "rxcui": "5521",
+   "matched_as": "Hydroxychloroquine",
+   "path": "direct",
+   "epc": [
+    "Antimalarial",
+    "Antirheumatic Agent"
+   ],
+   "atc": [
+    "Aminoquinolines"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIMALARIALS"
+   ]
+  },
+  {
+   "generic": "Hydroxyzine hydrochloride",
+   "primary_class": "Antihistamine",
+   "needs_review": false,
+   "rxcui": "154987",
+   "matched_as": "Hydroxyzine hydrochloride",
+   "path": "direct",
+   "epc": [
+    "Antihistamine"
+   ],
+   "atc": [
+    "Diphenylmethane derivatives"
+   ],
+   "moa": [
+    "Histamine Receptor Antagonists"
+   ],
+   "va": [
+    "ANTIHISTAMINES,PIPERAZINE"
+   ]
+  },
+  {
+   "generic": "Ibuprofen",
+   "primary_class": "Nonsteroidal Anti-inflammatory Drug",
+   "needs_review": false,
+   "rxcui": "5640",
+   "matched_as": "Ibuprofen",
+   "path": "direct",
+   "epc": [
+    "Nonsteroidal Anti-inflammatory Drug"
+   ],
+   "atc": [
+    "Antiinflammatory preparations, non-steroids for topical use",
+    "Antiinflammatory products for vaginal administration",
+    "Opioids in combination with non-opioid analgesics",
+    "Other cardiac preparations",
+    "Other throat preparations",
+    "Propionic acid derivatives"
+   ],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
+   "va": [
+    "CNS MEDICATIONS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "NON-STEROIDAL ANTI-INFLAMMATORY ANALGESICS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Icosapent ethyl",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "1304974",
+   "matched_as": "Icosapent ethyl",
+   "path": "direct",
+   "epc": [],
+   "atc": [],
+   "moa": [],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Insulin aspart",
+   "primary_class": "Insulin Analog",
+   "needs_review": false,
+   "rxcui": "51428",
+   "matched_as": "Insulin aspart",
+   "path": "direct",
+   "epc": [
+    "Insulin Analog"
+   ],
+   "atc": [
+    "Insulins and analogues for injection, fast-acting",
+    "Insulins and analogues for injection, intermediate- or long-acting combined with fast-acting"
+   ],
+   "moa": [],
+   "va": [
+    "INSULIN"
+   ]
+  },
+  {
+   "generic": "Insulin degludec",
+   "primary_class": "Insulin Analog",
+   "needs_review": false,
+   "rxcui": "1670007",
+   "matched_as": "Insulin degludec",
+   "path": "direct",
+   "epc": [
+    "Insulin Analog"
+   ],
+   "atc": [
+    "Insulins and analogues for injection, long-acting"
+   ],
+   "moa": [],
+   "va": [
+    "HYPOGLYCEMIC AGENTS,OTHER",
+    "INSULIN"
+   ]
+  },
+  {
+   "generic": "Insulin glargine",
+   "primary_class": "Insulin Analog",
+   "needs_review": false,
+   "rxcui": "274783",
+   "matched_as": "Insulin glargine",
+   "path": "direct",
+   "epc": [
+    "Insulin Analog"
+   ],
+   "atc": [
+    "Insulins and analogues for injection, long-acting"
+   ],
+   "moa": [],
+   "va": [
+    "HYPOGLYCEMIC AGENTS,OTHER",
+    "INSULIN"
+   ]
+  },
+  {
+   "generic": "Irbesartan",
+   "primary_class": "Angiotensin 2 Receptor Blocker",
+   "needs_review": false,
+   "rxcui": "83818",
+   "matched_as": "Irbesartan",
+   "path": "direct",
+   "epc": [
+    "Angiotensin 2 Receptor Blocker"
+   ],
+   "atc": [
+    "Angiotensin II receptor blockers (ARBs), plain"
+   ],
+   "moa": [
+    "Angiotensin 2 Receptor Antagonists"
+   ],
+   "va": [
+    "ANGIOTENSIN II INHIBITOR",
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Iron sucrose",
+   "primary_class": "Parenteral Iron Replacement",
+   "needs_review": false,
+   "rxcui": "24909",
+   "matched_as": "Iron sucrose",
+   "path": "direct",
+   "epc": [
+    "Parenteral Iron Replacement"
+   ],
+   "atc": [
+    "Iron trivalent, oral preparations"
+   ],
+   "moa": [],
+   "va": [
+    "IRON"
+   ]
+  },
+  {
+   "generic": "Isosorbide mononitrate",
+   "primary_class": "Nitrate Vasodilator",
+   "needs_review": false,
+   "rxcui": "28004",
+   "matched_as": "Isosorbide mononitrate",
+   "path": "direct",
+   "epc": [
+    "Nitrate Vasodilator"
+   ],
+   "atc": [
+    "Organic nitrates"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIANGINALS"
+   ]
+  },
+  {
+   "generic": "Ketorolac",
+   "primary_class": "Cyclooxygenase Inhibitor",
+   "needs_review": false,
+   "rxcui": "35827",
+   "matched_as": "Ketorolac",
+   "path": "direct",
+   "epc": [
+    "Cyclooxygenase Inhibitor",
+    "Nonsteroidal Anti-inflammatory Drug"
+   ],
+   "atc": [
+    "Acetic acid derivatives and related substances",
+    "Antiinflammatory agents, non-steroids",
+    "Sympathomimetics excl. antiglaucoma preparations"
+   ],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORIES,TOPICAL OPHTHALMIC",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
+    "OPHTHALMICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Lactulose",
+   "primary_class": "Osmotic Laxative",
+   "needs_review": false,
+   "rxcui": "6218",
+   "matched_as": "Lactulose",
+   "path": "direct",
+   "epc": [
+    "Osmotic Laxative"
+   ],
+   "atc": [
+    "Osmotically acting laxatives"
+   ],
+   "moa": [
+    "Acidifying Activity",
+    "Osmotic Activity"
+   ],
+   "va": [
+    "HYPEROSMOTIC LAXATIVES"
+   ]
+  },
+  {
+   "generic": "Lamotrigine",
+   "primary_class": "Anti-epileptic Agent",
+   "needs_review": false,
+   "rxcui": "28439",
+   "matched_as": "Lamotrigine",
+   "path": "direct",
+   "epc": [
+    "Anti-epileptic Agent",
+    "Mood Stabilizer"
+   ],
+   "atc": [
+    "Other antiepileptics"
+   ],
+   "moa": [
+    "Dihydrofolate Reductase Inhibitors",
+    "Organic Cation Transporter 2 Inhibitors"
+   ],
+   "va": [
+    "ANTICONVULSANTS"
+   ]
+  },
+  {
+   "generic": "Lansoprazole",
+   "primary_class": "Proton Pump Inhibitor",
+   "needs_review": false,
+   "rxcui": "17128",
+   "matched_as": "Lansoprazole",
+   "path": "direct",
+   "epc": [
+    "Proton Pump Inhibitor"
+   ],
+   "atc": [
+    "Proton pump inhibitors"
+   ],
+   "moa": [
+    "Proton Pump Inhibitors"
+   ],
+   "va": [
+    "GASTRIC MEDICATIONS,OTHER",
+    "H. PYLORI AGENTS"
+   ]
+  },
+  {
+   "generic": "Latanoprost",
+   "primary_class": "Prostaglandin Analog",
+   "needs_review": false,
+   "rxcui": "43611",
+   "matched_as": "Latanoprost",
+   "path": "direct",
+   "epc": [
+    "Prostaglandin Analog"
+   ],
+   "atc": [
+    "Prostaglandin analogues"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIGLAUCOMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Levetiracetam",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "114477",
+   "matched_as": "Levetiracetam",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Other antiepileptics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTICONVULSANTS"
+   ]
+  },
+  {
+   "generic": "Levofloxacin",
+   "primary_class": "Fluoroquinolone Antibacterial",
+   "needs_review": false,
+   "rxcui": "82122",
+   "matched_as": "Levofloxacin",
+   "path": "direct",
+   "epc": [
+    "Fluoroquinolone Antibacterial"
+   ],
+   "atc": [
+    "Fluoroquinolones"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIBACTERIALS,TOPICAL OPHTHALMIC",
+    "QUINOLONES"
+   ]
+  },
+  {
+   "generic": "Levothyroxine",
+   "primary_class": "l-Thyroxine",
+   "needs_review": false,
+   "rxcui": "10582",
+   "matched_as": "Levothyroxine",
+   "path": "direct",
+   "epc": [
+    "l-Thyroxine"
+   ],
+   "atc": [
+    "Thyroid hormones"
+   ],
+   "moa": [],
+   "va": [
+    "THYROID SUPPLEMENTS"
+   ]
+  },
+  {
+   "generic": "Linaclotide",
+   "primary_class": "Guanylate Cyclase-C Agonist",
+   "needs_review": false,
+   "rxcui": "1307404",
+   "matched_as": "Linaclotide",
+   "path": "direct",
+   "epc": [
+    "Guanylate Cyclase-C Agonist"
+   ],
+   "atc": [
+    "Other drugs for constipation"
+   ],
+   "moa": [
+    "Guanylate Cyclase Activators"
+   ],
+   "va": [
+    "GASTRIC MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Linezolid",
+   "primary_class": "Oxazolidinone Antibacterial",
+   "needs_review": false,
+   "rxcui": "190376",
+   "matched_as": "Linezolid",
+   "path": "direct",
+   "epc": [
+    "Oxazolidinone Antibacterial"
+   ],
+   "atc": [
+    "Other antibacterials"
+   ],
+   "moa": [],
+   "va": [
+    "ANTI-INFECTIVES,OTHER"
+   ]
+  },
+  {
+   "generic": "Lisdexamfetamine",
+   "primary_class": "Central Nervous System Stimulant",
+   "needs_review": false,
+   "rxcui": "700810",
+   "matched_as": "Lisdexamfetamine",
+   "path": "direct",
+   "epc": [
+    "Central Nervous System Stimulant"
+   ],
+   "atc": [
+    "Centrally acting sympathomimetics"
+   ],
+   "moa": [],
+   "va": [
+    "AMPHETAMINES"
+   ]
+  },
+  {
+   "generic": "Lisinopril",
+   "primary_class": "Angiotensin Converting Enzyme Inhibitor",
+   "needs_review": false,
+   "rxcui": "29046",
+   "matched_as": "Lisinopril",
+   "path": "direct",
+   "epc": [
+    "Angiotensin Converting Enzyme Inhibitor"
+   ],
+   "atc": [
+    "ACE inhibitors, plain"
+   ],
+   "moa": [
+    "Angiotensin-converting Enzyme Inhibitors"
+   ],
+   "va": [
+    "ACE INHIBITORS",
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Lisinopril/Hydrochlorothiazi de",
+   "primary_class": "Thiazide Diuretic",
+   "needs_review": false,
+   "rxcui": "214618",
+   "matched_as": "Lisinopril/Hydrochlorothiazide",
+   "path": "normalized",
+   "epc": [
+    "Thiazide Diuretic"
+   ],
+   "atc": [
+    "ACE inhibitors, plain",
+    "Thiazides, plain"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Lithium",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "6448",
+   "matched_as": "Lithium",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Lithium"
+   ],
+   "moa": [],
+   "va": []
+  },
+  {
+   "generic": "Lorazepam",
+   "primary_class": "Benzodiazepine",
+   "needs_review": false,
+   "rxcui": "6470",
+   "matched_as": "Lorazepam",
+   "path": "direct",
+   "epc": [
+    "Benzodiazepine"
+   ],
+   "atc": [
+    "Benzodiazepine derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "BENZODIAZEPINE DERIVATIVE SEDATIVES/HYPNOTICS"
+   ]
+  },
+  {
+   "generic": "Losartan",
+   "primary_class": "Angiotensin 2 Receptor Blocker",
+   "needs_review": false,
+   "rxcui": "52175",
+   "matched_as": "Losartan",
+   "path": "direct",
+   "epc": [
+    "Angiotensin 2 Receptor Blocker"
+   ],
+   "atc": [
+    "Angiotensin II receptor blockers (ARBs), plain"
+   ],
+   "moa": [
+    "Angiotensin 2 Receptor Antagonists"
+   ],
+   "va": [
+    "ANGIOTENSIN II INHIBITOR",
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Meloxicam",
+   "primary_class": "Nonsteroidal Anti-inflammatory Drug",
+   "needs_review": false,
+   "rxcui": "41493",
+   "matched_as": "Meloxicam",
+   "path": "direct",
+   "epc": [
+    "Nonsteroidal Anti-inflammatory Drug"
+   ],
+   "atc": [
+    "Amides",
+    "Oxicams"
+   ],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
+   "va": [
+    "ANESTHETIC ADJUNCTS",
+    "ANTIMIGRAINE AGENTS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
+   ]
+  },
+  {
+   "generic": "Memantine",
+   "primary_class": "N-methyl-D-aspartate Receptor Antagonist",
+   "needs_review": false,
+   "rxcui": "6719",
+   "matched_as": "Memantine",
+   "path": "direct",
+   "epc": [
+    "N-methyl-D-aspartate Receptor Antagonist"
+   ],
+   "atc": [
+    "Anticholinesterases",
+    "Other anti-dementia drugs"
+   ],
+   "moa": [
+    "NMDA Receptor Antagonists"
+   ],
+   "va": [
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Meropenem",
+   "primary_class": "Penem Antibacterial",
+   "needs_review": false,
+   "rxcui": "29561",
+   "matched_as": "Meropenem",
+   "path": "direct",
+   "epc": [
+    "Penem Antibacterial"
+   ],
+   "atc": [
+    "Carbapenems"
+   ],
+   "moa": [],
+   "va": [
+    "BETA-LACTAMS ANTIMICROBIALS,OTHER"
+   ]
+  },
+  {
+   "generic": "Metformin",
+   "primary_class": "Biguanide",
+   "needs_review": false,
+   "rxcui": "6809",
+   "matched_as": "Metformin",
+   "path": "direct",
+   "epc": [
+    "Biguanide"
+   ],
+   "atc": [
+    "Biguanides",
+    "Combinations of oral blood glucose lowering drugs"
+   ],
+   "moa": [],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Methadone",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "6813",
+   "matched_as": "Methadone",
+   "path": "direct",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Drugs used in opioid dependence"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Methenamine",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "6832",
+   "matched_as": "Methenamine",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Other antibacterials"
+   ],
+   "moa": [],
+   "va": [
+    "ANTI-INFECTIVES,OTHER",
+    "ANTISPASMODICS,URINARY,OTHER",
+    "METHENAMINE SALTS ANTIMICROBIALS"
+   ]
+  },
+  {
+   "generic": "Methocarbamol",
+   "primary_class": "Muscle Relaxant",
+   "needs_review": false,
+   "rxcui": "6845",
+   "matched_as": "Methocarbamol",
+   "path": "direct",
+   "epc": [
+    "Muscle Relaxant"
+   ],
+   "atc": [
+    "Carbamic acid esters"
+   ],
+   "moa": [],
+   "va": [
+    "SKELETAL MUSCLE RELAXANTS"
+   ]
+  },
+  {
+   "generic": "Methotrexate",
+   "primary_class": "Folate Analog Metabolic Inhibitor",
+   "needs_review": false,
+   "rxcui": "6851",
+   "matched_as": "Methotrexate",
+   "path": "direct",
+   "epc": [
+    "Folate Analog Metabolic Inhibitor"
+   ],
+   "atc": [
+    "Folic acid analogues",
+    "Other immunosuppressants"
+   ],
+   "moa": [
+    "Folic Acid Metabolism Inhibitors"
+   ],
+   "va": [
+    "ANTINEOPLASTICS,ANTIMETABOLITES"
+   ]
+  },
+  {
+   "generic": "Methylphenidate",
+   "primary_class": "Central Nervous System Stimulant",
+   "needs_review": false,
+   "rxcui": "6901",
+   "matched_as": "Methylphenidate",
+   "path": "direct",
+   "epc": [
+    "Central Nervous System Stimulant"
+   ],
+   "atc": [
+    "Centrally acting sympathomimetics"
+   ],
+   "moa": [],
+   "va": [
+    "AMPHETAMINE LIKE STIMULANTS"
+   ]
+  },
+  {
+   "generic": "Methylprednisolone (oral)",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "6902",
+   "matched_as": "Methylprednisolone",
+   "path": "normalized",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids, combinations for treatment of acne",
+    "Corticosteroids, potent (group III)",
+    "Corticosteroids, weak (group I)",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "GLUCOCORTICOIDS"
+   ]
+  },
+  {
+   "generic": "Methylprednisolone sodium succinate (parenteral)",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "203189",
+   "matched_as": "Methylprednisolone sodium succinate",
+   "path": "normalized",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids, combinations for treatment of acne",
+    "Corticosteroids, weak (group I)",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": []
+  },
+  {
+   "generic": "Metoprolol succinate",
+   "primary_class": "beta-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "221124",
+   "matched_as": "Metoprolol succinate",
+   "path": "direct",
+   "epc": [
+    "beta-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Beta blocking agents, selective"
+   ],
+   "moa": [
+    "Adrenergic beta-Antagonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "BETA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Metoprolol tartrate",
+   "primary_class": "beta-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "203191",
+   "matched_as": "Metoprolol tartrate",
+   "path": "direct",
+   "epc": [
+    "beta-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Beta blocking agents, selective"
+   ],
+   "moa": [
+    "Adrenergic beta-Antagonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "BETA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Metronidazole",
+   "primary_class": "Nitroimidazole Antimicrobial",
+   "needs_review": false,
+   "rxcui": "6922",
+   "matched_as": "Metronidazole",
+   "path": "direct",
+   "epc": [
+    "Nitroimidazole Antimicrobial"
+   ],
+   "atc": [
+    "Antiinfectives and antiseptics for local oral treatment",
+    "Combinations for eradication of Helicobacter pylori",
+    "Combinations of antibacterials",
+    "Imidazole derivatives",
+    "Nitroimidazole derivatives",
+    "Other chemotherapeutics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTI-INFECTIVES,OTHER",
+    "ANTI-INFECTIVES,VAGINAL",
+    "ANTIACNE AGENTS,TOPICAL",
+    "ANTIBACTERIAL,TOPICAL",
+    "H. PYLORI AGENTS"
+   ]
+  },
+  {
+   "generic": "Micafungin",
+   "primary_class": "Echinocandin Antifungal",
+   "needs_review": false,
+   "rxcui": "325887",
+   "matched_as": "Micafungin",
+   "path": "direct",
+   "epc": [
+    "Echinocandin Antifungal"
+   ],
+   "atc": [
+    "Other antimycotics for systemic use"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIFUNGALS"
+   ]
+  },
+  {
+   "generic": "Midazolam",
+   "primary_class": "Benzodiazepine",
+   "needs_review": false,
+   "rxcui": "6960",
+   "matched_as": "Midazolam",
+   "path": "direct",
+   "epc": [
+    "Benzodiazepine"
+   ],
+   "atc": [
+    "Benzodiazepine derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "BENZODIAZEPINE DERIVATIVE SEDATIVES/HYPNOTICS"
+   ]
+  },
+  {
+   "generic": "Minocycline",
+   "primary_class": "Tetracycline-class Drug",
+   "needs_review": false,
+   "rxcui": "6980",
+   "matched_as": "Minocycline",
+   "path": "direct",
+   "epc": [
+    "Tetracycline-class Drug"
+   ],
+   "atc": [
+    "Antiinfectives and antiseptics for local oral treatment",
+    "Antiinfectives for treatment of acne",
+    "Tetracyclines"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIACNE AGENTS,TOPICAL",
+    "DENTAL AND ORAL AGENTS,TOPICAL,OTHER",
+    "TETRACYCLINES"
+   ]
+  },
+  {
+   "generic": "Mirabegron",
+   "primary_class": "beta3-Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "1300786",
+   "matched_as": "Mirabegron",
+   "path": "direct",
+   "epc": [
+    "beta3-Adrenergic Agonist"
+   ],
+   "atc": [
+    "Drugs for urinary frequency and incontinence"
+   ],
+   "moa": [
+    "Adrenergic beta3-Agonists",
+    "Cytochrome P450 2D6 Inhibitors",
+    "Cytochrome P450 3A Inhibitors",
+    "P-Glycoprotein Inhibitors"
+   ],
+   "va": [
+    "ANTISPASMODICS,URINARY"
+   ]
+  },
+  {
+   "generic": "Mirtazapine",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "15996",
+   "matched_as": "Mirtazapine",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Montelukast",
+   "primary_class": "Leukotriene Receptor Antagonist",
+   "needs_review": false,
+   "rxcui": "88249",
+   "matched_as": "Montelukast",
+   "path": "direct",
+   "epc": [
+    "Leukotriene Receptor Antagonist"
+   ],
+   "atc": [
+    "Leukotriene receptor antagonists"
+   ],
+   "moa": [
+    "Leukotriene Receptor Antagonists"
+   ],
+   "va": [
+    "ANTIASTHMA,OTHER"
+   ]
+  },
+  {
+   "generic": "Morphine",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "7052",
+   "matched_as": "Morphine",
+   "path": "direct",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Natural opium alkaloids"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Mupirocin",
+   "primary_class": "RNA Synthetase Inhibitor Antibacterial",
+   "needs_review": false,
+   "rxcui": "42372",
+   "matched_as": "Mupirocin",
+   "path": "direct",
+   "epc": [
+    "RNA Synthetase Inhibitor Antibacterial"
+   ],
+   "atc": [
+    "Other antibiotics for topical use",
+    "Other nasal preparations"
+   ],
+   "moa": [
+    "RNA Synthetase Inhibitors"
+   ],
+   "va": [
+    "ANTIBACTERIAL,TOPICAL",
+    "NASAL AND THROAT,TOPICAL,OTHER"
+   ]
+  },
+  {
+   "generic": "Naloxone",
+   "primary_class": "Opioid Antagonist",
+   "needs_review": false,
+   "rxcui": "7242",
+   "matched_as": "Naloxone",
+   "path": "direct",
+   "epc": [
+    "Opioid Antagonist"
+   ],
+   "atc": [
+    "Antidotes",
+    "Benzomorphan derivatives",
+    "Natural opium alkaloids",
+    "Other opioids",
+    "Peripheral opioid receptor antagonists"
+   ],
+   "moa": [
+    "Opioid Antagonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS",
+    "OPIOID ANTAGONIST ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Nitrofurantoin",
+   "primary_class": "Nitrofuran Antibacterial",
+   "needs_review": false,
+   "rxcui": "7454",
+   "matched_as": "Nitrofurantoin",
+   "path": "direct",
+   "epc": [
+    "Nitrofuran Antibacterial"
+   ],
+   "atc": [
+    "Nitrofuran derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "NITROFURANS ANTIMICROBIALS"
+   ]
+  },
+  {
+   "generic": "Norepinephrine",
+   "primary_class": "Catecholamine",
+   "needs_review": false,
+   "rxcui": "7512",
+   "matched_as": "Norepinephrine",
+   "path": "direct",
+   "epc": [
+    "Catecholamine"
+   ],
+   "atc": [
+    "Adrenergic and dopaminergic agents"
+   ],
+   "moa": [],
+   "va": [
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Norethindrone/Ethinyl estradiol/Ferrous fumarate",
+   "primary_class": "Estrogen",
+   "needs_review": false,
+   "rxcui": "7514+4124+24941",
+   "matched_as": "Norethindrone / Ethinyl estradiol / Ferrous fumarate",
+   "path": "components",
+   "epc": [
+    "Estrogen",
+    "Progestin"
+   ],
+   "atc": [
+    "Estren derivatives",
+    "Estrogens",
+    "Iron bivalent, oral preparations",
+    "Iron in combination with folic acid",
+    "Natural and semisynthetic estrogens, plain",
+    "Progestogens",
+    "Progestogens and estrogens, fixed combinations",
+    "Progestogens and estrogens, sequential preparations"
+   ],
+   "moa": [
+    "Estrogen Receptor Agonists"
+   ],
+   "va": [
+    "ANTINEOPLASTIC HORMONES",
+    "CONTRACEPTIVES,SYSTEMIC",
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER",
+    "IRON",
+    "MULTIVITAMINS WITH MINERALS",
+    "PROGESTINS"
+   ]
+  },
+  {
+   "generic": "Norgestimate/Ethinyl estradiol",
+   "primary_class": "Estrogen",
+   "needs_review": false,
+   "rxcui": "214559",
+   "matched_as": "Norgestimate/Ethinyl estradiol",
+   "path": "direct",
+   "epc": [
+    "Estrogen",
+    "Progestin"
+   ],
+   "atc": [
+    "Estrogens",
+    "Natural and semisynthetic estrogens, plain",
+    "Progestogens and estrogens, fixed combinations",
+    "Progestogens and estrogens, sequential preparations"
+   ],
+   "moa": [
+    "Estrogen Receptor Agonists"
+   ],
+   "va": [
+    "CONTRACEPTIVES,SYSTEMIC"
+   ]
+  },
+  {
+   "generic": "Nortriptyline",
+   "primary_class": "Tricyclic Antidepressant",
+   "needs_review": false,
+   "rxcui": "7531",
+   "matched_as": "Nortriptyline",
+   "path": "direct",
+   "epc": [
+    "Tricyclic Antidepressant"
+   ],
+   "atc": [
+    "Non-selective monoamine reuptake inhibitors"
+   ],
+   "moa": [],
+   "va": [
+    "TRICYCLIC ANTIDEPRESSANTS"
+   ]
+  },
+  {
+   "generic": "Nystatin (topical)",
+   "primary_class": "Polyene Antifungal",
+   "needs_review": false,
+   "rxcui": "1160437",
+   "matched_as": "Nystatin (topical)",
+   "path": "direct",
+   "epc": [
+    "Polyene Antifungal"
+   ],
+   "atc": [
+    "Antibiotics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIFUNGAL,TOPICAL"
+   ]
+  },
+  {
+   "generic": "Ofloxacin Ophthalmic",
+   "primary_class": "Quinolone Antimicrobial",
+   "needs_review": false,
+   "rxcui": "1160451",
+   "matched_as": "Ofloxacin Ophthalmic",
+   "path": "direct",
+   "epc": [
+    "Quinolone Antimicrobial"
+   ],
+   "atc": [
+    "Antiinfectives",
+    "Fluoroquinolones"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIBACTERIALS,TOPICAL OPHTHALMIC"
+   ]
+  },
+  {
+   "generic": "Olanzapine",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "61381",
+   "matched_as": "Olanzapine",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Diazepines, oxazepines, thiazepines and oxepines"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER",
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Olmesartan",
+   "primary_class": "Angiotensin 2 Receptor Blocker",
+   "needs_review": false,
+   "rxcui": "321064",
+   "matched_as": "Olmesartan",
+   "path": "direct",
+   "epc": [
+    "Angiotensin 2 Receptor Blocker"
+   ],
+   "atc": [
+    "Angiotensin II receptor blockers (ARBs), plain"
+   ],
+   "moa": [
+    "Angiotensin 2 Receptor Antagonists"
+   ],
+   "va": [
+    "ANGIOTENSIN II INHIBITOR",
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Omega-3-Acid Ethyl Esters",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "484348",
+   "matched_as": "Omega-3-Acid Ethyl Esters",
+   "path": "direct",
+   "epc": [],
+   "atc": [],
+   "moa": [],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Omeprazole",
+   "primary_class": "Proton Pump Inhibitor",
+   "needs_review": false,
+   "rxcui": "7646",
+   "matched_as": "Omeprazole",
+   "path": "direct",
+   "epc": [
+    "Proton Pump Inhibitor"
+   ],
+   "atc": [
+    "Combinations for eradication of Helicobacter pylori",
+    "Proton pump inhibitors"
+   ],
+   "moa": [
+    "Cytochrome P450 2C19 Inhibitors",
+    "Proton Pump Inhibitors"
+   ],
+   "va": [
+    "GASTRIC MEDICATIONS,OTHER",
+    "H. PYLORI AGENTS",
+    "PLATELET AGGREGATION INHIBITORS"
+   ]
+  },
+  {
+   "generic": "Ondansetron",
+   "primary_class": "Serotonin-3 Receptor Antagonist",
+   "needs_review": false,
+   "rxcui": "26225",
+   "matched_as": "Ondansetron",
+   "path": "direct",
+   "epc": [
+    "Serotonin-3 Receptor Antagonist"
+   ],
+   "atc": [
+    "Serotonin (5HT3) antagonists"
+   ],
+   "moa": [
+    "Serotonin 3 Receptor Antagonists"
+   ],
+   "va": [
+    "ANTIEMETICS"
+   ]
+  },
+  {
+   "generic": "Oxcarbazepine",
+   "primary_class": "Anti-epileptic Agent",
+   "needs_review": false,
+   "rxcui": "32624",
+   "matched_as": "Oxcarbazepine",
+   "path": "direct",
+   "epc": [
+    "Anti-epileptic Agent"
+   ],
+   "atc": [
+    "Carboxamide derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "ANTICONVULSANTS"
+   ]
+  },
+  {
+   "generic": "Oxybutynin",
+   "primary_class": "Cholinergic Muscarinic Antagonist",
+   "needs_review": false,
+   "rxcui": "32675",
+   "matched_as": "Oxybutynin",
+   "path": "direct",
+   "epc": [
+    "Cholinergic Muscarinic Antagonist"
+   ],
+   "atc": [
+    "Drugs for urinary frequency and incontinence"
+   ],
+   "moa": [
+    "Cholinergic Muscarinic Antagonists"
+   ],
+   "va": [
+    "ANTISPASMODICS,URINARY"
+   ]
+  },
+  {
+   "generic": "Oxycodone",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "7804",
+   "matched_as": "Oxycodone",
+   "path": "direct",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Natural opium alkaloids",
+    "Opioids in combination with non-opioid analgesics"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Oxycodone/Acetaminophen",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "214183",
+   "matched_as": "Oxycodone/Acetaminophen",
+   "path": "direct",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Anilides",
+    "Natural opium alkaloids"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Oxytocin",
+   "primary_class": "Oxytocic",
+   "needs_review": false,
+   "rxcui": "7824",
+   "matched_as": "Oxytocin",
+   "path": "direct",
+   "epc": [
+    "Oxytocic"
+   ],
+   "atc": [
+    "Oxytocin and analogues"
+   ],
+   "moa": [],
+   "va": [
+    "OXYTOCICS"
+   ]
+  },
+  {
+   "generic": "Paliperidone",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "679314",
+   "matched_as": "Paliperidone",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Other antipsychotics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Pantoprazole",
+   "primary_class": "Proton Pump Inhibitor",
+   "needs_review": false,
+   "rxcui": "40790",
+   "matched_as": "Pantoprazole",
+   "path": "direct",
+   "epc": [
+    "Proton Pump Inhibitor"
+   ],
+   "atc": [
+    "Proton pump inhibitors"
+   ],
+   "moa": [
+    "Proton Pump Inhibitors"
+   ],
+   "va": [
+    "GASTRIC MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Paroxetine",
+   "primary_class": "Serotonin Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "32937",
+   "matched_as": "Paroxetine",
+   "path": "direct",
+   "epc": [
+    "Serotonin Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Selective serotonin reuptake inhibitors"
+   ],
+   "moa": [
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Phentermine Hydrochloride",
+   "primary_class": "Sympathomimetic Amine Anorectic",
+   "needs_review": false,
+   "rxcui": "82078",
+   "matched_as": "Phentermine Hydrochloride",
+   "path": "direct",
+   "epc": [
+    "Sympathomimetic Amine Anorectic"
+   ],
+   "atc": [
+    "Centrally acting antiobesity products"
+   ],
+   "moa": [],
+   "va": [
+    "CENTRALLY-ACTING APPETITE SUPPRESSANTS"
+   ]
+  },
+  {
+   "generic": "Phenylephrine",
+   "primary_class": "alpha-1 Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "8163",
+   "matched_as": "Phenylephrine",
+   "path": "direct",
+   "epc": [
+    "alpha-1 Adrenergic Agonist"
+   ],
+   "atc": [
+    "Adrenergic and dopaminergic agents",
+    "Other agents for treatment of hemorrhoids and anal fissures for topical use",
+    "Sympathomimetics",
+    "Sympathomimetics excl. antiglaucoma preparations",
+    "Sympathomimetics used as decongestants",
+    "Sympathomimetics, combinations excl. corticosteroids",
+    "Sympathomimetics, plain"
+   ],
+   "moa": [
+    "Adrenergic alpha1-Agonists"
+   ],
+   "va": [
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+    "COLD REMEDIES,OTHER",
+    "DECONGESTANT/ANTITUSSIVE",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT",
+    "DECONGESTANT/EXPECTORANT",
+    "DECONGESTANTS,NASAL",
+    "DECONGESTANTS,SYSTEMIC",
+    "HEMORRHOIDAL PREPARATIONS WITHOUT STEROID",
+    "MYDRIATICS/CYCLOPLEGICS,TOPICAL OPHTHALMIC",
+    "OPHTHALMICS,OTHER",
+    "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "SYMPATHOMIMETICS (ADRENERGICS)"
+   ]
+  },
+  {
+   "generic": "Phenytoin",
+   "primary_class": "Anti-epileptic Agent",
+   "needs_review": false,
+   "rxcui": "8183",
+   "matched_as": "Phenytoin",
+   "path": "direct",
+   "epc": [
+    "Anti-epileptic Agent"
+   ],
+   "atc": [
+    "Hydantoin derivatives"
+   ],
+   "moa": [
+    "Cytochrome P450 1A2 Inducers",
+    "Cytochrome P450 2B6 Inducers",
+    "Cytochrome P450 2C19 Inducers",
+    "Cytochrome P450 2C8 Inducers",
+    "Cytochrome P450 2C9 Inducers",
+    "Cytochrome P450 2D6 Inducers",
+    "Cytochrome P450 3A Inducers"
+   ],
+   "va": [
+    "ANTICONVULSANTS"
+   ]
+  },
+  {
+   "generic": "Phytonadione Vitamin K",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "11258",
+   "matched_as": "Phytonadione Vitamin K",
+   "path": "direct",
+   "epc": [],
+   "atc": [],
+   "moa": [],
+   "va": [
+    "MULTIVITAMINS WITH MINERALS",
+    "PHYTONADIONE"
+   ]
+  },
+  {
+   "generic": "Pioglitazone",
+   "primary_class": "Peroxisome Proliferator-activated Receptor alpha Agonist",
+   "needs_review": false,
+   "rxcui": "33738",
+   "matched_as": "Pioglitazone",
+   "path": "direct",
+   "epc": [
+    "Peroxisome Proliferator-activated Receptor alpha Agonist",
+    "Peroxisome Proliferator-activated Receptor gamma Agonist",
+    "Thiazolidinedione"
+   ],
+   "atc": [
+    "Combinations of oral blood glucose lowering drugs",
+    "Thiazolidinediones"
+   ],
+   "moa": [
+    "Peroxisome Proliferator-activated Receptor alpha Agonists",
+    "Peroxisome Proliferator-activated Receptor gamma Agonists"
+   ],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Piperacillin/Tazobactam",
+   "primary_class": "beta Lactamase Inhibitor",
+   "needs_review": false,
+   "rxcui": "74169",
+   "matched_as": "Piperacillin/Tazobactam",
+   "path": "direct",
+   "epc": [
+    "beta Lactamase Inhibitor"
+   ],
+   "atc": [
+    "Beta-lactamase inhibitors",
+    "Penicillins with extended spectrum"
+   ],
+   "moa": [
+    "beta Lactamase Inhibitors"
+   ],
+   "va": [
+    "EXTENDED SPECTRUM PENICILLINS"
+   ]
+  },
+  {
+   "generic": "Potassium chloride",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "8591",
+   "matched_as": "Potassium chloride",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Electrolyte solutions",
+    "Potassium"
+   ],
+   "moa": [],
+   "va": [
+    "AMINO ACIDS/PROTEINS,PARENTERAL,WITH ADDED ELECTROLYTES",
+    "ELECTROLYTES/MINERALS,OTHER",
+    "HYPEROSMOTIC LAXATIVES",
+    "IRRIGATION SOLUTIONS",
+    "IV SOLUTIONS WITH ELECTROLYTES",
+    "POTASSIUM"
+   ]
+  },
+  {
+   "generic": "Pramipexole",
+   "primary_class": "Nonergot Dopamine Agonist",
+   "needs_review": false,
+   "rxcui": "746741",
+   "matched_as": "Pramipexole",
+   "path": "direct",
+   "epc": [
+    "Nonergot Dopamine Agonist"
+   ],
+   "atc": [
+    "Dopamine agonists"
+   ],
+   "moa": [
+    "Dopamine Agonists"
+   ],
+   "va": [
+    "ANTIPARKINSON AGENTS"
+   ]
+  },
+  {
+   "generic": "Pravastatin",
+   "primary_class": "HMG-CoA Reductase Inhibitor",
+   "needs_review": false,
+   "rxcui": "42463",
+   "matched_as": "Pravastatin",
+   "path": "direct",
+   "epc": [
+    "HMG-CoA Reductase Inhibitor"
+   ],
+   "atc": [
+    "HMG CoA reductase inhibitors"
+   ],
+   "moa": [
+    "Hydroxymethylglutaryl-CoA Reductase Inhibitors"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Prazosin",
+   "primary_class": "alpha-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "8629",
+   "matched_as": "Prazosin",
+   "path": "direct",
+   "epc": [
+    "alpha-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Alpha-adrenoreceptor antagonists"
+   ],
+   "moa": [
+    "Adrenergic alpha-Antagonists"
+   ],
+   "va": [
+    "ALPHA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Prednisolone Acetate (Ophthalmic)",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "1165757",
+   "matched_as": "Prednisolone Acetate (Ophthalmic)",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids",
+    "Corticosteroids acting locally",
+    "Corticosteroids for local oral treatment",
+    "Corticosteroids, plain",
+    "Corticosteroids, weak (group I)",
+    "Corticosteroids, weak, other combinations",
+    "Corticosteroids/antiinfectives/mydriatics in combination",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTI-INFLAMMATORIES,TOPICAL OPHTHALMIC"
+   ]
+  },
+  {
+   "generic": "Prednisone",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "8640",
+   "matched_as": "Prednisone",
+   "path": "direct",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids acting locally",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "GLUCOCORTICOIDS"
+   ]
+  },
+  {
+   "generic": "Pregabalin",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "187832",
+   "matched_as": "Pregabalin",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Gabapentinoids"
+   ],
+   "moa": [],
+   "va": [
+    "CNS MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Progesterone",
+   "primary_class": "Progesterone",
+   "needs_review": false,
+   "rxcui": "8727",
+   "matched_as": "Progesterone",
+   "path": "direct",
+   "epc": [
+    "Progesterone"
+   ],
+   "atc": [
+    "Pregnen (4) derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER",
+    "PROGESTINS"
+   ]
+  },
+  {
+   "generic": "Propofol",
+   "primary_class": "General Anesthetic",
+   "needs_review": false,
+   "rxcui": "8782",
+   "matched_as": "Propofol",
+   "path": "direct",
+   "epc": [
+    "General Anesthetic"
+   ],
+   "atc": [
+    "Other general anesthetics"
+   ],
+   "moa": [],
+   "va": [
+    "GENERAL ANESTHETICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Propranolol",
+   "primary_class": "beta-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "8787",
+   "matched_as": "Propranolol",
+   "path": "direct",
+   "epc": [
+    "beta-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Beta blocking agents, non-selective"
+   ],
+   "moa": [
+    "Adrenergic beta-Antagonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "BETA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Quetiapine",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "51272",
+   "matched_as": "Quetiapine",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Diazepines, oxazepines, thiazepines and oxepines"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Ramipril",
+   "primary_class": "Angiotensin Converting Enzyme Inhibitor",
+   "needs_review": false,
+   "rxcui": "35296",
+   "matched_as": "Ramipril",
+   "path": "direct",
+   "epc": [
+    "Angiotensin Converting Enzyme Inhibitor"
+   ],
+   "atc": [
+    "ACE inhibitors and calcium channel blockers",
+    "ACE inhibitors, plain"
+   ],
+   "moa": [
+    "Angiotensin-converting Enzyme Inhibitors"
+   ],
+   "va": [
+    "ACE INHIBITORS"
+   ]
+  },
+  {
+   "generic": "Rimegepant",
+   "primary_class": "Calcitonin Gene-related Peptide Receptor Antagonist",
+   "needs_review": false,
+   "rxcui": "2282307",
+   "matched_as": "Rimegepant",
+   "path": "direct",
+   "epc": [
+    "Calcitonin Gene-related Peptide Receptor Antagonist"
+   ],
+   "atc": [
+    "Calcitonin gene-related peptide (CGRP) antagonists"
+   ],
+   "moa": [
+    "Calcitonin Gene-related Peptide Receptor Antagonists"
+   ],
+   "va": [
+    "ANTIMIGRAINE AGENTS"
+   ]
+  },
+  {
+   "generic": "Risperidone",
+   "primary_class": "Atypical Antipsychotic",
+   "needs_review": false,
+   "rxcui": "35636",
+   "matched_as": "Risperidone",
+   "path": "direct",
+   "epc": [
+    "Atypical Antipsychotic"
+   ],
+   "atc": [
+    "Other antipsychotics"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIPSYCHOTICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Rivaroxaban",
+   "primary_class": "Factor Xa Inhibitor",
+   "needs_review": false,
+   "rxcui": "1114195",
+   "matched_as": "Rivaroxaban",
+   "path": "direct",
+   "epc": [
+    "Factor Xa Inhibitor"
+   ],
+   "atc": [
+    "Direct factor Xa inhibitors"
+   ],
+   "moa": [
+    "Factor Xa Inhibitors"
+   ],
+   "va": [
+    "ANTICOAGULANTS"
+   ]
+  },
+  {
+   "generic": "Rizatriptan Benzoate",
+   "primary_class": "Serotonin-1b and Serotonin-1d Receptor Agonist",
+   "needs_review": false,
+   "rxcui": "237082",
+   "matched_as": "Rizatriptan Benzoate",
+   "path": "direct",
+   "epc": [
+    "Serotonin-1b and Serotonin-1d Receptor Agonist"
+   ],
+   "atc": [
+    "Selective serotonin (5HT1) agonists"
+   ],
+   "moa": [
+    "Serotonin 1b Receptor Agonists",
+    "Serotonin 1d Receptor Agonists"
+   ],
+   "va": []
+  },
+  {
+   "generic": "Rocuronium",
+   "primary_class": "Nondepolarizing Neuromuscular Blocker",
+   "needs_review": false,
+   "rxcui": "68139",
+   "matched_as": "Rocuronium",
+   "path": "direct",
+   "epc": [
+    "Nondepolarizing Neuromuscular Blocker"
+   ],
+   "atc": [
+    "Other quaternary ammonium compounds"
+   ],
+   "moa": [],
+   "va": [
+    "NEUROMUSCULAR BLOCKING AGENTS"
+   ]
+  },
+  {
+   "generic": "Ropinirole",
+   "primary_class": "Nonergot Dopamine Agonist",
+   "needs_review": false,
+   "rxcui": "72302",
+   "matched_as": "Ropinirole",
+   "path": "direct",
+   "epc": [
+    "Nonergot Dopamine Agonist"
+   ],
+   "atc": [
+    "Dopamine agonists"
+   ],
+   "moa": [
+    "Dopamine Agonists"
+   ],
+   "va": [
+    "ANTIPARKINSON AGENTS"
+   ]
+  },
+  {
+   "generic": "Rosuvastatin",
+   "primary_class": "HMG-CoA Reductase Inhibitor",
+   "needs_review": false,
+   "rxcui": "301542",
+   "matched_as": "Rosuvastatin",
+   "path": "direct",
+   "epc": [
+    "HMG-CoA Reductase Inhibitor"
+   ],
+   "atc": [
+    "Combinations of various lipid modifying agents",
+    "HMG CoA reductase inhibitors"
+   ],
+   "moa": [
+    "Hydroxymethylglutaryl-CoA Reductase Inhibitors"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Sacubitril/Valsartan",
+   "primary_class": "Angiotensin 2 Receptor Blocker",
+   "needs_review": false,
+   "rxcui": "1656339",
+   "matched_as": "Sacubitril/Valsartan",
+   "path": "direct",
+   "epc": [
+    "Angiotensin 2 Receptor Blocker"
+   ],
+   "atc": [
+    "Angiotensin II receptor blockers (ARBs), other combinations",
+    "Angiotensin II receptor blockers (ARBs), plain"
+   ],
+   "moa": [
+    "Angiotensin 2 Receptor Antagonists"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Semaglutide",
+   "primary_class": "GLP-1 Receptor Agonist",
+   "needs_review": false,
+   "rxcui": "1991302",
+   "matched_as": "Semaglutide",
+   "path": "direct",
+   "epc": [
+    "GLP-1 Receptor Agonist"
+   ],
+   "atc": [
+    "Glucagon-like peptide-1 (GLP-1) analogues"
+   ],
+   "moa": [
+    "Glucagon-like Peptide-1 (GLP-1) Agonists"
+   ],
+   "va": [
+    "HYPOGLYCEMIC AGENTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Sertraline",
+   "primary_class": "Serotonin Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "36437",
+   "matched_as": "Sertraline",
+   "path": "direct",
+   "epc": [
+    "Serotonin Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Selective serotonin reuptake inhibitors"
+   ],
+   "moa": [
+    "Cytochrome P450 2D6 Inhibitors",
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Sildenafil",
+   "primary_class": "Phosphodiesterase 5 Inhibitor",
+   "needs_review": false,
+   "rxcui": "136411",
+   "matched_as": "Sildenafil",
+   "path": "direct",
+   "epc": [
+    "Phosphodiesterase 5 Inhibitor"
+   ],
+   "atc": [
+    "Drugs used in erectile dysfunction"
+   ],
+   "moa": [
+    "Phosphodiesterase 5 Inhibitors"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVES,OTHER",
+    "GENITO-URINARY AGENTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Sildenafil",
+   "primary_class": "Phosphodiesterase 5 Inhibitor",
+   "needs_review": false,
+   "rxcui": "136411",
+   "matched_as": "Sildenafil",
+   "path": "direct",
+   "epc": [
+    "Phosphodiesterase 5 Inhibitor"
+   ],
+   "atc": [
+    "Drugs used in erectile dysfunction"
+   ],
+   "moa": [
+    "Phosphodiesterase 5 Inhibitors"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVES,OTHER",
+    "GENITO-URINARY AGENTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Simvastatin",
+   "primary_class": "HMG-CoA Reductase Inhibitor",
+   "needs_review": false,
+   "rxcui": "36567",
+   "matched_as": "Simvastatin",
+   "path": "direct",
+   "epc": [
+    "HMG-CoA Reductase Inhibitor"
+   ],
+   "atc": [
+    "Combinations of various lipid modifying agents",
+    "Dipeptidyl peptidase 4 (DPP-4) inhibitors",
+    "HMG CoA reductase inhibitors"
+   ],
+   "moa": [
+    "Hydroxymethylglutaryl-CoA Reductase Inhibitors"
+   ],
+   "va": [
+    "ANTILIPEMIC AGENTS"
+   ]
+  },
+  {
+   "generic": "Sitagliptin",
+   "primary_class": "Dipeptidyl Peptidase 4 Inhibitor",
+   "needs_review": false,
+   "rxcui": "593411",
+   "matched_as": "Sitagliptin",
+   "path": "direct",
+   "epc": [
+    "Dipeptidyl Peptidase 4 Inhibitor"
+   ],
+   "atc": [
+    "Combinations of oral blood glucose lowering drugs",
+    "Dipeptidyl peptidase 4 (DPP-4) inhibitors"
+   ],
+   "moa": [
+    "Dipeptidyl Peptidase 4 Inhibitors"
+   ],
+   "va": [
+    "ORAL HYPOGLYCEMIC AGENTS,ORAL"
+   ]
+  },
+  {
+   "generic": "Solifenacin",
+   "primary_class": "Cholinergic Muscarinic Antagonist",
+   "needs_review": false,
+   "rxcui": "322167",
+   "matched_as": "Solifenacin",
+   "path": "direct",
+   "epc": [
+    "Cholinergic Muscarinic Antagonist"
+   ],
+   "atc": [
+    "Drugs for urinary frequency and incontinence"
+   ],
+   "moa": [
+    "Cholinergic Muscarinic Antagonists"
+   ],
+   "va": [
+    "ANTISPASMODICS,URINARY"
+   ]
+  },
+  {
+   "generic": "Sotalol",
+   "primary_class": "Antiarrhythmic",
+   "needs_review": false,
+   "rxcui": "9947",
+   "matched_as": "Sotalol",
+   "path": "direct",
+   "epc": [
+    "Antiarrhythmic"
+   ],
+   "atc": [
+    "Beta blocking agents, non-selective"
+   ],
+   "moa": [
+    "Adrenergic beta-Antagonists"
+   ],
+   "va": [
+    "BETA BLOCKERS/RELATED"
+   ]
+  },
+  {
+   "generic": "Spironolactone",
+   "primary_class": "Aldosterone Antagonist",
+   "needs_review": false,
+   "rxcui": "9997",
+   "matched_as": "Spironolactone",
+   "path": "direct",
+   "epc": [
+    "Aldosterone Antagonist"
+   ],
+   "atc": [
+    "Aldosterone antagonists"
+   ],
+   "moa": [
+    "Aldosterone Antagonists"
+   ],
+   "va": [
+    "POTASSIUM SPARING/COMBINATIONS DIURETICS"
+   ]
+  },
+  {
+   "generic": "Succinylcholine",
+   "primary_class": "Depolarizing Neuromuscular Blocker",
+   "needs_review": false,
+   "rxcui": "10154",
+   "matched_as": "Succinylcholine",
+   "path": "direct",
+   "epc": [
+    "Depolarizing Neuromuscular Blocker"
+   ],
+   "atc": [
+    "Choline derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "NEUROMUSCULAR BLOCKING AGENTS"
+   ]
+  },
+  {
+   "generic": "Sucralfate",
+   "primary_class": "Aluminum Complex",
+   "needs_review": false,
+   "rxcui": "10156",
+   "matched_as": "Sucralfate",
+   "path": "direct",
+   "epc": [
+    "Aluminum Complex"
+   ],
+   "atc": [
+    "Other drugs for peptic ulcer and gastro-oesophageal reflux disease (GORD)"
+   ],
+   "moa": [],
+   "va": [
+    "PROTECTANTS,ULCER"
+   ]
+  },
+  {
+   "generic": "Sulfamethoxazole/Trimethop rim",
+   "primary_class": "Dihydrofolate Reductase Inhibitor Antibacterial",
+   "needs_review": false,
+   "rxcui": "10831",
+   "matched_as": "Sulfamethoxazole/Trimethoprim",
+   "path": "normalized",
+   "epc": [
+    "Dihydrofolate Reductase Inhibitor Antibacterial",
+    "Sulfonamide Antimicrobial"
+   ],
+   "atc": [
+    "Combinations of sulfonamides and trimethoprim, incl. derivatives",
+    "Intermediate-acting sulfonamides",
+    "Trimethoprim and derivatives"
+   ],
+   "moa": [
+    "Cytochrome P450 2C8 Inhibitors",
+    "Cytochrome P450 2C9 Inhibitors",
+    "Dihydrofolate Reductase Inhibitors",
+    "Organic Cation Transporter 2 Inhibitors"
+   ],
+   "va": [
+    "SULFONAMIDE/RELATED ANTIMICROBIALS"
+   ]
+  },
+  {
+   "generic": "Sumatriptan",
+   "primary_class": "Serotonin-1b and Serotonin-1d Receptor Agonist",
+   "needs_review": false,
+   "rxcui": "37418",
+   "matched_as": "Sumatriptan",
+   "path": "direct",
+   "epc": [
+    "Serotonin-1b and Serotonin-1d Receptor Agonist"
+   ],
+   "atc": [
+    "Selective serotonin (5HT1) agonists"
+   ],
+   "moa": [
+    "Serotonin 1b Receptor Agonists",
+    "Serotonin 1d Receptor Agonists"
+   ],
+   "va": [
+    "ANTIMIGRAINE AGENTS"
+   ]
+  },
+  {
+   "generic": "Tadalafil",
+   "primary_class": "Phosphodiesterase 5 Inhibitor",
+   "needs_review": false,
+   "rxcui": "358263",
+   "matched_as": "Tadalafil",
+   "path": "direct",
+   "epc": [
+    "Phosphodiesterase 5 Inhibitor"
+   ],
+   "atc": [
+    "Antihypertensives for pulmonary arterial hypertension",
+    "Drugs used in erectile dysfunction",
+    "Testosterone-5-alpha reductase inhibitors"
+   ],
+   "moa": [
+    "Phosphodiesterase 5 Inhibitors"
+   ],
+   "va": [
+    "ANTIHYPERTENSIVES,OTHER",
+    "CARDIOVASCULAR AGENTS,OTHER",
+    "GENITO-URINARY AGENTS,OTHER",
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
+   ]
+  },
+  {
+   "generic": "Tamoxifen",
+   "primary_class": "Estrogen Agonist/Antagonist",
+   "needs_review": false,
+   "rxcui": "10324",
+   "matched_as": "Tamoxifen",
+   "path": "direct",
+   "epc": [
+    "Estrogen Agonist/Antagonist"
+   ],
+   "atc": [
+    "Anti-estrogens"
+   ],
+   "moa": [
+    "Selective Estrogen Receptor Modulators"
+   ],
+   "va": [
+    "ANTINEOPLASTIC HORMONES"
+   ]
+  },
+  {
+   "generic": "Tamsulosin",
+   "primary_class": "alpha-Adrenergic Blocker",
+   "needs_review": false,
+   "rxcui": "77492",
+   "matched_as": "Tamsulosin",
+   "path": "direct",
+   "epc": [
+    "alpha-Adrenergic Blocker"
+   ],
+   "atc": [
+    "Alpha-adrenoreceptor antagonists"
+   ],
+   "moa": [
+    "Adrenergic alpha-Antagonists"
+   ],
+   "va": [
+    "ALPHA BLOCKERS/RELATED",
+    "GENITO-URINARY AGENTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Telmisartan",
+   "primary_class": "Angiotensin 2 Receptor Blocker",
+   "needs_review": false,
+   "rxcui": "73494",
+   "matched_as": "Telmisartan",
+   "path": "direct",
+   "epc": [
+    "Angiotensin 2 Receptor Blocker"
+   ],
+   "atc": [
+    "Angiotensin II receptor blockers (ARBs) and calcium channel blockers",
+    "Angiotensin II receptor blockers (ARBs), plain"
+   ],
+   "moa": [
+    "Angiotensin 2 Receptor Antagonists"
+   ],
+   "va": [
+    "ANGIOTENSIN II INHIBITOR",
+    "ANTIHYPERTENSIVE COMBINATIONS"
+   ]
+  },
+  {
+   "generic": "Terbinafine",
+   "primary_class": "Allylamine Antifungal",
+   "needs_review": false,
+   "rxcui": "37801",
+   "matched_as": "Terbinafine",
+   "path": "direct",
+   "epc": [
+    "Allylamine Antifungal"
+   ],
+   "atc": [
+    "Antifungals for systemic use",
+    "Other antifungals for topical use"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIFUNGAL,TOPICAL",
+    "ANTIFUNGALS"
+   ]
+  },
+  {
+   "generic": "Testosterone",
+   "primary_class": "Androgen",
+   "needs_review": false,
+   "rxcui": "10379",
+   "matched_as": "Testosterone",
+   "path": "direct",
+   "epc": [
+    "Androgen"
+   ],
+   "atc": [
+    "3-oxoandrosten (4) derivatives",
+    "Androgens and estrogens"
+   ],
+   "moa": [
+    "Androgen Receptor Agonists"
+   ],
+   "va": [
+    "ANDROGENS/ANABOLICS"
+   ]
+  },
+  {
+   "generic": "Tirzepatide",
+   "primary_class": "GLP-1 Receptor Agonist",
+   "needs_review": false,
+   "rxcui": "2601723",
+   "matched_as": "Tirzepatide",
+   "path": "direct",
+   "epc": [
+    "GLP-1 Receptor Agonist",
+    "Glucose-dependent Insulinotropic Polypeptide Receptor Agonist"
+   ],
+   "atc": [
+    "Other blood glucose lowering drugs, excl. insulins"
+   ],
+   "moa": [
+    "G-Protein-linked Receptor Interactions",
+    "Glucagon-like Peptide-1 (GLP-1) Agonists"
+   ],
+   "va": [
+    "HYPOGLYCEMIC AGENTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Tizanidine",
+   "primary_class": "Central alpha-2 Adrenergic Agonist",
+   "needs_review": false,
+   "rxcui": "57258",
+   "matched_as": "Tizanidine",
+   "path": "direct",
+   "epc": [
+    "Central alpha-2 Adrenergic Agonist"
+   ],
+   "atc": [
+    "Other centrally acting agents"
+   ],
+   "moa": [
+    "Adrenergic alpha2-Agonists"
+   ],
+   "va": [
+    "SKELETAL MUSCLE RELAXANTS"
+   ]
+  },
+  {
+   "generic": "Tolterodine",
+   "primary_class": "Cholinergic Muscarinic Antagonist",
+   "needs_review": false,
+   "rxcui": "119565",
+   "matched_as": "Tolterodine",
+   "path": "direct",
+   "epc": [
+    "Cholinergic Muscarinic Antagonist"
+   ],
+   "atc": [
+    "Drugs for urinary frequency and incontinence"
+   ],
+   "moa": [
+    "Cholinergic Muscarinic Antagonists"
+   ],
+   "va": [
+    "ANTISPASMODICS,URINARY"
+   ]
+  },
+  {
+   "generic": "Topiramate",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "38404",
+   "matched_as": "Topiramate",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Centrally acting antiobesity products",
+    "Other antiepileptics"
+   ],
+   "moa": [
+    "Cytochrome P450 2C19 Inhibitors",
+    "Cytochrome P450 3A4 Inducers"
+   ],
+   "va": [
+    "ANTICONVULSANTS",
+    "CENTRALLY-ACTING APPETITE SUPPRESSANTS"
+   ]
+  },
+  {
+   "generic": "Tramadol",
+   "primary_class": "Opioid Agonist",
+   "needs_review": false,
+   "rxcui": "10689",
+   "matched_as": "Tramadol",
+   "path": "direct",
+   "epc": [
+    "Opioid Agonist"
+   ],
+   "atc": [
+    "Opioids in combination with non-opioid analgesics",
+    "Other opioids"
+   ],
+   "moa": [
+    "Full Opioid Agonists"
+   ],
+   "va": [
+    "OPIOID ANALGESICS"
+   ]
+  },
+  {
+   "generic": "Trazodone",
+   "primary_class": "Serotonin Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "10737",
+   "matched_as": "Trazodone",
+   "path": "direct",
+   "epc": [
+    "Serotonin Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Triamcinolone Acetonide (topical)",
+   "primary_class": "Corticosteroid",
+   "needs_review": false,
+   "rxcui": "10761",
+   "matched_as": "Triamcinolone Acetonide",
+   "path": "normalized",
+   "epc": [
+    "Corticosteroid"
+   ],
+   "atc": [
+    "Corticosteroids",
+    "Corticosteroids for local oral treatment",
+    "Corticosteroids, moderately potent (group II)",
+    "Corticosteroids, moderately potent, other combinations",
+    "Corticosteroids, plain",
+    "Glucocorticoids"
+   ],
+   "moa": [
+    "Corticosteroid Hormone Receptor Agonists"
+   ],
+   "va": [
+    "ANTI-INFECTIVE/ANTI-INFLAMMATORY COMBINATIONS,TOPICAL",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "DENTAL AND ORAL AGENTS,TOPICAL,OTHER",
+    "GLUCOCORTICOIDS",
+    "OPHTHALMICS,OTHER"
+   ]
+  },
+  {
+   "generic": "Triamterene/ Hydrochlorothiazide",
+   "primary_class": "Potassium-sparing Diuretic",
+   "needs_review": false,
+   "rxcui": "258337",
+   "matched_as": "Triamterene/ Hydrochlorothiazide",
+   "path": "direct",
+   "epc": [
+    "Potassium-sparing Diuretic",
+    "Thiazide Diuretic"
+   ],
+   "atc": [
+    "Other potassium-sparing agents",
+    "Thiazides, plain"
+   ],
+   "moa": [],
+   "va": [
+    "POTASSIUM SPARING/COMBINATIONS DIURETICS"
+   ]
+  },
+  {
+   "generic": "Ursodiol",
+   "primary_class": "Bile Acid",
+   "needs_review": false,
+   "rxcui": "11065",
+   "matched_as": "Ursodiol",
+   "path": "direct",
+   "epc": [
+    "Bile Acid"
+   ],
+   "atc": [
+    "Bile acids and derivatives"
+   ],
+   "moa": [],
+   "va": [
+    "GASTRIC MEDICATIONS,OTHER"
+   ]
+  },
+  {
+   "generic": "Valacyclovir",
+   "primary_class": "Herpes Simplex Virus Nucleoside Analog DNA Polymerase Inhibitor",
+   "needs_review": false,
+   "rxcui": "73645",
+   "matched_as": "Valacyclovir",
+   "path": "direct",
+   "epc": [
+    "Herpes Simplex Virus Nucleoside Analog DNA Polymerase Inhibitor",
+    "Herpes Zoster Virus Nucleoside Analog DNA Polymerase Inhibitor",
+    "Herpesvirus Nucleoside Analog DNA Polymerase Inhibitor"
+   ],
+   "atc": [
+    "Nucleosides and nucleotides excl. reverse transcriptase inhibitors"
+   ],
+   "moa": [
+    "DNA Polymerase Inhibitors"
+   ],
+   "va": [
+    "ANTIVIRALS"
+   ]
+  },
+  {
+   "generic": "Vancomycin",
+   "primary_class": "Glycopeptide Antibacterial",
+   "needs_review": false,
+   "rxcui": "11124",
+   "matched_as": "Vancomycin",
+   "path": "direct",
+   "epc": [
+    "Glycopeptide Antibacterial"
+   ],
+   "atc": [
+    "Antibiotics",
+    "Glycopeptide antibacterials"
+   ],
+   "moa": [],
+   "va": [
+    "ANTI-INFECTIVES,OTHER"
+   ]
+  },
+  {
+   "generic": "Venlafaxine",
+   "primary_class": "Serotonin and Norepinephrine Reuptake Inhibitor",
+   "needs_review": false,
+   "rxcui": "39786",
+   "matched_as": "Venlafaxine",
+   "path": "direct",
+   "epc": [
+    "Serotonin and Norepinephrine Reuptake Inhibitor"
+   ],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [
+    "Norepinephrine Uptake Inhibitors",
+    "Serotonin Uptake Inhibitors"
+   ],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Vilazodone Hydrochloride",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "1086768",
+   "matched_as": "Vilazodone Hydrochloride",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Vortioxetine",
+   "primary_class": null,
+   "needs_review": true,
+   "rxcui": "1455099",
+   "matched_as": "Vortioxetine",
+   "path": "direct",
+   "epc": [],
+   "atc": [
+    "Other antidepressants"
+   ],
+   "moa": [],
+   "va": [
+    "ANTIDEPRESSANTS,OTHER"
+   ]
+  },
+  {
+   "generic": "Warfarin",
+   "primary_class": "Vitamin K Antagonist",
+   "needs_review": false,
+   "rxcui": "11289",
+   "matched_as": "Warfarin",
+   "path": "direct",
+   "epc": [
+    "Vitamin K Antagonist"
+   ],
+   "atc": [
+    "Vitamin K antagonists"
+   ],
+   "moa": [
+    "Vitamin K Inhibitors"
+   ],
+   "va": [
+    "ANTICOAGULANTS"
+   ]
+  },
+  {
+   "generic": "Zolpidem",
+   "primary_class": "gamma-Aminobutyric Acid A Receptor Positive Modulator",
+   "needs_review": false,
+   "rxcui": "39993",
+   "matched_as": "Zolpidem",
+   "path": "direct",
+   "epc": [
+    "gamma-Aminobutyric Acid A Receptor Positive Modulator"
+   ],
+   "atc": [
+    "Benzodiazepine related drugs"
+   ],
+   "moa": [
+    "GABA A Receptor Positive Modulators"
+   ],
+   "va": [
+    "SEDATIVES/HYPNOTICS,OTHER"
+   ]
+  }
+ ]
+}
