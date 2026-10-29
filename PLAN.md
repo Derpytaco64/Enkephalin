@@ -528,8 +528,10 @@ flow needs is passed through compose.
    `requireAdmin`. `middleware.ts` does only the cheap cookie redirect; the authoritative check
    lives in layouts. A disabled user's session is revoked on its next request, and a student
    reaching `/admin` gets a real 403 page.
-3. **Login and register pages** — `app/(auth)/login`, `app/(auth)/register`, sign-out.
-4. **Invite gate** — `lib/invites.ts`. Claiming a code is one atomic statement
+3. **Login page** — `app/(auth)/login`, plus sign-out. Register moved to step 4: a register
+   page that ships before the invite gate is open registration, and `redirect('/login')` in the
+   guards cannot typecheck under `typedRoutes` until the route exists, so login landed with step 2.
+4. **Invite gate and register** — `lib/invites.ts` and `app/(auth)/register`. Claiming a code is one atomic statement
    (`update invites set uses = uses + 1 where id = ? and uses < max_uses and revoked_at is null
    and (expires_at is null or expires_at > now()) returning *`) so two classmates racing the last
    use of a code cannot both win. Registration honours `site_settings.registration_mode`.
