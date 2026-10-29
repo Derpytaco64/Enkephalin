@@ -1,8 +1,10 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { drugBrands, drugTags, drugs, tags } from '@/db/schema';
+import { drugBrands, drugIndications, drugTags, drugs, tags } from '@/db/schema';
 import { formatFieldValue } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
+
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
 
 export type DrugIndexRow = {
   slug: string;
@@ -11,6 +13,7 @@ export type DrugIndexRow = {
   drugClass: string | null;
   schedule: string | null;
   tags: string[];
+  indications: string[];
   /** Field keys with no value and no "none" meaning: genuine gaps. */
   missing: string[];
   verification: 'verified' | 'flagged' | 'partial' | 'unverified';
@@ -19,6 +22,7 @@ export type DrugIndexRow = {
 
 export type BrowseFacets = {
   classes: string[];
+  indications: string[];
   schedules: string[];
   tags: { slug: string; label: string; kind: string }[];
   fields: { key: string; label: string }[];
@@ -30,9 +34,13 @@ export type BrowseFacets = {
  * only way a filter rail feels instant.
  */
 export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: BrowseFacets }> {
-  const [drugRows, brandRows, tagRows, defs] = await Promise.all([
+  const [drugRows, brandRows, indicationRows, tagRows, defs] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db.select({ drugId: drugBrands.drugId, name: drugBrands.name }).from(drugBrands).orderBy(asc(drugBrands.sortOrder)),
+    db
+      .select({ drugId: drugIndications.drugId, text: drugIndications.text })
+      .from(drugIndications)
+      .orderBy(asc(drugIndications.sortOrder)),
     db
       .select({ drugId: drugTags.drugId, slug: tags.slug, label: tags.label, kind: tags.kind })
       .from(drugTags)
@@ -45,6 +53,13 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
     const list = brandsByDrug.get(brand.drugId);
     if (list) list.push(brand.name);
     else brandsByDrug.set(brand.drugId, [brand.name]);
+  }
+
+  const indicationsByDrug = new Map<string, string[]>();
+  for (const indication of indicationRows) {
+    const list = indicationsByDrug.get(indication.drugId);
+    if (list) list.push(indication.text);
+    else indicationsByDrug.set(indication.drugId, [indication.text]);
   }
 
   const tagsByDrug = new Map<string, string[]>();
@@ -89,6 +104,7 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
       drugClass: drug.drugClass,
       schedule: drug.schedule,
       tags: tagsByDrug.get(drug.id) ?? [],
+      indications: indicationsByDrug.get(drug.id) ?? [],
       missing,
       verification: flagged
         ? 'flagged'
@@ -107,9 +123,13 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
   return {
     rows,
     facets: {
-      classes: [...new Set(rows.map((r) => r.drugClass).filter((c): c is string => Boolean(c)))].sort(),
-      schedules: [...new Set(rows.map((r) => r.schedule).filter((s): s is string => Boolean(s)))].sort(),
-      tags: [...facetTags.values()].sort((a, b) => a.label.localeCompare(b.label)),
+      // localeCompare, not the default sort: that one is ASCII, so
+      // "beta2-Adrenergic Agonist" would land after "Xanthine Oxidase
+      // Inhibitor" purely for being lower-case.
+      classes: [...new Set(rows.map((r) => r.drugClass).filter((c): c is string => Boolean(c)))].sort(byName),
+      indications: [...new Set(rows.flatMap((r) => r.indications))].sort(byName),
+      schedules: [...new Set(rows.map((r) => r.schedule).filter((s): s is string => Boolean(s)))].sort(byName),
+      tags: [...facetTags.values()].sort((a, b) => byName(a.label, b.label)),
       fields: storedDefs.map((def) => ({ key: def.key, label: def.label })),
     },
   };

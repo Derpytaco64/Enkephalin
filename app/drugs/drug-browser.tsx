@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { BrowseFacets, DrugIndexRow } from '@/lib/drugs/browse';
+import { scheduleColor } from '@/lib/drugs/schedule';
 
 const VERIFICATION_LABELS = {
   verified: 'Verified',
@@ -16,27 +17,35 @@ const VERIFICATION_LABELS = {
 type Filters = {
   q: string;
   drugClass: string;
+  indication: string;
   schedule: string;
   tag: string;
   verification: string;
-  missing: string;
+  blank: string;
 };
 
-const EMPTY: Filters = { q: '', drugClass: '', schedule: '', tag: '', verification: '', missing: '' };
+const EMPTY: Filters = {
+  q: '',
+  drugClass: '',
+  indication: '',
+  schedule: '',
+  tag: '',
+  verification: '',
+  blank: '',
+};
 
 const PARAM_NAMES: Record<keyof Filters, string> = {
   q: 'q',
   drugClass: 'class',
+  indication: 'indication',
   schedule: 'schedule',
   tag: 'tag',
   verification: 'status',
-  missing: 'missing',
+  blank: 'blank',
 };
 
-function scheduleToken(schedule: string | null) {
-  if (!schedule) return 'var(--sched-none)';
-  return `var(--sched-${schedule.toLowerCase().replace('c', 'c')})`;
-}
+const contains = (haystack: string, needle: string) =>
+  haystack.toLowerCase().includes(needle.trim().toLowerCase());
 
 export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: BrowseFacets }) {
   const searchParams = useSearchParams();
@@ -44,10 +53,11 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
   const [filters, setFilters] = useState<Filters>(() => ({
     q: searchParams.get('q') ?? '',
     drugClass: searchParams.get('class') ?? '',
+    indication: searchParams.get('indication') ?? '',
     schedule: searchParams.get('schedule') ?? '',
     tag: searchParams.get('tag') ?? '',
     verification: searchParams.get('status') ?? '',
-    missing: searchParams.get('missing') ?? '',
+    blank: searchParams.get('blank') ?? '',
   }));
 
   // The URL trails the state rather than driving it, so typing stays instant
@@ -83,11 +93,14 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
     const searched = filters.q.trim() ? fuse.search(filters.q.trim()).map((hit) => hit.item) : rows;
 
     return searched.filter((row) => {
-      if (filters.drugClass && row.drugClass !== filters.drugClass) return false;
+      // Class and indication match on substring rather than equality, so a
+      // half-typed "beta" narrows the list before you pick a suggestion.
+      if (filters.drugClass && !contains(row.drugClass ?? '', filters.drugClass)) return false;
+      if (filters.indication && !row.indications.some((text) => contains(text, filters.indication))) return false;
       if (filters.schedule && row.schedule !== filters.schedule) return false;
       if (filters.tag && !row.tags.includes(filters.tag)) return false;
       if (filters.verification && row.verification !== filters.verification) return false;
-      if (filters.missing && !row.missing.includes(filters.missing)) return false;
+      if (filters.blank && !row.missing.includes(filters.blank)) return false;
       return true;
     });
   }, [rows, fuse, filters]);
@@ -100,22 +113,38 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
     'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm';
 
   return (
-    <div className="mt-8 grid gap-8 lg:grid-cols-[14rem_1fr] lg:items-start">
+    <div className="mt-8 grid gap-8 lg:grid-cols-[15rem_1fr] lg:items-start">
       <aside className="space-y-4">
         <div>
           <label htmlFor="q" className="block text-sm font-medium">Search</label>
           <input
             id="q" value={filters.q} onChange={(event) => set('q', event.target.value)}
-            placeholder="generic, brand, class" className={control} autoComplete="off"
+            placeholder="generic or brand" className={control} autoComplete="off"
           />
         </div>
 
         <div>
           <label htmlFor="class" className="block text-sm font-medium">Class</label>
-          <select id="class" value={filters.drugClass} onChange={(e) => set('drugClass', e.target.value)} className={control}>
-            <option value="">Any</option>
-            {facets.classes.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
+          <input
+            id="class" list="class-options" value={filters.drugClass}
+            onChange={(event) => set('drugClass', event.target.value)}
+            placeholder="type to narrow" className={control} autoComplete="off"
+          />
+          <datalist id="class-options">
+            {facets.classes.map((option) => <option key={option} value={option} />)}
+          </datalist>
+        </div>
+
+        <div>
+          <label htmlFor="indication" className="block text-sm font-medium">Indication</label>
+          <input
+            id="indication" list="indication-options" value={filters.indication}
+            onChange={(event) => set('indication', event.target.value)}
+            placeholder="what it treats" className={control} autoComplete="off"
+          />
+          <datalist id="indication-options">
+            {facets.indications.map((option) => <option key={option} value={option} />)}
+          </datalist>
         </div>
 
         <div>
@@ -147,13 +176,17 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
         </div>
 
         <div>
-          <label htmlFor="missing" className="block text-sm font-medium">Missing field</label>
-          <select id="missing" value={filters.missing} onChange={(e) => set('missing', e.target.value)} className={control}>
+          <label htmlFor="blank" className="block text-sm font-medium">Still blank</label>
+          <select id="blank" value={filters.blank} onChange={(e) => set('blank', e.target.value)} className={control}>
             <option value="">Any</option>
-            {facets.fields.map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}
+            {facets.fields.map((field) => (
+              <option key={field.key} value={field.key}>{field.label} not filled in</option>
+            ))}
           </select>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Finds genuine gaps. A drug with no black box warning is not missing one.
+            Finds drugs still waiting on a value — pick “Mechanism of action not filled in” to see
+            what is left to write. A drug that simply has no black box warning does not count as
+            blank.
           </p>
         </div>
 
@@ -174,10 +207,14 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
         ) : (
           <ul className="mt-3 divide-y divide-[var(--border)]">
             {results.map((row) => (
-              <li key={row.slug} className="py-3">
-                {/* One list that reflows: the class and brand detail drop to a
-                    second line on a phone instead of a separate component. */}
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <li
+                key={row.slug}
+                /* Columns rather than a flex run: with everything flowing after
+                   the name, brands started at a different x on every row. On a
+                   phone it collapses back to stacked lines. */
+                className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[14rem_1fr_auto] sm:items-baseline"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2">
                   <Link href={`/drugs/${row.slug}`} className="font-medium text-[var(--accent)] underline">
                     {row.generic}
                   </Link>
@@ -185,25 +222,22 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
                   {row.schedule && (
                     <span
                       className="rounded px-1.5 py-0.5 text-xs text-[var(--accent-fg)]"
-                      style={{ backgroundColor: scheduleToken(row.schedule) }}
+                      style={{ backgroundColor: scheduleColor(row.schedule) }}
                     >
                       {row.schedule}
                     </span>
                   )}
-
                   {row.verification === 'flagged' && (
                     <span className="text-xs text-[var(--flagged)]">flagged</span>
                   )}
                   {row.needsReview && <span className="text-xs text-[var(--unverified)]">needs review</span>}
-
-                  <span className="w-full text-sm text-[var(--muted)] sm:w-auto">
-                    {row.brands.join(', ') || 'no brands listed'}
-                  </span>
-
-                  {row.drugClass && (
-                    <span className="w-full text-sm text-[var(--muted)] sm:ml-auto sm:w-auto">{row.drugClass}</span>
-                  )}
                 </div>
+
+                <span className="text-sm text-[var(--muted)]">
+                  {row.brands.join(', ') || '—'}
+                </span>
+
+                <span className="text-sm text-[var(--muted)] sm:text-right">{row.drugClass ?? ''}</span>
               </li>
             ))}
           </ul>

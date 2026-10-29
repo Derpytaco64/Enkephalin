@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
+import { scheduleColor } from '@/lib/drugs/schedule';
 import { requireUser } from '@/lib/session';
 import type { FieldValue } from '@/db/schema';
 import { markFieldAction } from './actions';
@@ -97,7 +98,7 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
         {drug.schedule && (
           <span
             className="rounded px-2 py-0.5 text-sm text-[var(--accent-fg)]"
-            style={{ backgroundColor: `var(--sched-${drug.schedule.toLowerCase()})` }}
+            style={{ backgroundColor: scheduleColor(drug.schedule) }}
           >
             {drug.schedule}
           </span>
