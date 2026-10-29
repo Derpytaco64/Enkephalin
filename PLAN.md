@@ -387,6 +387,7 @@ Flashcards and quiz share one config object, so the two modes are built once:
   fields:    ["moa", "indication", "adverse_effects"],   // any defined field
   mode:      "inclusive" | "exclusive",
   direction: "drug→fields" | "fields→drug" | "field→field",
+  blockSize: number,   // 0 = off, otherwise cards per block
 }
 ```
 
@@ -416,6 +417,36 @@ from the same `drug_class` (so "which cardioselective beta blocker…" is a real
 **easy** mode draws at random. In inclusive `fields→drug` questions the wrong options are *coherent
 composites* — all fields taken from one wrong drug — never a scramble across drugs, which would be
 spottable without knowing any pharmacology.
+
+### Blocks (cram inside a session)
+
+`blockSize` chops the session's cards into consecutive blocks of N. A block does not advance until
+**every card in it has been graded good at least once in this session**; cards graded below good go
+back into the block's queue and come round again. Block 2 is not shown — not even previewed — until
+block 1 is clear. `blockSize: 0` turns this off and the session is one flat pass.
+
+This is the Obsidian spaced-repetition plugin's cram mode, with one deliberate difference: that
+plugin groups by tag, so you finish all the cardiology cards before any endocrine ones appear. Here
+the grouping is **positional, not semantic** — just the next N cards of whatever the config already
+selected. Tags, class and year level are already scope filters on the session, so making blocks a
+second semantic axis would mean two different groupings fighting over the same session. An integer
+keeps it a pacing control: "20 at a time until I know them" composes with any scope.
+
+Three things this needs deciding before it is built:
+
+1. **Does a block pass touch the schedule?** Cram is for the night before, and letting it rewrite
+   `ease`/`interval_days`/`due_at` would flatten weeks of spacing into one evening. Default: block
+   mode records `last_result` and `review_count` but leaves scheduling alone, so a cram session
+   cannot cost you your spacing. Worth an explicit toggle later if that proves wrong.
+2. **What counts as "good"?** The grading scale has to exist first (phase 5). A card leaves the
+   block on good or better; again and hard put it back.
+3. **Order within a block.** Failures should not reappear immediately — the answer is still on
+   screen. Requeue them behind the block's remaining unseen cards, and only reshuffle once the
+   block has nothing unseen left.
+
+Blocks are a session-time construct: nothing about them belongs in `study_cards`. The chosen size
+lives in the config object, and so travels into saved presets and `user_preferences.study_defaults`
+like every other setting.
 
 The field picker saves as a named preset ("P2 midterm — MOA + AE, exclusive, verified only"). Missed
 quiz questions push their cards to due in `study_cards`.
@@ -504,7 +535,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | Browse + search + filters + drug profile (bulk of the UI) |
-| 5 | Shared study-config component + flashcards + SRS |
+| 5 | Shared study-config component + flashcards + SRS + [blocks](#blocks-cram-inside-a-session) |
 | 6 | Quiz + distractor generation + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |
