@@ -545,6 +545,12 @@ flow needs is passed through compose.
 
 Password reset, email change, the full user admin and the audit-log UI stay in phase 8.
 
+A minimal app shell landed alongside phase 1: a site header with session-aware links, so the
+pages are reachable without typing URLs. It links only to routes that exist, which `typedRoutes`
+enforces for us. Reading the session there makes every page dynamic — accepted deliberately,
+since nothing here benefits from being static. Real navigation, theming and the responsive pass
+remain phase 7.
+
 ---
 
 ## Verification

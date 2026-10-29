@@ -1,5 +1,4 @@
 import { listInvites } from '@/lib/invites';
-import { SignOutButton } from '@/app/_components/sign-out-button';
 import { createInviteAction, revokeInviteAction } from './actions';
 
 export const metadata = { title: 'Invites — Enkephalin' };
@@ -17,10 +16,7 @@ export default async function InvitesPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-16">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Invites</h1>
-        <SignOutButton />
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">Invites</h1>
 
       <form action={createInviteAction} className="mt-8 grid gap-4 sm:grid-cols-[6rem_8rem_1fr_auto] sm:items-end">
         <div>
