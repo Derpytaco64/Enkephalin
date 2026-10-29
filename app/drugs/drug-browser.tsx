@@ -108,93 +108,157 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((current) => ({ ...current, [key]: value }));
 
+  // Counts over the whole set, so an option that would return nothing says so
+  // rather than looking broken when you pick it.
+  const counts = useMemo(() => {
+    const blank = new Map<string, number>();
+    const verification = new Map<string, number>();
+    const schedule = new Map<string, number>();
+    const tag = new Map<string, number>();
+    const bump = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
+
+    for (const row of rows) {
+      for (const key of row.missing) bump(blank, key);
+      bump(verification, row.verification);
+      if (row.schedule) bump(schedule, row.schedule);
+      for (const slug of row.tags) bump(tag, slug);
+    }
+    return { blank, verification, schedule, tag };
+  }, [rows]);
+
+  const advancedKeys = ['drugClass', 'indication', 'schedule', 'tag', 'verification', 'blank'] as const;
+  const advancedCount = advancedKeys.filter((key) => filters[key]).length;
+  const [showMore, setShowMore] = useState(advancedCount > 0);
+
   const active = Object.values(filters).some(Boolean);
+  // One height for every control: a select and an input do not agree on their
+  // own, and the rail reads as ragged when they disagree.
   const control =
-    'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm';
+    'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
 
   return (
     <div className="mt-8 grid gap-8 lg:grid-cols-[15rem_1fr] lg:items-start">
-      <aside className="space-y-4">
+      <aside className="space-y-3">
         <div>
-          <label htmlFor="q" className="block text-sm font-medium">Search</label>
+          <label htmlFor="q" className="block text-sm font-medium">Find a drug</label>
           <input
             id="q" value={filters.q} onChange={(event) => set('q', event.target.value)}
             placeholder="generic or brand" className={control} autoComplete="off"
           />
         </div>
 
-        <div>
-          <label htmlFor="class" className="block text-sm font-medium">Class</label>
-          <input
-            id="class" list="class-options" value={filters.drugClass}
-            onChange={(event) => set('drugClass', event.target.value)}
-            placeholder="type to narrow" className={control} autoComplete="off"
-          />
-          <datalist id="class-options">
-            {facets.classes.map((option) => <option key={option} value={option} />)}
-          </datalist>
-        </div>
+        {/* Collapsed by default so the rail is one box until you want more,
+            and it works the same whether it sits on the left or stacked on
+            top. It opens itself when a filter arrives in the URL, or the
+            results would look filtered for no visible reason. */}
+        <details
+          open={showMore}
+          onToggle={(event) => setShowMore(event.currentTarget.open)}
+          className="rounded border border-[var(--border)]"
+        >
+          <summary className="cursor-pointer px-3 py-2 text-sm">
+            More filters{advancedCount > 0 ? ` (${advancedCount})` : ''}
+          </summary>
 
-        <div>
-          <label htmlFor="indication" className="block text-sm font-medium">Indication</label>
-          <input
-            id="indication" list="indication-options" value={filters.indication}
-            onChange={(event) => set('indication', event.target.value)}
-            placeholder="what it treats" className={control} autoComplete="off"
-          />
-          <datalist id="indication-options">
-            {facets.indications.map((option) => <option key={option} value={option} />)}
-          </datalist>
-        </div>
+          <div className="space-y-4 border-t border-[var(--border)] px-3 py-3">
+            <div>
+              <label htmlFor="class" className="block text-sm font-medium">Class</label>
+              <input
+                id="class" list="class-options" value={filters.drugClass}
+                onChange={(event) => set('drugClass', event.target.value)}
+                placeholder="type to narrow" className={control} autoComplete="off"
+              />
+              <datalist id="class-options">
+                {facets.classes.map((option) => <option key={option} value={option} />)}
+              </datalist>
+            </div>
 
-        <div>
-          <label htmlFor="schedule" className="block text-sm font-medium">Schedule</label>
-          <select id="schedule" value={filters.schedule} onChange={(e) => set('schedule', e.target.value)} className={control}>
-            <option value="">Any</option>
-            {facets.schedules.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
-        </div>
+            <div>
+              <label htmlFor="indication" className="block text-sm font-medium">Indication</label>
+              <input
+                id="indication" list="indication-options" value={filters.indication}
+                onChange={(event) => set('indication', event.target.value)}
+                placeholder="what it treats" className={control} autoComplete="off"
+              />
+              <datalist id="indication-options">
+                {facets.indications.map((option) => <option key={option} value={option} />)}
+              </datalist>
+            </div>
 
-        {facets.tags.length > 0 && (
-          <div>
-            <label htmlFor="tag" className="block text-sm font-medium">Tag</label>
-            <select id="tag" value={filters.tag} onChange={(e) => set('tag', e.target.value)} className={control}>
-              <option value="">Any</option>
-              {facets.tags.map((tag) => <option key={tag.slug} value={tag.slug}>{tag.label}</option>)}
-            </select>
+            <div>
+              <label htmlFor="schedule" className="block text-sm font-medium">Schedule</label>
+              <select id="schedule" value={filters.schedule} onChange={(e) => set('schedule', e.target.value)} className={control}>
+                <option value="">Any</option>
+                {facets.schedules.map((option) => (
+                  <option key={option} value={option}>
+                    {option} ({counts.schedule.get(option) ?? 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {facets.tags.length > 0 && (
+              <div>
+                <label htmlFor="tag" className="block text-sm font-medium">Tag</label>
+                <select id="tag" value={filters.tag} onChange={(e) => set('tag', e.target.value)} className={control}>
+                  <option value="">Any</option>
+                  {facets.tags.map((tag) => (
+                    <option key={tag.slug} value={tag.slug}>
+                      {tag.label} ({counts.tag.get(tag.slug) ?? 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium">Checked against a source</label>
+              <select id="status" value={filters.verification} onChange={(e) => set('verification', e.target.value)} className={control}>
+                <option value="">Any</option>
+                {Object.entries(VERIFICATION_LABELS).map(([value, label]) => {
+                  const count = counts.verification.get(value) ?? 0;
+                  return (
+                    <option key={value} value={value} disabled={count === 0}>
+                      {label} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                The sheet is the starting point, not a checked source. A value counts as confirmed
+                once an admin has compared it against Micromedex or lecture and pressed Mark
+                verified on the drug page — so everything reads “from the sheet only” until that
+                happens.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="blank" className="block text-sm font-medium">Still blank</label>
+              <select id="blank" value={filters.blank} onChange={(e) => set('blank', e.target.value)} className={control}>
+                <option value="">Any</option>
+                {facets.fields.map((field) => {
+                  const count = counts.blank.get(field.key) ?? 0;
+                  return (
+                    <option key={field.key} value={field.key} disabled={count === 0}>
+                      {field.label}: {count} waiting
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Your worklist for a field nobody has written yet. All zero right now because the
+                sheet filled every one; add a field in admin and it will list all 236. A drug with
+                no black box warning does not count as blank — that is an answer.
+              </p>
+            </div>
+
+            {active && (
+              <button type="button" onClick={() => setFilters(EMPTY)} className="text-sm text-[var(--accent)] underline">
+                Clear filters
+              </button>
+            )}
           </div>
-        )}
-
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium">Verification</label>
-          <select id="status" value={filters.verification} onChange={(e) => set('verification', e.target.value)} className={control}>
-            <option value="">Any</option>
-            {Object.entries(VERIFICATION_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="blank" className="block text-sm font-medium">Still blank</label>
-          <select id="blank" value={filters.blank} onChange={(e) => set('blank', e.target.value)} className={control}>
-            <option value="">Any</option>
-            {facets.fields.map((field) => (
-              <option key={field.key} value={field.key}>{field.label} not filled in</option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Finds drugs still waiting on a value — pick “Mechanism of action not filled in” to see
-            what is left to write. A drug that simply has no black box warning does not count as
-            blank.
-          </p>
-        </div>
-
-        {active && (
-          <button type="button" onClick={() => setFilters(EMPTY)} className="text-sm text-[var(--accent)] underline">
-            Clear filters
-          </button>
-        )}
+        </details>
       </aside>
 
       <section>
