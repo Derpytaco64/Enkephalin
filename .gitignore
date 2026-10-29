@@ -9,3 +9,6 @@ next-env.d.ts
 .rxnav-cache/
 __pycache__/
 .DS_Store
+
+# Course material — keep local, never publish (school's copyright, not ours)
+2026 - top-drugs-master-doc-blackboard-posting.pdf

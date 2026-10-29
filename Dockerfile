@@ -14,7 +14,7 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0
 RUN addgroup -S app && adduser -S app -G app
 
 # next.config sets output:'standalone', so the server ships without

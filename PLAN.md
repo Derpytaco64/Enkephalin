@@ -483,14 +483,14 @@ npm run db:generate           # creates db/migrations from db/schema.ts
 docker compose up --build
 ```
 
-`db/migrations/` is intentionally absent from the repo so far: the first migration must be generated
-against the installed drizzle-kit rather than hand-written, or it will drift from the schema.
+`db/migrations/` was generated against the installed drizzle-kit rather than hand-written, so it
+cannot drift from the schema. Regenerate with `npm run db:generate` after every `db/schema.ts` change.
 
 ## Build sequence
 
 | Phase | Deliverable |
 |---|---|
-| 0 | **written, unverified** — scaffold, theme tokens, Dockerfile, compose, Drizzle schema, migrate-on-start, healthcheck. Nothing has been run: Node and Docker are not installed on this machine (see Prerequisites) |
+| 0 | **done — first run verified 2026-10-29** — scaffold, theme tokens, Dockerfile, compose, Drizzle schema, migrate-on-start, healthcheck. Node 26.13 + Docker 29.9 installed; first migration generated (21 tables) and applied on boot; `docker compose up` serves `/` and `/api/health` with both services healthy |
 | 1 | better-auth, login/register, invite gate, roles, first admin seeded from env |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`. Remaining: `sync-content.ts` to load it into Postgres |
