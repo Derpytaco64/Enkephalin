@@ -68,13 +68,13 @@ describe('createFieldDef', () => {
   });
 
   it('requires options for an enum field, and keeps them only for enums', async () => {
-    expect(await createFieldDef('route', { label: 'Route', dataType: 'enum', enumOptions: [] })).toEqual({
+    expect(await createFieldDef('dose_form', { label: 'Dose form', dataType: 'enum', enumOptions: [] })).toEqual({
       ok: false,
       message: 'An enum field needs at least one option.',
     });
 
-    await createFieldDef('route', { label: 'Route', dataType: 'enum', enumOptions: [' oral ', 'IV', ''] });
-    expect((await byKey('route')).enumOptions).toEqual(['oral', 'IV']);
+    await createFieldDef('dose_form', { label: 'Dose form', dataType: 'enum', enumOptions: [' tablet ', 'capsule', ''] });
+    expect((await byKey('dose_form')).enumOptions).toEqual(['tablet', 'capsule']);
 
     await createFieldDef('notes', { label: 'Notes', dataType: 'text', enumOptions: ['ignored'] });
     expect((await byKey('notes')).enumOptions).toBeNull();

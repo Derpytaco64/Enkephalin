@@ -70,6 +70,18 @@ export const CORE_FIELD_DEFS: NewFieldDef[] = [
     promptTemplate: 'What is the controlled-substance schedule of {{generic}}?',
   },
   {
+    key: 'route',
+    label: 'Route',
+    group: 'Clinical',
+    dataType: 'list',
+    sortOrder: 55,
+    // The sheet assigns no year to it: route is read out of the drug's own
+    // name and dosing text rather than taught as its own column.
+    yearLevels: [],
+    helpText: 'How the drug is given. Blank means the source never said, not that it has none.',
+    promptTemplate: 'How is {{generic}} given?',
+  },
+  {
     key: 'dosing',
     label: 'Dosing',
     group: 'Clinical',

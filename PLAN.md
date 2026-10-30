@@ -281,6 +281,42 @@ this split with no asterisk at all, and *Adcirca\** points at an indication the 
 the asterisk only ever seeds a **suggestion** (2 drugs), while any drug with competing brands *and*
 multiple indications is flagged for human pairing regardless.
 
+### Route is recorded; per-route and per-population detail is not, yet
+
+Every drug carries a `route` field, read only from evidence already in the row: a route stated in
+the name (`Diclofenac (topical)`, `Methylprednisolone sodium succinate (parenteral)`) wins over the
+dosing text, and failing that the dosing text is read for "by mouth", "subQ", "IV/IM", "puffs",
+"into the conjunctival sac" and the rest. 218 of 236 came out of the import that way; the other 18
+stay blank and sit in the "still blank" worklist.
+
+Those 18 are the point of the rule. An infusion written as `0.05-0.15 mcg/kg/minute` is obviously
+intravenous to a pharmacist, and insulin glargine is obviously subcutaneous — but neither text says
+so, and a study aid that quietly fills in what it merely assumes is how you end up revising
+something confidently wrong. The same refusal governs drug class and brand pairing.
+
+**The subsystem this leads to.** Dosing and adverse effects vary by route and by population:
+paediatric against adult, and oral against IV for the same generic. The model already has the
+shape for it — `drug_brands.dosing_override` carries per-brand dosing today, which is how
+sildenafil keeps 20 mg three times a day on Revatio and 50 mg before activity on Viagra — but
+there is no place yet for "amoxicillin, paediatric, oral" as distinct from "amoxicillin, adult,
+oral".
+
+When it is built, these hold:
+
+1. **The top-drugs listing is the standard.** What the sheet says is the drug's primary answer,
+   and that is what a card asks by default. Variants are secondary: additions hanging off the
+   standard, never replacements for it, or the study set silently changes under you.
+2. **A variant carries its own axes** — route, population, and perhaps indication — and its own
+   verification status, since "paediatric IV dosing" is a different claim needing its own source.
+3. **Study config chooses whether variants are in scope.** Default off: a P1 revising the top
+   drugs list should not be asked paediatric IV dosing because a variant exists.
+4. **Nothing is generated from a variant that is not confirmed**, the same rule that suppresses
+   brand→indication cards while a pairing is unreviewed.
+
+Estradiol is the case already waiting: the sheet gives it three routes and "product dependent"
+dosing across two families of products, which the importer deliberately refuses to turn into
+brand rows.
+
 **The sheet lists some generics twice.** Sildenafil appears on two rows — Revatio for pulmonary
 hypertension at 20 mg three times a day, and Viagra for erectile dysfunction at 50 mg before
 activity — both slugged `sildenafil`. The importer folds them into one drug and links each brand

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 // Relative rather than '@/...' on purpose: scripts/sync-content.ts runs this
 // under `node --experimental-strip-types`, which resolves no path aliases.
 import { db } from '../../db/index.ts';
+import { extractRoutes } from './routes.ts';
 import {
   brandIndications,
   drugBrands,
@@ -111,6 +112,21 @@ function seedFieldValues(drug: SeedDrug, now: string): Record<string, FieldValue
 
   add('dosing', drug.dosing, 'unverified');
   add('moa', drug.moa, 'unverified');
+
+  // Route is read out of the name and dosing text rather than being its own
+  // sheet column. Only explicit evidence counts: an infusion written as a
+  // rate, or an insulin whose text never says subcutaneous, is left blank for
+  // a human instead of inferred.
+  const { routes, source } = extractRoutes({ name: drug.generic, dosing: drug.dosing });
+  if (routes.length > 0) {
+    values.route = {
+      value: routes.join('\n'),
+      status: 'unverified',
+      source: source === 'name' ? 'the drug name' : 'the sheet dosing text',
+      updatedAt: now,
+      updatedBy: null,
+    };
+  }
 
   // bbw_status "none" is the sheet affirming there is no warning, which is an
   // answer. Recording it as not_applicable keeps it out of the review queue

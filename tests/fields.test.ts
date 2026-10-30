@@ -62,7 +62,7 @@ describe('listFieldDefs', () => {
 
     const keys = (await listFieldDefs()).map((d) => d.key);
     expect(keys).not.toContain('dosing');
-    expect(keys).toEqual(['generic', 'brand', 'indication', 'drug_class', 'controlled', 'moa', 'bbw']);
+    expect(keys).toEqual(['generic', 'brand', 'indication', 'drug_class', 'controlled', 'route', 'moa', 'bbw']);
   });
 
   it('can include soft-deleted fields, and the definition survives an undelete', async () => {

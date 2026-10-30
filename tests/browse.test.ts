@@ -23,7 +23,7 @@ beforeEach(async () => {
       generic: 'Alprazolam',
       drug_class: 'Benzodiazepine',
       schedule: 'CIV',
-      dosing: '0.25 mg three times a day',
+      dosing: '0.25 mg by mouth three times a day',
       moa: 'GABA-A positive allosteric modulator',
       bbw: 'Risks from concomitant opioid use',
       bbw_status: 'from_sheet',
@@ -34,7 +34,7 @@ beforeEach(async () => {
       slug: 'lisinopril',
       generic: 'Lisinopril',
       drug_class: 'ACE Inhibitor',
-      dosing: '10 mg once a day',
+      dosing: '10 mg by mouth once a day',
       // No mechanism recorded: a genuine gap.
       moa: '',
       bbw: '',
@@ -46,7 +46,7 @@ beforeEach(async () => {
       slug: 'enalapril',
       generic: 'Enalapril',
       drug_class: 'ACE Inhibitor',
-      dosing: '5 mg once a day',
+      dosing: '5 mg by mouth once a day',
       moa: 'ACE inhibition',
       bbw: '',
       bbw_status: 'none',
@@ -65,6 +65,11 @@ async function rowFor(slug: string) {
 }
 
 describe('getDrugIndex', () => {
+  it('reads the route out of the dosing text during the import', async () => {
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'alprazolam'));
+    expect(drug.fields.route).toMatchObject({ value: 'Oral', source: 'the sheet dosing text' });
+  });
+
   it('returns one row per drug with its brands, class and schedule', async () => {
     const { rows } = await getDrugIndex();
 
@@ -102,6 +107,7 @@ describe('getDrugIndex', () => {
           dosing: verify(drug.fields.dosing!),
           moa: verify(drug.fields.moa!),
           bbw: verify(drug.fields.bbw!),
+          route: verify(drug.fields.route!),
         },
       })
       .where(eq(drugs.id, drug.id));
@@ -128,6 +134,7 @@ describe('getDrugIndex', () => {
           dosing: { ...drug.fields.dosing!, status: 'verified' },
           moa: { ...drug.fields.moa!, status: 'flagged' },
           bbw: { ...drug.fields.bbw!, status: 'verified' },
+          route: { ...drug.fields.route!, status: 'verified' },
         },
       })
       .where(eq(drugs.id, drug.id));
@@ -174,14 +181,14 @@ describe('getDrugIndex', () => {
     expect(facets.tags.map((tag) => tag.slug)).toEqual(['top-drugs-2026']);
     // Only the stored fields can be missing, so core fields stay out of the
     // missing-field filter.
-    expect(facets.fields.map((field) => field.key)).toEqual(['dosing', 'moa', 'bbw']);
+    expect(facets.fields.map((field) => field.key)).toEqual(['route', 'dosing', 'moa', 'bbw']);
   });
 
   it('leaves a soft-deleted field out of the facets and the gap count', async () => {
     await db.update(fieldDefs).set({ deletedAt: new Date() }).where(eq(fieldDefs.key, 'moa'));
 
     const { rows, facets } = await getDrugIndex();
-    expect(facets.fields.map((field) => field.key)).toEqual(['dosing', 'bbw']);
+    expect(facets.fields.map((field) => field.key)).toEqual(['route', 'dosing', 'bbw']);
     expect(rows.find((row) => row.slug === 'lisinopril')!.missing).toEqual([]);
   });
 
