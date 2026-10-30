@@ -424,6 +424,7 @@ Flashcards and quiz share one config object, so the two modes are built once:
   mode:      "inclusive" | "exclusive",
   direction: "drug→fields" | "fields→drug" | "field→field",
   blockSize: number,   // 0 = off, otherwise cards per block
+  grading:   "binary" | "four-point",
 }
 ```
 
@@ -454,6 +455,32 @@ from the same `drug_class` (so "which cardioselective beta blocker…" is a real
 composites* — all fields taken from one wrong drug — never a scramble across drugs, which would be
 spottable without knowing any pharmacology.
 
+### Two grading scales
+
+**Got it / Don't got it** is the default. Two buttons, no introspection: the question when you are
+going through 200 drugs the night before is whether you knew it, not how comfortably. Fewer
+decisions per card means more cards per sitting, and a binary pass is honest about what cramming
+is.
+
+**Again / Hard / Good / Easy** is the four-point SM-2 scale, for revision spread over weeks. Easy
+stretches the interval, Hard shrinks it, and that extra signal is what makes spacing adapt to the
+individual card rather than to the deck.
+
+The two are a display choice over one mechanism, not two systems:
+
+```
+Got it        -> Good    (quality 4)
+Don't got it  -> Again   (quality 1)
+```
+
+So a card keeps one `study_cards` row and one schedule whatever scale graded it last. Switching
+scales mid-week neither resets progress nor needs a second set of intervals, and a card graded
+"Got it" on Monday is indistinguishable from one graded "Good" — which is the point, because it
+is the same claim about the same card.
+
+For [blocks](#blocks-cram-inside-a-session), **Got it clears a card from its block** exactly as
+Good does; Don't got it requeues it exactly as Again does.
+
 ### Blocks (cram inside a session)
 
 `blockSize` chops the session's cards into consecutive blocks of N. A block does not advance until
@@ -474,8 +501,8 @@ Three things this needs deciding before it is built:
    `ease`/`interval_days`/`due_at` would flatten weeks of spacing into one evening. Default: block
    mode records `last_result` and `review_count` but leaves scheduling alone, so a cram session
    cannot cost you your spacing. Worth an explicit toggle later if that proves wrong.
-2. **What counts as "good"?** The grading scale has to exist first (phase 5). A card leaves the
-   block on good or better; again and hard put it back.
+2. **What counts as "good"?** Settled: a card leaves the block on Good or Easy, or on Got it in
+   the binary scale. Again and Hard put it back.
 3. **Order within a block.** Failures should not reappear immediately — the answer is still on
    screen. Requeue them behind the block's remaining unseen cards, and only reshuffle once the
    block has nothing unseen left.
@@ -614,7 +641,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
-| 5 | Shared study-config component + flashcards + SRS + [blocks](#blocks-cram-inside-a-session) |
+| 5 | Shared study-config component + flashcards + SRS + [blocks](#blocks-cram-inside-a-session) + [two grading scales](#two-grading-scales) |
 | 6 | Quiz + distractor generation + scoring + history + [dosing parse](#dosing-needs-structure-before-it-can-be-quizzed) |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |
