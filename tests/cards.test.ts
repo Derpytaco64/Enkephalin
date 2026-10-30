@@ -234,4 +234,29 @@ describe('buildCards', () => {
     }));
     expect(cards.map((card) => card.slug)).toEqual(['alprazolam']);
   });
+
+  it('treats brand and generic as a pair, naming what each side wants', () => {
+    // Shown a brand, the thing wanted is the generic name, not "which drug"
+    // in some looser sense.
+    const toGeneric = buildCards([source()], defs, config({
+      fields: ['brand'],
+      direction: 'fields_to_drug',
+    }));
+    expect(toGeneric[0].prompt).toBe('Generic name?\n\nBrand names: Xanax');
+    expect(toGeneric[0].faces[0].text).toBe('Alprazolam');
+
+    // And its mirror: shown the generic, name the brands.
+    const toBrand = buildCards([source()], defs, config({ fields: ['brand'] }));
+    expect(toBrand[0].prompt).toBe('Brand name(s)? — Alprazolam');
+    expect(toBrand[0].faces[0].text).toBe('Xanax');
+  });
+
+  it('keeps the general question when the clues are not the brand', () => {
+    const cards = buildCards([source()], defs, config({
+      fields: ['moa', 'dosing'],
+      direction: 'fields_to_drug',
+      mode: 'inclusive',
+    }));
+    expect(cards[0].prompt.startsWith('Which drug?')).toBe(true);
+  });
 });

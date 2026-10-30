@@ -31,7 +31,10 @@ export const CORE_FIELD_DEFS: NewFieldDef[] = [
     isCore: true,
     sortOrder: 20,
     yearLevels: ['P1', 'P2', 'P3'],
-    promptTemplate: 'What are the brand names for {{generic}}?',
+    // The other half of the brand/generic pair: shown the generic, name the
+    // brands. Its mirror -- shown a brand, name the generic -- is the
+    // facts-to-drug direction of this same field.
+    promptTemplate: 'Brand name(s)? — {{generic}}',
   },
   {
     key: 'indication',

@@ -6,6 +6,7 @@ import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
+import { FieldPicker } from './field-picker';
 import { SessionRunner } from './session-runner';
 
 export const metadata = { title: 'Flashcards — Enkephalin' };
@@ -84,16 +85,12 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             </select>
           </div>
 
-          <div>
-            <label htmlFor="year" className="block text-sm font-medium">Year</label>
-            <select id="year" name="year" defaultValue={config.yearLevel ?? ''} className={control}>
-              <option value="">Pick fields myself</option>
-              <option value="P1">P1</option>
-              <option value="P2">P2</option>
-              <option value="P3">P3</option>
-            </select>
-            <p className="mt-1 text-xs text-[var(--muted)]">Selects the fields that year is responsible for.</p>
-          </div>
+          <FieldPicker
+            fields={quizzable.map((def) => ({ key: def.key, label: def.label, yearLevels: def.yearLevels }))}
+            selected={config.fields}
+            year={config.yearLevel ?? ''}
+            control={control}
+          />
 
           <div>
             <label htmlFor="set" className="block text-sm font-medium">Card shape</label>
@@ -136,24 +133,6 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             <p className="mt-1 text-xs text-[var(--muted)]">0 for one flat pass.</p>
           </div>
         </div>
-
-        <fieldset className="mt-4">
-          <legend className="text-sm font-medium">Fields</legend>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Leave empty to use the year above. How these become cards depends on the card shape.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-            {quizzable.map((def) => (
-              <label key={def.key} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox" name="fields" value={def.key}
-                  defaultChecked={config.fields.includes(def.key)}
-                />
-                {def.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
 
         <button type="submit" className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
           Start

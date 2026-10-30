@@ -95,7 +95,13 @@ const IDENTITY_FIELD = 'generic';
 function promptFor(config: StudyConfig, generic: string, faces: CardFace[], defs: FieldDef[]) {
   if (config.direction === 'fields_to_drug') {
     const clues = faces.map((face) => `${face.label}: ${face.text}`).join('\n');
-    return `Which drug?\n\n${clues}`;
+
+    // Brand and generic are a pair, and naming the pair is sharper than the
+    // general question: shown Xanax, what is wanted is the generic name, not
+    // "which drug" in some looser sense. The reverse card -- generic shown,
+    // brands wanted -- comes from the brand field's own template.
+    const asking = faces.length === 1 && faces[0].key === 'brand' ? 'Generic name?' : 'Which drug?';
+    return `${asking}\n\n${clues}`;
   }
 
   // A field can carry its own wording, which reads better than a generated
