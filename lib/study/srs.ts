@@ -9,9 +9,9 @@ export type Grade = 'again' | 'hard' | 'good' | 'easy';
 
 /**
  * The buttons each scale shows, worst first so the two read the same way
- * round. One word each: "Don't got it" sat oddly beside Again / Hard / Good /
- * Easy, and the binary pair is the same judgement in fewer steps, not a
- * chattier one.
+ * round. The binary pair borrows the four-point words it maps to rather than
+ * inventing a second vocabulary: the short scale is visibly the long one with
+ * the middle removed, and nobody switching modes has to learn new labels.
  */
 export const GRADE_BUTTONS: Record<GradingScale, { grade: Grade; label: string }[]> = {
   'four-point': [
@@ -21,8 +21,8 @@ export const GRADE_BUTTONS: Record<GradingScale, { grade: Grade; label: string }
     { grade: 'easy', label: 'Easy' },
   ],
   binary: [
-    { grade: 'again', label: 'Forgot' },
-    { grade: 'good', label: 'Knew' },
+    { grade: 'again', label: 'Again' },
+    { grade: 'good', label: 'Good' },
   ],
 };
 
@@ -43,8 +43,8 @@ const EASE_DELTA: Record<Grade, number> = {
 };
 
 /** The binary scale is a display over the same mechanism, not a second one. */
-export function gradeFromBinary(knew: boolean): Grade {
-  return knew ? 'good' : 'again';
+export function gradeFromBinary(recalled: boolean): Grade {
+  return recalled ? 'good' : 'again';
 }
 
 /** Good or better clears a card from its block; Again and Hard requeue it. */

@@ -104,7 +104,9 @@ describe('study config', () => {
 describe('grading scales', () => {
   it('labels both scales in the same register, worst first', () => {
     expect(GRADE_BUTTONS['four-point'].map((b) => b.label)).toEqual(['Again', 'Hard', 'Good', 'Easy']);
-    expect(GRADE_BUTTONS.binary.map((b) => b.label)).toEqual(['Forgot', 'Knew']);
+    // The short scale is the long one with the middle removed, so it borrows
+    // the same two words rather than inventing a second vocabulary.
+    expect(GRADE_BUTTONS.binary.map((b) => b.label)).toEqual(['Again', 'Good']);
     // Both start at the miss, so the buttons sit in the same order either way.
     expect(GRADE_BUTTONS.binary[0].grade).toBe('again');
     expect(GRADE_BUTTONS['four-point'][0].grade).toBe('again');
@@ -120,7 +122,7 @@ describe('grading scales', () => {
     expect(clearsBlock('easy')).toBe(true);
     expect(clearsBlock('hard')).toBe(false);
     expect(clearsBlock('again')).toBe(false);
-    // Knew clears exactly as Good does -- the same claim about the card.
+    // The binary Good clears exactly as the four-point one does.
     expect(clearsBlock(gradeFromBinary(true))).toBe(true);
   });
 });
