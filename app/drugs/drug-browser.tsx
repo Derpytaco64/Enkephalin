@@ -126,6 +126,27 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
     return { blank, verification, schedule, tag };
   }, [rows]);
 
+  // A filter that cannot narrow anything is noise: options nothing matches are
+  // dropped, and a control left with fewer than two is hidden outright. It
+  // stays visible while it holds a value, so a filter arriving in the URL is
+  // never stranded with no way to clear it.
+  const options = useMemo(() => {
+    const blank = facets.fields.filter((field) => (counts.blank.get(field.key) ?? 0) > 0);
+    const verification = Object.entries(VERIFICATION_LABELS).filter(
+      ([value]) => (counts.verification.get(value) ?? 0) > 0,
+    );
+    const schedules = facets.schedules.filter((value) => (counts.schedule.get(value) ?? 0) > 0);
+    const tags = facets.tags.filter((tag) => (counts.tag.get(tag.slug) ?? 0) > 0);
+    return { blank, verification, schedules, tags };
+  }, [facets, counts]);
+
+  const show = {
+    blank: options.blank.length > 0 || Boolean(filters.blank),
+    verification: options.verification.length > 1 || Boolean(filters.verification),
+    schedule: options.schedules.length > 1 || Boolean(filters.schedule),
+    tag: options.tags.length > 1 || Boolean(filters.tag),
+  };
+
   const advancedKeys = ['drugClass', 'indication', 'schedule', 'tag', 'verification', 'blank'] as const;
   const advancedCount = advancedKeys.filter((key) => filters[key]).length;
   const [showMore, setShowMore] = useState(advancedCount > 0);
@@ -185,24 +206,26 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
               </datalist>
             </div>
 
-            <div>
-              <label htmlFor="schedule" className="block text-sm font-medium">Schedule</label>
-              <select id="schedule" value={filters.schedule} onChange={(e) => set('schedule', e.target.value)} className={control}>
-                <option value="">Any</option>
-                {facets.schedules.map((option) => (
-                  <option key={option} value={option}>
-                    {option} ({counts.schedule.get(option) ?? 0})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {show.schedule && (
+              <div>
+                <label htmlFor="schedule" className="block text-sm font-medium">Schedule</label>
+                <select id="schedule" value={filters.schedule} onChange={(e) => set('schedule', e.target.value)} className={control}>
+                  <option value="">Any</option>
+                  {options.schedules.map((option) => (
+                    <option key={option} value={option}>
+                      {option} ({counts.schedule.get(option) ?? 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            {facets.tags.length > 0 && (
+            {show.tag && (
               <div>
                 <label htmlFor="tag" className="block text-sm font-medium">Tag</label>
                 <select id="tag" value={filters.tag} onChange={(e) => set('tag', e.target.value)} className={control}>
                   <option value="">Any</option>
-                  {facets.tags.map((tag) => (
+                  {options.tags.map((tag) => (
                     <option key={tag.slug} value={tag.slug}>
                       {tag.label} ({counts.tag.get(tag.slug) ?? 0})
                     </option>
@@ -211,46 +234,42 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
               </div>
             )}
 
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium">Checked against a source</label>
-              <select id="status" value={filters.verification} onChange={(e) => set('verification', e.target.value)} className={control}>
-                <option value="">Any</option>
-                {Object.entries(VERIFICATION_LABELS).map(([value, label]) => {
-                  const count = counts.verification.get(value) ?? 0;
-                  return (
-                    <option key={value} value={value} disabled={count === 0}>
-                      {label} ({count})
+            {show.verification && (
+              <div>
+                <label htmlFor="status" className="block text-sm font-medium">Checked against a source</label>
+                <select id="status" value={filters.verification} onChange={(e) => set('verification', e.target.value)} className={control}>
+                  <option value="">Any</option>
+                  {options.verification.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label} ({counts.verification.get(value) ?? 0})
                     </option>
-                  );
-                })}
-              </select>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                The sheet is the starting point, not a checked source. A value counts as confirmed
-                once an admin has compared it against Micromedex or lecture and pressed Mark
-                verified on the drug page — so everything reads “from the sheet only” until that
-                happens.
-              </p>
-            </div>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  The sheet is the starting point, not a checked source. A value counts as confirmed
+                  once an admin has compared it against Micromedex or lecture and pressed Mark
+                  verified on the drug page.
+                </p>
+              </div>
+            )}
 
-            <div>
-              <label htmlFor="blank" className="block text-sm font-medium">Still blank</label>
-              <select id="blank" value={filters.blank} onChange={(e) => set('blank', e.target.value)} className={control}>
-                <option value="">Any</option>
-                {facets.fields.map((field) => {
-                  const count = counts.blank.get(field.key) ?? 0;
-                  return (
-                    <option key={field.key} value={field.key} disabled={count === 0}>
-                      {field.label}: {count} waiting
+            {show.blank && (
+              <div>
+                <label htmlFor="blank" className="block text-sm font-medium">Still blank</label>
+                <select id="blank" value={filters.blank} onChange={(e) => set('blank', e.target.value)} className={control}>
+                  <option value="">Any</option>
+                  {options.blank.map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}: {counts.blank.get(field.key) ?? 0} waiting
                     </option>
-                  );
-                })}
-              </select>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Your worklist for a field nobody has written yet. All zero right now because the
-                sheet filled every one; add a field in admin and it will list all 236. A drug with
-                no black box warning does not count as blank — that is an answer.
-              </p>
-            </div>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Drugs still waiting on a value for that field. A drug with no black box warning
+                  does not count as blank — that is an answer.
+                </p>
+              </div>
+            )}
 
             {active && (
               <button type="button" onClick={() => setFilters(EMPTY)} className="text-sm text-[var(--accent)] underline">
