@@ -6,7 +6,14 @@ import {
   grade as gradeCard,
   type Session,
 } from '@/lib/study/blocks';
-import { DEFAULT_CONFIG, cardKey, fieldsForYear, normalizeConfig } from '@/lib/study/config';
+import {
+  DEFAULT_CONFIG,
+  cardKey,
+  defaultGradingFor,
+  fieldsForYear,
+  normalizeConfig,
+  sessionRules,
+} from '@/lib/study/config';
 import { clearsBlock, gradeFromBinary, review, reviewWithoutRescheduling, type Grade } from '@/lib/study/srs';
 
 const ids = (count: number) => Array.from({ length: count }, (_, i) => `c${i + 1}`);
@@ -16,11 +23,40 @@ function play(session: Session, grades: Grade[]) {
   return grades.reduce((current, grade) => gradeCard(current, grade), session);
 }
 
-describe('study config', () => {
-  it('defaults to two buttons and blocks of twenty', () => {
-    expect(DEFAULT_CONFIG.grading).toBe('binary');
+describe('session modes', () => {
+  it('defaults to reviewing what is due', () => {
+    expect(DEFAULT_CONFIG.sessionMode).toBe('review');
+    expect(DEFAULT_CONFIG.scope.dueOnly).toBe(true);
     expect(DEFAULT_CONFIG.blockSize).toBe(20);
   });
+
+  it('review takes only due cards, grades on the full scale, and reschedules', () => {
+    const rules = sessionRules({ ...DEFAULT_CONFIG, sessionMode: 'review' });
+    expect(rules).toEqual({ dueOnly: true, reschedules: true, grading: 'four-point' });
+  });
+
+  it('cram takes everything in scope, two buttons, and leaves the schedule alone', () => {
+    // The three go together: a cram pass that quietly rescheduled would
+    // flatten weeks of spacing into one evening.
+    const config = normalizeConfig({ sessionMode: 'cram' });
+    expect(sessionRules(config)).toEqual({ dueOnly: false, reschedules: false, grading: 'binary' });
+  });
+
+  it('cram ignores dueOnly even when the stored scope still carries it', () => {
+    const config = normalizeConfig({ sessionMode: 'cram', scope: { ...DEFAULT_CONFIG.scope, dueOnly: true } });
+    expect(sessionRules(config).dueOnly).toBe(false);
+  });
+
+  it('switching mode brings the buttons that mode expects, unless told otherwise', () => {
+    expect(defaultGradingFor('cram')).toBe('binary');
+    expect(defaultGradingFor('review')).toBe('four-point');
+    expect(normalizeConfig({ sessionMode: 'cram' }).grading).toBe('binary');
+    // An explicit choice survives the switch.
+    expect(normalizeConfig({ sessionMode: 'cram', grading: 'four-point' }).grading).toBe('four-point');
+  });
+});
+
+describe('study config', () => {
 
   it('turns a year level into exactly the fields that year owns', () => {
     const defs = [
@@ -53,7 +89,7 @@ describe('study config', () => {
   it('fills gaps in a stored config rather than trusting it whole', () => {
     const config = normalizeConfig({ blockSize: -5, fields: ['moa'] });
     expect(config.blockSize).toBe(0);
-    expect(config.grading).toBe('binary');
+    expect(config.grading).toBe('four-point');
     expect(config.scope.verifiedOnly).toBe(false);
   });
 });

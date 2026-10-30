@@ -3,6 +3,19 @@
  * once. Client-safe: no database imports.
  */
 
+/**
+ * How a session runs, after the Obsidian spaced-repetition plugin's two.
+ *
+ * `review` is the schedule doing its job: only what is due, graded on the full
+ * scale, and the answer moves the card's next date.
+ *
+ * `cram` is the night before: everything in scope whether due or not, two
+ * buttons, and the schedule left exactly where it was. Those three go together
+ * -- a cram pass that quietly rescheduled would flatten weeks of spacing into
+ * one evening, which is why this is one choice rather than three.
+ */
+export type SessionMode = 'review' | 'cram';
+
 export type StudyMode = 'inclusive' | 'exclusive';
 export type StudyDirection = 'drug_to_fields' | 'fields_to_drug' | 'field_to_field';
 export type GradingScale = 'binary' | 'four-point';
@@ -15,11 +28,12 @@ export type StudyScope = {
   routes: string[];
   /** Only values an admin has checked against a source. */
   verifiedOnly: boolean;
-  /** Only cards the schedule says are due. */
+  /** Only cards the schedule says are due. Ignored while cramming. */
   dueOnly: boolean;
 };
 
 export type StudyConfig = {
+  sessionMode: SessionMode;
   scope: StudyScope;
   yearLevel: YearLevel | null;
   fields: string[];
@@ -30,16 +44,34 @@ export type StudyConfig = {
   grading: GradingScale;
 };
 
+/** Review grades on the full scale; cram is two buttons. Either can be changed. */
+export function defaultGradingFor(mode: SessionMode): GradingScale {
+  return mode === 'cram' ? 'binary' : 'four-point';
+}
+
+/**
+ * What the mode settles, in one place, so no caller has to keep three
+ * correlated flags in step.
+ */
+export function sessionRules(config: StudyConfig) {
+  const cramming = config.sessionMode === 'cram';
+  return {
+    /** Cram takes everything in scope: waiting for due dates is the thing it exists to skip. */
+    dueOnly: cramming ? false : config.scope.dueOnly,
+    reschedules: !cramming,
+    grading: config.grading,
+  };
+}
+
 export const DEFAULT_CONFIG: StudyConfig = {
-  scope: { tags: [], classes: [], schedules: [], routes: [], verifiedOnly: false, dueOnly: false },
+  sessionMode: 'review',
+  scope: { tags: [], classes: [], schedules: [], routes: [], verifiedOnly: false, dueOnly: true },
   yearLevel: null,
   fields: [],
   mode: 'exclusive',
   direction: 'drug_to_fields',
   blockSize: 20,
-  // Two buttons by default: the question the night before an exam is whether
-  // you knew it, not how comfortably.
-  grading: 'binary',
+  grading: 'four-point',
 };
 
 /**
@@ -74,11 +106,16 @@ export function cardKey(input: {
 
 export function normalizeConfig(partial: Partial<StudyConfig> | null | undefined): StudyConfig {
   if (!partial) return DEFAULT_CONFIG;
+
+  const sessionMode = partial.sessionMode ?? DEFAULT_CONFIG.sessionMode;
   return {
     ...DEFAULT_CONFIG,
     ...partial,
+    sessionMode,
     scope: { ...DEFAULT_CONFIG.scope, ...partial.scope },
     blockSize: Math.max(0, Math.floor(partial.blockSize ?? DEFAULT_CONFIG.blockSize)),
     fields: partial.fields ?? [],
+    // Switching mode without saying how to grade gets that mode's buttons.
+    grading: partial.grading ?? defaultGradingFor(sessionMode),
   };
 }
