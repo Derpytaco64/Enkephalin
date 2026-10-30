@@ -23,6 +23,9 @@ export async function SiteHeader() {
               <Link href="/drugs" className="text-[var(--accent)] underline">
                 Drugs
               </Link>
+              <Link href="/study/flashcards" className="text-[var(--accent)] underline">
+                Study
+              </Link>
               {session.user.role === 'admin' && (
                 <Link href="/admin" className="text-[var(--accent)] underline">
                   Admin
