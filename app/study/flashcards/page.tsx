@@ -68,6 +68,19 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
           </div>
 
           <div>
+            <label htmlFor="set" className="block text-sm font-medium">Card shape</label>
+            <select id="set" name="set" defaultValue={config.mode} className={control}>
+              <option value="exclusive">One card per fact</option>
+              <option value="inclusive">One card per drug</option>
+            </select>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Per fact gives each field its own card and its own schedule, so mechanism and dosing
+              advance separately. Per drug asks for every selected field at once — far fewer cards,
+              and one schedule covering the set.
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="dir" className="block text-sm font-medium">Direction</label>
             <select id="dir" name="dir" defaultValue={config.direction} className={control}>
               <option value="drug_to_fields">Drug → facts</option>
@@ -87,7 +100,7 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
         <fieldset className="mt-4">
           <legend className="text-sm font-medium">Fields</legend>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Leave empty to use the year above. Each field becomes its own card.
+            Leave empty to use the year above. How these become cards depends on the card shape.
           </p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
             {quizzable.map((def) => (
