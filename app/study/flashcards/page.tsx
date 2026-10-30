@@ -1,4 +1,7 @@
+import { asc } from 'drizzle-orm';
 import Link from 'next/link';
+import { db } from '@/db';
+import { tags } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
@@ -8,7 +11,10 @@ import { SessionRunner } from './session-runner';
 export const metadata = { title: 'Flashcards — Enkephalin' };
 export const dynamic = 'force-dynamic';
 
-type Search = { mode?: string; year?: string; fields?: string; block?: string; dir?: string; set?: string };
+type Search = {
+  mode?: string; year?: string; fields?: string; block?: string;
+  dir?: string; set?: string; tag?: string;
+};
 
 /**
  * The config lives in the URL rather than in state: a session you like is then
@@ -27,16 +33,22 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     mode: search.set === 'inclusive' ? 'inclusive' : 'exclusive',
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
     blockSize: search.block === undefined ? DEFAULT_CONFIG.blockSize : Number(search.block),
+    scope: { ...DEFAULT_CONFIG.scope, tags: search.tag ? [search.tag] : [] },
   });
 }
 
 export default async function FlashcardsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const session = await requireUser();
   const search = await searchParams;
-  const defs = await listFieldDefs();
+  const [defs, tagRows] = await Promise.all([
+    listFieldDefs(),
+    db.select({ slug: tags.slug, label: tags.label }).from(tags).orderBy(asc(tags.label)),
+  ]);
 
   const config = configFromSearch(search, defs);
-  const quizzable = defs.filter((def) => def.isQuizzable);
+  // The drug's own name is the stimulus or the answer, never one of the things
+  // asked about, so it is not on offer here.
+  const quizzable = defs.filter((def) => def.isQuizzable && def.key !== 'generic');
   const started = config.fields.length > 0;
   const deck = started ? await loadDeck(session.user.id, config) : { cards: [], inScope: 0 };
 
@@ -46,7 +58,23 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
     <main className="mx-auto max-w-2xl px-4 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Flashcards</h1>
 
-      <form method="get" className="mt-6 rounded border border-[var(--border)] p-4">
+      {/* Open whenever there is nothing to study -- no fields picked, nothing
+          matched, or everything scheduled for later -- since those are exactly
+          the moments you need the controls. Collapsed once cards are running,
+          because then the card is the page. */}
+      <details open={deck.cards.length === 0} className="mt-6 rounded border border-[var(--border)]">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+          Session settings
+          {started && (
+            <span className="ml-2 font-normal text-[var(--muted)]">
+              {config.sessionMode === 'cram' ? 'Cram' : 'Review'} ·{' '}
+              {config.mode === 'inclusive' ? 'per drug' : 'per fact'} · {config.fields.length} field
+              {config.fields.length === 1 ? '' : 's'}
+            </span>
+          )}
+        </summary>
+
+        <form method="get" className="border-t border-[var(--border)] p-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="mode" className="block text-sm font-medium">Session</label>
@@ -79,6 +107,18 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
               and one schedule covering the set.
             </p>
           </div>
+
+          {tagRows.length > 0 && (
+            <div>
+              <label htmlFor="tag" className="block text-sm font-medium">Drug list</label>
+              <select id="tag" name="tag" defaultValue={config.scope.tags[0] ?? ''} className={control}>
+                <option value="">Every drug</option>
+                {tagRows.map((tag) => (
+                  <option key={tag.slug} value={tag.slug}>{tag.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label htmlFor="dir" className="block text-sm font-medium">Direction</label>
@@ -118,7 +158,8 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
         <button type="submit" className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
           Start
         </button>
-      </form>
+        </form>
+      </details>
 
       {started ? (
         <SessionRunner cards={deck.cards} config={config} inScope={deck.inScope} />

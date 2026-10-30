@@ -193,4 +193,45 @@ describe('buildCards', () => {
 
     expect(first[0].cardKey).toBe(reordered[0].cardKey);
   });
+
+  it('never asks about the drug name itself', () => {
+    // "Which drug is this?" with the answer "Acyclovir" and nothing else on
+    // the card is unanswerable: going drug -> facts the name is the stimulus.
+    expect(buildCards([source()], defs, config({ fields: ['generic'] }))).toEqual([]);
+
+    // And going facts -> drug it is the answer, so it must not sit among the
+    // clues either.
+    const cards = buildCards([source()], defs, config({
+      fields: ['generic', 'moa'],
+      direction: 'fields_to_drug',
+      mode: 'inclusive',
+    }));
+    expect(cards[0].fieldKeys).toEqual(['moa']);
+    expect(cards[0].prompt).not.toContain('Alprazolam');
+  });
+
+  it('says what it is asking for when the field has no template', () => {
+    // A bare drug name leaves you guessing whether it wants the dose, the
+    // mechanism or the warning.
+    const cards = buildCards([source()], defs, config({ fields: ['dosing', 'bbw'], mode: 'inclusive' }));
+
+    expect(cards[0].prompt).toBe('Alprazolam — Dosing, Black box warning?');
+  });
+
+  it('tells you to name the drug when the clues come first', () => {
+    const cards = buildCards([source()], defs, config({ fields: ['moa'], direction: 'fields_to_drug' }));
+
+    expect(cards[0].prompt.startsWith('Which drug?')).toBe(true);
+    expect(cards[0].prompt).toContain('Mechanism of action: GABA-A positive allosteric modulator');
+  });
+
+  it('narrows to a tagged list', () => {
+    const tagged = source();
+    const untagged = source({ slug: 'other', generic: 'Other', tags: [] });
+
+    const cards = buildCards([tagged, untagged], defs, config({
+      scope: { ...DEFAULT_CONFIG.scope, tags: ['top-drugs-2026'] },
+    }));
+    expect(cards.map((card) => card.slug)).toEqual(['alprazolam']);
+  });
 });

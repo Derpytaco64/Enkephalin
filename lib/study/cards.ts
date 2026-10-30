@@ -79,16 +79,31 @@ function pairingBlocked(source: CardSource, fieldKeys: string[]) {
   return source.needsPairingReview && fieldKeys.includes('brand') && fieldKeys.includes('indication');
 }
 
+/**
+ * The drug's own name is never one of the things asked about. Going
+ * drug -> facts it is the stimulus, so a card made of it alone asks "Which
+ * drug is this?" with nothing to go on; going facts -> drug it is the answer,
+ * so putting it among the clues gives the game away.
+ */
+const IDENTITY_FIELD = 'generic';
+
+/**
+ * A prompt has to say what it wants. Without this a card reads as a bare drug
+ * name and you are left guessing whether it means the dose, the mechanism or
+ * the warning.
+ */
 function promptFor(config: StudyConfig, generic: string, faces: CardFace[], defs: FieldDef[]) {
   if (config.direction === 'fields_to_drug') {
-    return faces.map((face) => `${face.label}: ${face.text}`).join('\n');
+    const clues = faces.map((face) => `${face.label}: ${face.text}`).join('\n');
+    return `Which drug?\n\n${clues}`;
   }
 
-  // A field can carry its own wording; otherwise the label does the asking.
+  // A field can carry its own wording, which reads better than a generated
+  // question: "What is the mechanism of action of Acyclovir?"
   const single = faces.length === 1 ? defs.find((def) => def.key === faces[0].key) : undefined;
   if (single?.promptTemplate) return single.promptTemplate.replaceAll('{{generic}}', generic);
 
-  return generic;
+  return `${generic} — ${faces.map((face) => face.label).join(', ')}?`;
 }
 
 export function buildCards(
@@ -99,7 +114,8 @@ export function buildCards(
   const byKey = new Map(defs.map((def) => [def.key, def]));
   const selected = config.fields
     .map((key) => byKey.get(key))
-    .filter((def): def is FieldDef => Boolean(def) && def!.isQuizzable);
+    .filter((def): def is FieldDef => Boolean(def) && def!.isQuizzable)
+    .filter((def) => def.key !== IDENTITY_FIELD);
 
   if (selected.length === 0) return [];
 
