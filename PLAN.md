@@ -462,7 +462,7 @@ Two session modes, after the Obsidian spaced-repetition plugin's:
 | | cards in the session | grading | the schedule |
 |---|---|---|---|
 | **Review** | only what is due | Again / Hard / Good / Easy | moves |
-| **Cram** | everything in scope, due or not | Got it / Don't got it | untouched |
+| **Cram** | everything in scope, due or not | Forgot / Knew | untouched |
 
 Those three columns travel together, which is why `sessionMode` is one setting rather than three
 flags a caller has to keep in step. Cram exists to skip the waiting, so it ignores `dueOnly`
@@ -474,7 +474,8 @@ stretches the interval, Hard shrinks it, and that signal is per card rather than
 
 **Cram** is the night before. Two buttons and no introspection — the question when you are going
 through 200 drugs is whether you knew it, not how comfortably — and fewer decisions per card means
-more cards per sitting.
+more cards per sitting. **Forgot** and **Knew**, one word each, so the pair sits in the same
+register as Again / Hard / Good / Easy and in the same order, worst first.
 
 Each mode brings its own buttons by default, and either can be overridden: the full scale while
 cramming, or two buttons on a due review, if that is what suits.
@@ -482,17 +483,17 @@ cramming, or two buttons on a due review, if that is what suits.
 The two scales are a display choice over one mechanism, not two systems:
 
 ```
-Got it        -> Good    (quality 4)
-Don't got it  -> Again   (quality 1)
+Knew    -> Good    (quality 4)
+Forgot  -> Again   (quality 1)
 ```
 
 So a card keeps one `study_cards` row and one schedule whatever scale graded it last. Switching
 scales mid-week neither resets progress nor needs a second set of intervals, and a card graded
-"Got it" on Monday is indistinguishable from one graded "Good" — which is the point, because it
-is the same claim about the same card.
+**Knew** on Monday is indistinguishable from one graded **Good** — which is the point, because it
+is the same claim about the same card, made in fewer steps.
 
-For [blocks](#blocks-cram-inside-a-session), **Got it clears a card from its block** exactly as
-Good does; Don't got it requeues it exactly as Again does. Blocks work in either mode — they pace
+For [blocks](#blocks-cram-inside-a-session), **Knew clears a card from its block** exactly as Good
+does; Forgot requeues it exactly as Again does. Blocks work in either mode — they pace
 a long cram, and they equally pace a review with 80 cards due.
 
 ### Blocks (cram inside a session)
@@ -514,8 +515,8 @@ Three things this needs deciding before it is built:
 1. **Does a block pass touch the schedule?** Settled by the mode rather than by blocks: cram never
    reschedules and review always does, so blocks are free to pace either. A cram pass still records
    `last_result` and `review_count`, so the history knows you saw it.
-2. **What counts as "good"?** Settled: a card leaves the block on Good or Easy, or on Got it in
-   the binary scale. Again and Hard put it back.
+2. **What counts as "good"?** Settled: a card leaves the block on Good or Easy, or on Knew in the
+   binary scale. Again, Hard and Forgot put it back.
 3. **Order within a block.** Failures should not reappear immediately — the answer is still on
    screen. Requeue them behind the block's remaining unseen cards, and only reshuffle once the
    block has nothing unseen left.

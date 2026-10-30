@@ -14,7 +14,14 @@ import {
   normalizeConfig,
   sessionRules,
 } from '@/lib/study/config';
-import { clearsBlock, gradeFromBinary, review, reviewWithoutRescheduling, type Grade } from '@/lib/study/srs';
+import {
+  GRADE_BUTTONS,
+  clearsBlock,
+  gradeFromBinary,
+  review,
+  reviewWithoutRescheduling,
+  type Grade,
+} from '@/lib/study/srs';
 
 const ids = (count: number) => Array.from({ length: count }, (_, i) => `c${i + 1}`);
 
@@ -95,6 +102,14 @@ describe('study config', () => {
 });
 
 describe('grading scales', () => {
+  it('labels both scales in the same register, worst first', () => {
+    expect(GRADE_BUTTONS['four-point'].map((b) => b.label)).toEqual(['Again', 'Hard', 'Good', 'Easy']);
+    expect(GRADE_BUTTONS.binary.map((b) => b.label)).toEqual(['Forgot', 'Knew']);
+    // Both start at the miss, so the buttons sit in the same order either way.
+    expect(GRADE_BUTTONS.binary[0].grade).toBe('again');
+    expect(GRADE_BUTTONS['four-point'][0].grade).toBe('again');
+  });
+
   it('maps the two buttons onto the four-point scale', () => {
     expect(gradeFromBinary(true)).toBe('good');
     expect(gradeFromBinary(false)).toBe('again');
@@ -105,7 +120,7 @@ describe('grading scales', () => {
     expect(clearsBlock('easy')).toBe(true);
     expect(clearsBlock('hard')).toBe(false);
     expect(clearsBlock('again')).toBe(false);
-    // Got it clears exactly as Good does -- the same claim about the card.
+    // Knew clears exactly as Good does -- the same claim about the card.
     expect(clearsBlock(gradeFromBinary(true))).toBe(true);
   });
 });

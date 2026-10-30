@@ -3,7 +3,28 @@
  * about to forget", not an Anki clone.
  */
 
+import type { GradingScale } from './config';
+
 export type Grade = 'again' | 'hard' | 'good' | 'easy';
+
+/**
+ * The buttons each scale shows, worst first so the two read the same way
+ * round. One word each: "Don't got it" sat oddly beside Again / Hard / Good /
+ * Easy, and the binary pair is the same judgement in fewer steps, not a
+ * chattier one.
+ */
+export const GRADE_BUTTONS: Record<GradingScale, { grade: Grade; label: string }[]> = {
+  'four-point': [
+    { grade: 'again', label: 'Again' },
+    { grade: 'hard', label: 'Hard' },
+    { grade: 'good', label: 'Good' },
+    { grade: 'easy', label: 'Easy' },
+  ],
+  binary: [
+    { grade: 'again', label: 'Forgot' },
+    { grade: 'good', label: 'Knew' },
+  ],
+};
 
 export type Schedule = {
   ease: number;
@@ -22,11 +43,11 @@ const EASE_DELTA: Record<Grade, number> = {
 };
 
 /** The binary scale is a display over the same mechanism, not a second one. */
-export function gradeFromBinary(gotIt: boolean): Grade {
-  return gotIt ? 'good' : 'again';
+export function gradeFromBinary(knew: boolean): Grade {
+  return knew ? 'good' : 'again';
 }
 
-/** Good or better clears a card from its block; again and hard requeue it. */
+/** Good or better clears a card from its block; Again and Hard requeue it. */
 export function clearsBlock(grade: Grade) {
   return grade === 'good' || grade === 'easy';
 }
