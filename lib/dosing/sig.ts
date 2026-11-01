@@ -62,7 +62,15 @@ function renderAmounts(amounts: Amount[], sig: boolean): string {
     const unit = UNITS[first.unit];
     const unitText = sig ? unit.sig : unit.plural;
     const numbers = amounts.map((a) => amountRange(a, sig ? '-' : ' to ')).join('/');
-    return `${numbers} ${amountTail(first, unitText)}`;
+
+    // A sig is written the way the product is labelled -- "25/100 mg" -- so the
+    // actives are named only in the readback, where the point is for a human to
+    // see which number went to which drug.
+    const actives = amounts.every((a) => a.active)
+      ? ` (${amounts.map((a) => a.active).join('/')})`
+      : '';
+
+    return `${numbers} ${amountTail(first, unitText)}${sig ? '' : actives}`;
   }
 
   return amounts.map(text).join(' + ');

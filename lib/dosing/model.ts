@@ -133,6 +133,18 @@ export type Amount = {
   unit: UnitCode;
   perKg: boolean;
   per: 'minute' | 'hour' | 'day' | null;
+  /**
+   * Which active this amount belongs to, for a combination product:
+   * carbidopa/levodopa 25/100 mg is 25 of the carbidopa and 100 of the
+   * levodopa. Without it the order carries the meaning implicitly and a
+   * reordering would silently change the fact.
+   *
+   * Null where the sheet gives one active, and null where it names more
+   * actives than it gives numbers -- the backfill matches the generic name's
+   * own order against the amounts and declines when the counts disagree,
+   * rather than assigning a number to the wrong drug.
+   */
+  active: string | null;
 };
 
 export type Duration = {

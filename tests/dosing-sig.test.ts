@@ -7,7 +7,7 @@ function regimen(partial: Partial<Regimen> = {}): Regimen {
 }
 
 const mg = (low: number, high: number | null = null) =>
-  ({ low, high, unit: 'mg' as const, perKg: false, per: null });
+  ({ low, high, unit: 'mg' as const, perKg: false, per: null, active: null });
 
 describe('toSig', () => {
   it('prints the plain case', () => {
@@ -84,7 +84,7 @@ describe('toSig', () => {
     // The 15 mg / 15 mL confusion, made structurally impossible: mixed units
     // print in full rather than as a bare "15/15".
     const mixed = toSig(regimen({
-      amounts: [mg(15), { low: 15, high: null, unit: 'mL', perKg: false, per: null }],
+      amounts: [mg(15), { low: 15, high: null, unit: 'mL', perKg: false, per: null, active: null }],
       routes: ['PO'],
       frequency: { kind: 'per_day', times: 1 },
     }));
@@ -95,7 +95,7 @@ describe('toSig', () => {
   it('counts doses in prescription units', () => {
     // Hydrocodone/APAP: "1-2 tablets by mouth every 4-6 hours as needed".
     expect(toSig(regimen({
-      amounts: [{ low: 1, high: 2, unit: 'tablet', perKg: false, per: null }],
+      amounts: [{ low: 1, high: 2, unit: 'tablet', perKg: false, per: null, active: null }],
       routes: ['PO'],
       frequency: { kind: 'interval', low: 4, high: 6, unit: 'hour' },
       modifiers: ['PRN'],
@@ -106,7 +106,7 @@ describe('toSig', () => {
     // Fluticasone nasal: "2 sprays in each nostril once daily" is two each,
     // four altogether -- the distinction a general dosing actually carries.
     expect(toSig(regimen({
-      amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null }],
+      amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null, active: null }],
       routes: ['NAS'],
       site: { region: 'nostril', basis: 'each', note: null },
       frequency: { kind: 'per_day', times: 1 },
@@ -117,7 +117,7 @@ describe('toSig', () => {
     // Latanoprost says "affected eye", declining to pick a side. That is not
     // the same claim as "each eye".
     expect(toSig(regimen({
-      amounts: [{ low: 1, high: null, unit: 'drop', perKg: false, per: null }],
+      amounts: [{ low: 1, high: null, unit: 'drop', perKg: false, per: null, active: null }],
       routes: ['OPH'],
       site: { region: 'eye', basis: 'affected', note: null },
       frequency: { kind: 'per_day', times: 1 },
@@ -138,7 +138,7 @@ describe('toSig', () => {
 
   it('prints a weight-based infusion rate', () => {
     expect(toSig(regimen({
-      amounts: [{ low: 1, high: 20, unit: 'mcg', perKg: true, per: 'minute' }],
+      amounts: [{ low: 1, high: 20, unit: 'mcg', perKg: true, per: 'minute', active: null }],
       routes: ['IV'],
       frequency: { kind: 'continuous' },
       qualifiers: ['titrated to clinical effect'],
@@ -157,7 +157,7 @@ describe('toSig', () => {
       amounts: [mg(12.5)],
       routes: ['PO'],
       frequency: { kind: 'per_day', times: 1 },
-      ceiling: { low: 900, high: null, unit: 'mg', perKg: false, per: 'day' },
+      ceiling: { low: 900, high: null, unit: 'mg', perKg: false, per: 'day', active: null },
       label: 'Initial',
     }))).toBe('Initial: 12.5 mg PO QD (max 900 mg/day)');
   });
@@ -183,16 +183,41 @@ describe('toEnglish', () => {
     }))).toBe('0.25 to 0.5 mg by mouth three times a day as needed');
   });
 
+  it('names which active got which number, when the sheet lets it be known', () => {
+    // Carbidopa/levodopa 25/100 mg is 25 of the one and 100 of the other, not
+    // a range from 25 to 100. The sig is written as the product is labelled;
+    // the readback names the actives, which is the whole point of a readback.
+    const combination = regimen({
+      amounts: [
+        { ...mg(25), active: 'carbidopa' },
+        { ...mg(100), active: 'levodopa' },
+      ],
+      routes: ['PO'],
+      frequency: { kind: 'per_day', times: 3 },
+    });
+
+    expect(toSig(combination)).toBe('25/100 mg PO TID');
+    expect(toEnglish(combination)).toBe('25/100 mg (carbidopa/levodopa) by mouth three times a day');
+
+    // Unlabelled, it still reads as a combination rather than a range.
+    const unlabelled = regimen({
+      amounts: [mg(500), mg(125)],
+      routes: ['PO'],
+      frequency: { kind: 'interval', low: 8, high: null, unit: 'hour' },
+    });
+    expect(toEnglish(unlabelled)).toBe('500/125 mg by mouth every 8 hours');
+  });
+
   it('pluralises a countable unit only when the count calls for it', () => {
     expect(toEnglish(regimen({
-      amounts: [{ low: 1, high: null, unit: 'drop', perKg: false, per: null }],
+      amounts: [{ low: 1, high: null, unit: 'drop', perKg: false, per: null, active: null }],
       routes: ['OPH'],
       site: { region: 'eye', basis: 'each', note: null },
       frequency: { kind: 'per_day', times: 2 },
     }))).toBe('1 drop into the eye in each eye twice a day');
 
     expect(toEnglish(regimen({
-      amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null }],
+      amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null, active: null }],
       routes: ['NAS'],
       site: { region: 'nostril', basis: 'each', note: null },
       frequency: { kind: 'per_day', times: 1 },
@@ -201,7 +226,7 @@ describe('toEnglish', () => {
 
   it('keeps qualifiers visible without letting them into the comparison', () => {
     const titrated = regimen({
-      amounts: [{ low: 1, high: 20, unit: 'mcg', perKg: true, per: 'minute' }],
+      amounts: [{ low: 1, high: 20, unit: 'mcg', perKg: true, per: 'minute', active: null }],
       routes: ['IV'],
       frequency: { kind: 'continuous' },
       qualifiers: ['titrated to clinical effect'],
