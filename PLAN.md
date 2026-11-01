@@ -1,7 +1,7 @@
 # Enkephalin — Pharmacy Drug Study Site
 
 > Working plan. This file is the canonical record — update it as decisions change.
-> Last revised: 2026-10-28
+> Last revised: 2026-11-01
 
 ## Context
 
@@ -526,7 +526,7 @@ Blocks are a session-time construct: nothing about them belongs in `study_cards`
 lives in the config object, and so travels into saved presets and `user_preferences.study_defaults`
 like every other setting.
 
-### Dosing needs structure before it can be quizzed
+### Dosing is stored twice: prose to read, structure to compare
 
 A dosing question cannot draw its wrong answers the way the others do. Two drugs often share a
 dose: "10 mg by mouth once a day" is true of a good many of these 236. Pull another drug's dosing
@@ -535,39 +535,75 @@ the student who knows the answer picks it and is marked wrong, and the question 
 right answers. Worse, two distractors can be identical to each other.
 
 String comparison does not catch this, because the same fact is written several ways: *10 mg by
-mouth once a day*, *10mg PO daily*, *10 mg QD PO*. So dosing needs a parsed form:
+mouth once a day*, *10mg PO daily*, *10 mg QD PO*.
+
+**Decision (2026-11-01): sig is stored, not derived at read time.** The earlier plan kept the prose
+as the only stored truth and re-parsed it whenever something needed structure. That was the wrong
+split. Prescription sig is a closed vocabulary — a survey of all 237 dosing strings found 12
+frequency phrasings, 11 routes and 14 dose units, nothing more — so the structure is stable enough
+to be data. Two forms are stored side by side:
+
+| Stored | Role | Who owns it |
+|---|---|---|
+| `dosing` field (prose) | What a profile shows. The sheet's own wording, verified by a human | The class sheet |
+| `dosing_regimens` rows (structure) | What the quiz compares, and what prints as sig | Backfilled once, then human-correctable |
+
+The comparable form is the **components**, not a sig string. Storing `100 mg QD PO` as text and
+comparing with `=` only moves the normalisation problem from read time to authoring time, where it
+is less enforceable: `100 mg PO QD` is the same fact and a different string. Components compare
+field-wise and exactly, and the canonical sig is *printed* from them, so it cannot drift:
 
 ```
-dose:       amount + unit        10 mg · 0.5 mg/kg · 1-2 g · 2 puffs
-frequency:  QD BID TID QID q4h · once weekly · PRN
-route:      already extracted into the route field
-qualifiers: with meals · at bedtime · titrated to effect
+dose_low · dose_high · unit · per_kg · per_time    10 mg · 200-300 mg · 0.5 mg/kg · 2 mcg/kg/min
+frequency  code + times/period                    QD BID TID QID Q4H QWK HS PRN
+route      code                                   PO IV IM SC INH OPH NAS TOP SL PR TD
+qualifiers free text, never compared               with meals · titrated to effect
 ```
-
-**The prose stays the stored truth.** The sheet's wording is what a profile shows and what a human
-verified; the parse is derived from it and re-derivable, the same relationship the hot columns have
-with the JSONB. Nothing is lost if the parser improves.
 
 Rules that follow:
 
-1. **A distractor must differ from the correct answer on the parsed form**, not on its wording.
-   Equivalence compares dose, unit, frequency and route; a candidate that matches is discarded and
-   another drawn. The same check keeps the three wrong options distinct from each other.
-2. **Unparseable dosing is excluded from dosing questions** rather than asked with unreliable
-   options. "Individualized", "Extremely variable (reference indication and renal function)" and
-   "Product dependent" are real values in this data set — honest to display, impossible to quiz
-   against. They stay answerable as free recall on a flashcard, where there are no wrong options to
-   collide with.
-3. **Sig shorthand is a rendering, not a second source of truth.** `100 mg QD PO` is the parsed
-   form printed in prescription lingo, so a card can ask either way round: prose to sig, or sig to
-   prose. The abbreviations are themselves worth drilling — QD, BID, PRN, PO — and that is a card
-   type the structure gives for free, with no new content to author.
-4. **A near-miss distractor is better than a random one.** Once dosing is structured, the wrong
-   options can vary one component deliberately: right dose, wrong frequency. That is the
-   discrimination the exam actually tests, and it is only possible with a parse.
+1. **A distractor must differ from the correct answer on the components**, not on its wording. The
+   same check keeps the three wrong options distinct from each other.
+2. **A regimen with no components is excluded from multiple choice** rather than asked with
+   unreliable options. "Dose individualized based on serum levels" and "titrated to clinical effect"
+   are real values here — honest to display, impossible to quiz against. They stay answerable as
+   free recall on a flashcard, where there are no wrong options to collide with.
+3. **Sig is a rendering, never a second source of truth.** `100 mg QD PO` is printed from the
+   components, so a card can ask either way round: prose to sig, or sig to prose. The abbreviations
+   are themselves worth drilling — QD, BID, PRN, PO — and that is a card type the structure gives
+   for free, with no new content to author.
+4. **A near-miss distractor is better than a random one.** Wrong options vary one component
+   deliberately: right dose, wrong frequency. That is the discrimination the exam actually tests,
+   and it is only possible with a parse.
+5. **A re-run never clobbers a human.** Stored structure is no longer re-derivable from prose — a
+   parser improvement cannot silently repair rows, and a hand-correction must survive the next
+   import. Same protection the importer already gives verified field values: re-parsing writes only
+   where `status` is `unverified` and nothing was hand-edited.
 
-This lands with the quiz in phase 6, but the parser belongs in `lib/fields/` next to the dosing
-field rather than in `lib/quiz/`: the profile wants it too, to show sig shorthand beside the prose.
+**Why a table rather than another field.** Dosing is not one value per drug. The real data needs
+multiplicity four ways, and only rows give it: alternative regimens (9 drugs — *10 mg daily OR 70 mg
+once weekly*), sequenced regimens (5 — azithromycin's day 1 then days 2–5), and later the
+per-route and per-population variants [already recorded as unbuilt](#route-is-recorded-per-route-and-per-population-detail-is-not-yet).
+Keying rows by `(drug_id, route, population, step)` means that subsystem is already shaped: today
+every drug has one adult row at its standard route.
+
+**What the 237 look like**, from the survey that informed this:
+
+| Shape | Count | Quizzable |
+|---|---|---|
+| Single regimen, single dose | 145 | yes |
+| Single regimen, dose range | 58 | yes — range compares as an interval |
+| Alternative regimens (`OR`) | 9 | yes, one row each |
+| Sequenced / loading dose | 5 | yes, one row per step |
+| Continuous weight-based infusion | 3 | yes |
+| Individualized / titrated to effect | 17 | **no** — prose only, flashcards only |
+
+So ~203 of 237 parse mechanically, 17 are honestly unquizzable, and the remaining handful need a
+human in the drug editor. The backfill reports every row it refuses rather than guessing.
+
+The parser lives in `lib/dosing/` — `parse.ts` reads prose, `sig.ts` prints the canonical string,
+`compare.ts` answers equivalence for the distractor engine. The profile wants it too, to show sig
+shorthand beside the prose, so it is not inside `lib/quiz/`.
 
 The field picker saves as a named preset ("P2 midterm — MOA + AE, exclusive, verified only"). Missed
 quiz questions push their cards to due in `study_cards`.
@@ -657,7 +693,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection |
-| 6 | Quiz + distractor generation + scoring + history + [dosing parse](#dosing-needs-structure-before-it-can-be-quizzed) |
+| 6 | [Stored dosing structure](#dosing-is-stored-twice-prose-to-read-structure-to-compare) + backfill, then quiz + distractor generation + scoring + history. The structure lands first: the quiz cannot sample an honest dosing distractor without it |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |
 | 9 | Content elaboration in batches against the real sheet |
