@@ -554,11 +554,30 @@ is less enforceable: `100 mg PO QD` is the same fact and a different string. Com
 field-wise and exactly, and the canonical sig is *printed* from them, so it cannot drift:
 
 ```
-dose_low · dose_high · unit · per_kg · per_time    10 mg · 200-300 mg · 0.5 mg/kg · 2 mcg/kg/min
-frequency  code + times/period                    QD BID TID QID Q4H QWK HS PRN
-route      code                                   PO IV IM SC INH OPH NAS TOP SL PR TD
-qualifiers free text, never compared               with meals · titrated to effect
+amounts[]   low · high · unit · per_kg · per_time
+            a list, because a combination product has two: carbidopa/levodopa 25/100 mg
+unit        code + CLASS (mass | volume | count | activity)
+            never compared across classes, never converted: 15 mg and 15 mL are
+            different facts, so a unit swap is a good distractor and never an equivalence
+routes[]    PO IV IM SC INH NEB OPH OTIC NAS TOP TD SL PR PV
+            a list where the sheet offers a choice: naloxone IV/IM/subQ
+site        region (eye | ear | nostril | skin | mouth | rectum | vagina)
+            basis  (each | affected)   -- "2 sprays per nostril" is two each, four in total
+frequency   per_day(n) | interval(every n[-m] min/h/d/wk/mo) | once | continuous | unspecified
+modifiers[] PRN · HS · AC · PC · AM · PM · EVENING · WITH_FOOD
+            orthogonal to frequency and combinable, which is the point: "three times a
+            day as needed" is TID *and* PRN, and 12 drugs here are written that way
+duration    for 10 days · 6-12 weeks · 12 days every 28-day cycle
+ceiling     MAX 900 mg/day -- a limit, never a dose
+qualifiers  free text, stored and rendered, never compared: titrated to clinical effect
 ```
+
+**No laterality.** Right versus left is a property of the patient, not of the drug, and no row
+in this data set states one -- the sheet writes "affected eye(s)", declining to pick a side. What
+those ten rows actually encode is whether the amount is per site or in total, which `site.basis`
+carries. If per-side dosing ever matters it belongs to the per-route variant subsystem, additively.
+This also drops the ISMP-flagged AD/AS/AU and OD/OS/OU codes, whose ambiguity (OD is both "right
+eye" and "once daily") is itself an argument for storing components rather than abbreviations.
 
 Rules that follow:
 
