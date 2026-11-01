@@ -656,7 +656,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
-| 5 | Shared study-config component + flashcards + SRS + [blocks](#blocks-cram-inside-a-session) + [review and cram modes](#review-and-cram) |
+| 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection |
 | 6 | Quiz + distractor generation + scoring + history + [dosing parse](#dosing-needs-structure-before-it-can-be-quizzed) |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |
