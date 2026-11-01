@@ -34,7 +34,9 @@ describe('session modes', () => {
   it('defaults to reviewing what is due', () => {
     expect(DEFAULT_CONFIG.sessionMode).toBe('review');
     expect(DEFAULT_CONFIG.scope.dueOnly).toBe(true);
-    expect(DEFAULT_CONFIG.blockSize).toBe(20);
+    expect(DEFAULT_CONFIG.blockSize).toBe(10);
+    // Per drug by default: per fact over 236 drugs runs to thousands.
+    expect(DEFAULT_CONFIG.mode).toBe('inclusive');
   });
 
   it('review takes only due cards, grades on the full scale, and reschedules', () => {

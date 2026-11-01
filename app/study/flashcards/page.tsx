@@ -31,7 +31,7 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     sessionMode: search.mode === 'cram' ? 'cram' : 'review',
     yearLevel: year,
     fields,
-    mode: search.set === 'inclusive' ? 'inclusive' : 'exclusive',
+    mode: search.set === 'exclusive' ? 'exclusive' : DEFAULT_CONFIG.mode,
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
     blockSize: search.block === undefined ? DEFAULT_CONFIG.blockSize : Number(search.block),
     scope: { ...DEFAULT_CONFIG.scope, tags: search.tag ? [search.tag] : [] },
@@ -95,8 +95,8 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
           <div>
             <label htmlFor="set" className="block text-sm font-medium">Card shape</label>
             <select id="set" name="set" defaultValue={config.mode} className={control}>
-              <option value="exclusive">One card per fact</option>
               <option value="inclusive">One card per drug</option>
+              <option value="exclusive">One card per fact</option>
             </select>
             <p className="mt-1 text-xs text-[var(--muted)]">
               Per fact gives each field its own card and its own schedule, so mechanism and dosing

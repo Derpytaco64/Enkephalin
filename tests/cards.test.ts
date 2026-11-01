@@ -60,7 +60,7 @@ describe('buildCards', () => {
   });
 
   it('makes one card per field in exclusive mode', () => {
-    const cards = buildCards([source()], defs, config({ fields: ['moa', 'dosing'] }));
+    const cards = buildCards([source()], defs, config({ fields: ['moa', 'dosing'], mode: 'exclusive' }));
 
     expect(cards).toHaveLength(2);
     expect(cards.map((card) => card.fieldKeys)).toEqual([['moa'], ['dosing']]);

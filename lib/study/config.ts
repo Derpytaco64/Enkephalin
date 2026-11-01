@@ -68,9 +68,11 @@ export const DEFAULT_CONFIG: StudyConfig = {
   scope: { tags: [], classes: [], schedules: [], routes: [], verifiedOnly: false, dueOnly: true },
   yearLevel: null,
   fields: [],
-  mode: 'exclusive',
+  // One card per drug by default: a field set over 236 drugs runs to
+  // thousands of cards per fact, which is a deck nobody finishes.
+  mode: 'inclusive',
   direction: 'drug_to_fields',
-  blockSize: 20,
+  blockSize: 10,
   grading: 'four-point',
 };
 

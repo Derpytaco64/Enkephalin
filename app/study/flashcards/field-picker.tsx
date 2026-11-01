@@ -59,7 +59,21 @@ export function FieldPicker({
       </div>
 
       <fieldset className="sm:col-span-2">
-        <legend className="text-sm font-medium">Fields</legend>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <legend className="text-sm font-medium">Fields</legend>
+          {chosen.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setChosen([]);
+                setActiveYear('');
+              }}
+              className="text-xs text-[var(--accent)] underline"
+            >
+              Clear fields
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-xs text-[var(--muted)]">
           {chosen.length === 0
             ? 'Pick at least one. How they become cards depends on the card shape.'
