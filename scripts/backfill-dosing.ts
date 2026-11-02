@@ -18,6 +18,7 @@
  *
  *   node --experimental-strip-types scripts/backfill-dosing.ts
  */
+import './env.ts';
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import { dosingRegimens, drugs } from '../db/schema.ts';

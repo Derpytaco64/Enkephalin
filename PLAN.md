@@ -137,6 +137,34 @@ Transcription of the note:
   are *not* on it. Filtering never hides a ticked drug, so what the form will submit is always on
   screen, and the save replaces membership with exactly what is ticked. Creating a list drops you
   straight into that checklist, since a list with nothing on it is not finished.
+- **A backup is one JSON file, keyed by slug, carrying no credentials** (2026-11-02).
+  `lib/data/backup.ts` holds export and restore together so the two cannot drift, and the file uses
+  natural keys throughout -- a drug by slug, a tag by slug, a brand by name, a person by email --
+  with no UUIDs at all. That is what lets a dump restore into a database it did not come from,
+  which is the only kind of backup worth having. It also means the file is readable and diffable.
+
+  It carries the content, tags, field definitions, site settings and each person's study progress.
+  It deliberately carries no password hashes, no sessions, no invite codes and no audit log: a
+  backup should be a file you can keep anywhere without it being a way to log in as you. Progress
+  is matched to accounts by email on restore, and a person with no account here is *reported*
+  rather than created -- a restore must not be able to mint a login.
+
+  Two modes, as separate words rather than a flag: `merge` writes what the file contains and leaves
+  anything it does not mention alone (for getting work back after an accident), while `replace`
+  also deletes the drugs the file lacks (for moving a database, or undoing a bad bulk edit) and
+  takes a typed REPLACE to confirm. A drug's children -- brands, indications, dosing rows, tag
+  links -- are taken wholesale from the file in both modes: the file is the authority on that one
+  drug, and merging them row by row would silently resurrect a brand you had deleted.
+
+  Surfaces: `/admin/data` to download and to restore, and `npm run export` / `npm run restore` for
+  a scheduled task. The scripts need to reach Postgres from the host, so compose now publishes it
+  on `127.0.0.1:5432` and `DATABASE_URL_HOST` in `.env` is what the scripts read -- the app's own
+  `DATABASE_URL` names the compose host `db`, which resolves nowhere else.
+- **The dosing box is coloured by how the parser read it** (2026-11-02). Green when every token was
+  accounted for, amber when it parsed but wants a human, red when the parser refused -- with the
+  readback underneath saying the same thing in words, since colour is never the only signal here.
+  It is the one field whose wording has to survive being decoded, so seeing that at the moment of
+  typing is the difference between catching a mangled dose and discovering it in a quiz.
 - **Color coding is per user**, editable, not a fixed palette.
 - **Admin** gets full site and user management.
 
@@ -741,7 +769,16 @@ Rules that follow:
 5. **A re-run never clobbers a human.** Stored structure is no longer re-derivable from prose — a
    parser improvement cannot silently repair rows, and a hand-correction must survive the next
    import. Since verification was removed, the prose is simply the source and a re-parse replaces
-   these rows; when a regimen editor exists it will need its own "leave this one alone" flag.
+   these rows.
+
+   **The regimen editor is still owed** (2026-11-02): "the entire drug profile should be editable"
+   covers these rows, and today only the prose is editable -- the components are whatever the
+   parser made of it. What it needs: the steps of one regimen as rows you can add, label and
+   reorder (acetylcysteine is the case -- *300 mg/kg over 21 hours as 3 doses, first over 1 hour,
+   second over 4, third over 16* is one regimen in three steps, and the parser refuses it whole),
+   and a `pinned` flag per row so a hand-built regimen survives a re-parse. The dosing box's
+   rejection colour is the entry point: red means the prose alone cannot carry this, so build the
+   steps by hand.
 
 **Why a table rather than another field.** Dosing is not one value per drug. The real data needs
 multiplicity four ways, and only rows give it: alternative regimens (9 drugs — *10 mg daily OR 70 mg
@@ -858,7 +895,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI, export |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Remaining: **lookup panel**, the dosing *regimen* editor (multi-step load/maintenance, and the pin flag that goes with it), drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 | 9 | Content elaboration in batches against the real sheet |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change

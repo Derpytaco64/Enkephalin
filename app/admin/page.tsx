@@ -14,6 +14,10 @@ export default function AdminHome() {
         <li>
           <Link href="/admin/tags" className="text-[var(--accent)] underline">Tags</Link>
         </li>
+        <li>
+          <Link href="/admin/data" className="text-[var(--accent)] underline">Data</Link>
+          <span className="ml-2 text-sm text-[var(--muted)]">export and restore</span>
+        </li>
       </ul>
     </main>
   );

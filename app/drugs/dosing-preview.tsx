@@ -18,7 +18,16 @@ import { toEnglish, toSig } from '@/lib/dosing/sig';
  * mis-filed component shows up as a sentence that does not mean what you
  * typed; and the notes are the parser saying what it could not account for.
  */
-export function DosingPreview({ prose, generic = '' }: { prose: string; generic?: string }) {
+export function DosingPreview({
+  prose,
+  generic = '',
+  id,
+}: {
+  prose: string;
+  generic?: string;
+  /** So the prose box can point at this as its description. */
+  id?: string;
+}) {
   const result = useMemo(
     () => (prose.trim() ? parseDosing(prose, activesOf(generic)) : null),
     [prose, generic],
@@ -29,7 +38,7 @@ export function DosingPreview({ prose, generic = '' }: { prose: string; generic?
   const refused = result.status === 'refused';
 
   return (
-    <div className="mt-2 rounded border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+    <div id={id} className="mt-2 rounded border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
           How this reads

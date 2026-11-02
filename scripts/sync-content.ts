@@ -6,6 +6,7 @@
  *   npm run seed
  *   npm run seed -- --force
  */
+import './env.ts';
 import { syncDrugsFromFile } from '../lib/content/sync.ts';
 
 const force = process.argv.includes('--force');

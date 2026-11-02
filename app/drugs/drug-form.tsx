@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import type { FieldValue } from '@/db/schema';
+import { activesOf, parseDosing } from '@/lib/dosing/parse';
 import type { Result } from '@/lib/drugs/mutations';
 import type { FieldDef } from '@/lib/fields/registry';
 import { DosingPreview } from './dosing-preview';
@@ -32,10 +33,27 @@ const STATUS_CHOICES = [
 
 const SCHEDULES = ['CI', 'CII', 'CIII', 'CIV', 'CV'];
 
+/**
+ * Border colours for how the parser took the dosing prose. Only the dosing box
+ * gets them: it is the one field whose wording has to survive being decoded,
+ * and the colour is the fastest way to see that the sentence you just typed
+ * went in whole. Never the only signal -- the preview underneath says the same
+ * thing in words, for the same reason every badge in this app carries text.
+ */
+const PARSE_BORDERS: Record<string, string> = {
+  parsed: 'var(--verified)',
+  needs_review: 'var(--unverified)',
+  refused: 'var(--flagged)',
+};
+
 function FieldRow({ field, generic }: { field: EditableField; generic: string }) {
   const { def, value } = field;
   const [text, setText] = useState(value?.value ?? '');
   const multiline = def.dataType === 'markdown' || def.dataType === 'list';
+  // The same parse the preview shows and the save will store.
+  const parse = def.key === 'dosing' && text.trim()
+    ? parseDosing(text, activesOf(generic))
+    : null;
 
   return (
     <div className="rounded border border-[var(--border)] p-3">
@@ -57,6 +75,8 @@ function FieldRow({ field, generic }: { field: EditableField; generic: string })
           onChange={(event) => setText(event.target.value)}
           rows={def.dataType === 'list' ? 3 : 4}
           className={`${control} font-sans`}
+          style={parse ? { borderColor: PARSE_BORDERS[parse.status], borderWidth: 2 } : undefined}
+          aria-describedby={parse ? `parse_${def.key}` : undefined}
         />
       ) : (
         <input
@@ -76,7 +96,9 @@ function FieldRow({ field, generic }: { field: EditableField; generic: string })
       {/* The dosing prose is what the structured regimens are read from, so
           what the parser makes of it belongs next to the box you type it in --
           not discovered on a re-run after the wording is already saved. */}
-      {def.key === 'dosing' && <DosingPreview prose={text} generic={generic} />}
+      {def.key === 'dosing' && (
+        <DosingPreview prose={text} generic={generic} id={`parse_${def.key}`} />
+      )}
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
         <div>

@@ -8,6 +8,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - enkephalin-db:/var/lib/postgresql/data
+    ports:
+      # Loopback only, so operator tooling on this machine -- `npm run export`,
+      # psql, pg_dump -- can reach the database while nothing off-box can.
+      - "127.0.0.1:5432:5432"
     healthcheck:
       # Gate the web container on readiness, not just on the process existing.
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]

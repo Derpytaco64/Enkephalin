@@ -18,6 +18,7 @@
  *
  *   node --experimental-strip-types scripts/fill-review-gaps.ts
  */
+import './env.ts';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import {

@@ -17,3 +17,6 @@ PXL_20261028_223347704.jpg
 
 # vitest --reporter=json output, written only when chasing a startup error
 .vitest/
+
+# Backups written by `npm run export` — yours, not the repo's
+backups/

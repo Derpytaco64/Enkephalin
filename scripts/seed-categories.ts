@@ -19,6 +19,7 @@
  *
  *   node --experimental-strip-types scripts/seed-categories.ts
  */
+import './env.ts';
 import { and, eq, inArray, notExists, sql } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import { drugTags, drugs, tags } from '../db/schema.ts';
