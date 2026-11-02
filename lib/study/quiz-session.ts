@@ -6,12 +6,15 @@
  * one that wrote a row per question would leave half-attempts everywhere; so
  * the attempt is written once, at the end, from what the runner collected.
  */
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { quizAnswers, quizAttempts } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { loadCardSources } from './sources';
 import type { StudyConfig } from './config';
+import {
+  wasMissed, weightsFromHistory, type QuestionWeights,
+} from './priority';
 import { buildQuiz, capQuiz, type QuizDirection, type QuizQuestion } from './quiz';
 
 export type QuizPaper = {
@@ -24,19 +27,72 @@ export type QuizPaper = {
   questions: QuizQuestion[];
   /** Everything the scope could have asked, before the cap. */
   available: number;
+  /**
+   * How many of the drawn questions are ones the last answer got wrong. Null
+   * when the draw was not weighted, which is a different thing from zero: the
+   * page says "7 you have missed before" or says nothing, and never implies a
+   * clean record it did not check.
+   */
+  missed: number | null;
 };
 
-export async function loadQuiz(
-  config: StudyConfig,
-  direction: QuizDirection = 'random',
-): Promise<QuizPaper> {
-  const [sources, defs] = await Promise.all([loadCardSources(), listFieldDefs()]);
+export type QuizDraw = {
+  /** Defaults to mixed, which is the paper's own setting rather than the config's. */
+  direction?: QuizDirection;
+  /**
+   * Whose history to weight the draw by. Null draws evenly, which is the
+   * setting a user can choose and also what a quiz with no cap effectively
+   * gets -- the whole pool is asked either way, only the order moves.
+   */
+  weightFor?: string | null;
+};
+
+export async function loadQuiz(config: StudyConfig, draw: QuizDraw = {}): Promise<QuizPaper> {
+  const { direction = 'random', weightFor = null } = draw;
+
+  const [sources, defs, weights] = await Promise.all([
+    loadCardSources(),
+    listFieldDefs(),
+    weightFor === null ? null : questionWeights(weightFor),
+  ]);
+
   const all = buildQuiz(sources, defs, config, { direction });
+  const questions = capQuiz(all, config.maxCards, Math.random, weights ?? undefined);
+
   return {
     id: crypto.randomUUID(),
-    questions: capQuiz(all, config.maxCards),
+    questions,
     available: all.length,
+    missed: weights === null
+      ? null
+      : questions.filter((question) => wasMissed(weights, question)).length,
   };
+}
+
+/**
+ * How much weight each question this user has met now carries.
+ *
+ * Bounded, and newest first: `weightsFromHistory` stops counting at each
+ * question's most recent wrong answer, so the rows past the limit are ones
+ * that had stopped mattering. Unanswered rows are excluded here rather than
+ * there -- a skipped question is not a missed one.
+ */
+const HISTORY_LIMIT = 20_000;
+
+export async function questionWeights(userId: string): Promise<QuestionWeights> {
+  const rows = await db
+    .select({
+      drugId: quizAnswers.drugId,
+      fieldKey: quizAnswers.fieldKey,
+      wasCorrect: quizAnswers.wasCorrect,
+    })
+    .from(quizAnswers)
+    .innerJoin(quizAttempts, eq(quizAttempts.id, quizAnswers.attemptId))
+    .where(and(eq(quizAttempts.userId, userId), isNotNull(quizAnswers.answeredAt)))
+    .orderBy(desc(quizAnswers.answeredAt))
+    .limit(HISTORY_LIMIT);
+
+  return weightsFromHistory(rows);
 }
 
 export type SubmittedAnswer = {

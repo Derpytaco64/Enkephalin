@@ -24,6 +24,7 @@ import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
 import { answerText, inScope, type CardSource } from './cards';
 import type { StudyConfig, StudyDirection } from './config';
+import { weightOf, type QuestionWeights } from './priority';
 
 export type QuizQuestion = {
   id: string;
@@ -472,15 +473,52 @@ function nameQuestion(
 }
 
 /**
+ * Orders a pool by weight, drawing without replacement.
+ *
+ * Efraimidis-Spirakis: give each question an exponential key divided by its
+ * weight and sort ascending. One pass, exactly proportional to the weights,
+ * and the injected rng keeps it decidable in a test -- a constant rng orders
+ * by weight alone, heaviest first.
+ *
+ * It orders the whole pool rather than picking the top `maxCards`, because the
+ * order is worth having even when nothing is cut: a quiz abandoned halfway
+ * should have spent that half on the shaky material.
+ */
+function weightedOrder(
+  questions: QuizQuestion[],
+  weights: QuestionWeights,
+  rng: () => number,
+): QuizQuestion[] {
+  return questions
+    .map((question) => {
+      // rng() can legitimately return 0, and -log(0) is Infinity, which would
+      // park that question at the back of every quiz it appears in.
+      const u = rng() || Number.MIN_VALUE;
+      return { question, key: -Math.log(u) / weightOf(weights, question) };
+    })
+    .sort((a, b) => a.key - b.key)
+    .map((row) => row.question);
+}
+
+/**
  * Cuts the question list to `maxCards`, at random rather than from the front:
  * the pool is built field by field over drugs in alphabetical order, so the
  * first N would be the A's on one field every time.
+ *
+ * With `weights`, random becomes weighted: the questions you last got wrong
+ * are four times as likely to be drawn as ones you have never seen and eight
+ * times as likely as ones you have answered right three running. Everything
+ * keeps a weight, so a cap never stops reaching the rest of the pool. See
+ * `priority.ts` for why those numbers.
  */
 export function capQuiz(
   questions: QuizQuestion[],
   maxCards: number,
   rng: () => number = Math.random,
+  weights?: QuestionWeights,
 ): QuizQuestion[] {
-  if (maxCards <= 0 || questions.length <= maxCards) return shuffled(questions, rng);
-  return shuffled(questions, rng).slice(0, maxCards);
+  const ordered = weights === undefined
+    ? shuffled(questions, rng)
+    : weightedOrder(questions, weights, rng);
+  return maxCards <= 0 ? ordered : ordered.slice(0, maxCards);
 }

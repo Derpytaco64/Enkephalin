@@ -5,6 +5,7 @@ import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import type { CardSource } from '@/lib/study/cards';
 import { DEFAULT_CONFIG, type StudyConfig } from '@/lib/study/config';
+import { weightsFromHistory } from '@/lib/study/priority';
 import { buildQuiz, capQuiz } from '@/lib/study/quiz';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 
@@ -509,6 +510,49 @@ describe('capQuiz', () => {
   it('shuffles even when nothing is cut, so a paper is not alphabetical', () => {
     const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
     expect(capQuiz(questions, 0)).toHaveLength(questions.length);
+  });
+
+  it('draws a question you missed before one you have never seen', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
+    const weights = weightsFromHistory([
+      { drugId: 'id-metformin', fieldKey: 'moa', wasCorrect: false },
+    ]);
+
+    // A constant rng leaves weight as the only thing deciding the order, so
+    // this asserts the ordering itself rather than a lucky draw.
+    expect(capQuiz(questions, 1, first, weights)[0].slug).toBe('metformin');
+  });
+
+  it('orders the whole pool even with no cap, so half a quiz is the right half', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
+    const weights = weightsFromHistory([
+      { drugId: 'id-lisinopril', fieldKey: 'moa', wasCorrect: false },
+    ]);
+
+    const ordered = capQuiz(questions, 0, first, weights);
+    expect(ordered).toHaveLength(questions.length);
+    expect(ordered[0].slug).toBe('lisinopril');
+  });
+
+  it('still reaches a question you know, because no weight is zero', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
+    // Everything answered right three times running -- the floor -- except the
+    // one miss, which is four times heavier than anything else in the pool.
+    const weights = weightsFromHistory(questions.flatMap((question) =>
+      Array.from({ length: question.slug === 'metformin' ? 1 : 3 }, () => ({
+        drugId: question.drugId,
+        fieldKey: 'moa',
+        wasCorrect: question.slug !== 'metformin',
+      }))));
+
+    const seen = new Set<string>();
+    for (let run = 0; run < 200; run += 1) {
+      seen.add(capQuiz(questions, 1, Math.random, weights)[0].slug);
+    }
+    // Weighted, not restricted: a cap of one still lands on every drug in the
+    // pool eventually, which is the difference between priority and a grudge
+    // list.
+    expect(seen.size).toBe(questions.length);
   });
 });
 

@@ -729,6 +729,63 @@ from the same `drug_class` (so "which cardioselective beta blocker…" is a real
 composites* — all fields taken from one wrong drug — never a scramble across drugs, which would be
 spottable without knowing any pharmacology.
 
+### A capped quiz asks what you got wrong first (2026-11-02)
+
+A quiz with a cap samples the pool at random, which spends a 20-question paper on 20 arbitrary
+questions when the app already knows which 14 you have missed. So the draw is weighted, by
+`lib/study/priority.ts`:
+
+| last answer | weight |
+| --- | --- |
+| wrong | 4 |
+| never asked | 2 |
+| right once | 1 |
+| right twice | 0.67 |
+| right three or more | 0.5 (floor) |
+
+Four things in that table are decisions rather than numbers.
+
+**Nothing is ever zero.** Worst to best is 8:1, not infinity-to-one. Without a floor a cap of 20
+over a pool of 236 becomes the same 20 questions forever and you never meet the rest of the sheet
+— the feature would quietly turn a quiz into a grudge list. At the floor a question you have aced
+still turns up, an eighth as often as one you missed.
+
+**Never-asked outranks answered-correctly.** Coverage first. You have demonstrated something about
+the one you got right, and nothing at all about the one you have not seen.
+
+**One right answer does not clear it.** Four options is a 25% guess rate, so a single correct
+answer is weak evidence; it takes a run of two or three to reach the floor. A miss resets to 4
+whatever came before, because the latest result is the one that matters — right nine times and
+wrong once, most recently, is a question to ask again, and a lifetime average would bury it.
+
+**Skipped is not missed.** `quiz_answers` keeps `answered_at` null to tell "ran out of time" from
+"got it wrong", and the weighting honours that: an unanswered row carries no weight at all, so
+abandoning a quiz does not reorder the next one.
+
+The weight is keyed on **drug + field, not direction**. "Amiodarone's mechanism is shaky" is a fact
+about the material, not about which way it was asked — and a paper on mixed directions decides each
+question's direction by coin toss, so a direction-keyed weight would match about half the time and
+the mechanism would visibly half-work. Per-drug mode separates itself regardless, since its field
+key is the joined selection (`moa+dosing`).
+
+Deliberately **not** wired into the SM-2 schedule in `lib/study/srs.ts`. A quiz answer is a
+four-way guess and a flashcard grade is self-report; letting a lucky guess push a card three weeks
+out would corrupt the one signal that is currently honest. This weighting is quiz-local.
+
+Mechanically: `weightsFromHistory` folds the answer history newest-first and stops at each
+question's most recent wrong answer, which is both what makes it answer to the latest result and
+what lets the query be bounded — rows past the limit had stopped counting anyway. `capQuiz` orders
+by an Efraimidis-Spirakis key (`-log(u) / weight`, ascending), which is one pass, exactly
+proportional to the weights, and decidable in a test, since a constant rng orders by weight alone.
+It orders the **whole** pool rather than picking the top N, because the order is worth having even
+with no cap: a quiz abandoned halfway should have spent that half on the shaky material.
+
+It is a setting — *Priority* on the quiz page, on by default — and the read-only summary says
+"13 you've missed before" when it is on, so the paper never silently reshapes itself. Measured on
+real history, a 20-question paper over all 236 mechanisms: **1.9** of the 20 were previously-missed
+questions drawing evenly, **5.5** weighted, which is 80/296 of the pool's weight and so exactly
+what the table predicts.
+
 ### Review and cram
 
 Two session modes, after the Obsidian spaced-repetition plugin's:
@@ -1138,6 +1195,13 @@ reachable one-handed; browse table degrades to cards.
 ## Open items
 
 **Queued by the owner, 2026-11-02** — in their words, to be worked after the quiz modes:
+
+- **done — 2026-11-02.** ~~Priority: a question you got wrong should be likelier to come back~~.
+  Asked for, and worth having, because a capped paper was spending its 20 questions on 20
+  arbitrary ones while the app already knew which 14 had been missed. See *A capped quiz asks what
+  you got wrong first* above for the weights and the four decisions in them — the floor being the
+  one that matters, since without it priority degenerates into re-sitting the same corner of the
+  sheet forever. On by default, visible in the summary line, and off in one control.
 
 - **done — 2026-11-02.** ~~Three wordings the sheet got wrong, left sitting in the data~~. Asked
   why an obvious error would not simply be fixed, which was the right question: a repair bench had

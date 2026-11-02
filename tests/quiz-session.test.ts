@@ -4,7 +4,10 @@ import { db } from '@/db';
 import { accounts, drugs, fieldDefs, quizAnswers, quizAttempts, sessions, tags, users } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { DEFAULT_CONFIG } from '@/lib/study/config';
-import { loadQuiz, recentAttempts, recordAttempt, weakestFields } from '@/lib/study/quiz-session';
+import { MISSED, NEVER_ASKED, weightOf } from '@/lib/study/priority';
+import {
+  loadQuiz, questionWeights, recentAttempts, recordAttempt, weakestFields,
+} from '@/lib/study/quiz-session';
 
 const USER = 'user-student';
 
@@ -84,6 +87,71 @@ describe('loadQuiz', () => {
 
     expect(one.id).not.toBe(two.id);
     expect(one.id).toBeTruthy();
+  });
+});
+
+describe('priority', () => {
+  /** One attempt with the first question wrong and the rest right. */
+  async function sitOne() {
+    const paper = await loadQuiz(config);
+    const [missed, ...rest] = paper.questions;
+    await recordAttempt({
+      userId: USER,
+      config,
+      questions: paper.questions,
+      answers: paper.questions.map((question) => ({
+        questionId: question.id,
+        chosenIndex: question.id === missed.id
+          ? (question.correctIndex + 1) % question.options.length
+          : question.correctIndex,
+      })),
+    });
+    return { missed, rest };
+  }
+
+  it('weights what you got wrong above what you have never seen', async () => {
+    const { missed, rest } = await sitOne();
+    const weights = await questionWeights(USER);
+
+    expect(weightOf(weights, missed)).toBe(MISSED);
+    for (const question of rest) {
+      // Answered right once, so below a question never asked -- but not zero.
+      expect(weightOf(weights, question)).toBeLessThan(NEVER_ASKED);
+      expect(weightOf(weights, question)).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not count a question you ran out of time for as one you missed', async () => {
+    const paper = await loadQuiz(config);
+    await recordAttempt({
+      userId: USER,
+      config,
+      questions: paper.questions,
+      answers: paper.questions.map((question) => ({ questionId: question.id, chosenIndex: null })),
+    });
+
+    // Skipping is not missing, and the schema keeps `answered_at` null to tell
+    // them apart. Leaving a quiz early should not reorder the next one.
+    expect(await questionWeights(USER)).toEqual(new Map());
+  });
+
+  it('says how much of the paper is material you missed, and only when asked', async () => {
+    const { missed } = await sitOne();
+
+    const weighted = await loadQuiz(config, { weightFor: USER });
+    expect(weighted.missed).toBe(1);
+    expect(weighted.questions.some((question) => question.drugId === missed.drugId)).toBe(true);
+
+    // Null rather than 0: the page says nothing instead of implying a clean
+    // record it never looked for.
+    expect((await loadQuiz(config)).missed).toBeNull();
+  });
+
+  it('weights a user by their own history and no one else by it', async () => {
+    const { missed } = await sitOne();
+    await db.insert(users).values({ id: 'user-other', email: 'other@example.test' });
+
+    expect(weightOf(await questionWeights('user-other'), missed)).toBe(NEVER_ASKED);
   });
 });
 

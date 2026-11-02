@@ -18,7 +18,7 @@ export const metadata = { title: 'Quiz — Enkephalin' };
 export const dynamic = 'force-dynamic';
 
 type Search = {
-  year?: string; max?: string; dir?: string; tag?: string; set?: string;
+  year?: string; max?: string; dir?: string; tag?: string; set?: string; pri?: string;
   /** Repeated once per ticked box, so these arrive as arrays. */
   fields?: string | string[];
   cat?: string | string[];
@@ -91,11 +91,14 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
   const direction: QuizDirection = search.dir === 'drug_to_fields' || search.dir === 'fields_to_drug'
     ? search.dir
     : 'random';
+  // Weighted unless turned off: missing something is the clearest signal the
+  // app has about what to ask next, and ignoring it by default would waste it.
+  const priority = search.pri !== 'off';
   const quizzable = defs.filter((def) => def.isQuizzable && def.key !== 'generic');
   const started = config.fields.length > 0;
   const paper = started
-    ? await loadQuiz(config, direction)
-    : { id: 'none', questions: [], available: 0 };
+    ? await loadQuiz(config, { direction, weightFor: priority ? session.user.id : null })
+    : { id: 'none', questions: [], available: 0, missed: null };
 
   // A per-drug question's fieldKey is the whole selection joined, so history
   // reads back as "Mechanism of action, Dosing" rather than "moa+dosing".
@@ -113,6 +116,9 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       direction === 'random'
         ? 'mixed directions'
         : direction === 'drug_to_fields' ? 'drug → fact' : 'fact → drug',
+      // Only worth a word when there is something to say: a first quiz has no
+      // history, and "0 you have missed before" reads like a verdict on it.
+      ...(paper.missed ? [`${paper.missed} you’ve missed before`] : []),
       config.fields.map(labelFor).join(', '),
       ...(config.scope.tags.length > 0
         ? [listRows.find((tag) => tag.slug === config.scope.tags[0])?.label ?? config.scope.tags[0]]
@@ -188,6 +194,22 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               <p className="mt-1 text-xs text-[var(--muted)]">
                 Shown a drug, pick the fact — or shown a fact, pick the drug. Mixed asks both,
                 since recognising a mechanism and naming its drug are two different recalls.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="pri" className="block text-sm font-medium">Priority</label>
+              <select id="pri" name="pri" defaultValue={priority ? 'on' : 'off'} className={control}>
+                <option value="on">Favour what you’ve missed</option>
+                <option value="off">Every question equally likely</option>
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                A question you last got wrong is four times as likely to be drawn as one you
+                have never seen, and eight times as likely as one you have answered right three
+                times running — but nothing drops to zero, so a short quiz still works through
+                the rest of the material instead of re-sitting the same corner of it. Only
+                changes which questions you get when the count below is lower than the pool;
+                above that it only changes the order.
               </p>
             </div>
 
