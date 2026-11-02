@@ -45,6 +45,15 @@ const PARAM_NAMES: Record<keyof Filters, string> = {
   blank: 'blank',
 };
 
+/** Tag kinds in the order the filter lists them, with a heading each. */
+const TAG_GROUPS = [
+  { kind: 'top_list', label: 'Drug lists' },
+  { kind: 'system', label: 'Categories' },
+  { kind: 'school_year', label: 'Year' },
+  { kind: 'course', label: 'Courses' },
+  { kind: 'custom', label: 'Other' },
+] as const;
+
 const contains = (haystack: string, needle: string) =>
   haystack.toLowerCase().includes(needle.trim().toLowerCase());
 
@@ -231,13 +240,24 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
             {show.tag && (
               <div>
                 <label htmlFor="tag" className="block text-sm font-medium">Tag</label>
+                {/* Grouped by kind: a drug list and a therapeutic category are
+                    two different questions, and after seeding the categories
+                    this was one flat list of sixty-seven. */}
                 <select id="tag" value={filters.tag} onChange={(e) => set('tag', e.target.value)} className={control}>
                   <option value="">Any</option>
-                  {options.tags.map((tag) => (
-                    <option key={tag.slug} value={tag.slug}>
-                      {tag.label} ({counts.tag.get(tag.slug) ?? 0})
-                    </option>
-                  ))}
+                  {TAG_GROUPS.map(({ kind, label }) => {
+                    const group = options.tags.filter((tag) => tag.kind === kind);
+                    if (group.length === 0) return null;
+                    return (
+                      <optgroup key={kind} label={label}>
+                        {group.map((tag) => (
+                          <option key={tag.slug} value={tag.slug}>
+                            {tag.label} ({counts.tag.get(tag.slug) ?? 0})
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
               </div>
             )}

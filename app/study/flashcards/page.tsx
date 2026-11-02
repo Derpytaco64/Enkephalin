@@ -1,11 +1,12 @@
-import { asc, eq, ne } from 'drizzle-orm';
+import { asc, count, eq, ne } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
-import { tags } from '@/db/schema';
+import { drugTags, tags } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
+import { CategoryPicker } from './category-picker';
 import { FieldPicker } from './field-picker';
 import { SessionRunner } from './session-runner';
 
@@ -14,7 +15,9 @@ export const dynamic = 'force-dynamic';
 
 type Search = {
   mode?: string; year?: string; fields?: string; block?: string;
-  dir?: string; set?: string; tag?: string; cat?: string;
+  dir?: string; set?: string; tag?: string;
+  /** Repeated once per category, so several can be in play at once. */
+  cat?: string | string[];
 };
 
 /**
@@ -37,7 +40,7 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     scope: {
       ...DEFAULT_CONFIG.scope,
       tags: search.tag ? [search.tag] : [],
-      categories: search.cat ? [search.cat] : [],
+      categories: [search.cat ?? []].flat().filter(Boolean),
     },
   });
 }
@@ -53,8 +56,14 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
     listFieldDefs(),
     db.select({ slug: tags.slug, label: tags.label }).from(tags)
       .where(ne(tags.kind, 'system')).orderBy(asc(tags.label)),
-    db.select({ slug: tags.slug, label: tags.label }).from(tags)
-      .where(eq(tags.kind, 'system')).orderBy(asc(tags.label)),
+    // With the count, so a category that would return nothing says so before
+    // you pick it.
+    db.select({ slug: tags.slug, label: tags.label, count: count(drugTags.drugId) })
+      .from(tags)
+      .leftJoin(drugTags, eq(drugTags.tagId, tags.id))
+      .where(eq(tags.kind, 'system'))
+      .groupBy(tags.slug, tags.label)
+      .orderBy(asc(tags.label)),
   ]);
 
   const config = configFromSearch(search, defs);
@@ -82,6 +91,8 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
               {config.sessionMode === 'cram' ? 'Cram' : 'Review'} ·{' '}
               {config.mode === 'inclusive' ? 'per drug' : 'per fact'} · {config.fields.length} field
               {config.fields.length === 1 ? '' : 's'}
+              {config.scope.categories.length > 0
+                && ` · ${config.scope.categories.length} categor${config.scope.categories.length === 1 ? 'y' : 'ies'}`}
             </span>
           )}
         </summary>
@@ -129,19 +140,11 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
           )}
 
           {categoryRows.length > 0 && (
-            <div>
-              <label htmlFor="cat" className="block text-sm font-medium">Category</label>
-              <select id="cat" name="cat" defaultValue={config.scope.categories[0] ?? ''} className={control}>
-                <option value="">Every category</option>
-                {categoryRows.map((tag) => (
-                  <option key={tag.slug} value={tag.slug}>{tag.label}</option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Narrows the drug list rather than replacing it: a list and a category together
-                mean the drugs in both.
-              </p>
-            </div>
+            <CategoryPicker
+              categories={categoryRows}
+              selected={config.scope.categories}
+              control={control}
+            />
           )}
 
           <div>

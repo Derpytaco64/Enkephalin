@@ -19,7 +19,7 @@
  *
  *   node --experimental-strip-types scripts/seed-categories.ts
  */
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, notExists, sql } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import { drugTags, drugs, tags } from '../db/schema.ts';
 
@@ -288,8 +288,23 @@ for (const [drugId, labels] of assignments) {
   }
 }
 
+// A category the map no longer assigns to anything would otherwise sit in the
+// picker forever, offering an empty deck. Only `system` tags are swept.
+const orphans = await db
+  .select({ id: tags.id, label: tags.label })
+  .from(tags)
+  .where(and(eq(tags.kind, 'system'), notExists(
+    db.select({ one: sql`1` }).from(drugTags).where(eq(drugTags.tagId, tags.id)),
+  )));
+if (orphans.length > 0) {
+  await db.delete(tags).where(inArray(tags.id, orphans.map((tag) => tag.id)));
+}
+
 console.log(`categories: ${wanted.size} created or reused`);
 console.log(`links:      ${links} across ${assignments.size} of ${rows.length} drugs`);
+if (orphans.length > 0) {
+  console.log(`removed:    ${orphans.length} category with no drugs -> ${orphans.map((t) => t.label).join(', ')}`);
+}
 
 const sizes = await db
   .select({ label: tags.label, drugId: drugTags.drugId })
