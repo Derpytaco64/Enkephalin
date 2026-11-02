@@ -864,10 +864,25 @@ reachable one-handed; browse table degrades to cards.
    `drug_class` therefore stays null, `lib/drugs/drug-class.ts` renders null as *Uncategorized*,
    and the browse filter offers it as its own option. `class_candidates` and `class_suggestion`
    are kept for whenever someone wants to revisit. **16 of the 20 still carry a ranked hint.**
-2. **7 drugs need brand↔indication pairing confirmed**: albuterol, bupropion, digoxin, divalproex,
-   fluoxetine, lamotrigine, tirzepatide. Tirzepatide is the one that matters most —
-   Mounjaro/Diabetes vs Zepbound/Weight management. Four brands additionally carry a
-   `default_pairing_suspect` warning.
+2. **done — 2026-11-01.** ~~7 drugs need brand↔indication pairing confirmed~~: the five that
+   reached the database (albuterol, bupropion, digoxin, fluoxetine, tirzepatide) are paired, and
+   the four suspect brand defaults cleared, by `scripts/fill-review-gaps.ts` — Mounjaro→diabetes,
+   Zepbound→weight management and OSA, the Wellbutrin family→depression, Zyban→smoking cessation,
+   Prozac→depression, Sarafem→PMDD. Albuterol and digoxin turned out to be uniform rather than
+   split: every brand carries the same label. The same script fills the **18 routes** the sheet
+   never stated, which had cost those drugs their route card.
+
+   Both sets are assertions from FDA labelling rather than sheet facts, so each value lands
+   `unverified` carrying its own reason in `source`, and the whole set is one reviewable table in
+   that script rather than being folded into `drugs-seed.json`. A later `npm run seed` leaves it
+   alone — verified by re-running: `236 unchanged, 0 brand links`.
+
+   **Study coverage, measured on the running app after this:** every one of the 236 drugs now
+   produces a card for brand, indication, route, dosing, MOA, black box warning and controlled
+   schedule. Drug class covers 216, and the 20 it misses are the *Uncategorized* drugs from
+   item 1 — a consequence of that decision rather than a separate gap. No drug is excluded from
+   a deck any more. The one exclusion still ahead is phase 6's: the 31 dosing strings that do not
+   parse cannot be asked as *multiple choice*, though they remain fine as free recall.
 3. **Estradiol's variant dosing is not imported.** The sheet gives it newline-separated product
    families (Vivelle-Dot / Alora / Climara, then Femring / Estring / Vagifem / Divigel) against
    "product dependent" dosing. The importer refuses to turn that into brand rows rather than
