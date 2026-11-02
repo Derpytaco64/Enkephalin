@@ -14,7 +14,7 @@ beforeEach(async () => {
 function value(partial: Partial<FieldValue>): FieldValue {
   return {
     value: null,
-    status: 'unverified',
+    status: 'ok',
     source: null,
     updatedAt: '2026-10-29',
     updatedBy: null,
@@ -109,9 +109,9 @@ describe('formatFieldValue', () => {
     expect(emptyLabel('missing', moa)).toBe('Not recorded yet');
   });
 
-  it('lets not_applicable override a field that is normally a gap', async () => {
+  it('lets an explicit "none" override a field that is normally a gap', async () => {
     const moa = await def('moa');
-    expect(formatFieldValue(moa, value({ value: '', status: 'not_applicable' }))).toEqual({ kind: 'none' });
+    expect(formatFieldValue(moa, value({ value: '', status: 'none' }))).toEqual({ kind: 'none' });
   });
 
   it('says Not controlled rather than None for the schedule', async () => {

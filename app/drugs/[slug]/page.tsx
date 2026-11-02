@@ -9,21 +9,27 @@ import type { FieldValue } from '@/db/schema';
 import { markFieldAction } from './actions';
 
 const STATUS_TOKENS = {
-  verified: 'var(--verified)',
-  unverified: 'var(--unverified)',
+  ok: 'var(--verified)',
   flagged: 'var(--flagged)',
-  not_applicable: 'var(--not-applicable)',
+  none: 'var(--not-applicable)',
 } as const;
 
 const STATUS_LABELS = {
-  verified: 'verified',
-  unverified: 'unverified',
-  flagged: 'flagged',
-  not_applicable: 'none to record',
+  ok: 'recorded',
+  flagged: 'flagged — check this',
+  none: 'none to record',
 } as const;
 
-/** Colour is never the only signal: the marker carries its word too. */
+/**
+ * Colour is never the only signal: the marker carries its word too.
+ *
+ * `ok` shows nothing. Every value in the database is one to study, so marking
+ * them all "recorded" would be noise on every row and would make the flag --
+ * the one state worth seeing -- harder to spot, not easier.
+ */
 function StatusMarker({ status }: { status: FieldValue['status'] }) {
+  if (status === 'ok') return null;
+
   return (
     <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
       <span
@@ -117,8 +123,8 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
 
       {drug.needsPairingReview && (
         <p className="mt-4 rounded border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
-          This drug has competing brands across several indications, and the pairing has not been
-          confirmed. Brand-to-indication cards stay switched off until it is.
+          This drug has competing brands across several indications, and which brand carries which
+          has not been settled. Worth fixing in the editor — the cards are built either way.
         </p>
       )}
 
@@ -161,7 +167,7 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                   const value: FieldValue | undefined = def.isCore
                     ? {
                         value: coreValues[def.key] ?? null,
-                        status: 'verified',
+                        status: 'ok',
                         source: 'class sheet',
                         updatedAt: drug.updatedAt.toISOString(),
                         updatedBy: null,
@@ -177,13 +183,19 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                           <span className="text-xs text-[var(--muted)]">from {value.source}</span>
                         )}
 
-                        {isAdmin && !def.isCore && value && value.status !== 'verified' && (
+                        {/* One button, because there is one judgement left to
+                            record: this looks wrong. Everything else about a
+                            value is edited, not stamped. */}
+                        {isAdmin && !def.isCore && value && (
                           <form action={markFieldAction} className="ml-auto">
                             <input type="hidden" name="slug" value={drug.slug} />
                             <input type="hidden" name="key" value={def.key} />
-                            <input type="hidden" name="status" value="verified" />
+                            <input
+                              type="hidden" name="status"
+                              value={value.status === 'flagged' ? 'ok' : 'flagged'}
+                            />
                             <button type="submit" className="text-xs text-[var(--accent)] underline">
-                              Mark verified
+                              {value.status === 'flagged' ? 'Clear flag' : 'Flag this'}
                             </button>
                           </form>
                         )}

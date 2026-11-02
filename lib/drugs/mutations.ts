@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   auditLog,
@@ -274,20 +274,19 @@ export type FieldInput = {
   key: string;
   value: string;
   source: string;
-  /** Blank means "leave it where it is": editing a value is not verifying it. */
+  /** Blank keeps whatever the value already carried. */
   status: string;
 };
 
-const STATUSES = ['verified', 'unverified', 'flagged', 'not_applicable'] as const;
+const STATUSES = ['ok', 'flagged', 'none'] as const;
 
 /**
  * Writes one stored field value, envelope included.
  *
- * Status is the interesting part. Editing a value does not verify it -- a
- * verified marker is the claim that someone checked it against a source, and
- * that claim cannot survive the value changing underneath it. So a changed
- * value drops back to `unverified` unless the editor says otherwise in the
- * same submission, which is the "I checked this as I typed it" case.
+ * Status says what kind of value this is, not how much to trust it: a value in
+ * the database is a value to study, and saving one is what records it. So the
+ * only choices are `ok`, `flagged` (someone doubts it, and it is still asked)
+ * and `none` (there is nothing to record, which is itself an answer).
  */
 export async function setDrugField(
   slug: string,
@@ -311,11 +310,7 @@ export async function setDrugField(
   // A field whose blank means "none" records that as a fact rather than a gap:
   // no black box warning is an answer, and an unfilled mechanism is not.
   const status: FieldValue['status'] = asked
-    ?? (value === null
-      ? (def.blankMeansNone ? 'not_applicable' : 'unverified')
-      : value === current?.value
-        ? current.status
-        : 'unverified');
+    ?? (value === null && def.blankMeansNone ? 'none' : current?.status ?? 'ok');
 
   const next: FieldValue = {
     value,
@@ -350,35 +345,22 @@ export async function setDrugField(
 
 /**
  * Re-reads a drug's dosing prose into `dosing_regimens`, the same way
- * `scripts/backfill-dosing.ts` does -- and with the same deference: a row a
- * human has verified is left exactly as it is, and the drug is flagged instead.
- * A re-parse is a machine's reading; a verdict is a person's, and the person
- * wins. Refused prose still gets a row, components empty, so the dosing is
- * present and askable rather than missing.
+ * `scripts/backfill-dosing.ts` does.
+ *
+ * The prose is the source and these rows are a reading of it, so editing the
+ * prose replaces them outright -- there is nothing here for a person to have
+ * hand-corrected, because nothing edits these rows directly. When a regimen
+ * editor does exist it will need a "leave this one alone" flag; see PLAN.md.
+ *
+ * Refused prose still gets a row, components empty, so the dosing is present
+ * and askable rather than missing.
  */
 export async function rebuildRegimens(
   drugId: string,
   genericName: string,
   prose: string | null,
   actorId: string,
-): Promise<{ status: 'replaced' | 'kept_verified' | 'cleared'; rows: number }> {
-  const existing = await db
-    .select({ id: dosingRegimens.id, status: dosingRegimens.status })
-    .from(dosingRegimens)
-    .where(eq(dosingRegimens.drugId, drugId));
-
-  if (existing.some((row) => row.status === 'verified')) {
-    await db
-      .update(dosingRegimens)
-      .set({
-        needsReview: true,
-        reviewNotes: sql`array_append(${dosingRegimens.reviewNotes}, 'dosing prose was edited after this row was verified')`,
-      })
-      .where(eq(dosingRegimens.drugId, drugId));
-    await audit({ actorId, action: 'dosing.kept_verified', drugId });
-    return { status: 'kept_verified', rows: existing.length };
-  }
-
+): Promise<{ status: 'replaced' | 'cleared'; rows: number }> {
   await db.delete(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
 
   if (!prose) {
@@ -485,7 +467,7 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
     await db.update(drugs).set({
       fields: {
         dosing: {
-          value: dosing, status: 'unverified', source: 'added by hand',
+          value: dosing, status: 'ok', source: 'added by hand',
           updatedAt: new Date().toISOString(), updatedBy: actorId,
         },
       },

@@ -18,7 +18,7 @@ beforeEach(async () => {
 function value(partial: Partial<FieldValue>): FieldValue {
   return {
     value: null,
-    status: 'unverified',
+    status: 'ok',
     source: 'class sheet',
     updatedAt: '2026-10-30',
     updatedBy: null,
@@ -43,7 +43,7 @@ function source(partial: Partial<CardSource> = {}): CardSource {
       indication: value({ value: 'Anxiety' }),
       moa: value({ value: 'GABA-A positive allosteric modulator' }),
       dosing: value({ value: '0.25 mg by mouth three times a day' }),
-      bbw: value({ value: null, status: 'not_applicable' }),
+      bbw: value({ value: null, status: 'none' }),
     },
     ...partial,
   };
@@ -110,25 +110,23 @@ describe('buildCards', () => {
     expect(buildCards([bare], defs, config({ fields: ['moa', 'dosing'] }))).toEqual([]);
   });
 
-  it('keeps only verified values when the config asks for them', () => {
-    const mixed = source({
+  it('studies a flagged value rather than withholding it', () => {
+    // A flag is a to-do, not a quarantine: dropping the card would quietly
+    // shrink the deck and the drug would stop being asked about.
+    const doubted = source({
       values: {
-        moa: value({ value: 'GABA-A modulator', status: 'verified' }),
-        dosing: value({ value: '0.25 mg', status: 'unverified' }),
+        moa: value({ value: 'GABA-A modulator' }),
+        dosing: value({ value: '0.25 mg', status: 'flagged' }),
       },
     });
 
-    const cards = buildCards([mixed], defs, config({
-      fields: ['moa', 'dosing'],
-      scope: { ...DEFAULT_CONFIG.scope, verifiedOnly: true },
-    }));
-
-    expect(cards.map((card) => card.fieldKeys)).toEqual([['moa']]);
+    const cards = buildCards([doubted], defs, config({ fields: ['moa', 'dosing'], mode: 'exclusive' }));
+    expect(cards.map((card) => card.fieldKeys)).toEqual([['moa'], ['dosing']]);
   });
 
-  it('will not build a brand-to-indication card while the pairing is unreviewed', () => {
-    // Tirzepatide is the case: with the pairing unconfirmed, a card from both
-    // fields can teach Mounjaro for weight management.
+  it('builds the brand-to-indication card even where the pairing is unsettled', () => {
+    // Holding this back was the old behaviour. The flag now shows on the
+    // profile and is fixed in the editor; nothing in the database is withheld.
     const tirzepatide = source({
       slug: 'tirzepatide',
       generic: 'Tirzepatide',
@@ -136,16 +134,14 @@ describe('buildCards', () => {
       values: {
         brand: value({ value: 'Mounjaro\nZepbound' }),
         indication: value({ value: 'Diabetes\nWeight management' }),
-        moa: value({ value: 'GIP and GLP-1 receptor agonist' }),
       },
     });
 
-    const both = buildCards([tirzepatide], defs, config({ fields: ['brand', 'indication'], mode: 'inclusive' }));
-    expect(both).toEqual([]);
-
-    // Its other fields are still fair game.
-    const safe = buildCards([tirzepatide], defs, config({ fields: ['moa'] }));
-    expect(safe).toHaveLength(1);
+    const cards = buildCards([tirzepatide], defs, config({
+      fields: ['brand', 'indication'], mode: 'inclusive',
+    }));
+    expect(cards).toHaveLength(1);
+    expect(cards[0].fieldKeys).toEqual(['brand', 'indication']);
   });
 
   it('filters by class, schedule, route and tag', () => {

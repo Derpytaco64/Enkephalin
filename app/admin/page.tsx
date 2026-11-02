@@ -11,6 +11,9 @@ export default function AdminHome() {
         <li>
           <Link href="/admin/invites" className="text-[var(--accent)] underline">Invites</Link>
         </li>
+        <li>
+          <Link href="/admin/tags" className="text-[var(--accent)] underline">Tags</Link>
+        </li>
       </ul>
     </main>
   );

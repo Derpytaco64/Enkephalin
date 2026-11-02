@@ -99,7 +99,7 @@ describe('study config', () => {
     const config = normalizeConfig({ blockSize: -5, fields: ['moa'] });
     expect(config.blockSize).toBe(0);
     expect(config.grading).toBe('four-point');
-    expect(config.scope.verifiedOnly).toBe(false);
+    expect(config.scope.dueOnly).toBe(true);
   });
 });
 

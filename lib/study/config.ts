@@ -54,8 +54,6 @@ export type StudyScope = {
   classes: string[];
   schedules: string[];
   routes: string[];
-  /** Only values an admin has checked against a source. */
-  verifiedOnly: boolean;
   /** Only cards the schedule says are due. Ignored while cramming. */
   dueOnly: boolean;
 };
@@ -69,6 +67,15 @@ export type StudyConfig = {
   direction: StudyDirection;
   /** 0 turns blocks off and the session is one flat pass. */
   blockSize: number;
+  /**
+   * The most cards this session will hand you. 0 means the whole deck, which
+   * is the default and what the control shows when untouched.
+   *
+   * Above this, the deck is *sampled at random* rather than truncated. Taking
+   * the first 50 of 236 would be the first 50 alphabetically every time, so
+   * you would learn the start of the sheet and never reach the end of it.
+   */
+  maxCards: number;
   grading: GradingScale;
 };
 
@@ -95,7 +102,7 @@ export const DEFAULT_CONFIG: StudyConfig = {
   sessionMode: 'review',
   scope: {
     tags: [], categories: [], indications: [], classes: [], schedules: [], routes: [],
-    verifiedOnly: false, dueOnly: true,
+    dueOnly: true,
   },
   yearLevel: null,
   fields: [],
@@ -104,6 +111,8 @@ export const DEFAULT_CONFIG: StudyConfig = {
   mode: 'inclusive',
   direction: 'drug_to_fields',
   blockSize: 10,
+  // No cap: the session is the deck until you say otherwise.
+  maxCards: 0,
   grading: 'four-point',
 };
 
@@ -147,6 +156,7 @@ export function normalizeConfig(partial: Partial<StudyConfig> | null | undefined
     sessionMode,
     scope: { ...DEFAULT_CONFIG.scope, ...partial.scope },
     blockSize: Math.max(0, Math.floor(partial.blockSize ?? DEFAULT_CONFIG.blockSize)),
+    maxCards: Math.max(0, Math.floor(partial.maxCards ?? DEFAULT_CONFIG.maxCards)),
     fields: partial.fields ?? [],
     // Switching mode without saying how to grade gets that mode's buttons.
     grading: partial.grading ?? defaultGradingFor(sessionMode),

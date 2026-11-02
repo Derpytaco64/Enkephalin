@@ -12,20 +12,17 @@
  * for this drug. Those rows are marked, and phase 6 falls back to comparing the
  * wording. See PLAN.md.
  *
- * Safe to re-run. A drug whose rows a human has verified is left alone unless
- * --force is passed; otherwise its unverified rows are replaced by a fresh
- * parse, so improving the parser is a re-run rather than a migration.
+ * Safe to re-run: the prose is the source and these rows are a reading of it,
+ * so every run replaces them. Improving the parser is a re-run rather than a
+ * migration.
  *
  *   node --experimental-strip-types scripts/backfill-dosing.ts
- *   node --experimental-strip-types scripts/backfill-dosing.ts --force
  */
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import { dosingRegimens, drugs } from '../db/schema.ts';
 import { activesOf, parseDosing } from '../lib/dosing/parse.ts';
 import { toSig } from '../lib/dosing/sig.ts';
-
-const force = process.argv.includes('--force');
 
 const rows = await db
   .select({
@@ -41,7 +38,6 @@ const report = {
   refused: 0,
   noDosing: 0,
   regimens: 0,
-  skippedVerified: 0,
 };
 const refusedNames: string[] = [];
 
@@ -53,15 +49,10 @@ for (const drug of rows) {
   }
 
   const existing = await db
-    .select({ id: dosingRegimens.id, status: dosingRegimens.status })
+    .select({ id: dosingRegimens.id })
     .from(dosingRegimens)
     .where(eq(dosingRegimens.drugId, drug.id));
 
-  // A human's verdict outranks a re-parse, as everywhere else here.
-  if (!force && existing.some((row) => row.status === 'verified')) {
-    report.skippedVerified += 1;
-    continue;
-  }
   if (existing.length > 0) {
     await db.delete(dosingRegimens).where(inArray(dosingRegimens.id, existing.map((row) => row.id)));
   }
@@ -103,7 +94,6 @@ for (const drug of rows) {
     duration: regimen.duration,
     ceiling: regimen.ceiling,
     qualifiers: regimen.qualifiers,
-    status: 'unverified' as const,
     needsReview: result.status !== 'parsed',
     reviewNotes: result.status === 'refused'
       ? [...result.notes, 'Stored with no components so the dosing is still askable; the wording is the answer.']
@@ -115,7 +105,7 @@ for (const drug of rows) {
 }
 
 console.log(`drugs:     ${report.parsed} parsed, ${report.needsReview} need review, ${report.refused} refused`);
-console.log(`           ${report.skippedVerified} skipped (already verified), ${report.noDosing} with no dosing text`);
+console.log(`           ${report.noDosing} with no dosing text`);
 console.log(`regimens:  ${report.regimens} rows written`);
 
 // A spot check in the output, so a run that silently mangles everything is

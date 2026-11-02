@@ -17,6 +17,7 @@ export type CardSource = {
   tags: string[];
   /** Indication slugs, not the prose: the scope compares slug to slug. */
   indications: string[];
+  /** Shown as a to-do on the profile; it does not hold cards back. */
   needsPairingReview: boolean;
   values: Record<string, FieldValue | undefined>;
 };
@@ -85,15 +86,6 @@ function inScope(source: CardSource, config: StudyConfig) {
 }
 
 /**
- * A pairing nobody has confirmed must not become a card. Tirzepatide's brands
- * and indications are the case: with the pairing unreviewed, a card built from
- * both fields can teach Mounjaro for weight management.
- */
-function pairingBlocked(source: CardSource, fieldKeys: string[]) {
-  return source.needsPairingReview && fieldKeys.includes('brand') && fieldKeys.includes('indication');
-}
-
-/**
  * The drug's own name is never one of the things asked about. Going
  * drug -> facts it is the stimulus, so a card made of it alone asks "Which
  * drug is this?" with nothing to go on; going facts -> drug it is the answer,
@@ -147,8 +139,6 @@ export function buildCards(
     const answered = selected
       .map((def) => {
         const value = source.values[def.key];
-        if (config.scope.verifiedOnly && value?.status !== 'verified') return null;
-
         const text = answerText(def, value);
         return text === null ? null : { key: def.key, label: def.label, text };
       })
@@ -161,8 +151,6 @@ export function buildCards(
       // dosing recall advance at their own rates.
       for (const face of answered) {
         const fieldKeys = [face.key];
-        if (pairingBlocked(source, fieldKeys)) continue;
-
         const key = cardKey({ mode: config.mode, direction: config.direction, fieldKeys });
         cards.push({
           id: `${source.slug}:${key}`,
@@ -179,8 +167,6 @@ export function buildCards(
     }
 
     const fieldKeys = answered.map((face) => face.key);
-    if (pairingBlocked(source, fieldKeys)) continue;
-
     const key = cardKey({ mode: config.mode, direction: config.direction, fieldKeys });
     cards.push({
       id: `${source.slug}:${key}`,

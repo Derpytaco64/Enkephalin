@@ -17,10 +17,13 @@ export function SessionRunner({
   cards,
   config,
   inScope,
+  available,
 }: {
   cards: StudyCardSpec[];
   config: StudyConfig;
   inScope: number;
+  /** What the scope offered after the due filter, before the session cap. */
+  available: number;
 }) {
   const byId = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const [session, setSession] = useState(() => createSession(cards.map((card) => card.id), config.blockSize));
@@ -111,6 +114,7 @@ export function SessionRunner({
           {config.blockSize > 0
             ? `Block ${progress.block} of ${progress.blocks} — ${progress.cleared} of ${progress.size} cleared`
             : `${cards.length} cards`}
+          {available > cards.length && ` · ${cards.length} of ${available}, picked at random`}
         </span>
         <span>{rules.reschedules ? 'Review' : 'Cram — schedule untouched'}</span>
       </div>

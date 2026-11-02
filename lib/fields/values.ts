@@ -3,9 +3,10 @@ import { db } from '@/db';
 import { drugs, type FieldValue } from '@/db/schema';
 
 /**
- * Marks one stored field value. Only the envelope changes -- the value itself
- * is the drug editor's business (phase 8) -- so verifying is a statement about
- * a value someone has already read, not an edit of it.
+ * Flags or unflags one stored field value, or marks it as having nothing to
+ * record. Only the envelope changes -- the value itself is the drug editor's
+ * business -- so this is a note about a value someone has read, not an edit of
+ * it.
  *
  * Core fields are not here on purpose: their values live in their own columns,
  * so there is no envelope to stamp.

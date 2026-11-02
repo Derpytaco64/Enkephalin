@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
-import { brandIndications, drugBrands, drugIndications, drugTags, drugs, fieldDefs, tags, type FieldValue } from '@/db/schema';
+import { brandIndications, drugBrands, drugIndications, drugTags, drugs, fieldDefs, tags } from '@/db/schema';
 import { syncDrugs, type SeedDrug } from '@/lib/content/sync';
 import { getDrugIndex } from '@/lib/drugs/browse';
 import { scheduleColor } from '@/lib/drugs/schedule';
@@ -95,59 +95,38 @@ describe('getDrugIndex', () => {
     expect(alprazolam.missing).toEqual([]);
   });
 
-  it('rolls verification up across the stored fields', async () => {
-    expect((await rowFor('alprazolam')).verification).toBe('unverified');
-
-    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'alprazolam'));
-    const verify = (value: FieldValue): FieldValue => ({ ...value, status: 'verified' });
-    await db
-      .update(drugs)
-      .set({
-        fields: {
-          dosing: verify(drug.fields.dosing!),
-          moa: verify(drug.fields.moa!),
-          bbw: verify(drug.fields.bbw!),
-          route: verify(drug.fields.route!),
-        },
-      })
-      .where(eq(drugs.id, drug.id));
-
-    expect((await rowFor('alprazolam')).verification).toBe('verified');
+  it('calls a drug complete when every stored field has a value', async () => {
+    // Nothing waits to be verified any more, so a filled profile is simply
+    // complete: the rollup is about gaps and doubts, not signatures.
+    expect((await rowFor('alprazolam')).review).toBe('ok');
   });
 
-  it('reports partly verified when only some fields are done', async () => {
-    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'alprazolam'));
-    await db
-      .update(drugs)
-      .set({ fields: { ...drug.fields, dosing: { ...drug.fields.dosing!, status: 'verified' } } })
-      .where(eq(drugs.id, drug.id));
+  it('reports gaps when a stored field has no value', async () => {
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'lisinopril'));
+    expect(drug.fields.moa?.value ?? null).toBeNull();
 
-    expect((await rowFor('alprazolam')).verification).toBe('partial');
+    const row = await rowFor('lisinopril');
+    expect(row.missing).toContain('moa');
+    expect(row.review).toBe('gaps');
   });
 
-  it('a flagged field outranks everything else in the rollup', async () => {
-    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'alprazolam'));
+  it('a flagged field outranks a gap in the rollup', async () => {
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'lisinopril'));
     await db
       .update(drugs)
-      .set({
-        fields: {
-          dosing: { ...drug.fields.dosing!, status: 'verified' },
-          moa: { ...drug.fields.moa!, status: 'flagged' },
-          bbw: { ...drug.fields.bbw!, status: 'verified' },
-          route: { ...drug.fields.route!, status: 'verified' },
-        },
-      })
+      .set({ fields: { ...drug.fields, dosing: { ...drug.fields.dosing!, status: 'flagged' } } })
       .where(eq(drugs.id, drug.id));
 
-    expect((await rowFor('alprazolam')).verification).toBe('flagged');
+    // A wrong answer in a deck costs more than a missing one, which simply
+    // makes no card.
+    expect((await rowFor('lisinopril')).review).toBe('flagged');
   });
 
-  it('a drug whose only stored values are affirmed absences is not called verified', async () => {
-    // Enalapril has dosing and moa filled and no warning. Its verification
-    // should reflect the two real values, not the absence.
+  it('counts an affirmed absence as answered rather than as a gap', async () => {
+    // Enalapril has dosing and moa filled and no warning at all.
     const enalapril = await rowFor('enalapril');
     expect(enalapril.missing).toEqual([]);
-    expect(enalapril.verification).toBe('unverified');
+    expect(enalapril.review).toBe('ok');
   });
 
   it('surfaces the review queue as a flag on the row', async () => {

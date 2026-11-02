@@ -20,17 +20,14 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 /**
- * Status is offered as "leave as is" plus the three verdicts, because editing a
- * value and judging it are different acts. Saving a changed value drops it to
- * unverified on its own (see `setDrugField`); this is for the case where you
- * checked the source as you typed.
+ * Three states, because that is all a value can be: recorded, doubted, or
+ * deliberately empty. Saving is what records it -- there is no separate act of
+ * verifying, and nothing waits on one.
  */
 const STATUS_CHOICES = [
-  { value: '', label: 'Leave as is' },
-  { value: 'verified', label: 'Verified — checked against a source' },
-  { value: 'unverified', label: 'Unverified' },
+  { value: 'ok', label: 'Recorded' },
   { value: 'flagged', label: 'Flagged — looks wrong' },
-  { value: 'not_applicable', label: 'None to record' },
+  { value: 'none', label: 'None to record' },
 ];
 
 const SCHEDULES = ['CI', 'CII', 'CIII', 'CIV', 'CV'];
@@ -45,7 +42,9 @@ function FieldRow({ field, generic }: { field: EditableField; generic: string })
       <div className="flex flex-wrap items-baseline gap-x-3">
         <label htmlFor={`f_${def.key}`} className="text-sm font-medium">{def.label}</label>
         <span className="text-xs text-[var(--muted)]">{def.dataType}</span>
-        {value && <span className="text-xs text-[var(--muted)]">currently {value.status}</span>}
+        {value?.status === 'flagged' && (
+          <span className="text-xs text-[var(--flagged)]">flagged</span>
+        )}
       </div>
 
       {def.helpText && <p className={hint}>{def.helpText}</p>}
@@ -92,7 +91,11 @@ function FieldRow({ field, generic }: { field: EditableField; generic: string })
         </div>
         <div>
           <label htmlFor={`st_${def.key}`} className="block text-xs text-[var(--muted)]">Status</label>
-          <select id={`st_${def.key}`} name={`st_${def.key}`} defaultValue="" className={control}>
+          <select
+            id={`st_${def.key}`} name={`st_${def.key}`}
+            defaultValue={value?.status ?? (def.blankMeansNone ? 'none' : 'ok')}
+            className={control}
+          >
             {STATUS_CHOICES.map((choice) => (
               <option key={choice.value} value={choice.value}>{choice.label}</option>
             ))}

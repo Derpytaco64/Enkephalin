@@ -15,7 +15,7 @@ export const metadata = { title: 'Flashcards — Enkephalin' };
 export const dynamic = 'force-dynamic';
 
 type Search = {
-  mode?: string; year?: string; fields?: string; block?: string;
+  mode?: string; year?: string; fields?: string; block?: string; max?: string;
   dir?: string; set?: string; tag?: string;
   /** Repeated once per category, so several can be in play at once. */
   cat?: string | string[];
@@ -43,6 +43,7 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     mode: search.set === 'exclusive' ? 'exclusive' : DEFAULT_CONFIG.mode,
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
     blockSize: search.block === undefined ? DEFAULT_CONFIG.blockSize : Number(search.block),
+    maxCards: search.max === undefined ? DEFAULT_CONFIG.maxCards : Number(search.max),
     scope: {
       ...DEFAULT_CONFIG.scope,
       tags: search.tag ? [search.tag] : [],
@@ -83,7 +84,13 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
   // asked about, so it is not on offer here.
   const quizzable = defs.filter((def) => def.isQuizzable && def.key !== 'generic');
   const started = config.fields.length > 0;
-  const deck = started ? await loadDeck(session.user.id, config) : { cards: [], inScope: 0 };
+  const deck = started
+    ? await loadDeck(session.user.id, config)
+    : { cards: [], inScope: 0, available: 0 };
+  // What the cap would have to beat to do anything. Shown as the field's own
+  // value, so an untouched control reads "236" rather than "0" or "unlimited".
+  const deckSize = Math.max(deck.available, deck.cards.length);
+  const sampled = config.maxCards > 0 && deck.available > config.maxCards;
 
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
 
@@ -107,6 +114,7 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
                 && ` · ${config.scope.categories.length} categor${config.scope.categories.length === 1 ? 'y' : 'ies'}`}
               {config.scope.indications.length > 0
                 && ` · ${config.scope.indications.length} indication${config.scope.indications.length === 1 ? '' : 's'}`}
+              {sampled && ` · ${config.maxCards} of ${deck.available}, picked at random`}
             </span>
           )}
         </summary>
@@ -192,6 +200,21 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             />
             <p className="mt-1 text-xs text-[var(--muted)]">0 for one flat pass.</p>
           </div>
+
+          <div>
+            <label htmlFor="max" className="block text-sm font-medium">Most cards this session</label>
+            <input
+              id="max" name="max" type="number" min={1}
+              defaultValue={config.maxCards > 0 ? config.maxCards : deckSize || ''}
+              placeholder="All of them"
+              className={control}
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {started
+                ? `${deckSize} to draw from. Lower it and that many are picked at random — a different set each session, so a short sitting still covers the whole list over time.`
+                : 'Starts at the size of the deck. Lower it and that many are picked at random.'}
+            </p>
+          </div>
         </div>
 
         <button type="submit" className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
@@ -201,7 +224,9 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
       </details>
 
       {started ? (
-        <SessionRunner cards={deck.cards} config={config} inScope={deck.inScope} />
+        <SessionRunner
+          cards={deck.cards} config={config} inScope={deck.inScope} available={deck.available}
+        />
       ) : (
         <p className="mt-8 text-[var(--muted)]">
           Pick a year or some fields to build a deck. There are{' '}

@@ -58,8 +58,8 @@ export type SyncReport = {
   indicationsInserted: number;
   linksInserted: number;
   tagsLinked: number;
-  /** Sheet values withheld because a human had verified a different one. */
-  verifiedKept: string[];
+  /** Sheet values withheld because a person had written their own. */
+  humanKept: string[];
   /** Rows in the database that the sheet no longer lists, left for a human. */
   orphanBrands: string[];
   orphanIndications: string[];
@@ -90,7 +90,7 @@ function emptyReport(): SyncReport {
     indicationsInserted: 0,
     linksInserted: 0,
     tagsLinked: 0,
-    verifiedKept: [],
+    humanKept: [],
     orphanBrands: [],
     orphanIndications: [],
     variantsSkipped: [],
@@ -110,8 +110,8 @@ function seedFieldValues(drug: SeedDrug, now: string): Record<string, FieldValue
     values[key] = { value: raw?.trim() || null, status, source: 'class sheet', updatedAt: now, updatedBy: null };
   };
 
-  add('dosing', drug.dosing, 'unverified');
-  add('moa', drug.moa, 'unverified');
+  add('dosing', drug.dosing, 'ok');
+  add('moa', drug.moa, 'ok');
 
   // Route is read out of the name and dosing text rather than being its own
   // sheet column. Only explicit evidence counts: an infusion written as a
@@ -121,7 +121,7 @@ function seedFieldValues(drug: SeedDrug, now: string): Record<string, FieldValue
   if (routes.length > 0) {
     values.route = {
       value: routes.join('\n'),
-      status: 'unverified',
+      status: 'ok',
       source: source === 'name' ? 'the drug name' : 'the sheet dosing text',
       updatedAt: now,
       updatedBy: null,
@@ -129,18 +129,26 @@ function seedFieldValues(drug: SeedDrug, now: string): Record<string, FieldValue
   }
 
   // bbw_status "none" is the sheet affirming there is no warning, which is an
-  // answer. Recording it as not_applicable keeps it out of the review queue
-  // and lets a flashcard ask the question honestly.
+  // answer. Recording it as "none" rather than leaving it blank is what lets a
+  // flashcard ask the question honestly.
   const noWarning = (drug.bbw_status ?? '') === 'none' || !(drug.bbw ?? '').trim();
-  add('bbw', drug.bbw, noWarning ? 'not_applicable' : 'unverified');
+  add('bbw', drug.bbw, noWarning ? 'none' : 'ok');
 
   return values;
 }
 
 /**
- * Merges sheet values over stored ones. A verified value is never replaced by
- * a differing sheet value unless forced, and an unchanged value keeps its
- * existing envelope so a second run writes nothing.
+ * Merges sheet values over stored ones.
+ *
+ * What the importer must not do is undo somebody's work. With verification
+ * gone, the question "has a human touched this?" is answered by `updatedBy`:
+ * the sheet writes null, and every editor save writes the admin's id. So a
+ * value with an author is left alone and reported, and a value the importer
+ * itself wrote is refreshed from the sheet -- which is what makes re-importing
+ * a corrected sheet safe rather than a gamble.
+ *
+ * An unchanged value keeps its existing envelope, so a second run writes
+ * nothing.
  */
 function mergeFieldValues(
   stored: Record<string, FieldValue>,
@@ -155,8 +163,8 @@ function mergeFieldValues(
 
     if (current && current.value === next.value && current.status === next.status) continue;
 
-    if (current?.status === 'verified' && current.value !== next.value && !options.force) {
-      options.report.verifiedKept.push(`${options.slug}.${key}`);
+    if (current?.updatedBy && current.value !== next.value && !options.force) {
+      options.report.humanKept.push(`${options.slug}.${key}`);
       continue;
     }
 

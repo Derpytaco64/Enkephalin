@@ -103,12 +103,10 @@ Transcription of the note:
     `brand_indications` pairs them, and a brand carries its own `dosing_override` and pairing
     review state. Delete-and-reinsert would throw all of that away every time someone fixed a typo
     elsewhere in the list. Editing a line keeps the row; removing it deletes it, pairings included.
-  - **Editing a value un-verifies it.** A verified marker is the claim that a person checked *that
-    value* against a source, and it cannot survive the value changing underneath it. So a changed
-    value drops to `unverified` unless the same submission says otherwise -- the "I checked it as I
-    typed it" case. Same deference in the other direction for dosing: a prose edit re-parses
-    `dosing_regimens`, unless a row there is verified, in which case the rows stand and are flagged
-    for a human instead.
+  - **Saving is what records a value.** (This replaced an "editing un-verifies it" rule when
+    verification was removed later the same day -- see *Accuracy guard*.) A field carries `ok`,
+    `flagged` or `none`, the editor writes itself into `updatedBy`, and a dosing edit re-parses
+    `dosing_regimens` outright, since nothing hand-edits those rows.
   - **Categories are not editable here.** They are `system` tags and `scripts/seed-categories.ts`
     rebuilds every system link on each run, so a hand-made category assignment would last until the
     next run and then vanish. The editor assigns lists, courses and custom tags; category membership
@@ -123,6 +121,22 @@ Transcription of the note:
   parser's notes, and anything it could not account for. A mis-filed component shows up as a
   sentence that does not mean what you typed, which is the fault a token-coverage guard cannot
   catch -- and until this existed, the only way to see it was to save and re-run a script.
+- **A session can be capped, and the cap samples** (2026-11-02). `maxCards` is the most cards a
+  session will hand you; 0 means the whole deck and is what the control shows when untouched -- the
+  field reads *236* against the current scope rather than "unlimited", so lowering it is an obvious
+  move rather than a discovered feature.
+
+  Above the cap the deck is **sampled at random**, not truncated. The deck arrives in alphabetical
+  order, so taking the first 50 of 236 would teach the A's and never reach the Z's; a fresh random
+  draw each session means a run of short sittings still covers the list. The cap applies to what
+  survives the due filter, so "max 50" in review mode means fifty cards in front of you rather than
+  fifty drawn and then thinned down to nine by the schedule.
+- **Tags are edited as a roster, not a search box** (2026-11-02). `/admin/tags/[slug]` lists every
+  drug in the database with a checkbox each, three columns, filterable. The whole roster because the
+  question being answered is "is this list right?", and that is only visible against the drugs that
+  are *not* on it. Filtering never hides a ticked drug, so what the form will submit is always on
+  screen, and the save replaces membership with exactly what is ticked. Creating a list drops you
+  straight into that checklist, since a list with nothing on it is not finished.
 - **Color coding is per user**, editable, not a fixed palette.
 - **Admin** gets full site and user management.
 
@@ -235,10 +249,10 @@ separate contract from a library seat. One email to the librarian settles it: *"
 license include API or web-services access, and is there a sandbox?"* If that comes back yes, it
 becomes legitimate and slots in as another lookup provider. **This plan assumes no.**
 
-**Micromedex's legitimate role is human verification**: look a drug up, write the fact into the
+**Micromedex's legitimate role is reading it yourself**: look a drug up, write the fact into the
 profile *in your own words*, record `Micromedex, accessed <date>` in that field's source note. Facts
-aren't copyrightable; only expression is. That is ordinary studying with a citation trail, and it is
-what the verification workflow below exists for.
+aren't copyrightable; only expression is. That is ordinary studying with a citation trail, and the
+per-field source note is where the trail lives.
 
 ### On-demand lookup providers
 
@@ -255,7 +269,7 @@ All free, keyless or free-key, stable, US-government public domain.
 **How the lookup panel behaves** — in the drug editor, a "Look up" action queries the providers for
 the current drug and returns results grouped by provider and by which field they map to. Each result
 is a suggestion with a **Use** button that writes it into *that one field*, stamped
-`source: dailymed` (or `rxnorm`/`openfda`) and `status: unverified`. Nothing is written without an
+`source: dailymed` (or `rxnorm`/`openfda`). Nothing is written without an
 explicit click. Label prose is long, so each suggestion shows a trimmed preview with the full text
 expandable, and the field stays editable after insertion — the normal workflow is pull, then
 rewrite into exam-shaped language.
@@ -265,18 +279,33 @@ and adverse reactions from SPL labels always need hand-trimming.
 
 ### Accuracy guard
 
-Content starts as sheet-derived, AI-elaborated, or label-derived. Two mechanisms, built in from the
-start:
+**Verification was removed on 2026-11-02.** It had been a four-state `verification_status` per field
+(`unverified` / `verified` / `flagged` / `not_applicable`), with a verified-only study filter and an
+importer that would not overwrite a verified value. The reasoning for dropping it: every value in
+this database is put there by the owner, by me on their instruction, or by a script written for it.
+There is no untrusted contributor, so "unverified" described nothing real while doing real damage --
+it was a holding pen that could keep a drug out of a deck, and the one thing this app must not do is
+quietly teach a shorter list than the one you asked for.
 
-1. **Per-field** `verification_status` (`unverified` / `verified` / `flagged` / `not_applicable`) —
-   not per-drug. A drug's MOA can be trusted while its renal dosing is still unchecked. Unverified
-   values render with a marker; study sessions can be filtered to verified-only.
+What is left is **one flag and the provenance that was always there**:
 
-   `not_applicable` exists because of the sheet: 62% of drugs have no black box warning and 90% are
-   not controlled. Those blanks are *answers*, not gaps. Without the distinction the verification
-   queue would show 147 phantom missing warnings, and a flashcard would ask for a black box warning
-   that doesn't exist. Blank-but-applicable and blank-because-none-exists must not look alike.
-2. **Per-field source note** recording where it was confirmed.
+1. **Per-field `status`** — `ok`, `flagged`, or `none`.
+
+   `flagged` means somebody thinks a value is wrong. It is a to-do, and it is *still studied*:
+   withholding the card would shrink the deck without telling you, and a drug you cannot be asked
+   about is worse than one you might be asked wrongly about.
+
+   `none` is the sheet's own answer and the reason this is three states rather than a boolean: 62%
+   of drugs have no black box warning and 90% are not controlled. Those blanks are *answers*, not
+   gaps. Without the distinction the browse list would show 146 phantom missing warnings, and a
+   flashcard would ask for a black box warning that does not exist.
+2. **Per-field `source` and `updatedBy`** — where it came from and who wrote it, which is what
+   `verified` was reaching for and says more. `updatedBy` is also now load-bearing: it is how the
+   importer knows to leave a value alone (below).
+
+Nothing is withheld from a deck any more. The brand↔indication pairing flag
+(`needs_pairing_review`) likewise warns on the profile rather than suppressing cards, and the
+browse filter offers *flagged* / *has gaps* / *complete* in place of the four verification levels.
 
 Footer disclaimer plus a first-login notice: not for clinical decision-making.
 
@@ -348,7 +377,7 @@ drugs             id, slug, generic_name, brand_names[], drug_class, schedule,  
 ```
 
 Each entry in `drugs.fields` is `{ value, status, source, updated_at, updated_by }` — where
-per-field verification and citations live.
+per-field provenance and citations live.
 
 Hot columns are duplicated out of the JSONB deliberately: `drug_class` and `schedule` drive
 same-class distractor generation, filtering, and color coding, and those queries should not dig
@@ -410,7 +439,7 @@ When it is built, these hold:
    and that is what a card asks by default. Variants are secondary: additions hanging off the
    standard, never replacements for it, or the study set silently changes under you.
 2. **A variant carries its own axes** — route, population, and perhaps indication — and its own
-   verification status, since "paediatric IV dosing" is a different claim needing its own source.
+   provenance, since "paediatric IV dosing" is a different claim needing its own source.
 3. **Study config chooses whether variants are in scope.** Default off: a P1 revising the top
    drugs list should not be asked paediatric IV dosing because a variant exists.
 4. **Nothing is generated from a variant that is not confirmed**, the same rule that suppresses
@@ -521,7 +550,8 @@ Flashcards and quiz share one config object, so the two modes are built once:
 
 ```ts
 {
-  scope:     { tags: [], classes: [], schedules: [], verifiedOnly: bool, dueOnly: bool },
+  scope:     { tags: [], categories: [], indications: [], classes: [], schedules: [], dueOnly: bool },
+  maxCards:  0,   // 0 = the whole deck; lower it and that many are sampled at random
   yearLevel: "P1" | "P2" | "P3" | null,   // preselects fields from field_defs.year_levels
   fields:    ["moa", "indication", "adverse_effects"],   // any defined field
   mode:      "inclusive" | "exclusive",
@@ -648,7 +678,7 @@ to be data. Two forms are stored side by side:
 
 | Stored | Role | Who owns it |
 |---|---|---|
-| `dosing` field (prose) | What a profile shows. The sheet's own wording, verified by a human | The class sheet |
+| `dosing` field (prose) | What a profile shows. The sheet's own wording | The class sheet |
 | `dosing_regimens` rows (structure) | What the quiz compares, and what prints as sig | Backfilled once, then human-correctable |
 
 The comparable form is the **components**, not a sig string. Storing `100 mg QD PO` as text and
@@ -710,8 +740,8 @@ Rules that follow:
    and it is only possible with a parse.
 5. **A re-run never clobbers a human.** Stored structure is no longer re-derivable from prose — a
    parser improvement cannot silently repair rows, and a hand-correction must survive the next
-   import. Same protection the importer already gives verified field values: re-parsing writes only
-   where `status` is `unverified` and nothing was hand-edited.
+   import. Since verification was removed, the prose is simply the source and a re-parse replaces
+   these rows; when a regimen editor exists it will need its own "leave this one alone" flag.
 
 **Why a table rather than another field.** Dosing is not one value per drug. The real data needs
 multiplicity four ways, and only rows give it: alternative regimens (9 drugs — *10 mg daily OR 70 mg
@@ -738,7 +768,7 @@ The parser lives in `lib/dosing/` — `parse.ts` reads prose, `sig.ts` prints th
 `compare.ts` answers equivalence for the distractor engine. The profile wants it too, to show sig
 shorthand beside the prose, so it is not inside `lib/quiz/`.
 
-The field picker saves as a named preset ("P2 midterm — MOA + AE, exclusive, verified only"). Missed
+The field picker saves as a named preset ("P2 midterm — MOA + AE, exclusive, 40 cards"). Missed
 quiz questions push their cards to due in `study_cards`.
 
 ---
@@ -746,18 +776,18 @@ quiz questions push their cards to due in `study_cards`.
 ## Features
 
 **Browse & search** (`/drugs`) — fuzzy search over generic, brand, class. Filter rail: class,
-schedule, tags grouped by `kind`, verification status, and missing-field (find everything with no
+schedule, tags grouped by `kind`, needs-attention (flagged / has gaps / complete), and
+missing-field (find everything with no
 MOA yet). Dense table on laptop / card list on phone from one responsive component. Filter state in
 the URL so views are bookmarkable.
 
 **Drug profile** (`/drugs/[slug]`) — header with generic, brands, class chip, schedule badge. Body
 renders `field_defs` in `sort_order`, grouped, honoring per-user visibility and ordering. Each field
-shows its verification marker, source note, and a one-click verify. Sidebar: tags, and other drugs
+shows its source note, its flag if it carries one, and a one-click flag. Sidebar: tags, and other drugs
 in the same class for contrast-and-compare.
 
 **Drug editor** (admin) — create/edit a card field by field, with the lookup panel alongside. Pull a
-suggestion into a field, rewrite it into exam language, mark verified when confirmed against
-Micromedex or lecture.
+suggestion into a field, rewrite it into exam language, and record what you read it in.
 
 **Flashcards** (`/study/flashcards`) — the note's "T/F", self-graded. Build a deck from the config
 above, then prompt → reveal → right/wrong. Keyboard on laptop (space flips, ←/→ grades), full tap
@@ -785,8 +815,8 @@ entry and for the whole palette.
 - **Drugs** — create/edit/delete with lookup panel, bulk tag, bulk field-set, merge duplicates, run
   the sheet importer.
 - **Tags** — CRUD, kind, default color, merge.
-- **Verification queue** — sorted by most-quizzed-but-unverified: the fields where a wrong value
-  costs most.
+- **Flagged queue** — every field anyone has flagged, most-quizzed first: the fields where a wrong
+  value costs most.
 - **Site settings** — name, registration mode, default theme and palette, disclaimer text.
 - **Data** — JSON export/backup and restore.
 - **Audit log** — who changed what, with diffs.
@@ -824,11 +854,11 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 1 | **done — 2026-10-29** — better-auth, login, invite-gated register, roles, admin seeded from env, `/admin/invites`. No migration needed: the auth tables already matched better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done — imported 2026-10-29, classes corrected 2026-11-01** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 217 classed, 20 uncategorized), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
-| 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
+| 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
-| 8 | **drug editor done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new`, writing through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. Remaining: **lookup panel**, tag CRUD, delete/merge, the brand↔indication pairing editor, bulk tag and bulk field-set, users, verification queue, settings, audit UI, export |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI, export |
 | 9 | Content elaboration in batches against the real sheet |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
@@ -897,10 +927,10 @@ registry without a restart. Renaming preserves existing values (keyed by stable 
 Soft-delete retains values and restores them on undelete.
 
 **Importer** — `sync-content.ts` run twice produces no diff the second time; editing one content
-file updates exactly that drug; a `verified` field value is never clobbered without `--force`.
+file updates exactly that drug; a value carrying an `updatedBy` is never clobbered without `--force`.
 
 **Lookup panel** — a lookup writes nothing until a Use click; an inserted value lands in exactly one
-field with the right `source` and `status: unverified`; a provider being down degrades to an inline
+field with the right `source`; a provider being down degrades to an inline
 error on the panel and never blocks saving the drug; repeat lookups hit `lookup_cache` rather than
 the provider.
 
@@ -972,10 +1002,12 @@ reachable one-handed; browse table degrades to cards.
    split: every brand carries the same label. The same script fills the **18 routes** the sheet
    never stated, which had cost those drugs their route card.
 
-   Both sets are assertions from FDA labelling rather than sheet facts, so each value lands
-   `unverified` carrying its own reason in `source`, and the whole set is one reviewable table in
-   that script rather than being folded into `drugs-seed.json`. A later `npm run seed` leaves it
-   alone — verified by re-running: `236 unchanged, 0 brand links`.
+   Both sets are assertions from FDA labelling rather than sheet facts, so each value carries its
+   own reason in `source`, and the whole set is one reviewable table in that script rather than
+   being folded into `drugs-seed.json`. A later `npm run seed` leaves it alone — checked by
+   re-running: `236 unchanged, 0 brand links`. (These landed `unverified` at the time; the status
+   became `ok` when verification was removed on 2026-11-02, and the reason in `source` is what
+   carried the meaning anyway.)
 
    **Study coverage, measured on the running app after this:** every one of the 236 drugs now
    produces a card for brand, indication, route, dosing, MOA, black box warning and controlled
@@ -987,11 +1019,11 @@ reachable one-handed; browse table degrades to cards.
    families (Vivelle-Dot / Alora / Climara, then Femring / Estring / Vagifem / Divigel) against
    "product dependent" dosing. The importer refuses to turn that into brand rows rather than
    guess; `drug_brands.dosing_override` is where a human puts it in the drug editor.
-4. **No way to create a tag yet** (2026-11-02). The drug editor ticks tags that already exist, which
-   today means the 2026 list and anything the seeder made; there is no screen that makes a new one,
-   so a fresh course or custom tag needs a row inserted by hand. Tag CRUD is phase 8's own item and
-   is where "put this drug on a new list" belongs. The 65 therapeutic categories are deliberately
-   not in that picker -- see the decision above.
+4. **done — 2026-11-02.** ~~No way to create a tag yet~~: `/admin/tags` creates, renames and
+   deletes lists, and `/admin/tags/[slug]` sets membership from a columned checklist of every drug
+   in the database. The whole roster rather than a search-and-add, because the only way to see
+   whether a list is right is against the drugs that are *not* on it. Categories appear there
+   read-only, for the reason in the decision above.
 5. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
 6. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
    remaining question is only whether individual courses get their own tags.

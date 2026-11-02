@@ -5,9 +5,9 @@ import { setFieldStatus } from '@/lib/fields/values';
 import { requireAdmin } from '@/lib/session';
 
 /**
- * Verifying is an admin judgement: it is the claim that someone checked this
- * value against Micromedex or lecture, which is what makes "verified only"
- * worth filtering a study session by.
+ * Flagging is the one judgement left on a profile: everything in the database
+ * is studied, and a flag says "this looks wrong" without taking it out of a
+ * deck. Changing the value itself is the editor's job.
  */
 export async function markFieldAction(formData: FormData): Promise<void> {
   const session = await requireAdmin();
@@ -15,7 +15,7 @@ export async function markFieldAction(formData: FormData): Promise<void> {
   const slug = String(formData.get('slug') ?? '');
   const key = String(formData.get('key') ?? '');
   const status = String(formData.get('status') ?? '');
-  if (status !== 'verified' && status !== 'flagged' && status !== 'unverified') return;
+  if (status !== 'ok' && status !== 'flagged' && status !== 'none') return;
 
   const result = await setFieldStatus({ slug, key, status, userId: session.user.id });
   if (!result.ok) console.error('[profile] mark refused:', result.message);

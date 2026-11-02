@@ -8,11 +8,10 @@ import type { BrowseFacets, DrugIndexRow } from '@/lib/drugs/browse';
 import { classLabel, isUncategorized } from '@/lib/drugs/drug-class';
 import { scheduleColor } from '@/lib/drugs/schedule';
 
-const VERIFICATION_LABELS = {
-  verified: 'Verified',
-  partial: 'Partly verified',
-  unverified: 'Unverified',
+const REVIEW_LABELS = {
   flagged: 'Flagged',
+  gaps: 'Has gaps',
+  ok: 'Complete',
 } as const;
 
 type Filters = {
@@ -21,7 +20,7 @@ type Filters = {
   indication: string;
   schedule: string;
   tag: string;
-  verification: string;
+  review: string;
   blank: string;
 };
 
@@ -31,7 +30,7 @@ const EMPTY: Filters = {
   indication: '',
   schedule: '',
   tag: '',
-  verification: '',
+  review: '',
   blank: '',
 };
 
@@ -41,7 +40,7 @@ const PARAM_NAMES: Record<keyof Filters, string> = {
   indication: 'indication',
   schedule: 'schedule',
   tag: 'tag',
-  verification: 'status',
+  review: 'review',
   blank: 'blank',
 };
 
@@ -66,7 +65,7 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
     indication: searchParams.get('indication') ?? '',
     schedule: searchParams.get('schedule') ?? '',
     tag: searchParams.get('tag') ?? '',
-    verification: searchParams.get('status') ?? '',
+    review: searchParams.get('review') ?? '',
     blank: searchParams.get('blank') ?? '',
   }));
 
@@ -116,7 +115,7 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
       if (filters.indication && !row.indications.some((text) => contains(text, filters.indication))) return false;
       if (filters.schedule && row.schedule !== filters.schedule) return false;
       if (filters.tag && !row.tags.includes(filters.tag)) return false;
-      if (filters.verification && row.verification !== filters.verification) return false;
+      if (filters.review && row.review !== filters.review) return false;
       if (filters.blank && !row.missing.includes(filters.blank)) return false;
       return true;
     });
@@ -129,18 +128,18 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
   // rather than looking broken when you pick it.
   const counts = useMemo(() => {
     const blank = new Map<string, number>();
-    const verification = new Map<string, number>();
+    const review = new Map<string, number>();
     const schedule = new Map<string, number>();
     const tag = new Map<string, number>();
     const bump = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
 
     for (const row of rows) {
       for (const key of row.missing) bump(blank, key);
-      bump(verification, row.verification);
+      bump(review, row.review);
       if (row.schedule) bump(schedule, row.schedule);
       for (const slug of row.tags) bump(tag, slug);
     }
-    return { blank, verification, schedule, tag };
+    return { blank, review, schedule, tag };
   }, [rows]);
 
   // A filter that cannot narrow anything is noise: options nothing matches are
@@ -149,22 +148,22 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
   // never stranded with no way to clear it.
   const options = useMemo(() => {
     const blank = facets.fields.filter((field) => (counts.blank.get(field.key) ?? 0) > 0);
-    const verification = Object.entries(VERIFICATION_LABELS).filter(
-      ([value]) => (counts.verification.get(value) ?? 0) > 0,
+    const review = Object.entries(REVIEW_LABELS).filter(
+      ([value]) => (counts.review.get(value) ?? 0) > 0,
     );
     const schedules = facets.schedules.filter((value) => (counts.schedule.get(value) ?? 0) > 0);
     const tags = facets.tags.filter((tag) => (counts.tag.get(tag.slug) ?? 0) > 0);
-    return { blank, verification, schedules, tags };
+    return { blank, review, schedules, tags };
   }, [facets, counts]);
 
   const show = {
     blank: options.blank.length > 0 || Boolean(filters.blank),
-    verification: options.verification.length > 1 || Boolean(filters.verification),
+    review: options.review.length > 1 || Boolean(filters.review),
     schedule: options.schedules.length > 1 || Boolean(filters.schedule),
     tag: options.tags.length > 1 || Boolean(filters.tag),
   };
 
-  const advancedKeys = ['drugClass', 'indication', 'schedule', 'tag', 'verification', 'blank'] as const;
+  const advancedKeys = ['drugClass', 'indication', 'schedule', 'tag', 'review', 'blank'] as const;
   const advancedCount = advancedKeys.filter((key) => filters[key]).length;
   const [showMore, setShowMore] = useState(advancedCount > 0);
 
@@ -262,21 +261,21 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
               </div>
             )}
 
-            {show.verification && (
+            {show.review && (
               <div>
-                <label htmlFor="status" className="block text-sm font-medium">Checked against a source</label>
-                <select id="status" value={filters.verification} onChange={(e) => set('verification', e.target.value)} className={control}>
+                <label htmlFor="review" className="block text-sm font-medium">Needs attention</label>
+                <select id="review" value={filters.review} onChange={(e) => set('review', e.target.value)} className={control}>
                   <option value="">Any</option>
-                  {options.verification.map(([value, label]) => (
+                  {options.review.map(([value, label]) => (
                     <option key={value} value={value}>
-                      {label} ({counts.verification.get(value) ?? 0})
+                      {label} ({counts.review.get(value) ?? 0})
                     </option>
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  The sheet is the starting point, not a checked source. A value counts as confirmed
-                  once an admin has compared it against Micromedex or lecture and pressed Mark
-                  verified on the drug page.
+                  Flagged means somebody thinks a value is wrong; gaps are fields nobody has filled
+                  in. Neither keeps a drug out of a deck — a flagged value is still studied, and a
+                  gap simply makes no card.
                 </p>
               </div>
             )}
@@ -338,7 +337,7 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
                       {row.schedule}
                     </span>
                   )}
-                  {row.verification === 'flagged' && (
+                  {row.review === 'flagged' && (
                     <span className="text-xs text-[var(--flagged)]">flagged</span>
                   )}
                   {row.needsReview && <span className="text-xs text-[var(--unverified)]">needs review</span>}

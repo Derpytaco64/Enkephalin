@@ -111,14 +111,14 @@ describe('syncDrugs', () => {
     );
   });
 
-  it('records an absent black box warning as not_applicable, not as a gap', async () => {
+  it('records an absent black box warning as "none", not as a gap', async () => {
     await syncDrugs(seed());
 
     const acetylcysteine = await drugBySlug('acetylcysteine');
-    expect(acetylcysteine.fields.bbw).toMatchObject({ value: null, status: 'not_applicable' });
+    expect(acetylcysteine.fields.bbw).toMatchObject({ value: null, status: 'none' });
 
     const alprazolam = await drugBySlug('alprazolam');
-    expect(alprazolam.fields.bbw).toMatchObject({ status: 'unverified' });
+    expect(alprazolam.fields.bbw).toMatchObject({ status: 'ok' });
     expect(alprazolam.schedule).toBe('CIV');
   });
 
@@ -146,7 +146,7 @@ describe('syncDrugs', () => {
       linksInserted: 0,
       tagsLinked: 0,
     });
-    expect(second.verifiedKept).toEqual([]);
+    expect(second.humanKept).toEqual([]);
   });
 
   it('leaves updatedAt alone on a run that changes nothing', async () => {
@@ -171,7 +171,7 @@ describe('syncDrugs', () => {
     expect((await drugBySlug('alprazolam')).updatedAt).toEqual(untouched);
   });
 
-  it('never clobbers a verified value, and says which it withheld', async () => {
+  it('never clobbers what a person wrote, and says which it withheld', async () => {
     await syncDrugs(seed());
 
     const row = await drugBySlug('tirzepatide');
@@ -180,34 +180,53 @@ describe('syncDrugs', () => {
       .set({
         fields: {
           ...row.fields,
-          moa: { ...row.fields.moa!, value: 'Checked against the label', status: 'verified' },
+          // updatedBy is what says a person wrote this, now that no status does.
+          moa: { ...row.fields.moa!, value: 'Rewritten in the editor', updatedBy: 'user-admin' },
         },
       })
       .where(eq(drugs.id, row.id));
 
     const report = await syncDrugs(seed());
-    expect(report.verifiedKept).toEqual(['tirzepatide.moa']);
+    expect(report.humanKept).toEqual(['tirzepatide.moa']);
     expect((await drugBySlug('tirzepatide')).fields.moa).toMatchObject({
-      value: 'Checked against the label',
-      status: 'verified',
+      value: 'Rewritten in the editor',
+      updatedBy: 'user-admin',
     });
   });
 
-  it('overwrites a verified value only when forced', async () => {
+  it('refreshes its own earlier value without being forced', async () => {
     await syncDrugs(seed());
     const row = await drugBySlug('tirzepatide');
     await db
       .update(drugs)
       .set({
-        fields: { ...row.fields, moa: { ...row.fields.moa!, value: 'Stale note', status: 'verified' } },
+        // No author: the importer wrote this, so the importer may correct it.
+        fields: { ...row.fields, moa: { ...row.fields.moa!, value: 'Stale note', updatedBy: null } },
+      })
+      .where(eq(drugs.id, row.id));
+
+    const report = await syncDrugs(seed());
+    expect(report.humanKept).toEqual([]);
+    expect((await drugBySlug('tirzepatide')).fields.moa).toMatchObject({
+      value: 'GIP and GLP-1 receptor agonist',
+      status: 'ok',
+    });
+  });
+
+  it('overwrites even a hand-written value when forced', async () => {
+    await syncDrugs(seed());
+    const row = await drugBySlug('tirzepatide');
+    await db
+      .update(drugs)
+      .set({
+        fields: { ...row.fields, moa: { ...row.fields.moa!, value: 'Stale note', updatedBy: 'user-admin' } },
       })
       .where(eq(drugs.id, row.id));
 
     const report = await syncDrugs(seed(), { force: true });
-    expect(report.verifiedKept).toEqual([]);
+    expect(report.humanKept).toEqual([]);
     expect((await drugBySlug('tirzepatide')).fields.moa).toMatchObject({
       value: 'GIP and GLP-1 receptor agonist',
-      status: 'unverified',
     });
   });
 

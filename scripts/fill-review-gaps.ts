@@ -222,7 +222,7 @@ async function applyRoutes() {
 
     const value: FieldValue = {
       value: fill.routes.join('\n'),
-      status: 'unverified',
+      status: 'ok',
       source: `${SOURCE} — ${fill.why}`,
       updatedAt: new Date().toISOString(),
       updatedBy: null,

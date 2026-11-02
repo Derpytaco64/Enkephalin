@@ -17,7 +17,12 @@ export type DrugIndexRow = {
   indications: string[];
   /** Field keys with no value and no "none" meaning: genuine gaps. */
   missing: string[];
-  verification: 'verified' | 'flagged' | 'partial' | 'unverified';
+  /**
+   * What a browse filter can usefully sort on now that nothing waits to be
+   * verified: `flagged` is a value someone doubts, `gaps` is a field nobody has
+   * filled in, and `ok` is neither.
+   */
+  review: 'flagged' | 'gaps' | 'ok';
   needsReview: boolean;
 };
 
@@ -71,15 +76,12 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
   }
 
   // Core fields live in their own columns, so only the stored ones can be
-  // missing or unverified.
+  // missing or flagged.
   const storedDefs = defs.filter((def) => !def.isCore);
 
   const rows: DrugIndexRow[] = drugRows.map((drug) => {
     const missing: string[] = [];
     let flagged = false;
-    let unverified = false;
-    let verified = 0;
-    let considered = 0;
 
     for (const def of storedDefs) {
       const value = drug.fields[def.key];
@@ -87,15 +89,9 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
 
       if (formatted.kind === 'missing') {
         missing.push(def.key);
-        unverified = true;
         continue;
       }
-      if (formatted.kind === 'none') continue;
-
-      considered += 1;
       if (value?.status === 'flagged') flagged = true;
-      else if (value?.status === 'verified') verified += 1;
-      else unverified = true;
     }
 
     return {
@@ -107,13 +103,9 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
       tags: tagsByDrug.get(drug.id) ?? [],
       indications: indicationsByDrug.get(drug.id) ?? [],
       missing,
-      verification: flagged
-        ? 'flagged'
-        : considered > 0 && verified === considered && !unverified
-          ? 'verified'
-          : verified > 0
-            ? 'partial'
-            : 'unverified',
+      // Flagged outranks a gap: a wrong answer in a deck costs more than a
+      // missing one, which simply produces no card.
+      review: flagged ? 'flagged' : missing.length > 0 ? 'gaps' : 'ok',
       needsReview: drug.needsClassReview || drug.needsPairingReview,
     };
   });

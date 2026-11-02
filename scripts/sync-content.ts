@@ -19,9 +19,9 @@ console.log(`indications:  ${report.indicationsInserted} new`);
 console.log(`brand links:  ${report.linksInserted} new`);
 console.log(`tagged:       ${report.tagsLinked}`);
 
-if (report.verifiedKept.length > 0) {
-  console.log(`\nkept ${report.verifiedKept.length} verified value(s) over the sheet (use --force to overwrite):`);
-  for (const key of report.verifiedKept) console.log(`  ${key}`);
+if (report.humanKept.length > 0) {
+  console.log(`\nkept ${report.humanKept.length} hand-written value(s) over the sheet (use --force to overwrite):`);
+  for (const key of report.humanKept) console.log(`  ${key}`);
 }
 
 if (report.mergedSlugs.length > 0) {

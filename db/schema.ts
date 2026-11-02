@@ -8,16 +8,6 @@ import type { Amount, Duration, Frequency, Site } from '../lib/dosing/model.ts';
 
 /* ---------------------------------------------------------------- enums -- */
 
-export const verificationStatus = pgEnum('verification_status', [
-  'unverified',
-  'verified',
-  'flagged',
-  // Blank is an answer, not a gap: 147 of 237 drugs have no black box warning
-  // and 213 are not controlled. Without this, the review queue fills with
-  // phantom work and flashcards ask for warnings that do not exist.
-  'not_applicable',
-]);
-
 export const fieldDataType = pgEnum('field_data_type', [
   'text', 'markdown', 'enum', 'list', 'number', 'bool',
 ]);
@@ -85,9 +75,29 @@ export const fieldDefs = pgTable('field_defs', {
 
 /* ------------------------------------------------------------- drugs ----- */
 
+/**
+ * A stored value and where it came from.
+ *
+ * `status` says what kind of thing the value is, not how much it is trusted.
+ * Everything in the database was put there by the importer, the admin, or a
+ * script written for it, so a value exists means a value counts -- there is no
+ * holding pen, and nothing is withheld from a deck for want of a signature.
+ *
+ * - `ok` -- recorded. Studied.
+ * - `flagged` -- someone thinks it is wrong. Still studied, because leaving it
+ *   out would quietly shrink the deck; the flag is a to-do, not a quarantine.
+ * - `none` -- there is nothing to record, and that is the answer. 147 of 237
+ *   drugs have no black box warning and 213 are not controlled; without this
+ *   those would read as gaps and flashcards would ask for warnings that do not
+ *   exist.
+ *
+ * `source` and `updatedBy` carry the provenance that `verified` used to imply,
+ * and better: who wrote it and what they read. `updatedBy` is also what the
+ * importer checks before touching a value -- see `lib/content/sync.ts`.
+ */
 export type FieldValue = {
   value: string | null;
-  status: 'unverified' | 'verified' | 'flagged' | 'not_applicable';
+  status: 'ok' | 'flagged' | 'none';
   source: string | null;
   updatedAt: string;
   updatedBy: string | null;
@@ -118,7 +128,8 @@ export const drugs = pgTable('drugs', {
   classSuggestion: text('class_suggestion'),
 
   // Set where competing brands meet multiple indications and the pairing has
-  // not been confirmed. Suppresses brand->indication card generation.
+  // not been confirmed. Shown on the profile as something to settle; it does
+  // not hold cards back, because a drug in the database is a drug to study.
   needsPairingReview: boolean('needs_pairing_review').notNull().default(false),
 
   sourcePage: integer('source_page'),
@@ -227,7 +238,6 @@ export const dosingRegimens = pgTable('dosing_regimens', {
   /** Stored and rendered, never compared: wording is not a fact. */
   qualifiers: text('qualifiers').array().$type<string[]>().notNull().default([]),
 
-  status: verificationStatus('status').notNull().default('unverified'),
   /** The parser could not fully read this one; a human should look. */
   needsReview: boolean('needs_review').notNull().default(false),
   reviewNotes: text('review_notes').array().$type<string[]>().notNull().default([]),

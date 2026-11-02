@@ -73,7 +73,7 @@ async function seedDrug() {
       fields: {
         dosing: {
           value: '0.25 mg by mouth three times a day',
-          status: 'unverified', source: 'class sheet', updatedAt: '', updatedBy: null,
+          status: 'ok', source: 'class sheet', updatedAt: '', updatedBy: null,
         },
       },
     })
@@ -100,9 +100,10 @@ describe('createDrug', () => {
     expect(drug.genericName).toBe('Amoxicillin/Clavulanate');
     expect(drug.schedule).toBeNull();
 
-    // Never attributed to the sheet: provenance is what "verified only" filters on.
+    // Never attributed to the sheet: source and author are the provenance, and
+    // updatedBy is what keeps a later import off it.
     expect(drug.fields.dosing.source).toBe('added by hand');
-    expect(drug.fields.dosing.status).toBe('unverified');
+    expect(drug.fields.dosing.status).toBe('ok');
     expect(drug.fields.dosing.updatedBy).toBe(ADMIN);
 
     const brands = await db
@@ -263,37 +264,48 @@ describe('setDrugTags', () => {
 });
 
 describe('setDrugField', () => {
-  it('drops a verified value back to unverified when the value changes', async () => {
+  it('records the editor as the author, which is what the importer checks', async () => {
+    const drugId = await seedDrug();
+
+    await setDrugField('alprazolam', await def('moa'), {
+      key: 'moa', value: 'GABA-A positive allosteric modulator', source: 'Micromedex', status: 'ok',
+    }, ADMIN);
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.id, drugId));
+    expect(drug.fields.moa.value).toBe('GABA-A positive allosteric modulator');
+    expect(drug.fields.moa.status).toBe('ok');
+    // updatedBy is what stops a later sheet import overwriting this.
+    expect(drug.fields.moa.updatedBy).toBe(ADMIN);
+  });
+
+  it('keeps an existing flag when the submission does not speak to it', async () => {
     const drugId = await seedDrug();
     await db.update(drugs).set({
       fields: {
         moa: {
-          value: 'GABA-A PAM', status: 'verified', source: 'Micromedex',
-          updatedAt: '2026-10-30', updatedBy: ADMIN,
+          value: 'Probably wrong', status: 'flagged', source: 'class sheet',
+          updatedAt: '2026-10-30', updatedBy: null,
         },
       },
     }).where(eq(drugs.id, drugId));
 
     await setDrugField('alprazolam', await def('moa'), {
-      key: 'moa', value: 'GABA-A positive allosteric modulator', source: 'Micromedex', status: '',
+      key: 'moa', value: 'Still being looked into', source: '', status: '',
     }, ADMIN);
 
     const [drug] = await db.select().from(drugs).where(eq(drugs.id, drugId));
-    // A verified marker is a claim about a value someone read. It cannot
-    // survive that value changing underneath it.
-    expect(drug.fields.moa.status).toBe('unverified');
-    expect(drug.fields.moa.value).toBe('GABA-A positive allosteric modulator');
-    expect(drug.fields.moa.updatedBy).toBe(ADMIN);
+    // Clearing the flag is a decision, so it takes saying so.
+    expect(drug.fields.moa.status).toBe('flagged');
   });
 
-  it('honours a verdict given in the same submission', async () => {
+  it('flags a value when the submission asks for it', async () => {
     const drugId = await seedDrug();
     await setDrugField('alprazolam', await def('moa'), {
-      key: 'moa', value: 'GABA-A PAM', source: 'lecture', status: 'verified',
+      key: 'moa', value: 'GABA-A PAM', source: 'lecture', status: 'flagged',
     }, ADMIN);
 
     const [drug] = await db.select().from(drugs).where(eq(drugs.id, drugId));
-    expect(drug.fields.moa.status).toBe('verified');
+    expect(drug.fields.moa.status).toBe('flagged');
     expect(drug.fields.moa.source).toBe('lecture');
   });
 
@@ -305,8 +317,9 @@ describe('setDrugField', () => {
 
     const [drug] = await db.select().from(drugs).where(eq(drugs.id, drugId));
     // No black box warning is an answer; an unfilled mechanism is not.
-    expect(drug.fields.bbw.status).toBe('not_applicable');
-    expect(drug.fields.moa.status).toBe('unverified');
+    expect(drug.fields.bbw.status).toBe('none');
+    expect(drug.fields.moa.status).toBe('ok');
+    expect(drug.fields.moa.value).toBeNull();
   });
 
   it('refuses a core field, which lives in its own column', async () => {
@@ -334,23 +347,20 @@ describe('setDrugField', () => {
 });
 
 describe('rebuildRegimens', () => {
-  it('keeps a verified row and flags it instead of re-parsing over it', async () => {
+  it('replaces the rows it finds, because the prose is the source', async () => {
     const drugId = await seedDrug();
     await db.insert(dosingRegimens).values({
       drugId,
       sourceText: '0.25 mg by mouth three times a day',
       frequency: { kind: 'per_day', times: 3, timesHigh: null },
-      status: 'verified',
     });
 
     const result = await rebuildRegimens(drugId, 'Alprazolam', '0.5 mg by mouth twice a day', ADMIN);
 
-    expect(result.status).toBe('kept_verified');
-    const [row] = await db.select().from(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
-    // A re-parse is a machine's reading; a verdict is a person's.
-    expect(row.sourceText).toBe('0.25 mg by mouth three times a day');
-    expect(row.needsReview).toBe(true);
-    expect(row.reviewNotes).toContain('dosing prose was edited after this row was verified');
+    expect(result).toEqual({ status: 'replaced', rows: 1 });
+    const rows = await db.select().from(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sourceText).toBe('0.5 mg by mouth twice a day');
   });
 
   it('still stores a row for prose it cannot read, so the dosing is not lost', async () => {

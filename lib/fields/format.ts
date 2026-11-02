@@ -30,9 +30,9 @@ export function formatFieldValue(def: FieldDef, value: FieldValue | undefined): 
   const raw = value?.value?.trim() ?? '';
 
   if (!raw) {
-    // An explicit not_applicable outranks the field's default, so one drug can
-    // be marked "none" on a field that is usually a gap.
-    if (value?.status === 'not_applicable' || def.blankMeansNone) return { kind: 'none' };
+    // An explicit "none" outranks the field's default, so one drug can be
+    // marked as having nothing to record on a field that is usually a gap.
+    if (value?.status === 'none' || def.blankMeansNone) return { kind: 'none' };
     return { kind: 'missing' };
   }
 

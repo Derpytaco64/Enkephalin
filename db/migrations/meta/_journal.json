@@ -15,6 +15,13 @@
       "when": 1793592264475,
       "tag": "0001_married_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793637879924,
+      "tag": "0002_equal_rick_jones",
+      "breakpoints": true
     }
   ]
 }
