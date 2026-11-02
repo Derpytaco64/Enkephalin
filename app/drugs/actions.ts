@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import {
   createDrug,
+  setDosingUnique,
   setDrugBrands,
   setDrugField,
   setDrugIndications,
@@ -47,6 +48,9 @@ export async function saveDrugAction(formData: FormData): Promise<Result<string>
   const note = (result: Result) => { if (!result.ok) problems.push(result.message); };
 
   note(await updateDrugIdentity(slug, identity(formData), actorId));
+  // Before the fields, so the dosing re-parse below sees the new answer to
+  // "is this sig meant to be decodable?".
+  note(await setDosingUnique(slug, formData.get('dosing_unique') !== null, actorId));
   note(await setDrugBrands(slug, text(formData, 'brands'), actorId));
   note(await setDrugIndications(slug, text(formData, 'indications'), actorId));
   note(await setDrugTags(slug, formData.getAll('tag').map(String), actorId));
@@ -80,6 +84,7 @@ export async function createDrugAction(formData: FormData): Promise<Result<strin
     brands: text(formData, 'brands'),
     indications: text(formData, 'indications'),
     dosing: text(formData, 'dosing'),
+    dosingUnique: formData.get('dosing_unique') !== null,
     tagSlugs: formData.getAll('tag').map(String),
   }, session.user.id);
 

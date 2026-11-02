@@ -268,6 +268,29 @@ export async function setDrugTags(slug: string, tagSlugs: string[], actorId: str
   return { ok: true };
 }
 
+/**
+ * Marks the dosing as a sig too involved to decode -- or unmarks it.
+ *
+ * This is a statement about the dosing, not about the parser: it says "stop
+ * asking, this is what it looks like". Flipping it re-reads the prose, because
+ * that is what decides whether the stored row is a to-do or a settled answer.
+ */
+export async function setDosingUnique(
+  slug: string,
+  unique: boolean,
+  actorId: string,
+): Promise<Result> {
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+  if (drug.dosingUnique === unique) return { ok: true };
+
+  await db.update(drugs).set({ dosingUnique: unique, updatedAt: new Date() }).where(eq(drugs.id, drug.id));
+  await audit({ actorId, action: 'drug.dosing_unique', drugId: drug.id, diff: { unique } });
+
+  await rebuildRegimens(drug.id, drug.genericName, drug.fields.dosing?.value ?? null, actorId, { unique });
+  return { ok: true };
+}
+
 /* -------------------------------------------------------------- fields --- */
 
 export type FieldInput = {
@@ -336,7 +359,9 @@ export async function setDrugField(
 
   // Dosing prose is the source of the structured regimens, so a prose edit has
   // to reach them or the sig a quiz compares against is the old wording's.
-  if (def.key === 'dosing') await rebuildRegimens(drug.id, drug.genericName, value, actorId);
+  if (def.key === 'dosing') {
+    await rebuildRegimens(drug.id, drug.genericName, value, actorId, { unique: drug.dosingUnique });
+  }
 
   return { ok: true };
 }
@@ -354,12 +379,18 @@ export async function setDrugField(
  *
  * Refused prose still gets a row, components empty, so the dosing is present
  * and askable rather than missing.
+ *
+ * `unique` is the human saying the sig is simply like that. The row is stored
+ * the same way either way -- what changes is whether it counts as review work,
+ * because "nobody has looked at this" and "somebody looked and this is the
+ * answer" are different states that otherwise look identical.
  */
 export async function rebuildRegimens(
   drugId: string,
   genericName: string,
   prose: string | null,
   actorId: string,
+  options: { unique?: boolean } = {},
 ): Promise<{ status: 'replaced' | 'cleared'; rows: number }> {
   await db.delete(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
 
@@ -390,14 +421,17 @@ export async function rebuildRegimens(
     duration: regimen.duration,
     ceiling: regimen.ceiling,
     qualifiers: regimen.qualifiers,
-    needsReview: result.status !== 'parsed',
-    reviewNotes: result.notes,
+    // Marked unique means settled: it is not waiting on anyone.
+    needsReview: options.unique ? false : result.status !== 'parsed',
+    reviewNotes: options.unique
+      ? ['Marked a unique sig: stored as written, and asked as free recall rather than multiple choice.']
+      : result.notes,
     source: 'drug editor',
   })));
 
   await audit({
     actorId, action: 'dosing.reparsed', drugId,
-    diff: { status: result.status, rows: regimens.length, notes: result.notes },
+    diff: { status: result.status, rows: regimens.length, unique: options.unique ?? false, notes: result.notes },
   });
   return { status: 'replaced', rows: regimens.length };
 }
@@ -408,6 +442,7 @@ export type NewDrugInput = IdentityInput & {
   brands: string;
   indications: string;
   dosing: string;
+  dosingUnique: boolean;
   tagSlugs: string[];
 };
 
@@ -433,6 +468,7 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
         drugClass: input.drugClass.trim() || null,
         schedule: readSchedule(input.schedule),
         scheduleNote: input.scheduleNote.trim() || null,
+        dosingUnique: input.dosingUnique,
       })
       .returning({ id: drugs.id });
     drugId = created.id;
@@ -472,7 +508,7 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
         },
       },
     }).where(eq(drugs.id, drugId));
-    await rebuildRegimens(drugId, generic, dosing, actorId);
+    await rebuildRegimens(drugId, generic, dosing, actorId, { unique: input.dosingUnique });
   }
 
   if (input.tagSlugs.length > 0) {

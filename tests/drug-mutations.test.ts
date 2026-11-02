@@ -19,6 +19,7 @@ import {
   brandFamily,
   createDrug,
   rebuildRegimens,
+  setDosingUnique,
   setDrugBrands,
   setDrugField,
   setDrugIndications,
@@ -91,6 +92,7 @@ describe('createDrug', () => {
       brands: 'Augmentin\nAugmentin XR',
       indications: 'Bacterial infection',
       dosing: '500 mg by mouth every 8 hours',
+      dosingUnique: false,
       tagSlugs: ['top-drugs-2026'],
     }, ADMIN);
 
@@ -122,7 +124,7 @@ describe('createDrug', () => {
     await seedDrug();
     const result = await createDrug({
       genericName: 'Alprazolam', drugClass: '', schedule: '', scheduleNote: '',
-      brands: '', indications: '', dosing: '', tagSlugs: [],
+      brands: '', indications: '', dosing: '', dosingUnique: false, tagSlugs: [],
     }, ADMIN);
 
     // Two drugs a slug apart is how the sheet's sildenafil duplicate happened;
@@ -133,13 +135,13 @@ describe('createDrug', () => {
   it('needs a name to make an address from', async () => {
     const blank = await createDrug({
       genericName: '  ', drugClass: '', schedule: '', scheduleNote: '',
-      brands: '', indications: '', dosing: '', tagSlugs: [],
+      brands: '', indications: '', dosing: '', dosingUnique: false, tagSlugs: [],
     }, ADMIN);
     expect(blank).toEqual({ ok: false, message: 'A drug needs a generic name.' });
 
     const punctuation = await createDrug({
       genericName: '???', drugClass: '', schedule: '', scheduleNote: '',
-      brands: '', indications: '', dosing: '', tagSlugs: [],
+      brands: '', indications: '', dosing: '', dosingUnique: false, tagSlugs: [],
     }, ADMIN);
     expect(punctuation.ok).toBe(false);
   });
@@ -343,6 +345,64 @@ describe('setDrugField', () => {
     expect(regimens).toHaveLength(1);
     expect(regimens[0].sourceText).toBe('0.5 mg by mouth twice a day');
     expect(regimens[0].frequency).toEqual({ kind: 'per_day', times: 2, timesHigh: null });
+  });
+});
+
+describe('setDosingUnique', () => {
+  it('settles a refused dosing instead of leaving it as review work', async () => {
+    const drugId = await seedDrug();
+    const prose = '300 mg/kg total dose administered as a 21-hour IV infusion regimen consisting of 3 doses';
+    await setDrugField('alprazolam', await def('dosing'), {
+      key: 'dosing', value: prose, source: 'class sheet', status: '',
+    }, ADMIN);
+
+    // The parser cannot read it, so it lands as review work.
+    const [before] = await db.select().from(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+    expect(before.needsReview).toBe(true);
+    expect(before.amounts).toEqual([]);
+
+    expect(await setDosingUnique('alprazolam', true, ADMIN)).toEqual({ ok: true });
+
+    const [after] = await db.select().from(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+    // Same prose, still askable -- but nobody is waiting on it any more.
+    expect(after.sourceText).toBe(prose);
+    expect(after.needsReview).toBe(false);
+    expect(after.reviewNotes.join(' ')).toContain('Marked a unique sig');
+    expect((await db.select().from(drugs).where(eq(drugs.id, drugId)))[0].dosingUnique).toBe(true);
+  });
+
+  it('puts the dosing back under review when the mark is taken off', async () => {
+    const drugId = await seedDrug();
+    await setDrugField('alprazolam', await def('dosing'), {
+      key: 'dosing', value: 'Dose per protocol', source: '', status: '',
+    }, ADMIN);
+    await setDosingUnique('alprazolam', true, ADMIN);
+
+    await setDosingUnique('alprazolam', false, ADMIN);
+
+    const [row] = await db.select().from(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+    expect(row.needsReview).toBe(true);
+    expect(row.reviewNotes.join(' ')).not.toContain('Marked a unique sig');
+  });
+
+  it('keeps the mark through a later edit of the prose', async () => {
+    const drugId = await seedDrug();
+    await setDosingUnique('alprazolam', true, ADMIN);
+
+    await setDrugField('alprazolam', await def('dosing'), {
+      key: 'dosing', value: 'Load 150 mg/kg, then 50 mg/kg over 4 hours', source: '', status: '',
+    }, ADMIN);
+
+    const rows = await db.select().from(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+    // Editing the wording of a sig you already called complicated does not
+    // make it simple, so it must not quietly become review work again.
+    expect(rows.every((row) => !row.needsReview)).toBe(true);
+  });
+
+  it('does nothing and reports fine when the mark is already where it should be', async () => {
+    await seedDrug();
+    expect(await setDosingUnique('alprazolam', false, ADMIN)).toEqual({ ok: true });
+    expect(await db.select().from(auditLog)).toEqual([]);
   });
 });
 

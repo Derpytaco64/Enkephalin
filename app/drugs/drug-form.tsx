@@ -46,12 +46,23 @@ const PARSE_BORDERS: Record<string, string> = {
   refused: 'var(--flagged)',
 };
 
-function FieldRow({ field, generic }: { field: EditableField; generic: string }) {
+function FieldRow({
+  field,
+  generic,
+  dosingUnique,
+}: {
+  field: EditableField;
+  generic: string;
+  dosingUnique: boolean;
+}) {
   const { def, value } = field;
   const [text, setText] = useState(value?.value ?? '');
+  const [unique, setUnique] = useState(dosingUnique);
   const multiline = def.dataType === 'markdown' || def.dataType === 'list';
-  // The same parse the preview shows and the save will store.
-  const parse = def.key === 'dosing' && text.trim()
+  // The same parse the preview shows and the save will store. Suppressed once
+  // the sig is marked unique: the colour is feedback for prose that is *meant*
+  // to decode, and nagging about prose nobody expects to decode is noise.
+  const parse = def.key === 'dosing' && text.trim() && !unique
     ? parseDosing(text, activesOf(generic))
     : null;
 
@@ -97,7 +108,28 @@ function FieldRow({ field, generic }: { field: EditableField; generic: string })
           what the parser makes of it belongs next to the box you type it in --
           not discovered on a re-run after the wording is already saved. */}
       {def.key === 'dosing' && (
-        <DosingPreview prose={text} generic={generic} id={`parse_${def.key}`} />
+        <>
+          <label className="mt-2 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox" name="dosing_unique" checked={unique}
+              onChange={(event) => setUnique(event.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              Unique or complicated sig
+              <span className="block text-xs text-[var(--muted)]">
+                Tick this when the dosing is simply like that — a staged infusion, a taper, a
+                protocol. The wording is kept and still asked as free recall; it stops being
+                review work, and multiple choice leaves it alone rather than inventing options
+                for it.
+              </span>
+            </span>
+          </label>
+
+          {!unique && (
+            <DosingPreview prose={text} generic={generic} id={`parse_${def.key}`} />
+          )}
+        </>
       )}
 
       <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -147,6 +179,7 @@ export function DrugForm({
     drugClass: string | null;
     schedule: string | null;
     scheduleNote: string | null;
+    dosingUnique: boolean;
   };
   brands: string[];
   indications: string[];
@@ -165,6 +198,7 @@ export function DrugForm({
   // the actives in this name: typing "amoxicillin/clavulanate" has to reach
   // the preview before the drug is saved.
   const [generic, setGeneric] = useState(drug?.genericName ?? '');
+  const dosingUnique = drug?.dosingUnique ?? false;
 
   const byKind = new Map<string, AssignableTag[]>();
   for (const tag of allTags) {
@@ -294,7 +328,9 @@ export function DrugForm({
         <section className="space-y-3">
           <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">Fields</h2>
           {fields.map((field) => (
-            <FieldRow key={field.def.key} field={field} generic={generic} />
+            <FieldRow
+              key={field.def.key} field={field} generic={generic} dosingUnique={dosingUnique}
+            />
           ))}
         </section>
       )}
@@ -332,6 +368,7 @@ export function DrugForm({
 /** The one field a new drug can carry straight away, preview included. */
 function DosingOnCreate({ generic }: { generic: string }) {
   const [prose, setProse] = useState('');
+  const [unique, setUnique] = useState(false);
 
   return (
     <>
@@ -340,7 +377,16 @@ function DosingOnCreate({ generic }: { generic: string }) {
         onChange={(event) => setProse(event.target.value)}
         placeholder="10 mg by mouth once daily" className={control}
       />
-      <DosingPreview prose={prose} generic={generic} />
+
+      <label className="mt-2 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox" name="dosing_unique" checked={unique}
+          onChange={(event) => setUnique(event.target.checked)}
+        />
+        Unique or complicated sig
+      </label>
+
+      {!unique && <DosingPreview prose={prose} generic={generic} />}
       <p className={hint}>Everything else is on the edit screen, which opens next.</p>
     </>
   );

@@ -87,6 +87,8 @@ export type BackupDrug = {
   classCandidates: string[];
   classSuggestion: string | null;
   needsPairingReview: boolean;
+  /** Absent in files written before this flag existed, which means false. */
+  dosingUnique?: boolean;
   sourcePage: number | null;
   indications: string[];
   brands: BackupBrand[];
@@ -223,6 +225,7 @@ export async function exportBackup(): Promise<Backup> {
     classCandidates: drug.classCandidates,
     classSuggestion: drug.classSuggestion,
     needsPairingReview: drug.needsPairingReview,
+    dosingUnique: drug.dosingUnique,
     sourcePage: drug.sourcePage,
     indications: (indicationsByDrug.get(drug.id) ?? []).map((row) => row.text),
     brands: (brandsByDrug.get(drug.id) ?? []).map((brand) => ({
@@ -509,6 +512,7 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
       classCandidates: drug.classCandidates,
       classSuggestion: drug.classSuggestion,
       needsPairingReview: drug.needsPairingReview,
+      dosingUnique: drug.dosingUnique ?? false,
       sourcePage: drug.sourcePage,
       updatedAt: new Date(),
     };

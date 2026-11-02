@@ -127,6 +127,18 @@ export const drugs = pgTable('drugs', {
   classCandidates: jsonb('class_candidates').$type<string[]>().notNull().default([]),
   classSuggestion: text('class_suggestion'),
 
+  /**
+   * The dosing is deliberately prose-only: a sig too involved to decode, and
+   * marked so by a person rather than failed by the parser.
+   *
+   * The two look identical in the database -- one regimen row carrying the
+   * prose and no components -- and mean opposite things. Without this, every
+   * complicated sig sits in the review queue forever, and "the parser could not
+   * read this" never gets to be answered with "no, it is just like that".
+   * Acetylcysteine's three-stage 21-hour infusion is the case.
+   */
+  dosingUnique: boolean('dosing_unique').notNull().default(false),
+
   // Set where competing brands meet multiple indications and the pairing has
   // not been confirmed. Shown on the profile as something to settle; it does
   // not hold cards back, because a drug in the database is a drug to study.

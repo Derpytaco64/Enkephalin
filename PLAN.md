@@ -771,14 +771,21 @@ Rules that follow:
    import. Since verification was removed, the prose is simply the source and a re-parse replaces
    these rows.
 
-   **The regimen editor is still owed** (2026-11-02): "the entire drug profile should be editable"
-   covers these rows, and today only the prose is editable -- the components are whatever the
-   parser made of it. What it needs: the steps of one regimen as rows you can add, label and
-   reorder (acetylcysteine is the case -- *300 mg/kg over 21 hours as 3 doses, first over 1 hour,
-   second over 4, third over 16* is one regimen in three steps, and the parser refuses it whole),
-   and a `pinned` flag per row so a hand-built regimen survives a re-parse. The dosing box's
-   rejection colour is the entry point: red means the prose alone cannot carry this, so build the
-   steps by hand.
+   **A complicated sig is marked, not rebuilt** (2026-11-02). The regimen editor was considered for
+   this and rejected as the wrong shape of answer: a staged infusion does not need its components
+   entered by hand, it needs someone to say *this is simply what the sig looks like*. So
+   `drugs.dosing_unique` is a checkbox on the dosing field, and ticking it keeps the prose, keeps
+   the card, and clears `needs_review` -- because "nobody has looked at this" and "somebody looked
+   and this is the answer" are different states that otherwise look identical in the database.
+   Acetylcysteine's 21-hour three-stage infusion is the case, and is ticked.
+
+   The dosing box's border colour therefore means only what it says: feedback while typing prose
+   that is *meant* to decode. Ticking the box turns it off, since nagging about wording nobody
+   expects to parse is noise. Multiple choice still leaves a component-less row alone -- it cannot
+   prove a wrong option is not also right -- so a unique sig is asked as free recall.
+
+   A hand-built multi-step regimen editor (and the `pinned` flag that would protect it from a
+   re-parse) stays unbuilt and, for now, unwanted.
 
 **Why a table rather than another field.** Dosing is not one value per drug. The real data needs
 multiplicity four ways, and only rows give it: alternative regimens (9 drugs — *10 mg daily OR 70 mg
@@ -895,7 +902,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Remaining: **lookup panel**, the dosing *regimen* editor (multi-step load/maintenance, and the pin flag that goes with it), drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 | 9 | Content elaboration in batches against the real sheet |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change

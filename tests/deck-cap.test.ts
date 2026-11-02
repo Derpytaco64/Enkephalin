@@ -70,9 +70,12 @@ describe('max cards per session', () => {
         .map((row) => row.slug),
     );
 
-    // And over a handful of draws the whole deck shows up.
+    // And over enough draws the whole deck shows up. Forty, not a dozen: each
+    // draw misses a given drug two times in three, so twelve draws leave a
+    // ~20% chance of missing at least one and the test would fail on its own
+    // randomness rather than on a bug.
     const seen = new Set<string>();
-    for (let run = 0; run < 12; run += 1) {
+    for (let run = 0; run < 40; run += 1) {
       const deck = await loadDeck(USER, config({ maxCards: 10 }));
       for (const card of deck.cards) seen.add(card.slug);
     }

@@ -71,6 +71,7 @@ export default async function EditDrugPage({
           drugClass: drug.drugClass,
           schedule: drug.schedule,
           scheduleNote: drug.scheduleNote,
+          dosingUnique: drug.dosingUnique,
         }}
         brands={brands.map((brand) => brand.name)}
         indications={indications}

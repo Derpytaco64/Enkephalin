@@ -1,0 +1,1 @@
+ALTER TABLE "drugs" ADD COLUMN "dosing_unique" boolean DEFAULT false NOT NULL;
