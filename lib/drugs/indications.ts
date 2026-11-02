@@ -36,11 +36,23 @@
  * Plural wins where the sheet disagrees with itself, which is the owner's call.
  * BPH is not a plural question: the expansion wins there because it teaches
  * what the abbreviation stands for.
+ *
+ * The second group is the sheet being wrong rather than inconsistent, which is
+ * the same kind of fix and belongs in the same place. Two are the PDF breaking
+ * a word across a line and the extractor keeping the break; one is a
+ * misspelling the sheet itself made. None of them is a judgement about what a
+ * phrase means -- that is still refused, and still belongs to the merge screen.
  */
 const ALIASES: Record<string, string> = {
   'Bacterial infection': 'Bacterial infections',
   Seizure: 'Seizures',
   BPH: 'Benign prostatic hypertrophy (BPH)',
+
+  // Broken across a line in the source PDF, p6 and p19.
+  'Keratoconjuncti vitis sicca (Dry eye syndrome)': 'Keratoconjunctivitis sicca (Dry eye syndrome)',
+  'Ophthalmic anti- inflammatory': 'Ophthalmic anti-inflammatory',
+  // The sheet's own spelling, p12. Pruritus is the word.
+  Pruritis: 'Pruritus',
 };
 
 /** The wording an indication is filed under, which may be another row's. */
@@ -59,6 +71,66 @@ export function indicationSlug(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+}
+
+/**
+ * The closest existing wording to a new one, if it is close enough to be a
+ * slip rather than a different indication.
+ *
+ * Matching by slug catches the near-duplicates that matter and misses nothing:
+ * two is a generous distance on a phrase, so "Dyslipidimia" finds
+ * "Dyslipidemia" and "Pruritis" finds "Pruritus", while "Chronic pain" stays
+ * four away from "Pain" and "Rhinitis" nine from "Allergic rhinitis" -- two
+ * genuinely different indications in each case.
+ *
+ * This only ever *warns*. Folding automatically is the one thing it must not
+ * do: nothing here can tell a typo from an indication the vocabulary has not
+ * met yet, and a silent fold would quietly file a drug under the wrong
+ * condition, which is worse than the untidiness it tidied. The decision stays
+ * with the person typing, who is the only one who knows which they meant.
+ */
+export function nearestIndication(
+  text: string,
+  labels: string[],
+): { label: string; distance: number } | null {
+  const slug = indicationSlug(text);
+  // Below five characters an edit of two is most of the word, so everything
+  // looks like everything.
+  if (slug.length < 5) return null;
+
+  let best: { label: string; distance: number } | null = null;
+  for (const label of labels) {
+    const other = indicationSlug(label);
+    if (other === slug) return null; // not new at all
+    // Lengths this far apart cannot be within the budget, and the check is
+    // free next to the matrix.
+    if (Math.abs(other.length - slug.length) > 2) continue;
+
+    const distance = editDistance(slug, other);
+    if (distance <= 2 && (best === null || distance < best.distance)) {
+      best = { label, distance };
+    }
+  }
+  return best;
+}
+
+/** Levenshtein, one row at a time: the strings are short and there are ~92. */
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    previous = current;
+  }
+
+  return previous[b.length];
 }
 
 export type IndicationOption = { slug: string; label: string; count: number };

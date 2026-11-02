@@ -1139,6 +1139,26 @@ reachable one-handed; browse table degrades to cards.
 
 **Queued by the owner, 2026-11-02** — in their words, to be worked after the quiz modes:
 
+- **done — 2026-11-02.** ~~Three wordings the sheet got wrong, left sitting in the data~~. Asked
+  why an obvious error would not simply be fixed, which was the right question: a repair bench had
+  just been built and nobody had yet *read the 92 words with it*. Two were the source PDF breaking
+  a word across a line with the extractor keeping the break —
+  `Keratoconjuncti vitis sicca` (p6) and `Ophthalmic anti- inflammatory` (p19) — and one was the
+  sheet's own misspelling, `Pruritis` for pruritus (p12). All three went into the alias table in
+  `lib/drugs/indications.ts` rather than being renamed in the database, because the sheet still
+  says the wrong thing and a rename alone would let the next `npm run seed` file the sheet's
+  spelling as a second row; migration 0006 corrected the rows already stored. Re-seeded to
+  confirm: 0 new wordings.
+
+  The editor now also warns when a new wording is **within two edits of one that exists** —
+  "Dyslipidimia" is a character from "Dyslipidemia", which 10 drugs have. It only ever warns:
+  nothing can tell a typo from an indication the vocabulary has not met, and a silent fold would
+  file a drug under the wrong condition, which is worse than the untidiness. Note what this does
+  *not* catch, and did not catch here — all three of these were one-off wordings with no
+  near-neighbour to be near. That class needs a person reading the list, which the admin screen
+  now makes a half-minute job.
+
+
 - **done — 2026-11-02.** ~~A quiz finishes and the page breaks~~: `finishQuizAction` called
   `revalidatePath('/study/quiz')`, and that page is `force-dynamic` with a randomised draw. So
   finishing re-rendered the route, handed the runner a **different quiz**, and graded the answers

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalIndication, indicationOptions, indicationSlug } from '@/lib/drugs/indications';
+import {
+  canonicalIndication, indicationOptions, indicationSlug, nearestIndication,
+} from '@/lib/drugs/indications';
 
 describe('indicationSlug', () => {
   it('folds the sheet wording the sheet wrote twice', () => {
@@ -31,6 +33,66 @@ describe('indicationSlug', () => {
     expect(canonicalIndication('BPH')).toBe('Benign prostatic hypertrophy (BPH)');
     // Anything with one spelling is left exactly as it is.
     expect(canonicalIndication('Hypertension')).toBe('Hypertension');
+  });
+});
+
+describe('the wordings the sheet got wrong', () => {
+  it('corrects the two the source PDF broke across a line', () => {
+    // The extractor kept the PDF's mid-word line break. Nothing about this is
+    // a judgement, so it belongs in the alias table with the plurals.
+    expect(canonicalIndication('Keratoconjuncti vitis sicca (Dry eye syndrome)'))
+      .toBe('Keratoconjunctivitis sicca (Dry eye syndrome)');
+    expect(canonicalIndication('Ophthalmic anti- inflammatory')).toBe('Ophthalmic anti-inflammatory');
+  });
+
+  it('corrects the one the sheet itself misspelled', () => {
+    expect(canonicalIndication('Pruritis')).toBe('Pruritus');
+  });
+
+  it('keeps them corrected through a re-import, which is the point', () => {
+    // The sheet still says "Pruritis". The table is what stops a re-import
+    // putting it back beside the corrected row.
+    expect(indicationSlug('Pruritis')).toBe(indicationSlug('Pruritus'));
+  });
+});
+
+describe('nearestIndication', () => {
+  const known = [
+    'Dyslipidemia', 'Pruritus', 'Pain', 'Chronic pain', 'Rhinitis', 'Allergic rhinitis',
+    'Panic disorder', 'Seizures',
+  ];
+
+  it('spots a slip of a character or two', () => {
+    expect(nearestIndication('Dyslipidimia', known)?.label).toBe('Dyslipidemia');
+    expect(nearestIndication('Pruritas', known)?.label).toBe('Pruritus');
+    expect(nearestIndication('Panic disorderr', known)?.label).toBe('Panic disorder');
+  });
+
+  it('says nothing about a wording that already exists', () => {
+    // Nothing to warn about: it is not new. The alias table counts here too,
+    // so the three the sheet got wrong resolve rather than warn -- "Pruritis"
+    // *is* "Pruritus" now, and only a slip nobody has catalogued needs saying.
+    expect(nearestIndication('Dyslipidemia', known)).toBeNull();
+    expect(nearestIndication('Seizure', known)).toBeNull();
+    expect(nearestIndication('Pruritis', known)).toBeNull();
+  });
+
+  it('leaves genuinely different indications alone', () => {
+    // These are the pairs the alias table deliberately refuses to fold, and a
+    // warning that cried typo at them would teach people to ignore it.
+    expect(nearestIndication('Chronic pain', known)).toBeNull();
+    expect(nearestIndication('Allergic rhinitis', known)).toBeNull();
+    expect(nearestIndication('Gout', known)).toBeNull();
+  });
+
+  it('stays quiet on wording too short to compare', () => {
+    expect(nearestIndication('ADHD', ['ADHS'])).toBeNull();
+  });
+
+  it('picks the closest when several are near', () => {
+    const match = nearestIndication('Pruritos', ['Pruritus', 'Pruritas', 'Pain']);
+    expect(match?.label).toBe('Pruritus');
+    expect(match?.distance).toBe(1);
   });
 });
 

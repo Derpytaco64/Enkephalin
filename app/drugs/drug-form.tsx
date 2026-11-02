@@ -3,7 +3,7 @@
 import { useActionState, useState } from 'react';
 import type { FieldValue } from '@/db/schema';
 import { activesOf, parseDosing } from '@/lib/dosing/parse';
-import { indicationSlug } from '@/lib/drugs/indications';
+import { indicationSlug, nearestIndication } from '@/lib/drugs/indications';
 import type { Result } from '@/lib/drugs/mutations';
 import type { FieldDef } from '@/lib/fields/registry';
 import { DosingPreview } from './dosing-preview';
@@ -72,7 +72,7 @@ function IndicationsField({
 
   const bySlug = new Map(known.map((label) => [indicationSlug(label), label]));
   const joining: string[] = [];
-  const creating: string[] = [];
+  const creating: { text: string; near: string | null }[] = [];
   const seen = new Set<string>();
 
   for (const line of text.split(NEWLINE)) {
@@ -81,8 +81,13 @@ function IndicationsField({
     seen.add(slug);
 
     const match = bySlug.get(slug);
-    if (match) joining.push(match);
-    else creating.push(line.trim());
+    if (match) {
+      joining.push(match);
+      continue;
+    }
+    // A new wording within a couple of edits of one we have is nearly always a
+    // slip -- and used to be indistinguishable from a deliberate addition.
+    creating.push({ text: line.trim(), near: nearestIndication(line, known)?.label ?? null });
   }
 
   return (
@@ -100,11 +105,19 @@ function IndicationsField({
 
       {joining.length > 0 && <p className={hint}>Joining: {joining.join(' · ')}</p>}
       {creating.length > 0 && (
-        <p className="mt-1 text-xs" style={{ color: 'var(--unverified)' }}>
-          New to the list, so saving adds {creating.length === 1 ? 'it' : 'them'}:{' '}
-          {creating.join(' · ')}. Right if this really is a new indication &mdash; a typo if
-          not, and fixable under Admin &rarr; Indications.
-        </p>
+        <div className="mt-1 text-xs" style={{ color: 'var(--unverified)' }}>
+          <p>
+            New to the list, so saving adds {creating.length === 1 ? 'it' : 'them'}:{' '}
+            {creating.map((entry) => entry.text).join(' · ')}. Right if this really is a new
+            indication &mdash; a typo if not, and fixable under Admin &rarr; Indications.
+          </p>
+          {creating.filter((entry) => entry.near).map((entry) => (
+            <p key={entry.text} className="mt-1">
+              &ldquo;{entry.text}&rdquo; is a character or two from
+              &ldquo;{entry.near}&rdquo;, which already exists. Did you mean that one?
+            </p>
+          ))}
+        </div>
       )}
     </div>
   );
