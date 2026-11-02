@@ -91,9 +91,32 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     : 'random';
   const quizzable = defs.filter((def) => def.isQuizzable && def.key !== 'generic');
   const started = config.fields.length > 0;
-  const paper = started ? await loadQuiz(config, direction) : { questions: [], available: 0 };
+  const paper = started
+    ? await loadQuiz(config, direction)
+    : { id: 'none', questions: [], available: 0 };
 
   const labelFor = (key: string) => defs.find((def) => def.key === key)?.label ?? key;
+
+  // What is being asked, in words, so it can be read without opening anything.
+  const summary = started
+    ? [
+      `${paper.questions.length} question${paper.questions.length === 1 ? '' : 's'}`
+        + (paper.available > paper.questions.length ? ` of ${paper.available}` : ''),
+      direction === 'random'
+        ? 'mixed directions'
+        : direction === 'drug_to_fields' ? 'drug → fact' : 'fact → drug',
+      config.fields.map(labelFor).join(', '),
+      ...(config.scope.tags.length > 0
+        ? [listRows.find((tag) => tag.slug === config.scope.tags[0])?.label ?? config.scope.tags[0]]
+        : []),
+      ...(config.scope.categories.length > 0
+        ? [`${config.scope.categories.length} categor${config.scope.categories.length === 1 ? 'y' : 'ies'}`]
+        : []),
+      ...(config.scope.indications.length > 0
+        ? [`${config.scope.indications.length} indication${config.scope.indications.length === 1 ? '' : 's'}`]
+        : []),
+    ]
+    : [];
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
 
   return (
@@ -105,17 +128,22 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         </Link>
       </div>
 
-      <details open={paper.questions.length === 0} className="mt-6 rounded border border-[var(--border)]">
+      {/* Once a quiz is running the settings are a read-only line. Changing
+          one mid-quiz cannot do what it looks like it does -- it redraws the
+          questions, so it would throw away the quiz in hand -- and opening the
+          form says so rather than leaving the controls sitting there live. */}
+      {started && (
+        <p className="mt-6 text-sm text-[var(--muted)]">
+          {summary.join(' · ')}
+        </p>
+      )}
+
+      <details open={!started} className="mt-3 rounded border border-[var(--border)]">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
-          Paper settings
+          {started ? 'Change these and start a new quiz' : 'Quiz settings'}
           {started && (
             <span className="ml-2 font-normal text-[var(--muted)]">
-              {paper.questions.length} question{paper.questions.length === 1 ? '' : 's'}
-              {paper.available > paper.questions.length && ` of ${paper.available}`}
-              {' · '}
-              {direction === 'random'
-                ? 'mixed directions'
-                : direction === 'drug_to_fields' ? 'drug → fact' : 'fact → drug'}
+              the one running now is left behind
             </span>
           )}
         </summary>
@@ -205,6 +233,9 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
       {started ? (
         <QuizRunner
+          // A fresh id per render, so re-submitting the same filters starts a
+          // genuinely new paper rather than redisplaying the last one.
+          key={paper.id}
           questions={paper.questions}
           config={config}
           available={paper.available}
@@ -212,7 +243,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         />
       ) : (
         <p className="mt-8 text-[var(--muted)]">
-          Pick a year or some fields to sit a paper. Four options a question: the answer, one near
+          Pick a year or some fields to sit a quiz. Four options a question: the answer, one near
           miss from the same class, and two from further afield.
         </p>
       )}
@@ -220,7 +251,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       {history.length > 0 && (
         <section className="mt-12 border-t border-[var(--border)] pt-6">
           <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
-            Recent papers
+            Previous quizzes
           </h2>
           <ul className="mt-3 space-y-2 text-sm">
             {history.map((attempt) => (

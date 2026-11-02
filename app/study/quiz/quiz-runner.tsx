@@ -9,6 +9,60 @@ import type { FinishState } from './actions';
 type Answer = { chosenIndex: number | null };
 
 /**
+ * What the answer you gave was actually right about.
+ *
+ * Marked wrong is the least useful thing a quiz can tell you. The option you
+ * picked was true of *something* -- it is drawn from a real drug, usually one
+ * in the same class, which is exactly why it was tempting -- so naming that is
+ * where the distinction gets learned.
+ *
+ * Which half is missing depends on the direction. Shown a drug and picking the
+ * wrong fact, the fact belongs to another drug, so name the drug. Shown a fact
+ * and picking the wrong drug, that drug has its own value for the field, so
+ * name the value.
+ */
+function Mismatch({
+  question,
+  chosenIndex,
+}: {
+  question: QuizQuestion;
+  chosenIndex: number;
+}) {
+  const chosen = question.options[chosenIndex];
+  const owner = question.fromGeneric[chosenIndex];
+  const fact = question.fromFact[chosenIndex];
+  if (!owner) return null;
+
+  if (fact) {
+    // Options were drug names: say what that drug is actually for.
+    return (
+      <>
+        <span className="text-[var(--muted)]">
+          {question.fieldLabel} of {owner}:{' '}
+        </span>
+        {fact}
+      </>
+    );
+  }
+
+  // Options were facts: say whose fact it is.
+  return (
+    <>
+      <span className="text-[var(--muted)]">&ldquo;{chosen}&rdquo; is the </span>
+      {question.fieldLabel.toLowerCase()}
+      <span className="text-[var(--muted)]"> of </span>
+      <a
+        href={`/drugs/${question.fromSlug[chosenIndex]}`} target="_blank" rel="noreferrer"
+        className="text-[var(--accent)] underline"
+      >
+        {owner} &#8599;
+      </a>
+      <span className="text-[var(--muted)]">.</span>
+    </>
+  );
+}
+
+/**
  * One question at a time, graded as you go.
  *
  * Feedback is immediate because this is studying, not an exam: being told at
@@ -18,7 +72,7 @@ type Answer = { chosenIndex: number | null };
  * review at the end shows what you actually answered.
  */
 export function QuizRunner({
-  questions,
+  questions: served,
   config,
   available,
   onFinish,
@@ -32,6 +86,13 @@ export function QuizRunner({
     answers: { questionId: string; chosenIndex: number | null }[];
   }) => Promise<FinishState>;
 }) {
+  // The paper is taken once and never retaken from props. A server re-render
+  // of this route draws a different random paper, and grading the answers to
+  // one paper against the questions of another is exactly what happened: 0 of
+  // 83, with a "what you missed" list of questions nobody was asked. The page
+  // keys this component on a fresh paper id, so starting one really does start
+  // one; anything else leaves the paper in hand alone.
+  const [questions] = useState(served);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [finished, setFinished] = useState(false);
@@ -119,7 +180,7 @@ export function QuizRunner({
                 : saved.message}
           </p>
           <Link href="/study/quiz" className="mt-4 inline-block text-sm text-[var(--accent)] underline">
-            Another paper
+            Another quiz
           </Link>
         </div>
 
@@ -135,21 +196,28 @@ export function QuizRunner({
                   <li key={row.id} className="rounded border border-[var(--border)] p-4">
                     <p className="whitespace-pre-line text-sm">{row.prompt}</p>
                     <p className="mt-2 text-sm">
-                      <span className="text-[var(--muted)]">Right: </span>
+                      <span className="text-[var(--muted)]">Correct: </span>
                       {row.options[row.correctIndex]}
                     </p>
-                    {chosen !== undefined && chosen !== null && (
-                      <p className="text-sm">
-                        <span className="text-[var(--muted)]">You said: </span>
-                        {row.options[chosen]}
-                      </p>
+                    {chosen !== undefined && chosen !== null ? (
+                      <>
+                        <p className="text-sm">
+                          <span className="text-[var(--muted)]">Your answer: </span>
+                          {row.options[chosen]}
+                        </p>
+                        <p className="mt-2 text-sm text-[var(--muted)]">
+                          <Mismatch question={row} chosenIndex={chosen} />
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-[var(--muted)]">Not answered.</p>
                     )}
-                    <Link
-                      href={`/drugs/${row.slug}`}
+                    <a
+                      href={`/drugs/${row.slug}`} target="_blank" rel="noreferrer"
                       className="mt-2 inline-block text-xs text-[var(--accent)] underline"
                     >
-                      {row.generic}
-                    </Link>
+                      {row.generic} &#8599;
+                    </a>
                   </li>
                 );
               })}
@@ -197,16 +265,27 @@ export function QuizRunner({
                   <span className="text-xs text-[var(--muted)]">{optionIndex + 1}</span>
                   <span className="whitespace-pre-line">{option}</span>
                   {answered && isCorrect && (
-                    <span className="ml-auto shrink-0 text-xs text-[var(--verified)]">right</span>
+                    <span className="ml-auto shrink-0 text-xs text-[var(--verified)]">Correct</span>
                   )}
                   {answered && isChosen && !isCorrect && (
-                    <span className="ml-auto shrink-0 text-xs text-[var(--flagged)]">you said this</span>
+                    <span className="ml-auto shrink-0 text-xs text-[var(--flagged)]">Your answer</span>
                   )}
                 </button>
               </li>
             );
           })}
         </ul>
+
+        {/* A wrong answer is only worth having if you are told what it *was*
+            right about: the drug whose mechanism you picked, or the mechanism
+            the drug you picked actually has. Knowing it was wrong teaches
+            nothing; knowing what it belonged to is the distinction. */}
+        {answered && answer?.chosenIndex !== null && answer?.chosenIndex !== undefined
+          && answer.chosenIndex !== question.correctIndex && (
+          <p className="mt-4 rounded border border-[var(--border)] p-3 text-sm">
+            <Mismatch question={question} chosenIndex={answer.chosenIndex} />
+          </p>
+        )}
 
         {answered && (
           <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -217,9 +296,14 @@ export function QuizRunner({
             >
               {index + 1 < questions.length ? 'Next' : 'Finish'}
             </button>
-            <Link href={`/drugs/${question.slug}`} className="text-sm text-[var(--accent)] underline">
-              {question.generic}
-            </Link>
+            {/* A new tab on purpose: looking a drug up mid-paper must not
+                navigate away from the paper, which would lose it. */}
+            <a
+              href={`/drugs/${question.slug}`} target="_blank" rel="noreferrer"
+              className="text-sm text-[var(--accent)] underline"
+            >
+              {question.generic} &#8599;
+            </a>
             {question.acceptable.length > 1 && (
               <span className="text-xs text-[var(--muted)]">
                 Also right: {question.acceptable.filter((text) => text !== question.options[question.correctIndex]).join(', ')}

@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { normalizeConfig, type StudyConfig } from '@/lib/study/config';
 import type { QuizQuestion } from '@/lib/study/quiz';
 import { recordAttempt, type SubmittedAnswer } from '@/lib/study/quiz-session';
@@ -25,7 +24,7 @@ export async function finishQuizAction(input: {
   const session = await requireUser();
 
   if (!Array.isArray(input.questions) || input.questions.length === 0) {
-    return { ok: false, message: 'That paper had no questions in it.' };
+    return { ok: false, message: 'That quiz had no questions in it.' };
   }
 
   const result = await recordAttempt({
@@ -35,6 +34,11 @@ export async function finishQuizAction(input: {
     answers: input.answers,
   });
 
-  revalidatePath('/study/quiz');
+  // Deliberately no revalidatePath. This page is force-dynamic and draws its
+  // questions at random, so revalidating it re-renders a *different* paper
+  // underneath a runner still holding the answers to the one just sat: the
+  // score read 0 of 83, and "what you missed" listed questions nobody was
+  // asked. Recent papers picks the attempt up on the next navigation, which is
+  // what the "Another quiz" link is.
   return { ok: true, score: result.score, total: result.total };
 }

@@ -64,6 +64,18 @@ describe('loadQuiz', () => {
     expect(paper.questions).toHaveLength(2);
     expect(paper.available).toBe(4);
   });
+
+  it('gives each draw its own id, so a re-render cannot pass for the same quiz', async () => {
+    // The runner is keyed on this. Two loads of the same filters are two
+    // different quizzes -- the questions are drawn at random -- and conflating
+    // them is what scored a finished quiz 0 of 83 against questions nobody was
+    // asked.
+    const one = await loadQuiz(config);
+    const two = await loadQuiz(config);
+
+    expect(one.id).not.toBe(two.id);
+    expect(one.id).toBeTruthy();
+  });
 });
 
 describe('recordAttempt', () => {

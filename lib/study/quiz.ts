@@ -46,6 +46,16 @@ export type QuizQuestion = {
   acceptable: string[];
   /** Which drug each option came from, for the review screen. */
   fromSlug: (string | null)[];
+  /** That drug's name, so a wrong answer can be told what it belongs to. */
+  fromGeneric: (string | null)[];
+  /**
+   * What the option *is* right about, where the option text does not already
+   * say. Asked the other way round -- options are drug names -- a wrong answer
+   * is only instructive if you are told the fact it would have matched, so
+   * this carries that drug's own value for the field. Null when the option
+   * text is itself the fact.
+   */
+  fromFact: (string | null)[];
 };
 
 /** The drug's own name is the stimulus or the answer, never a thing asked about. */
@@ -127,6 +137,28 @@ export type QuizOptions = {
   direction?: QuizDirection;
 };
 
+/**
+ * Whether this drug can be *asked about* on this field, as against merely
+ * having a value for it.
+ *
+ * Only the controlled schedule needs the distinction, and it needs it badly.
+ * 213 of the 236 drugs are not controlled, and "not controlled" is a perfectly
+ * good fact -- it is just not a question. Asked drug-to-fact it floods a quiz
+ * with a hundred questions whose answer is the same word, which teaches
+ * nothing about what CII means and buries the 23 that do; asked fact-to-drug it
+ * is incoherent, since 213 drugs are equally right. So a schedule question is
+ * asked only of a scheduled drug, and its options are therefore other
+ * schedules -- which is the question anyone meant by it.
+ *
+ * Nothing changes about what is stored or what a profile shows: "not
+ * controlled" is still recorded, and flashcards still state it. This is about
+ * what multiple choice can sensibly ask.
+ */
+function askable(def: FieldDef, source: CardSource): boolean {
+  if (def.key === 'controlled') return Boolean(source.schedule);
+  return true;
+}
+
 export function buildQuiz(
   sources: CardSource[],
   defs: FieldDef[],
@@ -154,6 +186,7 @@ export function buildQuiz(
     // Everyone with something to say about this field, scope or not: this is
     // the distractor pool, and it is deliberately the whole database.
     const candidates: Candidate[] = sources.flatMap((source) => {
+      if (!askable(def, source)) return [];
       const atoms = atomsOf(def, source.values[def.key]);
       if (atoms === null) return [];
       return [{ source, atoms, keys: atoms.map((text) => answerKey(def, source, text)) }];
@@ -177,6 +210,9 @@ export function buildQuiz(
   return questions;
 }
 
+/** An option, with enough about where it came from to explain itself. */
+type Distractor = { text: string; slug: string; generic: string; atoms: string[] };
+
 /**
  * Takes distractors one class-mate first, then anyone -- which is the whole
  * shape of the question. `exclude` is matched on the option text, so the same
@@ -192,10 +228,10 @@ function drawDistractors(input: {
   offersOf: (candidate: Candidate) => { text: string; key: string }[];
   count: number;
   rng: () => number;
-}): { text: string; slug: string }[] {
+}): Distractor[] {
   const { asked, candidates, exclude, offersOf, count, rng } = input;
   const taken = new Set(exclude);
-  const drawn: { text: string; slug: string }[] = [];
+  const drawn: Distractor[] = [];
 
   const offers = (candidate: Candidate) =>
     offersOf(candidate).filter((option) => !taken.has(option.key));
@@ -219,7 +255,12 @@ function drawDistractors(input: {
       const choice = pick(offers(candidate), rng);
       if (choice === undefined) continue;
       taken.add(choice.key);
-      drawn.push({ text: choice.text, slug: candidate.source.slug });
+      drawn.push({
+        text: choice.text,
+        slug: candidate.source.slug,
+        generic: candidate.source.generic,
+        atoms: candidate.atoms,
+      });
       return true;
     }
     return false;
@@ -266,7 +307,10 @@ function factQuestion(
   if (distractors.length === 0) return null;
 
   const laid = shuffled(
-    [{ text: correct, slug: asked.slug }, ...distractors],
+    [
+      { text: correct, slug: asked.slug, generic: asked.generic, atoms: candidate.atoms },
+      ...distractors,
+    ],
     rng,
   );
 
@@ -286,6 +330,9 @@ function factQuestion(
     correctIndex: laid.findIndex((option) => option.text === correct),
     acceptable,
     fromSlug: laid.map((option) => option.slug),
+    fromGeneric: laid.map((option) => option.generic),
+    // The option already reads as the fact, so there is nothing to add.
+    fromFact: laid.map(() => null),
   };
 }
 
@@ -321,7 +368,13 @@ function nameQuestion(
   });
   if (distractors.length === 0) return null;
 
-  const laid = shuffled([{ text: asked.generic, slug: asked.slug }, ...distractors], rng);
+  const laid = shuffled(
+    [
+      { text: asked.generic, slug: asked.slug, generic: asked.generic, atoms: candidate.atoms },
+      ...distractors,
+    ],
+    rng,
+  );
 
   const asking = def.key === 'brand' ? 'Which generic is this a brand of?' : 'Which drug?';
 
@@ -339,6 +392,10 @@ function nameQuestion(
     correctIndex: laid.findIndex((option) => option.text === asked.generic),
     acceptable,
     fromSlug: laid.map((option) => option.slug),
+    fromGeneric: laid.map((option) => option.generic),
+    // Pick the wrong drug and this is the answer you were actually describing,
+    // which is the thing worth being told.
+    fromFact: laid.map((option) => option.atoms.join(', ') || null),
   };
 }
 

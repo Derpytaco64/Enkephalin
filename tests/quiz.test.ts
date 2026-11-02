@@ -322,6 +322,83 @@ describe('buildQuiz', () => {
   });
 });
 
+describe('the controlled schedule', () => {
+  /** Two scheduled drugs among five, which is roughly the real ratio. */
+  function scheduled(): CardSource[] {
+    const uncontrolled = (slug: string, generic: string) =>
+      source({
+        slug, generic,
+        values: { controlled: value({ value: null, status: 'none' }) },
+      });
+
+    return [
+      source({
+        slug: 'alprazolam', generic: 'Alprazolam', schedule: 'CIV',
+        values: { controlled: value({ value: 'CIV' }) },
+      }),
+      source({
+        slug: 'oxycodone', generic: 'Oxycodone', schedule: 'CII',
+        values: { controlled: value({ value: 'CII' }) },
+      }),
+      uncontrolled('lisinopril', 'Lisinopril'),
+      uncontrolled('metformin', 'Metformin'),
+      uncontrolled('atorvastatin', 'Atorvastatin'),
+    ];
+  }
+
+  it('is asked only of drugs that have one', () => {
+    const questions = buildQuiz(scheduled(), defs, config({ fields: ['controlled'] }));
+
+    // Three of the five are simply not controlled. That is a fact and a
+    // flashcard; as multiple choice it is a hundred questions with one answer.
+    expect(questions.map((question) => question.slug).sort()).toEqual(['alprazolam', 'oxycodone']);
+  });
+
+  it('never offers "Not controlled" as an option', () => {
+    const questions = buildQuiz(scheduled(), defs, config({ fields: ['controlled'] }));
+
+    for (const question of questions) {
+      expect(question.options).not.toContain('Not controlled');
+    }
+  });
+});
+
+describe('what a wrong answer was right about', () => {
+  it('names the drug whose fact you picked', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }), {
+      direction: 'drug_to_fields',
+    });
+    const question = questions[0];
+    const wrong = question.options.findIndex((_, at) => at !== question.correctIndex);
+
+    // The option text is already the fact, so what is missing is whose it is.
+    expect(question.fromGeneric[wrong]).toBeTruthy();
+    expect(question.fromGeneric[wrong]).not.toBe(question.generic);
+    expect(question.fromFact[wrong]).toBeNull();
+  });
+
+  it('names the fact the drug you picked actually has', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }), {
+      direction: 'fields_to_drug',
+    });
+    const question = questions[0];
+    const wrong = question.options.findIndex((_, at) => at !== question.correctIndex);
+
+    // The option text is a drug name, so what is missing is its own value --
+    // pick Lisinopril for a statin clue and you are owed "ACE inhibition".
+    expect(question.fromGeneric[wrong]).toBe(question.options[wrong]);
+    expect(question.fromFact[wrong]).toBeTruthy();
+  });
+
+  it('keeps one entry per option, in the order they are shown', () => {
+    for (const question of buildQuiz(pool(), defs, config({ fields: ['moa', 'dosing'] }))) {
+      expect(question.fromGeneric).toHaveLength(question.options.length);
+      expect(question.fromFact).toHaveLength(question.options.length);
+      expect(question.fromSlug).toHaveLength(question.options.length);
+    }
+  });
+});
+
 describe('capQuiz', () => {
   it('caps at random rather than from the front', () => {
     const questions = buildQuiz(pool(), defs, config({ fields: ['moa', 'dosing'] }));

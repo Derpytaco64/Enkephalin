@@ -1139,26 +1139,38 @@ reachable one-handed; browse table degrades to cards.
 
 **Queued by the owner, 2026-11-02** — in their words, to be worked after the quiz modes:
 
-- **A quiz finishes and the page breaks.** Saving reported `0 of 83` and `0%` while the attempt
-  itself landed correctly in *Recent papers*, and the "what you missed" list named questions that
-  were never asked. Two separate faults in one screen, so: find why the finish action's score is
-  zero when the row it writes is not, and why the misses come from a different set of questions.
-  **Fix this first** — it is a live bug on a path the owner uses, not a refinement.
-- **Per-drug and per-fact quiz modes**, matching the flashcards' `inclusive` / `exclusive`. In
-  progress next; `buildQuiz` currently always asks one field per question and ignores `mode`.
-- **Controlled-schedule questions should only be asked of scheduled drugs.** 213 of the 236 are
-  not controlled, so the deck fills with a hundred questions whose answer is "no control" and the
-  actual schedules get lost in them. The field stays recorded as `none` for the rest -- this is
-  about what gets *asked*, not what is stored.
-- **A drug profile, reachable mid-session.** Clicking a drug during a quiz or a flashcard run
-  should open its profile without ending the run: a new tab, or a panel over the session.
-- **Say "Correct" and "Your answer"** on a marked question, instead of the current wording. And
-  when the answer chosen is wrong, show what it *would* have been right for -- the distractor's own
-  drug or fact -- because that is the thing that teaches the distinction.
-- **Quiz settings get out of the way once a paper starts**: hidden, or shown compact and
-  uneditable. Editing them mid-run is not a thing anyone wants.
-- **"Paper" is the wrong word.** *Paper settings* and *Recent papers* become *Quiz settings* and
-  *Previous quizzes*.
+- **done — 2026-11-02.** ~~A quiz finishes and the page breaks~~: `finishQuizAction` called
+  `revalidatePath('/study/quiz')`, and that page is `force-dynamic` with a randomised draw. So
+  finishing re-rendered the route, handed the runner a **different quiz**, and graded the answers
+  just given against questions nobody was asked — `0 of 83`, `0%`, and a "what you missed" list
+  from the new draw. The attempt row itself was always correct, which is why it looked like two
+  bugs. The revalidate is gone (recent quizzes pick the row up on the next navigation, which is
+  what the "Another quiz" link is), the runner now takes its questions once and never retakes them
+  from props, and each draw carries its own `id` that keys the runner — so starting a quiz starts
+  one and nothing else can swap it.
+- **Per-drug and per-fact quiz modes**, matching the flashcards' `inclusive` / `exclusive`. Next;
+  `buildQuiz` currently always asks one field per question and ignores `mode`.
+- **done — 2026-11-02.** ~~Controlled-schedule questions should only be asked of scheduled
+  drugs~~: 212 of the 236 are not, so the quiz filled with questions whose answer was the same
+  word and the 24 real schedules drowned in them — and asked the other way round, *"Not
+  controlled — which drug?"* has 212 right answers. `askable()` in `lib/study/quiz.ts` now gates
+  it, so the field is asked only of a scheduled drug and the options are therefore other
+  schedules. 236 questions became 24. Nothing changed about what is stored: "not controlled" is
+  still recorded and still stated on a flashcard.
+- **done — 2026-11-02.** ~~A drug profile, reachable mid-session~~: both runners open it in a new
+  tab. A session is in-memory, so navigating there and back would lose the quiz or restart the
+  block.
+- **done — 2026-11-02.** ~~Say "Correct" and "Your answer"~~, and on a wrong answer say what it
+  *was* right about. Which half is missing depends on the direction: shown a drug and picking the
+  wrong fact, the fact belongs to another drug, so name the drug; shown a fact and picking the
+  wrong drug, name that drug's own value for the field. `QuizQuestion` carries `fromGeneric` and
+  `fromFact` per option for it. Marked wrong teaches nothing on its own — the distractor was
+  drawn from a real drug, usually a class-mate, which is exactly why it was tempting.
+- **done — 2026-11-02.** ~~Quiz settings get out of the way once a quiz starts~~: a one-line
+  read-only summary, with the form behind *"Change these and start a new quiz"* — which is honest
+  about what changing one does, since it redraws the questions.
+- **done — 2026-11-02.** ~~"Paper" is the wrong word~~: *Quiz settings*, *Previous quizzes*,
+  *Another quiz*.
 - **A sig glossary on the drug editing screen**, next to the dosing box: what the codes mean, so
   the notation is readable without leaving the form.
 

@@ -157,10 +157,12 @@ export function SessionRunner({
         </div>
       )}
 
+      {/* A new tab on purpose: a session is in-memory, so navigating to the
+          profile and back would start the block over. */}
       <p className="mt-6 text-xs text-[var(--muted)]">
-        <Link href={`/drugs/${card.slug}`} className="underline">
-          Open {card.generic}
-        </Link>
+        <a href={`/drugs/${card.slug}`} target="_blank" rel="noreferrer" className="underline">
+          Open {card.generic} &#8599;
+        </a>
       </p>
     </div>
   );

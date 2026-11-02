@@ -15,6 +15,12 @@ import type { StudyConfig } from './config';
 import { buildQuiz, capQuiz, type QuizDirection, type QuizQuestion } from './quiz';
 
 export type QuizPaper = {
+  /**
+   * This draw, not these filters. The runner is keyed on it, so a re-render
+   * cannot swap the questions out from under a paper being sat, and
+   * re-submitting the same filters still starts a new one.
+   */
+  id: string;
   questions: QuizQuestion[];
   /** Everything the scope could have asked, before the cap. */
   available: number;
@@ -26,7 +32,11 @@ export async function loadQuiz(
 ): Promise<QuizPaper> {
   const [sources, defs] = await Promise.all([loadCardSources(), listFieldDefs()]);
   const all = buildQuiz(sources, defs, config, { direction });
-  return { questions: capQuiz(all, config.maxCards), available: all.length };
+  return {
+    id: crypto.randomUUID(),
+    questions: capQuiz(all, config.maxCards),
+    available: all.length,
+  };
 }
 
 export type SubmittedAnswer = {
