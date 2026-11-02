@@ -225,6 +225,11 @@ Transcription of the note:
   strict component-level distractor check is therefore not built, and the structured components
   are not what makes the quiz safe -- the two string guards above are.
 
+  The question count starts at everything the current filters can ask -- 236 on mechanism alone,
+  472 on mechanism plus dosing, 4 on the statins -- rather than at an arbitrary twenty, for the same
+  reason the flashcard cap does: the control should show what is there, and lowering it should be an
+  obvious move rather than a discovered feature.
+
   Feedback is immediate, because this is studying: being told at the end that question 9 of 40 was
   wrong teaches less than being told while the drug is still in your head. The paper is fixed when
   the page renders, and the whole attempt is written once at the finish -- `quiz_answers` stores

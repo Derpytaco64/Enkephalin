@@ -40,7 +40,9 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     mode: 'exclusive',
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
     blockSize: 0,
-    maxCards: search.max === undefined ? 20 : Number(search.max),
+    // 0 is no cap, which is what an untouched control means: the paper is
+    // everything the filters can ask.
+    maxCards: search.max === undefined ? 0 : Number(search.max),
     scope: {
       ...DEFAULT_CONFIG.scope,
       dueOnly: false,
@@ -134,13 +136,19 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
             <div>
               <label htmlFor="max" className="block text-sm font-medium">Questions</label>
+              {/* Shows everything the current filters can ask, so an untouched
+                  control means the whole paper rather than an arbitrary 20.
+                  Lower it and that many are drawn at random. */}
               <input
-                id="max" name="max" type="number" min={1} defaultValue={config.maxCards} className={control}
+                id="max" name="max" type="number" min={1}
+                defaultValue={config.maxCards > 0 ? config.maxCards : paper.available || ''}
+                placeholder="All of them"
+                className={control}
               />
               <p className="mt-1 text-xs text-[var(--muted)]">
                 {started
-                  ? `${paper.available} could be asked; these are picked at random.`
-                  : 'Picked at random from everything in scope.'}
+                  ? `${paper.available} can be asked with these filters. Lower it and that many are picked at random.`
+                  : 'Starts at everything the filters can ask. Lower it and that many are picked at random.'}
               </p>
             </div>
 
