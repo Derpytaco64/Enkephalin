@@ -18,7 +18,7 @@ export const metadata = { title: 'Quiz — Enkephalin' };
 export const dynamic = 'force-dynamic';
 
 type Search = {
-  year?: string; max?: string; dir?: string; tag?: string;
+  year?: string; max?: string; dir?: string; tag?: string; set?: string;
   /** Repeated once per ticked box, so these arrive as arrays. */
   fields?: string | string[];
   cat?: string | string[];
@@ -39,7 +39,9 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     sessionMode: 'cram',
     yearLevel: year,
     fields,
-    mode: 'exclusive',
+    // Per fact by default: a question per field is what most of a quiz should
+    // be. Per drug bundles the whole selection into one question instead.
+    mode: search.set === 'inclusive' ? 'inclusive' : 'exclusive',
     // The stored config keeps a concrete direction; `random` lives beside it
     // as a paper setting, because a schedule cannot key a card on a coin toss.
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
@@ -95,13 +97,19 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     ? await loadQuiz(config, direction)
     : { id: 'none', questions: [], available: 0 };
 
-  const labelFor = (key: string) => defs.find((def) => def.key === key)?.label ?? key;
+  // A per-drug question's fieldKey is the whole selection joined, so history
+  // reads back as "Mechanism of action, Dosing" rather than "moa+dosing".
+  const labelFor = (key: string) => key
+    .split('+')
+    .map((part) => defs.find((def) => def.key === part)?.label ?? part)
+    .join(', ');
 
   // What is being asked, in words, so it can be read without opening anything.
   const summary = started
     ? [
       `${paper.questions.length} question${paper.questions.length === 1 ? '' : 's'}`
         + (paper.available > paper.questions.length ? ` of ${paper.available}` : ''),
+      config.mode === 'inclusive' ? 'per drug' : 'per fact',
       direction === 'random'
         ? 'mixed directions'
         : direction === 'drug_to_fields' ? 'drug → fact' : 'fact → drug',
@@ -156,6 +164,19 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               year={config.yearLevel ?? ''}
               control={control}
             />
+
+            <div>
+              <label htmlFor="set" className="block text-sm font-medium">Question shape</label>
+              <select id="set" name="set" defaultValue={config.mode} className={control}>
+                <option value="exclusive">One question per fact</option>
+                <option value="inclusive">One question per drug</option>
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Per fact asks each field on its own. Per drug puts every selected field in one
+                question, so the options are whole profiles and the ask is which of four drugs
+                this is — fewer questions, more evidence in each.
+              </p>
+            </div>
 
             <div>
               <label htmlFor="dir" className="block text-sm font-medium">Direction</label>

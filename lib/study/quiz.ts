@@ -61,6 +61,9 @@ export type QuizQuestion = {
 /** The drug's own name is the stimulus or the answer, never a thing asked about. */
 const IDENTITY_FIELD = 'generic';
 
+/** The line break inside a bundled option, spelled so no tool can eat it. */
+const NEWLINE = String.fromCharCode(10);
+
 /**
  * The atomic answers a field offers, or null where there is nothing to ask.
  *
@@ -102,6 +105,14 @@ function answerKey(def: FieldDef, source: CardSource, text: string): string {
 }
 
 type Candidate = { source: CardSource; atoms: string[]; keys: string[] };
+
+/**
+ * What a question is *about*: one field, or -- in per-drug mode -- the whole
+ * selection at once. The two builders below only ever needed this much of a
+ * `FieldDef`, and taking it this way is what lets a bundle of fields be asked
+ * by exactly the same code as a single one.
+ */
+type Asking = { key: string; label: string; promptTemplate: string | null };
 
 /** Fisher-Yates over a copy, with the rng injectable so tests are decidable. */
 function shuffled<T>(items: T[], rng: () => number): T[] {
@@ -159,6 +170,41 @@ function askable(def: FieldDef, source: CardSource): boolean {
   return true;
 }
 
+/**
+ * One drug's answer to the whole selection at once, as one option.
+ *
+ * This is per-drug mode: rather than four mechanisms, the options are four
+ * *profiles*, and the question is which of them is this drug's. It asks a
+ * different thing from the per-fact version -- not "what is atorvastatin's
+ * mechanism" but "which of these four drugs is atorvastatin", with four facts'
+ * worth of evidence -- and that is the recall an exam actually wants.
+ *
+ * A drug needs a value for every selected field to be in it. A bundle missing
+ * one of them is not merely incomplete, it is a tell: the option with three
+ * lines where the others have four is visibly the odd one out.
+ */
+function bundleOf(
+  defs: FieldDef[],
+  source: CardSource,
+  rng: () => number,
+): { text: string; key: string } | null {
+  const lines: string[] = [];
+  const keys: string[] = [];
+
+  for (const def of defs) {
+    const atoms = atomsOf(def, source.values[def.key]);
+    if (atoms === null) return null;
+
+    // One of them, as the per-fact question does: a drug with six indications
+    // would otherwise make an option nobody reads.
+    const at = Math.floor(rng() * atoms.length);
+    lines.push(`${def.label}: ${atoms[at]}`);
+    keys.push(answerKey(def, source, atoms[at]));
+  }
+
+  return { text: lines.join(NEWLINE), key: keys.join(' | ') };
+}
+
 export function buildQuiz(
   sources: CardSource[],
   defs: FieldDef[],
@@ -182,6 +228,43 @@ export function buildQuiz(
   );
   const questions: QuizQuestion[] = [];
 
+  /** Both modes end the same way: one builder or the other, per drug. */
+  const ask = (about: Asking, candidates: Candidate[]) => {
+    for (const candidate of candidates.filter((row) => asked.has(row.source.drugId))) {
+      // Decided per question, so one quiz holds both kinds rather than the
+      // whole quiz landing on one side of a coin toss.
+      const asksForTheDrug = direction === 'random'
+        ? rng() < 0.5
+        : direction === 'fields_to_drug';
+
+      const built = asksForTheDrug
+        ? nameQuestion(about, candidate, candidates, optionCount, rng)
+        : factQuestion(about, candidate, candidates, optionCount, rng);
+      if (built) questions.push(built);
+    }
+  };
+
+  if (config.mode === 'inclusive') {
+    // One question per drug, not per field. `askable` is deliberately not
+    // consulted: "not controlled" is no question on its own, but it is a
+    // perfectly good line of a profile, and the question here is which profile
+    // belongs to which drug.
+    const about: Asking = {
+      key: selected.map((def) => def.key).join('+'),
+      label: selected.map((def) => def.label).join(', '),
+      // A field's own wording asks about that field; a bundle is not that.
+      promptTemplate: null,
+    };
+
+    const candidates: Candidate[] = sources.flatMap((source) => {
+      const bundle = bundleOf(selected, source, rng);
+      return bundle === null ? [] : [{ source, atoms: [bundle.text], keys: [bundle.key] }];
+    });
+
+    ask(about, candidates);
+    return questions;
+  }
+
   for (const def of selected) {
     // Everyone with something to say about this field, scope or not: this is
     // the distractor pool, and it is deliberately the whole database.
@@ -193,18 +276,7 @@ export function buildQuiz(
     });
     if (candidates.length === 0) continue;
 
-    for (const candidate of candidates.filter((row) => asked.has(row.source.drugId))) {
-      // Decided per question, so one paper holds both kinds rather than the
-      // whole paper landing on one side of a coin toss.
-      const asksForTheDrug = direction === 'random'
-        ? rng() < 0.5
-        : direction === 'fields_to_drug';
-
-      const built = asksForTheDrug
-        ? nameQuestion(def, candidate, candidates, optionCount, rng)
-        : factQuestion(def, candidate, candidates, optionCount, rng);
-      if (built) questions.push(built);
-    }
+    ask(def, candidates);
   }
 
   return questions;
@@ -279,7 +351,7 @@ function drawDistractors(input: {
 
 /** "What is the mechanism of action of Alprazolam?" -- options are facts. */
 function factQuestion(
-  def: FieldDef,
+  def: Asking,
   candidate: Candidate,
   candidates: Candidate[],
   optionCount: number,
@@ -338,7 +410,7 @@ function factQuestion(
 
 /** "Which drug has this mechanism?" -- options are drug names. */
 function nameQuestion(
-  def: FieldDef,
+  def: Asking,
   candidate: Candidate,
   candidates: Candidate[],
   optionCount: number,

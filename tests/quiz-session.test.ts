@@ -44,7 +44,16 @@ beforeEach(async () => {
   ]);
 });
 
-const config = { ...DEFAULT_CONFIG, fields: ['moa'], maxCards: 0, scope: { ...DEFAULT_CONFIG.scope, dueOnly: false } };
+// Per fact, as the quiz page sends it: `DEFAULT_CONFIG` is per-drug because
+// that is right for a flashcard deck, and the two modes ask different
+// questions -- per drug bundles every selected field into one.
+const config = {
+  ...DEFAULT_CONFIG,
+  fields: ['moa'],
+  mode: 'exclusive' as const,
+  maxCards: 0,
+  scope: { ...DEFAULT_CONFIG.scope, dueOnly: false },
+};
 
 describe('loadQuiz', () => {
   it('builds a paper from the database and says what it drew from', async () => {

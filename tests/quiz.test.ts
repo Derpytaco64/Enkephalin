@@ -35,9 +35,16 @@ function source(partial: Partial<CardSource> & { slug: string; generic: string }
   };
 }
 
+/**
+ * Per-fact by default, which is what the quiz page sends. `DEFAULT_CONFIG` is
+ * per-drug because that is right for a flashcard deck -- one card per drug
+ * rather than thousands per fact -- and the two modes ask different questions,
+ * so a test has to say which one it means.
+ */
 const config = (partial: Partial<StudyConfig> = {}): StudyConfig => ({
   ...DEFAULT_CONFIG,
   fields: ['moa'],
+  mode: 'exclusive',
   ...partial,
 });
 
@@ -319,6 +326,91 @@ describe('buildQuiz', () => {
 
     expect(questions).toHaveLength(12);
     expect(new Set(questions.map((question) => question.fieldKey))).toEqual(new Set(['moa', 'dosing']));
+  });
+});
+
+describe('per-drug mode', () => {
+  const perDrug = (fields: string[]) => config({ fields, mode: 'inclusive' });
+
+  it('asks one question per drug, however many fields are picked', () => {
+    const perFact = buildQuiz(pool(), defs, config({ fields: ['moa', 'dosing'] }));
+    const bundled = buildQuiz(pool(), defs, perDrug(['moa', 'dosing']));
+
+    // Six drugs, two fields: twelve per-fact questions, six per-drug ones.
+    expect(perFact).toHaveLength(12);
+    expect(bundled).toHaveLength(6);
+    expect(new Set(bundled.map((question) => question.slug)).size).toBe(6);
+  });
+
+  it('puts every picked field in every option, labelled', () => {
+    const [question] = buildQuiz(pool(), defs, perDrug(['moa', 'dosing']), {
+      direction: 'drug_to_fields',
+    });
+
+    for (const option of question.options) {
+      // A bundle short of a line is not incomplete, it is a tell: the option
+      // with less in it is visibly the odd one out.
+      expect(option).toContain('Mechanism');
+      expect(option).toContain('Dosing');
+    }
+    expect(question.fieldKey).toBe('moa+dosing');
+    expect(question.fieldLabel).toContain(',');
+  });
+
+  it('asks which drug when the direction is the other way', () => {
+    const [question] = buildQuiz(pool(), defs, perDrug(['moa', 'dosing']), {
+      direction: 'fields_to_drug',
+    });
+
+    // Options are names; the evidence is in the prompt.
+    expect(question.options).toContain(question.generic);
+    expect(question.prompt).toContain('Mechanism');
+    expect(question.prompt).toContain('Dosing');
+  });
+
+  it('leaves out a drug missing any of the picked fields', () => {
+    const partial = [
+      ...pool(),
+      source({
+        slug: 'ezetimibe', generic: 'Ezetimibe',
+        values: { moa: value({ value: 'Cholesterol absorption inhibition' }) },
+      }),
+    ];
+
+    const questions = buildQuiz(partial, defs, perDrug(['moa', 'dosing']));
+    expect(questions.map((question) => question.slug)).not.toContain('ezetimibe');
+    // It is still askable on its own about the field it does have.
+    expect(buildQuiz(partial, defs, config({ fields: ['moa'] })).map((q) => q.slug))
+      .toContain('ezetimibe');
+  });
+
+  it('keeps the schedule in a bundle even though it is no question alone', () => {
+    const drugs = [
+      source({
+        slug: 'alprazolam', generic: 'Alprazolam', schedule: 'CIV',
+        values: { moa: value({ value: 'GABA-A positive modulation' }), controlled: value({ value: 'CIV' }) },
+      }),
+      source({
+        slug: 'lisinopril', generic: 'Lisinopril',
+        values: { moa: value({ value: 'ACE inhibition' }), controlled: value({ value: null, status: 'none' }) },
+      }),
+      source({
+        slug: 'metformin', generic: 'Metformin',
+        values: { moa: value({ value: 'Hepatic gluconeogenesis inhibition' }), controlled: value({ value: null, status: 'none' }) },
+      }),
+    ];
+
+    const questions = buildQuiz(drugs, defs, perDrug(['moa', 'controlled']), {
+      direction: 'drug_to_fields',
+    });
+
+    // "Not controlled" is no question on its own -- it is 212 drugs' answer --
+    // but it is a perfectly good line of a profile, and the question here is
+    // which profile belongs to which drug.
+    expect(questions.map((question) => question.slug).sort())
+      .toEqual(['alprazolam', 'lisinopril', 'metformin']);
+    expect(questions.some((question) => question.options.some((o) => o.includes('Not controlled'))))
+      .toBe(true);
   });
 });
 

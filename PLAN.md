@@ -1148,8 +1148,18 @@ reachable one-handed; browse table degrades to cards.
   what the "Another quiz" link is), the runner now takes its questions once and never retakes them
   from props, and each draw carries its own `id` that keys the runner — so starting a quiz starts
   one and nothing else can swap it.
-- **Per-drug and per-fact quiz modes**, matching the flashcards' `inclusive` / `exclusive`. Next;
-  `buildQuiz` currently always asks one field per question and ignores `mode`.
+- **done — 2026-11-02.** ~~Per-drug and per-fact quiz modes~~: *Question shape* on the quiz page,
+  the same `inclusive` / `exclusive` the flashcards use. Per fact is the default and asks each
+  field on its own. Per drug puts every selected field into one question, so the options are whole
+  *profiles* and the ask is which of four drugs this is — 472 questions over moa + dosing became
+  236, with four facts' worth of evidence in each.
+
+  A drug needs a value for **every** selected field to appear: a bundle short of a line is not
+  merely incomplete, it is a tell. Two bundles are the same answer when every field's key matches,
+  so the existing meaning-not-spelling comparison carries straight over, and the schedule *stays*
+  in a bundle even though it is no question on its own — "not controlled" is a fine line of a
+  profile, and the question here is whose profile it is. Both shapes go through the same two
+  builders: a bundle is a candidate with one atom, which is why this cost almost no new code.
 - **done — 2026-11-02.** ~~Controlled-schedule questions should only be asked of scheduled
   drugs~~: 212 of the 236 are not, so the quiz filled with questions whose answer was the same
   word and the 24 real schedules drowned in them — and asked the other way round, *"Not
