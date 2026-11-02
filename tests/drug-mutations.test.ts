@@ -226,6 +226,22 @@ describe('setDrugBrands and setDrugIndications', () => {
     expect(rows.map((row) => row.text)).toEqual(['Anxiety', 'Panic disorder']);
   });
 
+  it('stores the canonical wording of an indication, whatever was typed', async () => {
+    const drugId = await seedDrug();
+    const typed = ['Seizure', 'Bacterial infection', 'BPH'].join(String.fromCharCode(10));
+    await setDrugIndications('alprazolam', typed, ADMIN);
+
+    const rows = await db
+      .select().from(drugIndications).where(eq(drugIndications.drugId, drugId))
+      .orderBy(asc(drugIndications.sortOrder));
+
+    // Same table the importer uses, so however the words arrive the database
+    // holds one spelling of each.
+    expect(rows.map((row) => row.text)).toEqual([
+      'Seizures', 'Bacterial infections', 'Benign prostatic hypertrophy (BPH)',
+    ]);
+  });
+
   it('refuses a drug that is gone', async () => {
     expect(await setDrugBrands('nothing-here', 'Xanax', ADMIN))
       .toEqual({ ok: false, message: 'That drug no longer exists.' });

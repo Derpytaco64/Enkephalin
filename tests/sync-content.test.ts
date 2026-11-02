@@ -122,6 +122,37 @@ describe('syncDrugs', () => {
     expect(alprazolam.schedule).toBe('CIV');
   });
 
+  it('stores one wording for an indication the sheet spells two ways', async () => {
+    const seeded = seed();
+    seeded[2].indications = [{ id: 'al--ind-1', text: 'Seizure' }];
+    await syncDrugs(seeded);
+
+    const alprazolam = await drugBySlug('alprazolam');
+    const rows = await db
+      .select({ text: drugIndications.text })
+      .from(drugIndications)
+      .where(eq(drugIndications.drugId, alprazolam.id));
+
+    // The sheet says "Seizure"; the database keeps "Seizures", so a profile
+    // and a quiz option read the same words.
+    expect(rows.map((row) => row.text)).toEqual(['Seizures']);
+  });
+
+  it('does not re-add the sheet spelling beside the canonical one', async () => {
+    const seeded = seed();
+    seeded[2].indications = [{ id: 'al--ind-1', text: 'Seizure' }];
+    await syncDrugs(seeded);
+    const report = await syncDrugs(seeded);
+
+    const alprazolam = await drugBySlug('alprazolam');
+    const rows = await db
+      .select().from(drugIndications).where(eq(drugIndications.drugId, alprazolam.id));
+
+    expect(rows).toHaveLength(1);
+    expect(report.indicationsInserted).toBe(0);
+    expect(report.orphanIndications).toEqual([]);
+  });
+
   it('carries the class review queue rather than guessing a class', async () => {
     await syncDrugs(seed());
 

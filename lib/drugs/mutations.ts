@@ -11,6 +11,7 @@ import {
   type FieldValue,
 } from '@/db/schema';
 import { isUniqueViolation } from '@/lib/db-errors';
+import { canonicalIndication } from '@/lib/drugs/indications';
 import { activesOf, parseDosing } from '@/lib/dosing/parse';
 import type { FieldDef } from '@/lib/fields/registry';
 
@@ -194,7 +195,10 @@ export async function setDrugIndications(slug: string, raw: string, actorId: str
   const drug = await drugBySlug(slug);
   if (!drug) return { ok: false, message: 'That drug no longer exists.' };
 
-  const wanted = unique(lines(raw));
+  // Typed wording goes through the same table the importer uses: type
+  // "Seizure" and it is stored as "Seizures", so the database keeps one
+  // spelling however the words arrive.
+  const wanted = unique(lines(raw).map((text) => canonicalIndication(text)));
   const rows = await db
     .select()
     .from(drugIndications)
@@ -491,7 +495,7 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
     })));
   }
 
-  const indications = unique(lines(input.indications));
+  const indications = unique(lines(input.indications).map((text) => canonicalIndication(text)));
   if (indications.length > 0) {
     await db.insert(drugIndications).values(indications.map((text, sortOrder) => ({
       drugId, text, sortOrder,

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 // Relative rather than '@/...' on purpose: scripts/sync-content.ts runs this
 // under `node --experimental-strip-types`, which resolves no path aliases.
 import { db } from '../../db/index.ts';
+import { canonicalIndication } from '../drugs/indications.ts';
 import { extractRoutes } from './routes.ts';
 import {
   brandIndications,
@@ -191,8 +192,11 @@ async function syncIndications(drugId: string, seed: SeedDrug, report: SyncRepor
   // seed id -> database id, so brand links can be resolved below
   const idMap = new Map<string, string>();
 
+  // Canonicalised on the way in, so the sheet's two spellings of one
+  // indication become one row -- and a re-import cannot put the old spelling
+  // back next to the new one. See lib/drugs/indications.ts.
   for (const [index, indication] of seeded.entries()) {
-    const text = indication.text.trim();
+    const text = canonicalIndication(indication.text);
     const found = byText.get(text);
 
     if (found) {
@@ -211,7 +215,7 @@ async function syncIndications(drugId: string, seed: SeedDrug, report: SyncRepor
     report.indicationsInserted += 1;
   }
 
-  const seededTexts = new Set(seeded.map((i) => i.text.trim()));
+  const seededTexts = new Set(seeded.map((i) => canonicalIndication(i.text)));
   for (const row of existing) {
     if (!seededTexts.has(row.text)) report.orphanIndications.push(`${seed.slug}: ${row.text}`);
   }

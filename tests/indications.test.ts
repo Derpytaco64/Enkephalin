@@ -22,8 +22,15 @@ describe('indicationSlug', () => {
     expect(indicationSlug('Alzheimer’s disease')).toBe('alzheimer-s-disease');
   });
 
-  it('keeps the fuller wording as the label', () => {
+  it('settles on one wording, plural where the sheet disagrees', () => {
+    // Not just comparable: this is what every writer stores, so the database
+    // holds one spelling and a profile reads the same words as a quiz option.
+    expect(canonicalIndication('Seizure')).toBe('Seizures');
+    expect(canonicalIndication('Bacterial infection')).toBe('Bacterial infections');
+    // BPH is not a plural question; the expansion teaches the abbreviation.
     expect(canonicalIndication('BPH')).toBe('Benign prostatic hypertrophy (BPH)');
+    // Anything with one spelling is left exactly as it is.
+    expect(canonicalIndication('Hypertension')).toBe('Hypertension');
   });
 });
 
@@ -39,7 +46,7 @@ describe('indicationOptions', () => {
 
     expect(options).toEqual([
       { slug: 'hypertension', label: 'Hypertension', count: 1 },
-      { slug: 'seizure', label: 'Seizure', count: 2 },
+      { slug: 'seizures', label: 'Seizures', count: 2 },
     ]);
   });
 

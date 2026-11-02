@@ -21,14 +21,22 @@
  */
 
 /**
- * Sheet wording -> the wording to file it under. Keyed by the exact text, and
+ * Sheet wording -> the one wording to use. Keyed by the exact text, and
  * deliberately short: every entry is the same indication spelled two ways.
+ *
+ * This is not only a comparison table. Every writer canonicalises through it --
+ * the importer, the drug editor, and migration 0004 which rewrote the rows
+ * already stored -- so the database holds one spelling and a profile, a filter
+ * and a quiz option all read the same words. The table stays because the sheet
+ * does not: a re-import would otherwise put the old spelling back.
+ *
+ * Plural wins where the sheet disagrees with itself, which is the owner's call.
+ * BPH is not a plural question: the expansion wins there because it teaches
+ * what the abbreviation stands for.
  */
 const ALIASES: Record<string, string> = {
-  'Bacterial infections': 'Bacterial infection',
-  Seizures: 'Seizure',
-  // The sheet gives both the abbreviation alone and the expansion carrying it;
-  // the expansion is the better label because it teaches what BPH stands for.
+  'Bacterial infection': 'Bacterial infections',
+  Seizure: 'Seizures',
   BPH: 'Benign prostatic hypertrophy (BPH)',
 };
 

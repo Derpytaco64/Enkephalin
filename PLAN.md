@@ -78,15 +78,33 @@ Transcription of the note:
   same question, and a drug has several indications the way it has several categories. Several
   indications mean *any* of them; a list or a category still applies on top.
 
-  What the column does not do is agree with itself about plurals and abbreviations, and a filter is
-  where that bites: picking *Seizure* and silently missing the two drugs written up as *Seizures*
-  is a wrong deck, not an untidy one. So `lib/drugs/indications.ts` holds a three-entry alias
-  table -- *Seizures* -> *Seizure*, *Bacterial infections* -> *Bacterial infection*, *BPH* ->
-  *Benign prostatic hypertrophy (BPH)* -- folding 95 texts into 92 filter options, and nothing
-  else. Anything needing a judgement about what a phrase *means* is left alone: *Chronic pain*
-  stays apart from *Pain*, *Acute ischemic stroke* from *Ischemic stroke prevention*, because
-  those are clinical claims and a slug helper is not where one gets made. The drug's own profile
-  always shows the sheet's wording; only the filter groups.
+  What the column does not do is agree with itself about plurals and abbreviations, and that bites
+  twice: picking *Seizure* and silently missing the two drugs written up as *Seizures* is a wrong
+  deck, and a quiz offering one as the wrong answer to the other is offering a right answer.
+
+  **One wording per indication, fixed in the data** (2026-11-02). `lib/drugs/indications.ts` holds
+  a three-entry table -- *Seizure* -> *Seizures*, *Bacterial infection* -> *Bacterial infections*,
+  *BPH* -> *Benign prostatic hypertrophy (BPH)* -- and it is not only a comparison: migration 0004
+  rewrote the stored rows, and **every writer canonicalises through it**, the importer and the drug
+  editor included. So the database holds one spelling and a profile, a filter and a quiz option
+  read the same words. The table has to stay because the sheet does not change: a re-import would
+  otherwise put the old spelling back beside the new one -- verified by re-running `npm run seed`
+  after the migration, which reported *0 new indications*.
+
+  Plural wins where the sheet disagrees with itself, which is the owner's call; BPH is not a plural
+  question, and the expansion wins there because it teaches what the abbreviation stands for. The
+  rows were updated in place, so the 24 brand↔indication pairings that point at them survived.
+  95 wordings became 92, which is now exactly the number of filter options -- the two were out of
+  step by three before, and that gap *was* the bug.
+
+  Anything needing a judgement about what a phrase *means* is still left alone: *Chronic pain*
+  stays apart from *Pain*, *Acute ischemic stroke* from *Ischemic stroke prevention*, because those
+  are clinical claims and an alias table is not where one gets made.
+
+  One consequence, taken deliberately while the feature was a day old: the slug follows the label,
+  so `ind=seizure` became `ind=seizures` and a link saved before today no longer matches. Nothing
+  in the app generates the old one. From here the slugs are addresses and should not move; the
+  alias table is where a future rename would keep an old one working.
 
   Both of the big axes are collapsed by default in session settings (`ScopePicker`), because 65
   categories plus 92 indications would otherwise be the whole panel. A closed `<details>` only
