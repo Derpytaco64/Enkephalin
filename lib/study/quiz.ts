@@ -107,10 +107,24 @@ function pick<T>(items: T[], rng: () => number): T | undefined {
   return items.length === 0 ? undefined : items[Math.floor(rng() * items.length)];
 }
 
+/**
+ * `random` mixes the two directions question by question, which is the default
+ * for a paper: knowing a mechanism when you are shown the drug is a different
+ * recall from naming the drug when you are shown the mechanism, and a paper
+ * that only ever asks one way quietly trains one of them.
+ *
+ * It is a quiz-only value. The flashcard schedule keys a card by its
+ * direction, so a card whose direction changed every session would look like a
+ * new card every session.
+ */
+export type QuizDirection = StudyDirection | 'random';
+
 export type QuizOptions = {
   rng?: () => number;
   /** Four is the default; fewer only where the scope cannot fill it. */
   optionCount?: number;
+  /** Defaults to the config's own direction. */
+  direction?: QuizDirection;
 };
 
 export function buildQuiz(
@@ -121,6 +135,7 @@ export function buildQuiz(
 ): QuizQuestion[] {
   const rng = options.rng ?? Math.random;
   const optionCount = options.optionCount ?? 4;
+  const direction = options.direction ?? config.direction;
 
   const byKey = new Map(defs.map((def) => [def.key, def]));
   const selected = config.fields
@@ -146,7 +161,13 @@ export function buildQuiz(
     if (candidates.length === 0) continue;
 
     for (const candidate of candidates.filter((row) => asked.has(row.source.drugId))) {
-      const built = config.direction === 'fields_to_drug'
+      // Decided per question, so one paper holds both kinds rather than the
+      // whole paper landing on one side of a coin toss.
+      const asksForTheDrug = direction === 'random'
+        ? rng() < 0.5
+        : direction === 'fields_to_drug';
+
+      const built = asksForTheDrug
         ? nameQuestion(def, candidate, candidates, optionCount, rng)
         : factQuestion(def, candidate, candidates, optionCount, rng);
       if (built) questions.push(built);

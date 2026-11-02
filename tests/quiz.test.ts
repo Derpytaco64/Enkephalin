@@ -6,6 +6,7 @@ import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import type { CardSource } from '@/lib/study/cards';
 import { DEFAULT_CONFIG, type StudyConfig } from '@/lib/study/config';
 import { buildQuiz, capQuiz } from '@/lib/study/quiz';
+import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 
 let defs: FieldDef[];
 
@@ -339,5 +340,65 @@ describe('capQuiz', () => {
   it('shuffles even when nothing is cut, so a paper is not alphabetical', () => {
     const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
     expect(capQuiz(questions, 0)).toHaveLength(questions.length);
+  });
+});
+
+describe('mixed direction', () => {
+  it('asks both ways in one paper when the direction is random', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa', 'dosing'] }), {
+      direction: 'random',
+    });
+
+    const directions = new Set(questions.map((question) => question.direction));
+    // Twelve questions over a fair coin: both sides appearing is all but
+    // certain, and a paper stuck on one side is the bug this guards.
+    expect(questions.length).toBe(12);
+    expect(directions.size).toBe(2);
+  });
+
+  it('decides per question rather than per paper', () => {
+    // A coin tossed once for the whole paper would make every question agree.
+    const papers = Array.from({ length: 20 }, () =>
+      buildQuiz(pool(), defs, config({ fields: ['moa'] }), { direction: 'random' }));
+
+    const mixed = papers.filter(
+      (paper) => new Set(paper.map((question) => question.direction)).size === 2,
+    );
+    expect(mixed.length).toBeGreaterThan(15);
+  });
+
+  it('still honours an explicit direction', () => {
+    const forward = buildQuiz(pool(), defs, config({ fields: ['moa'] }), {
+      direction: 'drug_to_fields',
+    });
+    const reverse = buildQuiz(pool(), defs, config({ fields: ['moa'] }), {
+      direction: 'fields_to_drug',
+    });
+
+    expect(new Set(forward.map((q) => q.direction))).toEqual(new Set(['drug_to_fields']));
+    expect(new Set(reverse.map((q) => q.direction))).toEqual(new Set(['fields_to_drug']));
+  });
+});
+
+describe('reading the config out of a URL', () => {
+  it('takes field keys repeated, as the form submits them', () => {
+    // The checkbox group submits one `fields` per ticked box. Reading that as
+    // a comma-joined string worked for one field and threw for two, which is
+    // how the Start button came to do nothing.
+    expect(fieldKeysParam(['moa', 'dosing'])).toEqual(['moa', 'dosing']);
+    expect(fieldKeysParam('moa')).toEqual(['moa']);
+    expect(fieldKeysParam(undefined)).toEqual([]);
+  });
+
+  it('still takes them comma-joined, as a saved link may carry them', () => {
+    expect(fieldKeysParam('moa,dosing')).toEqual(['moa', 'dosing']);
+    expect(fieldKeysParam(['moa,dosing', 'bbw'])).toEqual(['moa', 'dosing', 'bbw']);
+    expect(fieldKeysParam(' moa , dosing ,, ')).toEqual(['moa', 'dosing']);
+  });
+
+  it('reads a repeated scope param as a list', () => {
+    expect(manyParam(['statins', 'beta-blockers'])).toEqual(['statins', 'beta-blockers']);
+    expect(manyParam('statins')).toEqual(['statins']);
+    expect(manyParam(undefined)).toEqual([]);
   });
 });

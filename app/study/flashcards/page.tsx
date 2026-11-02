@@ -6,6 +6,7 @@ import { indicationOptions } from '@/lib/drugs/indications';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
+import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 import { loadDeck } from '@/lib/study/session';
 import { FieldPicker } from '../_components/field-picker';
 import { ScopePicker } from '../_components/scope-picker';
@@ -15,16 +16,13 @@ export const metadata = { title: 'Flashcards — Enkephalin' };
 export const dynamic = 'force-dynamic';
 
 type Search = {
-  mode?: string; year?: string; fields?: string; block?: string; max?: string;
+  mode?: string; year?: string; block?: string; max?: string;
   dir?: string; set?: string; tag?: string;
-  /** Repeated once per category, so several can be in play at once. */
+  /** Repeated once per ticked box, so these arrive as arrays. */
+  fields?: string | string[];
   cat?: string | string[];
-  /** Same, for indications. */
   ind?: string | string[];
 };
-
-/** `?cat=a&cat=b` arrives as an array, `?cat=a` as a string, neither as undefined. */
-const many = (value: string | string[] | undefined) => [value ?? []].flat().filter(Boolean);
 
 /**
  * The config lives in the URL rather than in state: a session you like is then
@@ -33,7 +31,7 @@ const many = (value: string | string[] | undefined) => [value ?? []].flat().filt
  */
 function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFieldDefs>>): StudyConfig {
   const year = ['P1', 'P2', 'P3'].includes(search.year ?? '') ? (search.year as YearLevel) : null;
-  const fromQuery = (search.fields ?? '').split(',').map((key) => key.trim()).filter(Boolean);
+  const fromQuery = fieldKeysParam(search.fields);
   const fields = fromQuery.length > 0 ? fromQuery : year ? fieldsForYear(defs, year) : [];
 
   return normalizeConfig({
@@ -47,8 +45,8 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     scope: {
       ...DEFAULT_CONFIG.scope,
       tags: search.tag ? [search.tag] : [],
-      categories: many(search.cat),
-      indications: many(search.ind),
+      categories: manyParam(search.cat),
+      indications: manyParam(search.ind),
     },
   });
 }

@@ -12,7 +12,7 @@ import { quizAnswers, quizAttempts } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { loadCardSources } from './sources';
 import type { StudyConfig } from './config';
-import { buildQuiz, capQuiz, type QuizQuestion } from './quiz';
+import { buildQuiz, capQuiz, type QuizDirection, type QuizQuestion } from './quiz';
 
 export type QuizPaper = {
   questions: QuizQuestion[];
@@ -20,9 +20,12 @@ export type QuizPaper = {
   available: number;
 };
 
-export async function loadQuiz(config: StudyConfig): Promise<QuizPaper> {
+export async function loadQuiz(
+  config: StudyConfig,
+  direction: QuizDirection = 'random',
+): Promise<QuizPaper> {
   const [sources, defs] = await Promise.all([loadCardSources(), listFieldDefs()]);
-  const all = buildQuiz(sources, defs, config);
+  const all = buildQuiz(sources, defs, config, { direction });
   return { questions: capQuiz(all, config.maxCards), available: all.length };
 }
 

@@ -225,6 +225,12 @@ Transcription of the note:
   strict component-level distractor check is therefore not built, and the structured components
   are not what makes the quiz safe -- the two string guards above are.
 
+  **Direction is mixed by default, decided per question.** Recognising a mechanism when shown the
+  drug and naming the drug when shown the mechanism are two different recalls, and a paper that
+  only ever asks one way quietly trains one of them. It is a quiz-only setting: a flashcard's
+  schedule keys a card by its direction, so a card whose direction changed every session would look
+  like a new card every session. Measured on a real 40-question paper: 26 one way, 15 the other.
+
   The question count starts at everything the current filters can ask -- 236 on mechanism alone,
   472 on mechanism plus dosing, 4 on the statins -- rather than at an arbitrary twenty, for the same
   reason the flashcard cap does: the control should show what is there, and lowering it should be an
@@ -1093,6 +1099,15 @@ reachable one-handed; browse table degrades to cards.
 ---
 
 ## Open items
+
+0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
+   `fields` as a comma-joined string, but the field picker is a checkbox group: it submits
+   `fields=moa&fields=dosing`, which arrives as an *array*. One field worked and two threw
+   `.split is not a function`, so the Start button 500'd for any real selection -- on the quiz and
+   on the flashcards both. Every live check I had run used a URL I wrote by hand, which is the one
+   shape that never fails. `lib/study/search-params.ts` now parses both shapes in one place, tested,
+   and the live check is the exact query string the form emits.
+
 
 1. **20 drugs show as *Uncategorized*, and that is their answer for now** (2026-11-01). They are
    not unresolved: all 237 resolve to an RxCUI, and each of the 20 has an ATC or VA candidate

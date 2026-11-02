@@ -6,7 +6,9 @@ import { indicationOptions } from '@/lib/drugs/indications';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
+import type { QuizDirection } from '@/lib/study/quiz';
 import { loadQuiz, recentAttempts } from '@/lib/study/quiz-session';
+import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 import { FieldPicker } from '../_components/field-picker';
 import { ScopePicker } from '../_components/scope-picker';
 import { finishQuizAction } from './actions';
@@ -16,12 +18,12 @@ export const metadata = { title: 'Quiz — Enkephalin' };
 export const dynamic = 'force-dynamic';
 
 type Search = {
-  year?: string; fields?: string; max?: string; dir?: string; tag?: string;
+  year?: string; max?: string; dir?: string; tag?: string;
+  /** Repeated once per ticked box, so these arrive as arrays. */
+  fields?: string | string[];
   cat?: string | string[];
   ind?: string | string[];
 };
-
-const many = (value: string | string[] | undefined) => [value ?? []].flat().filter(Boolean);
 
 /**
  * The same config the flashcards use, minus the three things that only mean
@@ -30,7 +32,7 @@ const many = (value: string | string[] | undefined) => [value ?? []].flat().filt
  */
 function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFieldDefs>>): StudyConfig {
   const year = ['P1', 'P2', 'P3'].includes(search.year ?? '') ? (search.year as YearLevel) : null;
-  const fromQuery = (search.fields ?? '').split(',').map((key) => key.trim()).filter(Boolean);
+  const fromQuery = fieldKeysParam(search.fields);
   const fields = fromQuery.length > 0 ? fromQuery : year ? fieldsForYear(defs, year) : [];
 
   return normalizeConfig({
@@ -38,6 +40,8 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     yearLevel: year,
     fields,
     mode: 'exclusive',
+    // The stored config keeps a concrete direction; `random` lives beside it
+    // as a paper setting, because a schedule cannot key a card on a coin toss.
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
     blockSize: 0,
     // 0 is no cap, which is what an untouched control means: the paper is
@@ -47,8 +51,8 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
       ...DEFAULT_CONFIG.scope,
       dueOnly: false,
       tags: search.tag ? [search.tag] : [],
-      categories: many(search.cat),
-      indications: many(search.ind),
+      categories: manyParam(search.cat),
+      indications: manyParam(search.ind),
     },
   });
 }
@@ -73,9 +77,14 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
   const indications = indicationOptions(indicationRows);
 
   const config = configFromSearch(search, defs);
+  // Random unless asked otherwise: a paper that only ever asks one way trains
+  // one half of the recall.
+  const direction: QuizDirection = search.dir === 'drug_to_fields' || search.dir === 'fields_to_drug'
+    ? search.dir
+    : 'random';
   const quizzable = defs.filter((def) => def.isQuizzable && def.key !== 'generic');
   const started = config.fields.length > 0;
-  const paper = started ? await loadQuiz(config) : { questions: [], available: 0 };
+  const paper = started ? await loadQuiz(config, direction) : { questions: [], available: 0 };
 
   const labelFor = (key: string) => defs.find((def) => def.key === key)?.label ?? key;
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
@@ -97,7 +106,9 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               {paper.questions.length} question{paper.questions.length === 1 ? '' : 's'}
               {paper.available > paper.questions.length && ` of ${paper.available}`}
               {' · '}
-              {config.direction === 'drug_to_fields' ? 'drug → fact' : 'fact → drug'}
+              {direction === 'random'
+                ? 'mixed directions'
+                : direction === 'drug_to_fields' ? 'drug → fact' : 'fact → drug'}
             </span>
           )}
         </summary>
@@ -113,12 +124,14 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
             <div>
               <label htmlFor="dir" className="block text-sm font-medium">Direction</label>
-              <select id="dir" name="dir" defaultValue={config.direction} className={control}>
+              <select id="dir" name="dir" defaultValue={direction} className={control}>
+                <option value="random">Mixed — decided per question</option>
                 <option value="drug_to_fields">Drug → fact</option>
                 <option value="fields_to_drug">Fact → drug</option>
               </select>
               <p className="mt-1 text-xs text-[var(--muted)]">
-                Shown a drug, pick the fact — or shown a fact, pick the drug.
+                Shown a drug, pick the fact — or shown a fact, pick the drug. Mixed asks both,
+                since recognising a mechanism and naming its drug are two different recalls.
               </p>
             </div>
 
