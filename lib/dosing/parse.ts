@@ -357,6 +357,14 @@ function readFrequency(reader: Reader): Regimen['frequency'] {
   // "a day", "daily", "per day" and "each day" are one phrasing in four.
   const DAY = String.raw`(?:a day|daily|per day|each day|a d)`;
 
+  // "up to 4 times a day" is a ceiling on the frequency, not the frequency:
+  // hydroxyzine is taken as needed, at most four times. Reading it as a flat
+  // QID would teach four scheduled doses.
+  const ceiling = reader.take(new RegExp(`\\bup to (${COUNT})\\s*times? ${DAY}`, 'i'));
+  if (ceiling) {
+    return { kind: 'per_day', times: 1, timesHigh: count(ceiling[1]) };
+  }
+
   const perDayWords: [RegExp, number][] = [
     [new RegExp(`\\bfour times ${DAY}\\b|\\bQID\\b`, 'i'), 4],
     [new RegExp(`\\bthree times? ${DAY}\\b|\\bTID\\b`, 'i'), 3],
