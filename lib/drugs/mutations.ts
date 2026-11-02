@@ -1,0 +1,503 @@
+import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { db } from '@/db';
+import {
+  auditLog,
+  dosingRegimens,
+  drugBrands,
+  drugIndications,
+  drugTags,
+  drugs,
+  tags,
+  type FieldValue,
+} from '@/db/schema';
+import { isUniqueViolation } from '@/lib/db-errors';
+import { activesOf, parseDosing } from '@/lib/dosing/parse';
+import type { FieldDef } from '@/lib/fields/registry';
+
+/** Same shape the field editor returns, with room for what was written. */
+export type Result<T = undefined> =
+  | { ok: true; value?: T }
+  | { ok: false; message: string };
+
+const SCHEDULES = ['CI', 'CII', 'CIII', 'CIV', 'CV'] as const;
+export type Schedule = (typeof SCHEDULES)[number];
+
+/* ------------------------------------------------------------- naming ---- */
+
+export function drugSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
+
+/**
+ * Release and form suffixes, the same set `scripts/build-seed.py` strips.
+ * "Wellbutrin SR" is the same brand as "Wellbutrin"; "Zyban" is not. A brand
+ * added here has to land in the family the importer would have given it, or
+ * distractor sampling sees two families where there is one.
+ */
+const FORM_SUFFIX = /\s+(SR|XR|ER|XL|CR|DR|LA|ODT|CD|HFA|XR-ODT|Respiclick|Redihaler)\b.*$/i;
+
+export function brandFamily(name: string) {
+  return name.replace(FORM_SUFFIX, '').trim();
+}
+
+/** One per line, blanks dropped -- how brands and indications are typed in. */
+function lines(raw: string) {
+  return raw.split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+/** Keeps the first of each, so a duplicate line is dropped rather than stored twice. */
+function unique(values: string[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = value.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function audit(input: {
+  actorId: string;
+  action: string;
+  drugId: string;
+  diff?: Record<string, unknown>;
+}) {
+  await db.insert(auditLog).values({
+    actorId: input.actorId,
+    action: input.action,
+    targetType: 'drug',
+    targetId: input.drugId,
+    diff: input.diff ?? null,
+  });
+}
+
+async function touch(drugId: string) {
+  await db.update(drugs).set({ updatedAt: new Date() }).where(eq(drugs.id, drugId));
+}
+
+async function drugBySlug(slug: string) {
+  const [drug] = await db.select().from(drugs).where(eq(drugs.slug, slug));
+  return drug ?? null;
+}
+
+/* ----------------------------------------------------------- identity ---- */
+
+export type IdentityInput = {
+  genericName: string;
+  drugClass: string;
+  schedule: string;
+  scheduleNote: string;
+};
+
+function readSchedule(raw: string): Schedule | null {
+  const value = raw.trim().toUpperCase();
+  return (SCHEDULES as readonly string[]).includes(value) ? (value as Schedule) : null;
+}
+
+export async function updateDrugIdentity(
+  slug: string,
+  input: IdentityInput,
+  actorId: string,
+): Promise<Result> {
+  const generic = input.genericName.trim();
+  if (!generic) return { ok: false, message: 'A drug needs a generic name.' };
+
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const patch = {
+    genericName: generic,
+    drugClass: input.drugClass.trim() || null,
+    schedule: readSchedule(input.schedule),
+    scheduleNote: input.scheduleNote.trim() || null,
+  };
+
+  // The slug is deliberately left alone. It is in every saved session link,
+  // every study_cards row's path back to the drug, and renaming it would
+  // break both to no purpose: the name on screen comes from generic_name.
+  await db.update(drugs).set({ ...patch, updatedAt: new Date() }).where(eq(drugs.id, drug.id));
+  await audit({ actorId, action: 'drug.identity', drugId: drug.id, diff: patch });
+
+  return { ok: true };
+}
+
+/* --------------------------------------------------------------- lists --- */
+
+/**
+ * Brands and indications are replaced by diff rather than delete-and-reinsert,
+ * because other rows point at these ids: `brand_indications` pairs a brand to
+ * an indication, and a brand carries its own `dosing_override` and the review
+ * state of its pairing. Rewriting the rows would silently drop all of that
+ * every time someone fixed a typo elsewhere in the list.
+ */
+async function syncList<T extends { id: string; sortOrder: number }>(input: {
+  rows: T[];
+  wanted: string[];
+  nameOf: (row: T) => string;
+  insert: (name: string, sortOrder: number) => Promise<void>;
+  reorder: (row: T, sortOrder: number) => Promise<void>;
+  remove: (ids: string[]) => Promise<void>;
+}) {
+  const byName = new Map(input.rows.map((row) => [input.nameOf(row), row]));
+  const keptIds = new Set<string>();
+
+  for (const [index, name] of input.wanted.entries()) {
+    const found = byName.get(name);
+    if (found) {
+      keptIds.add(found.id);
+      if (found.sortOrder !== index) await input.reorder(found, index);
+      continue;
+    }
+    await input.insert(name, index);
+  }
+
+  const gone = input.rows.filter((row) => !keptIds.has(row.id)).map((row) => row.id);
+  if (gone.length > 0) await input.remove(gone);
+
+  return { removed: gone.length };
+}
+
+export async function setDrugBrands(slug: string, raw: string, actorId: string): Promise<Result> {
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const wanted = unique(lines(raw));
+  const rows = await db
+    .select()
+    .from(drugBrands)
+    .where(eq(drugBrands.drugId, drug.id))
+    .orderBy(asc(drugBrands.sortOrder));
+
+  await syncList({
+    rows,
+    wanted,
+    nameOf: (row) => row.name,
+    insert: async (name, sortOrder) => {
+      await db.insert(drugBrands).values({
+        drugId: drug.id, name, family: brandFamily(name), sortOrder,
+      });
+    },
+    reorder: async (row, sortOrder) => {
+      await db.update(drugBrands).set({ sortOrder }).where(eq(drugBrands.id, row.id));
+    },
+    // The brand_indications rows cascade with it, which is right: a brand that
+    // is gone cannot be paired to anything.
+    remove: async (ids) => { await db.delete(drugBrands).where(inArray(drugBrands.id, ids)); },
+  });
+
+  await touch(drug.id);
+  await audit({ actorId, action: 'drug.brands', drugId: drug.id, diff: { brands: wanted } });
+  return { ok: true };
+}
+
+export async function setDrugIndications(slug: string, raw: string, actorId: string): Promise<Result> {
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const wanted = unique(lines(raw));
+  const rows = await db
+    .select()
+    .from(drugIndications)
+    .where(eq(drugIndications.drugId, drug.id))
+    .orderBy(asc(drugIndications.sortOrder));
+
+  await syncList({
+    rows,
+    wanted,
+    nameOf: (row) => row.text,
+    insert: async (text, sortOrder) => {
+      await db.insert(drugIndications).values({ drugId: drug.id, text, sortOrder });
+    },
+    reorder: async (row, sortOrder) => {
+      await db.update(drugIndications).set({ sortOrder }).where(eq(drugIndications.id, row.id));
+    },
+    remove: async (ids) => { await db.delete(drugIndications).where(inArray(drugIndications.id, ids)); },
+  });
+
+  await touch(drug.id);
+  await audit({ actorId, action: 'drug.indications', drugId: drug.id, diff: { indications: wanted } });
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------- tags --- */
+
+/**
+ * Replaces the drug's tag links, except the `system` ones.
+ *
+ * Categories are `system` tags and `scripts/seed-categories.ts` owns them: it
+ * rebuilds every system link from its curated map on each run. Letting the
+ * editor write them would mean a hand-made category assignment lasts until the
+ * next seeder run and then vanishes, which is worse than not offering it. So
+ * the editor manages lists, courses and custom tags, and category membership
+ * is a change to the map.
+ */
+export async function setDrugTags(slug: string, tagSlugs: string[], actorId: string): Promise<Result> {
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const rows = tagSlugs.length > 0
+    ? await db
+        .select({ id: tags.id, slug: tags.slug })
+        .from(tags)
+        .where(and(inArray(tags.slug, tagSlugs), ne(tags.kind, 'system')))
+    : [];
+
+  const unknown = tagSlugs.filter((wanted) => !rows.some((row) => row.slug === wanted));
+  if (unknown.length > 0) {
+    return { ok: false, message: `Not a tag you can assign here: ${unknown.join(', ')}.` };
+  }
+
+  await db.delete(drugTags).where(
+    and(
+      eq(drugTags.drugId, drug.id),
+      inArray(
+        drugTags.tagId,
+        db.select({ id: tags.id }).from(tags).where(ne(tags.kind, 'system')),
+      ),
+    ),
+  );
+
+  if (rows.length > 0) {
+    await db
+      .insert(drugTags)
+      .values(rows.map((row) => ({ drugId: drug.id, tagId: row.id })))
+      .onConflictDoNothing();
+  }
+
+  await audit({ actorId, action: 'drug.tags', drugId: drug.id, diff: { tags: tagSlugs } });
+  return { ok: true };
+}
+
+/* -------------------------------------------------------------- fields --- */
+
+export type FieldInput = {
+  key: string;
+  value: string;
+  source: string;
+  /** Blank means "leave it where it is": editing a value is not verifying it. */
+  status: string;
+};
+
+const STATUSES = ['verified', 'unverified', 'flagged', 'not_applicable'] as const;
+
+/**
+ * Writes one stored field value, envelope included.
+ *
+ * Status is the interesting part. Editing a value does not verify it -- a
+ * verified marker is the claim that someone checked it against a source, and
+ * that claim cannot survive the value changing underneath it. So a changed
+ * value drops back to `unverified` unless the editor says otherwise in the
+ * same submission, which is the "I checked this as I typed it" case.
+ */
+export async function setDrugField(
+  slug: string,
+  def: FieldDef,
+  input: FieldInput,
+  actorId: string,
+): Promise<Result> {
+  if (def.isCore) {
+    return { ok: false, message: `${def.label} is stored in its own column, not here.` };
+  }
+
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const value = input.value.trim() || null;
+  const current = drug.fields[def.key];
+  const asked = (STATUSES as readonly string[]).includes(input.status)
+    ? (input.status as FieldValue['status'])
+    : null;
+
+  // A field whose blank means "none" records that as a fact rather than a gap:
+  // no black box warning is an answer, and an unfilled mechanism is not.
+  const status: FieldValue['status'] = asked
+    ?? (value === null
+      ? (def.blankMeansNone ? 'not_applicable' : 'unverified')
+      : value === current?.value
+        ? current.status
+        : 'unverified');
+
+  const next: FieldValue = {
+    value,
+    status,
+    source: input.source.trim() || current?.source || null,
+    updatedAt: new Date().toISOString(),
+    updatedBy: actorId,
+  };
+
+  if (current && current.value === next.value && current.status === next.status
+    && current.source === next.source) {
+    return { ok: true };
+  }
+
+  await db
+    .update(drugs)
+    .set({ fields: { ...drug.fields, [def.key]: next }, updatedAt: new Date() })
+    .where(eq(drugs.id, drug.id));
+  await audit({
+    actorId, action: 'drug.field', drugId: drug.id,
+    diff: { key: def.key, from: current?.value ?? null, to: next.value, status: next.status },
+  });
+
+  // Dosing prose is the source of the structured regimens, so a prose edit has
+  // to reach them or the sig a quiz compares against is the old wording's.
+  if (def.key === 'dosing') await rebuildRegimens(drug.id, drug.genericName, value, actorId);
+
+  return { ok: true };
+}
+
+/* -------------------------------------------------------------- dosing --- */
+
+/**
+ * Re-reads a drug's dosing prose into `dosing_regimens`, the same way
+ * `scripts/backfill-dosing.ts` does -- and with the same deference: a row a
+ * human has verified is left exactly as it is, and the drug is flagged instead.
+ * A re-parse is a machine's reading; a verdict is a person's, and the person
+ * wins. Refused prose still gets a row, components empty, so the dosing is
+ * present and askable rather than missing.
+ */
+export async function rebuildRegimens(
+  drugId: string,
+  genericName: string,
+  prose: string | null,
+  actorId: string,
+): Promise<{ status: 'replaced' | 'kept_verified' | 'cleared'; rows: number }> {
+  const existing = await db
+    .select({ id: dosingRegimens.id, status: dosingRegimens.status })
+    .from(dosingRegimens)
+    .where(eq(dosingRegimens.drugId, drugId));
+
+  if (existing.some((row) => row.status === 'verified')) {
+    await db
+      .update(dosingRegimens)
+      .set({
+        needsReview: true,
+        reviewNotes: sql`array_append(${dosingRegimens.reviewNotes}, 'dosing prose was edited after this row was verified')`,
+      })
+      .where(eq(dosingRegimens.drugId, drugId));
+    await audit({ actorId, action: 'dosing.kept_verified', drugId });
+    return { status: 'kept_verified', rows: existing.length };
+  }
+
+  await db.delete(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+
+  if (!prose) {
+    await audit({ actorId, action: 'dosing.cleared', drugId });
+    return { status: 'cleared', rows: 0 };
+  }
+
+  const result = parseDosing(prose, activesOf(genericName));
+  const regimens = result.regimens.length > 0 ? result.regimens : [{
+    sourceText: prose, alternative: 0, step: 0, label: null,
+    amounts: [], routes: [], site: null,
+    frequency: { kind: 'unspecified' as const },
+    modifiers: [], duration: null, ceiling: null, qualifiers: [],
+  }];
+
+  await db.insert(dosingRegimens).values(regimens.map((regimen) => ({
+    drugId,
+    alternative: regimen.alternative,
+    step: regimen.step,
+    label: regimen.label,
+    sourceText: regimen.sourceText,
+    amounts: regimen.amounts,
+    routes: regimen.routes,
+    site: regimen.site,
+    frequency: regimen.frequency,
+    modifiers: regimen.modifiers,
+    duration: regimen.duration,
+    ceiling: regimen.ceiling,
+    qualifiers: regimen.qualifiers,
+    needsReview: result.status !== 'parsed',
+    reviewNotes: result.notes,
+    source: 'drug editor',
+  })));
+
+  await audit({
+    actorId, action: 'dosing.reparsed', drugId,
+    diff: { status: result.status, rows: regimens.length, notes: result.notes },
+  });
+  return { status: 'replaced', rows: regimens.length };
+}
+
+/* -------------------------------------------------------------- create --- */
+
+export type NewDrugInput = IdentityInput & {
+  brands: string;
+  indications: string;
+  dosing: string;
+  tagSlugs: string[];
+};
+
+/**
+ * Creates a drug by hand, for what the sheet does not carry. Everything it
+ * writes is marked as coming from whoever typed it, never from the sheet: the
+ * provenance is the whole reason "verified only" is worth filtering by.
+ */
+export async function createDrug(input: NewDrugInput, actorId: string): Promise<Result<string>> {
+  const generic = input.genericName.trim();
+  if (!generic) return { ok: false, message: 'A drug needs a generic name.' };
+
+  const slug = drugSlug(generic);
+  if (!slug) return { ok: false, message: 'That name has no letters or digits to make a slug from.' };
+
+  let drugId: string;
+  try {
+    const [created] = await db
+      .insert(drugs)
+      .values({
+        slug,
+        genericName: generic,
+        drugClass: input.drugClass.trim() || null,
+        schedule: readSchedule(input.schedule),
+        scheduleNote: input.scheduleNote.trim() || null,
+      })
+      .returning({ id: drugs.id });
+    drugId = created.id;
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      // Deliberately not auto-suffixed. Two drugs a slug apart is how the
+      // sildenafil duplicate happened in the sheet, and the fix there was one
+      // drug with two brands -- so send the editor to the existing one.
+      return { ok: false, message: `A drug already exists at /drugs/${slug}.` };
+    }
+    throw err;
+  }
+
+  await audit({ actorId, action: 'drug.create', drugId, diff: { slug, genericName: generic } });
+
+  const brands = unique(lines(input.brands));
+  if (brands.length > 0) {
+    await db.insert(drugBrands).values(brands.map((name, sortOrder) => ({
+      drugId, name, family: brandFamily(name), sortOrder,
+    })));
+  }
+
+  const indications = unique(lines(input.indications));
+  if (indications.length > 0) {
+    await db.insert(drugIndications).values(indications.map((text, sortOrder) => ({
+      drugId, text, sortOrder,
+    })));
+  }
+
+  const dosing = input.dosing.trim();
+  if (dosing) {
+    await db.update(drugs).set({
+      fields: {
+        dosing: {
+          value: dosing, status: 'unverified', source: 'added by hand',
+          updatedAt: new Date().toISOString(), updatedBy: actorId,
+        },
+      },
+    }).where(eq(drugs.id, drugId));
+    await rebuildRegimens(drugId, generic, dosing, actorId);
+  }
+
+  if (input.tagSlugs.length > 0) {
+    const result = await setDrugTags(slug, input.tagSlugs, actorId);
+    // The drug exists either way; a bad tag slug is not worth discarding it.
+    if (!result.ok) return { ok: true, value: slug };
+  }
+
+  return { ok: true, value: slug };
+}

@@ -673,6 +673,21 @@ function readRegimen(text: string, alternative: number, step: number, label: str
 }
 
 /**
+ * The generic name split into its actives, which is all `parseDosing` wants
+ * `actives` for. Lives here so the backfill script, the drug editor's live
+ * preview and the editor's own write all split a combination the same way --
+ * three copies of this regex would be three chances to label amoxicillin's
+ * dose with clavulanate's name.
+ */
+export function activesOf(generic: string): string[] {
+  const parts = generic
+    .split(/\s*[/]\s*|\s+with\s+|\s+and\s+|\s*,\s*/i)
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+  return parts.length > 1 ? parts : [];
+}
+
+/**
  * Parses a dosing string into the regimens it describes.
  *
  * `actives` is the generic name split on its own separators, used only to

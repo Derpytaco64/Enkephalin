@@ -86,7 +86,14 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <Link href="/drugs" className="text-sm text-[var(--accent)] underline">← Drugs</Link>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <Link href="/drugs" className="text-sm text-[var(--accent)] underline">← Drugs</Link>
+        {isAdmin && (
+          <Link href={`/drugs/${drug.slug}/edit`} className="text-sm text-[var(--accent)] underline">
+            Edit this drug
+          </Link>
+        )}
+      </div>
 
       <header className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">{drug.genericName}</h1>

@@ -22,19 +22,10 @@
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import { dosingRegimens, drugs } from '../db/schema.ts';
-import { parseDosing } from '../lib/dosing/parse.ts';
+import { activesOf, parseDosing } from '../lib/dosing/parse.ts';
 import { toSig } from '../lib/dosing/sig.ts';
 
 const force = process.argv.includes('--force');
-
-/** The generic name split into its actives, for labelling a combination. */
-function actives(generic: string): string[] {
-  const parts = generic
-    .split(/\s*[/]\s*|\s+with\s+|\s+and\s+|\s*,\s*/i)
-    .map((part) => part.trim().toLowerCase())
-    .filter(Boolean);
-  return parts.length > 1 ? parts : [];
-}
 
 const rows = await db
   .select({
@@ -75,7 +66,7 @@ for (const drug of rows) {
     await db.delete(dosingRegimens).where(inArray(dosingRegimens.id, existing.map((row) => row.id)));
   }
 
-  const result = parseDosing(prose, actives(drug.generic));
+  const result = parseDosing(prose, activesOf(drug.generic));
   report[result.status === 'parsed' ? 'parsed' : result.status === 'refused' ? 'refused' : 'needsReview'] += 1;
   if (result.status === 'refused') refusedNames.push(drug.generic);
 

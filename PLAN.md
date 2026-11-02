@@ -92,6 +92,37 @@ Transcription of the note:
   categories plus 92 indications would otherwise be the whole panel. A closed `<details>` only
   hides its contents, so the boxes inside still submit -- and the summary keeps name, description
   and tick count visible, so a collapsed axis can never be a filter you cannot see.
+- **The editor writes; the importer only adds** (2026-11-02). `/drugs/[slug]/edit` makes the whole
+  profile editable and `/drugs/new` adds a drug by hand, both through `lib/drugs/mutations.ts`.
+  Four rules fell out of building it, each because the alternative loses something:
+
+  - **The slug never changes.** Renaming a drug rewrites `generic_name` and nothing else: the slug
+    is in saved session links and is how a `study_cards` row finds its way back to the drug, so
+    changing it would break both to no purpose.
+  - **Brands and indications are diffed, not rewritten.** Other rows point at their ids --
+    `brand_indications` pairs them, and a brand carries its own `dosing_override` and pairing
+    review state. Delete-and-reinsert would throw all of that away every time someone fixed a typo
+    elsewhere in the list. Editing a line keeps the row; removing it deletes it, pairings included.
+  - **Editing a value un-verifies it.** A verified marker is the claim that a person checked *that
+    value* against a source, and it cannot survive the value changing underneath it. So a changed
+    value drops to `unverified` unless the same submission says otherwise -- the "I checked it as I
+    typed it" case. Same deference in the other direction for dosing: a prose edit re-parses
+    `dosing_regimens`, unless a row there is verified, in which case the rows stand and are flagged
+    for a human instead.
+  - **Categories are not editable here.** They are `system` tags and `scripts/seed-categories.ts`
+    rebuilds every system link on each run, so a hand-made category assignment would last until the
+    next run and then vanish. The editor assigns lists, courses and custom tags; category membership
+    is a change to the map. The editor says so rather than offering a control that does not hold.
+
+  The importer is the other writer, and it only ever adds. A brand or indication deleted in the
+  editor comes back on the next `npm run seed` if the sheet still lists it; the editor warns about
+  that inline. An exclusion list is the fix if that becomes a nuisance -- deliberately not built
+  yet, since nothing has needed it.
+- **Dosing prose carries a live readback** (2026-11-02). The parser is pure and client-safe, so the
+  editor shows the same reading the save will store: the sig, the sig turned back into English, the
+  parser's notes, and anything it could not account for. A mis-filed component shows up as a
+  sentence that does not mean what you typed, which is the fault a token-coverage guard cannot
+  catch -- and until this existed, the only way to see it was to save and re-run a script.
 - **Color coding is per user**, editable, not a fixed palette.
 - **Admin** gets full site and user management.
 
@@ -797,7 +828,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
-| 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |
+| 8 | **drug editor done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new`, writing through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. Remaining: **lookup panel**, tag CRUD, delete/merge, the brand↔indication pairing editor, bulk tag and bulk field-set, users, verification queue, settings, audit UI, export |
 | 9 | Content elaboration in batches against the real sheet |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
@@ -956,8 +987,13 @@ reachable one-handed; browse table degrades to cards.
    families (Vivelle-Dot / Alora / Climara, then Femring / Estring / Vagifem / Divigel) against
    "product dependent" dosing. The importer refuses to turn that into brand rows rather than
    guess; `drug_brands.dosing_override` is where a human puts it in the drug editor.
-4. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
-5. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
+4. **No way to create a tag yet** (2026-11-02). The drug editor ticks tags that already exist, which
+   today means the 2026 list and anything the seeder made; there is no screen that makes a new one,
+   so a fresh course or custom tag needs a row inserted by hand. Tag CRUD is phase 8's own item and
+   is where "put this drug on a new list" belongs. The 65 therapeutic categories are deliberately
+   not in that picker -- see the decision above.
+5. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
+6. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
    remaining question is only whether individual courses get their own tags.
 6. **Not in v1, deliberately:** PWA/offline, pill images, interaction checking, shared classmate
    decks, analytics dashboards. All additive on this schema.

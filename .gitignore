@@ -14,3 +14,6 @@ __pycache__/
 # material, the photo is a personal note. Both predate the repo's first commit.
 2026 - top-drugs-master-doc-blackboard-posting.pdf
 PXL_20261028_223347704.jpg
+
+# vitest --reporter=json output, written only when chasing a startup error
+.vitest/
