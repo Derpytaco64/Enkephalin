@@ -153,3 +153,35 @@ describe('formatFieldValue', () => {
     expect(formatFieldValue(flag, value({ value: 'sometimes' }))).toEqual({ kind: 'text', text: 'sometimes' });
   });
 });
+
+describe('what is study material', () => {
+  /**
+   * The class sheet's own columns are the syllabus, and only they are asked.
+   * Drug class comes from RxNorm and route is read out of the name and dosing
+   * text, so neither is something the course teaches as a column -- they earn
+   * their place as filters, as colour coding, and as distractor support.
+   *
+   * Pinned because it is quiet to break: a re-seed or an admin edit flips a
+   * checkbox, and a field nobody is taught starts appearing in decks.
+   */
+  const SHEET_COLUMNS = ['generic', 'brand', 'indication', 'dosing', 'controlled', 'moa', 'bbw'];
+
+  it('asks about the sheet columns and nothing else', async () => {
+    const defs = await listFieldDefs();
+
+    expect(defs.filter((def) => def.isQuizzable).map((def) => def.key).sort())
+      .toEqual([...SHEET_COLUMNS].sort());
+  });
+
+  it('keeps class and route as data rather than as questions', async () => {
+    const defs = await listFieldDefs();
+
+    for (const key of ['drug_class', 'route']) {
+      const def = defs.find((candidate) => candidate.key === key);
+      expect(def, `${key} should still exist`).toBeDefined();
+      expect(def!.isQuizzable, `${key} should not be asked`).toBe(false);
+      // Still a field: profiles show it and the study scope filters on it.
+      expect(def!.deletedAt).toBeNull();
+    }
+  });
+});

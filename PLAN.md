@@ -28,6 +28,15 @@ Transcription of the note:
   237 drugs, extracted to `data/top-drugs-2026.json`. No bulk third-party import.
 - **The sheet assigns fields to program years.** Its header makes each column the responsibility of
   P1, P2, or P3. This is a property of the *field*, not the drug, and it drives study scoping.
+- **Only the sheet's own columns are study material** (2026-11-01). Generic, brand, indication,
+  dosing, controlled schedule, mechanism of action and black box warning are asked; nothing else
+  is. The two fields that are not sheet columns -- `drug_class`, resolved from RxNorm, and `route`,
+  read out of the drug's name and dosing text -- carry `isQuizzable: false`. They are not
+  second-class: class drives colour coding, the browse filter and same-class distractor sampling,
+  route drives the study scope filter and the per-route dosing subsystem to come, and the route
+  appears inside a dosing answer, which *is* asked. `tests/fields.test.ts` pins the set, because a
+  re-seed or a stray checkbox in the admin field editor would otherwise put an untaught field into
+  a deck quietly.
 - **Public drug APIs are an on-demand lookup, not a seeding step.** When adding or editing a drug,
   a lookup panel queries DailyMed / RxNorm / openFDA and lets you pull individual values into
   individual fields, one at a time, with the citation recorded. Nothing is ever auto-filled in bulk.

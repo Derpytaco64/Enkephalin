@@ -56,8 +56,15 @@ export const CORE_FIELD_DEFS: NewFieldDef[] = [
     // Not one of the sheet's year-scoped fields: this is resolved from RxNorm
     // rather than assigned to a program year.
     yearLevels: [],
-    helpText: 'Resolved from RxNorm as an FDA Established Pharmacologic Class.',
-    promptTemplate: 'What class does {{generic}} belong to?',
+    /**
+     * Not asked. Only the class sheet's own seven columns are study material,
+     * and class is not one of them -- it comes from RxNorm. It earns its place
+     * by driving colour coding, the browse filter, and same-class distractor
+     * sampling for the fields that *are* asked.
+     */
+    isQuizzable: false,
+    helpText: 'Resolved from RxNorm as an FDA Established Pharmacologic Class. '
+      + 'Supports filtering and quiz distractors rather than being asked itself.',
   },
   {
     key: 'controlled',
@@ -81,8 +88,15 @@ export const CORE_FIELD_DEFS: NewFieldDef[] = [
     // The sheet assigns no year to it: route is read out of the drug's own
     // name and dosing text rather than taught as its own column.
     yearLevels: [],
-    helpText: 'How the drug is given. Blank means the source never said, not that it has none.',
-    promptTemplate: 'How is {{generic}} given?',
+    /**
+     * Not asked, for the same reason as class: the sheet has no route column,
+     * so it is not study material. It still earns its place as a study scope
+     * filter, and as the axis the per-route dosing subsystem will hang off.
+     * The route also appears inside a dosing answer, which *is* asked.
+     */
+    isQuizzable: false,
+    helpText: 'How the drug is given. Blank means the source never said, not that it has none. '
+      + 'Supports filtering rather than being asked itself.',
   },
   {
     key: 'dosing',
