@@ -165,6 +165,35 @@ Transcription of the note:
   readback underneath saying the same thing in words, since colour is never the only signal here.
   It is the one field whose wording has to survive being decoded, so seeing that at the moment of
   typing is the difference between catching a mangled dose and discovering it in a quiz.
+- **A quiz question is the answer, one near miss, and two strangers** (2026-11-02). Four options,
+  and the composition is the whole design. Exactly one distractor comes from the same class (the
+  categories are the fallback for a class of one), and the rest from anywhere -- four statins'
+  doses side by side is a memory test for digits rather than a question about statins, while four
+  unrelated options are answerable by elimination without knowing anything.
+
+  **The scope decides what is asked; distractors come from the whole database.** This matters at
+  both ends: a paper narrowed to the four statins can still fill four options, and "an indication
+  of atorvastatin" inside a statins-only scope would otherwise have no wrong answer available and
+  the question would silently vanish. Measured on the real data: a statins + dosing paper gives
+  four questions, each one correct answer plus exactly one class-mate plus two from elsewhere.
+
+  Two guards, both about the words rather than about pharmacology. An option never repeats a
+  string already on screen -- two drugs written up as "10 mg by mouth once a day" would otherwise
+  make a question with two right answers. And every value the question would *also* accept is
+  excluded from the distractors and shown after answering: asked "which drug treats dyslipidemia?"
+  the sheet makes **ten** drugs right, so nine of them cannot be offered as wrong.
+
+  A sig marked *unique/complicated* is quizzed as multiple choice like anything else. Its wording
+  is distinctive enough that no other option could accidentally be right, which is the owner's
+  call and replaces the earlier plan to hold component-less dosing back from multiple choice. The
+  strict component-level distractor check is therefore not built, and the structured components
+  are not what makes the quiz safe -- the two string guards above are.
+
+  Feedback is immediate, because this is studying: being told at the end that question 9 of 40 was
+  wrong teaches less than being told while the drug is still in your head. The paper is fixed when
+  the page renders, and the whole attempt is written once at the finish -- `quiz_answers` stores
+  the options *as shown* rather than recomputing them, since a review screen that re-rolled them
+  would show a question nobody sat.
 - **Color coding is per user**, editable, not a fixed palette.
 - **Admin** gets full site and user management.
 
@@ -900,7 +929,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 3 | **done — imported 2026-10-29, classes corrected 2026-11-01** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 217 classed, 20 uncategorized), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
-| 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
+| 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 | 9 | Content elaboration in batches against the real sheet |

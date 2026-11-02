@@ -41,7 +41,7 @@ export type StudyCardSpec = {
  * box warning" is a fact worth being asked for, and the whole field system
  * exists to tell that apart from nobody having filled it in.
  */
-function answerText(def: FieldDef, value: FieldValue | undefined): string | null {
+export function answerText(def: FieldDef, value: FieldValue | undefined): string | null {
   const formatted = formatFieldValue(def, value);
 
   switch (formatted.kind) {
@@ -64,7 +64,7 @@ function answerText(def: FieldDef, value: FieldValue | undefined): string | null
   }
 }
 
-function inScope(source: CardSource, config: StudyConfig) {
+export function inScope(source: CardSource, config: StudyConfig) {
   const { scope } = config;
   // Each axis narrows the one before it. Two lists mean either list, but a
   // list and a category mean the drugs in both: "Top Drugs 2026 +

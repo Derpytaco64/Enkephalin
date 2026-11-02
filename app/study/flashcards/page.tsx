@@ -7,8 +7,8 @@ import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
-import { FieldPicker } from './field-picker';
-import { ScopePicker } from './scope-picker';
+import { FieldPicker } from '../_components/field-picker';
+import { ScopePicker } from '../_components/scope-picker';
 import { SessionRunner } from './session-runner';
 
 export const metadata = { title: 'Flashcards — Enkephalin' };

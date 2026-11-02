@@ -21,7 +21,7 @@ const TRUE_WORDS = new Set(['true', 'yes', 'y', '1']);
 const FALSE_WORDS = new Set(['false', 'no', 'n', '0']);
 
 /** Multi-line for authored content, semicolons for values that arrive inline. */
-function splitList(raw: string) {
+export function splitList(raw: string) {
   const parts = raw.includes('\n') ? raw.split('\n') : raw.split(';');
   return parts.map((part) => part.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
 }
