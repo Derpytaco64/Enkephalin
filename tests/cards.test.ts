@@ -225,6 +225,33 @@ describe('buildCards', () => {
     expect(cards[0].prompt).toContain('Mechanism of action: GABA-A positive allosteric modulator');
   });
 
+  it('reads a list and a category as the drugs in both', () => {
+    // "Top Drugs 2026 + Anticonvulsants" is the anticonvulsants within that
+    // list. Two lists would mean either list, which is why categories are
+    // their own axis rather than more entries in `tags`.
+    const onBoth = source({ slug: 'topiramate', generic: 'Topiramate', tags: ['top-drugs-2026', 'anticonvulsants'] });
+    const listOnly = source({ slug: 'lisinopril', generic: 'Lisinopril', tags: ['top-drugs-2026', 'ace-inhibitors'] });
+    const categoryOnly = source({ slug: 'phenytoin', generic: 'Phenytoin', tags: ['anticonvulsants'] });
+
+    const cards = buildCards([onBoth, listOnly, categoryOnly], defs, config({
+      scope: { ...DEFAULT_CONFIG.scope, tags: ['top-drugs-2026'], categories: ['anticonvulsants'] },
+    }));
+
+    expect(cards.map((card) => card.slug)).toEqual(['topiramate']);
+  });
+
+  it('takes either category when several are picked', () => {
+    const anticonvulsant = source({ slug: 'topiramate', generic: 'Topiramate', tags: ['anticonvulsants'] });
+    const statin = source({ slug: 'atorvastatin', generic: 'Atorvastatin', tags: ['statins'] });
+    const neither = source({ slug: 'lisinopril', generic: 'Lisinopril', tags: ['ace-inhibitors'] });
+
+    const cards = buildCards([anticonvulsant, statin, neither], defs, config({
+      scope: { ...DEFAULT_CONFIG.scope, categories: ['anticonvulsants', 'statins'] },
+    }));
+
+    expect(cards.map((card) => card.slug).sort()).toEqual(['atorvastatin', 'topiramate']);
+  });
+
   it('narrows to a tagged list', () => {
     const tagged = source();
     const untagged = source({ slug: 'other', generic: 'Other', tags: [] });

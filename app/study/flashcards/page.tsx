@@ -1,4 +1,4 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq, ne } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
 import { tags } from '@/db/schema';
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 type Search = {
   mode?: string; year?: string; fields?: string; block?: string;
-  dir?: string; set?: string; tag?: string;
+  dir?: string; set?: string; tag?: string; cat?: string;
 };
 
 /**
@@ -34,16 +34,27 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     mode: search.set === 'exclusive' ? 'exclusive' : DEFAULT_CONFIG.mode,
     direction: search.dir === 'fields_to_drug' ? 'fields_to_drug' : 'drug_to_fields',
     blockSize: search.block === undefined ? DEFAULT_CONFIG.blockSize : Number(search.block),
-    scope: { ...DEFAULT_CONFIG.scope, tags: search.tag ? [search.tag] : [] },
+    scope: {
+      ...DEFAULT_CONFIG.scope,
+      tags: search.tag ? [search.tag] : [],
+      categories: search.cat ? [search.cat] : [],
+    },
   });
 }
 
 export default async function FlashcardsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const session = await requireUser();
   const search = await searchParams;
-  const [defs, tagRows] = await Promise.all([
+  // Lists and categories are both tags, and they are two different questions:
+  // which drugs are on the syllabus, and which kind of drug. Kept apart so one
+  // dropdown does not hold "Top Drugs 2026" beside sixty-five therapeutic
+  // categories.
+  const [defs, listRows, categoryRows] = await Promise.all([
     listFieldDefs(),
-    db.select({ slug: tags.slug, label: tags.label }).from(tags).orderBy(asc(tags.label)),
+    db.select({ slug: tags.slug, label: tags.label }).from(tags)
+      .where(ne(tags.kind, 'system')).orderBy(asc(tags.label)),
+    db.select({ slug: tags.slug, label: tags.label }).from(tags)
+      .where(eq(tags.kind, 'system')).orderBy(asc(tags.label)),
   ]);
 
   const config = configFromSearch(search, defs);
@@ -105,15 +116,31 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             </p>
           </div>
 
-          {tagRows.length > 0 && (
+          {listRows.length > 0 && (
             <div>
               <label htmlFor="tag" className="block text-sm font-medium">Drug list</label>
               <select id="tag" name="tag" defaultValue={config.scope.tags[0] ?? ''} className={control}>
                 <option value="">Every drug</option>
-                {tagRows.map((tag) => (
+                {listRows.map((tag) => (
                   <option key={tag.slug} value={tag.slug}>{tag.label}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {categoryRows.length > 0 && (
+            <div>
+              <label htmlFor="cat" className="block text-sm font-medium">Category</label>
+              <select id="cat" name="cat" defaultValue={config.scope.categories[0] ?? ''} className={control}>
+                <option value="">Every category</option>
+                {categoryRows.map((tag) => (
+                  <option key={tag.slug} value={tag.slug}>{tag.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Narrows the drug list rather than replacing it: a list and a category together
+                mean the drugs in both.
+              </p>
             </div>
           )}
 

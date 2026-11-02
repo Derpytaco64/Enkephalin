@@ -50,6 +50,26 @@ Transcription of the note:
 - **Study config** — testing lets you pick *which* fields are in play, in two modes: **inclusive**
   (selected fields share one card/question) and **exclusive** (each field becomes its own
   card/question).
+- **Therapeutic categories are what you study by, not the FDA class** (2026-11-01). The class is
+  too fine to be a category: 119 values over 216 drugs, 80 of them naming a single drug, and no
+  *Anticonvulsants* at all -- the sheet's nine anticonvulsants scatter across *Mood Stabilizer*,
+  *Anti-epileptic Agent*, and five with no class. So `scripts/seed-categories.ts` groups the class
+  axis into 65 course-level categories held as tags of kind `system`, and the class stays what it
+  was: colour coding, the browse filter, and the axis same-class distractors are drawn along.
+
+  Categories are tags because `drug_tags` is many-to-many, which a class column is not:
+  carbamazepine is an anticonvulsant *and* a mood stabiliser, and both are true. They are a
+  separate study scope axis from drug lists (`scope.categories`, not more entries in `scope.tags`)
+  because the two combine differently -- two lists mean *either* list, while a list and a category
+  mean the drugs in *both*. "Top Drugs 2026 + Anticonvulsants" is the anticonvulsants within that
+  list, which one OR-ed array cannot express.
+
+  The map is curated judgement, not a lookup, so it is one table to read and argue with. Its
+  per-drug overrides exist for where a mechanism class and a therapeutic category part company:
+  carvedilol's class says alpha blocker but it is taught as a beta blocker, sotalol is a beta
+  blocker as well as a class III antiarrhythmic, tamsulosin is uroselective and not a blood
+  pressure drug, and dexmedetomidine, tizanidine and guanfacine share clonidine's class without
+  sharing its indication.
 - **Color coding is per user**, editable, not a fixed palette.
 - **Admin** gets full site and user management.
 
@@ -856,8 +876,15 @@ ever involved.
 2. **The config's own imports.** `vitest.config.mts` and `tests/test-db.mjs` carry those
    extensions deliberately. As `vitest.config.ts` importing `./tests/test-db` with no extension,
    the chain went through Vite's CommonJS config-loading path — which vite 8 warns is going away —
-   and crashed vitest's startup on roughly half of all runs. With both extensions explicit the
-   warning is gone and the suite runs green repeatedly.
+   and crashed vitest's startup on roughly half of all runs.
+
+**It is reduced but not gone.** Making those extensions explicit cleared the vite warning and took
+the failure from about one run in two to roughly one in three, and an earlier revision of this note
+claimed it was fixed — it is not. When it strikes, `--reporter=json` reveals nothing underlying,
+which distinguishes it from the two causes above: this residue is a vitest/vite 8 startup bug
+rather than anything in this repo. **Re-run; it passes.** Do not read a single "No test files
+found" as a broken suite, and do not go looking for the cause in the test container, the published
+port, or the transform cache — all three were chased and none was ever involved.
 
 **Per-user color** — overriding a class color changes it on browse, profile, and quiz for that user
 and *not* for a second test account. Reset restores the admin default. The picker warns on a

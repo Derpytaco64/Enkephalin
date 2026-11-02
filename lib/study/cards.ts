@@ -63,7 +63,13 @@ function answerText(def: FieldDef, value: FieldValue | undefined): string | null
 
 function inScope(source: CardSource, config: StudyConfig) {
   const { scope } = config;
+  // Each axis narrows the one before it. Two lists mean either list, but a
+  // list and a category mean the drugs in both: "Top Drugs 2026 +
+  // Anticonvulsants" is the anticonvulsants within that list.
   if (scope.tags.length > 0 && !scope.tags.some((tag) => source.tags.includes(tag))) return false;
+  if (scope.categories.length > 0 && !scope.categories.some((tag) => source.tags.includes(tag))) {
+    return false;
+  }
   if (scope.classes.length > 0 && !scope.classes.includes(source.drugClass ?? '')) return false;
   if (scope.schedules.length > 0 && !scope.schedules.includes(source.schedule ?? '')) return false;
   if (scope.routes.length > 0 && !scope.routes.some((route) => source.routes.includes(route))) return false;

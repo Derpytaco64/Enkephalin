@@ -22,7 +22,24 @@ export type GradingScale = 'binary' | 'four-point';
 export type YearLevel = 'P1' | 'P2' | 'P3';
 
 export type StudyScope = {
+  /** Drug lists, such as the sheet edition: `top-drugs-2026`. */
   tags: string[];
+  /**
+   * Therapeutic categories -- anticonvulsants, beta blockers -- held as tags
+   * of kind `system` and so drawn from the same `drug_tags` table as the
+   * lists above.
+   *
+   * Its own axis rather than more entries in `tags`, because the two combine
+   * differently: picking two lists means either list, but picking a list and
+   * a category means the drugs in both. "Top Drugs 2026 + Anticonvulsants" is
+   * the anticonvulsants *within* that list, which one OR-ed array cannot say.
+   */
+  categories: string[];
+  /**
+   * The FDA class, far more granular than a category: 80 of its 119 values
+   * name a single drug. Kept as a filter and as the axis same-class distractors
+   * are drawn along; `categories` is what you study by.
+   */
   classes: string[];
   schedules: string[];
   routes: string[];
@@ -65,7 +82,7 @@ export function sessionRules(config: StudyConfig) {
 
 export const DEFAULT_CONFIG: StudyConfig = {
   sessionMode: 'review',
-  scope: { tags: [], classes: [], schedules: [], routes: [], verifiedOnly: false, dueOnly: true },
+  scope: { tags: [], categories: [], classes: [], schedules: [], routes: [], verifiedOnly: false, dueOnly: true },
   yearLevel: null,
   fields: [],
   // One card per drug by default: a field set over 236 drugs runs to
