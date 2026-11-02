@@ -15,6 +15,8 @@ export type CardSource = {
   schedule: string | null;
   routes: string[];
   tags: string[];
+  /** Indication slugs, not the prose: the scope compares slug to slug. */
+  indications: string[];
   needsPairingReview: boolean;
   values: Record<string, FieldValue | undefined>;
 };
@@ -68,6 +70,12 @@ function inScope(source: CardSource, config: StudyConfig) {
   // Anticonvulsants" is the anticonvulsants within that list.
   if (scope.tags.length > 0 && !scope.tags.some((tag) => source.tags.includes(tag))) return false;
   if (scope.categories.length > 0 && !scope.categories.some((tag) => source.tags.includes(tag))) {
+    return false;
+  }
+  if (
+    scope.indications.length > 0
+    && !scope.indications.some((slug) => source.indications.includes(slug))
+  ) {
     return false;
   }
   if (scope.classes.length > 0 && !scope.classes.includes(source.drugClass ?? '')) return false;

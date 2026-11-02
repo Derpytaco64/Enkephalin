@@ -9,6 +9,7 @@ import {
   tags,
   type FieldValue,
 } from '@/db/schema';
+import { indicationSlug } from '@/lib/drugs/indications';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { buildCards, type CardSource, type StudyCardSpec } from './cards';
 import { sessionRules, type StudyConfig } from './config';
@@ -69,6 +70,9 @@ async function loadSources(): Promise<CardSource[]> {
       schedule: drug.schedule,
       routes: routeValue ? routeValue.split('\n').map((route) => route.trim()).filter(Boolean) : [],
       tags: tagsByDrug.get(drug.id) ?? [],
+      // Slugged here with the same helper the picker uses, so "Seizures" and
+      // "Seizure" land on one filter rather than two half-decks.
+      indications: [...new Set(indications.map((text) => indicationSlug(text)).filter(Boolean))],
       needsPairingReview: drug.needsPairingReview,
       values: {
         ...drug.fields,

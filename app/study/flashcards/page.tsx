@@ -1,13 +1,14 @@
 import { asc, count, eq, ne } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
-import { drugTags, tags } from '@/db/schema';
+import { drugIndications, drugTags, tags } from '@/db/schema';
+import { indicationOptions } from '@/lib/drugs/indications';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
-import { CategoryPicker } from './category-picker';
 import { FieldPicker } from './field-picker';
+import { ScopePicker } from './scope-picker';
 import { SessionRunner } from './session-runner';
 
 export const metadata = { title: 'Flashcards — Enkephalin' };
@@ -18,7 +19,12 @@ type Search = {
   dir?: string; set?: string; tag?: string;
   /** Repeated once per category, so several can be in play at once. */
   cat?: string | string[];
+  /** Same, for indications. */
+  ind?: string | string[];
 };
+
+/** `?cat=a&cat=b` arrives as an array, `?cat=a` as a string, neither as undefined. */
+const many = (value: string | string[] | undefined) => [value ?? []].flat().filter(Boolean);
 
 /**
  * The config lives in the URL rather than in state: a session you like is then
@@ -40,7 +46,8 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     scope: {
       ...DEFAULT_CONFIG.scope,
       tags: search.tag ? [search.tag] : [],
-      categories: [search.cat ?? []].flat().filter(Boolean),
+      categories: many(search.cat),
+      indications: many(search.ind),
     },
   });
 }
@@ -52,7 +59,7 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
   // which drugs are on the syllabus, and which kind of drug. Kept apart so one
   // dropdown does not hold "Top Drugs 2026" beside sixty-five therapeutic
   // categories.
-  const [defs, listRows, categoryRows] = await Promise.all([
+  const [defs, listRows, categoryRows, indicationRows] = await Promise.all([
     listFieldDefs(),
     db.select({ slug: tags.slug, label: tags.label }).from(tags)
       .where(ne(tags.kind, 'system')).orderBy(asc(tags.label)),
@@ -64,7 +71,12 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
       .where(eq(tags.kind, 'system'))
       .groupBy(tags.slug, tags.label)
       .orderBy(asc(tags.label)),
+    // Grouped in code rather than SQL: the slug folds the sheet's plural and
+    // abbreviated variants together, and the count has to be of drugs after
+    // that folding.
+    db.select({ drugId: drugIndications.drugId, text: drugIndications.text }).from(drugIndications),
   ]);
+  const indications = indicationOptions(indicationRows);
 
   const config = configFromSearch(search, defs);
   // The drug's own name is the stimulus or the answer, never one of the things
@@ -93,6 +105,8 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
               {config.fields.length === 1 ? '' : 's'}
               {config.scope.categories.length > 0
                 && ` · ${config.scope.categories.length} categor${config.scope.categories.length === 1 ? 'y' : 'ies'}`}
+              {config.scope.indications.length > 0
+                && ` · ${config.scope.indications.length} indication${config.scope.indications.length === 1 ? '' : 's'}`}
             </span>
           )}
         </summary>
@@ -140,9 +154,25 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
           )}
 
           {categoryRows.length > 0 && (
-            <CategoryPicker
-              categories={categoryRows}
+            <ScopePicker
+              name="cat"
+              legend="Categories"
+              description="Therapeutic groups — beta blockers, anticonvulsants, statins. Pick several for the drugs in any of them."
+              filterLabel="Filter categories"
+              options={categoryRows}
               selected={config.scope.categories}
+              control={control}
+            />
+          )}
+
+          {indications.length > 0 && (
+            <ScopePicker
+              name="ind"
+              legend="Indications"
+              description="What the drug is used for, in the sheet’s own words. Pick several for the drugs treating any of them."
+              filterLabel="Filter indications"
+              options={indications}
+              selected={config.scope.indications}
               control={control}
             />
           )}

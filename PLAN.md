@@ -70,6 +70,28 @@ Transcription of the note:
   blocker as well as a class III antiarrhythmic, tamsulosin is uroselective and not a blood
   pressure drug, and dexmedetomidine, tizanidine and guanfacine share clonidine's class without
   sharing its indication.
+- **Indications are a third scope axis, and need no curated map** (2026-11-01). The sheet's
+  indication column is already a short controlled vocabulary -- 95 distinct strings over 249 rows,
+  *Hypertension* sixteen times and *Depression* fifteen -- so the texts group themselves and
+  `scope.indications` filters on them directly. It is its own axis for the same reason categories
+  are: "the antihypertensives" and "the drugs used for hypertension" overlap without being the
+  same question, and a drug has several indications the way it has several categories. Several
+  indications mean *any* of them; a list or a category still applies on top.
+
+  What the column does not do is agree with itself about plurals and abbreviations, and a filter is
+  where that bites: picking *Seizure* and silently missing the two drugs written up as *Seizures*
+  is a wrong deck, not an untidy one. So `lib/drugs/indications.ts` holds a three-entry alias
+  table -- *Seizures* -> *Seizure*, *Bacterial infections* -> *Bacterial infection*, *BPH* ->
+  *Benign prostatic hypertrophy (BPH)* -- folding 95 texts into 92 filter options, and nothing
+  else. Anything needing a judgement about what a phrase *means* is left alone: *Chronic pain*
+  stays apart from *Pain*, *Acute ischemic stroke* from *Ischemic stroke prevention*, because
+  those are clinical claims and a slug helper is not where one gets made. The drug's own profile
+  always shows the sheet's wording; only the filter groups.
+
+  Both of the big axes are collapsed by default in session settings (`ScopePicker`), because 65
+  categories plus 92 indications would otherwise be the whole panel. A closed `<details>` only
+  hides its contents, so the boxes inside still submit -- and the summary keeps name, description
+  and tick count visible, so a collapsed axis can never be a filter you cannot see.
 - **Color coding is per user**, editable, not a fixed palette.
 - **Admin** gets full site and user management.
 
@@ -772,7 +794,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
 | 3 | **done — imported 2026-10-29, classes corrected 2026-11-01** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 217 classed, 20 uncategorized), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
-| 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection |
+| 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |

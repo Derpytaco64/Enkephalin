@@ -35,6 +35,7 @@ function source(partial: Partial<CardSource> = {}): CardSource {
     schedule: 'CIV',
     routes: ['Oral'],
     tags: ['top-drugs-2026'],
+    indications: ['anxiety'],
     needsPairingReview: false,
     values: {
       generic: value({ value: 'Alprazolam' }),
@@ -250,6 +251,40 @@ describe('buildCards', () => {
     }));
 
     expect(cards.map((card) => card.slug).sort()).toEqual(['atorvastatin', 'topiramate']);
+  });
+
+  it('takes either indication when several are picked', () => {
+    const anxiety = source({ slug: 'alprazolam', generic: 'Alprazolam', indications: ['anxiety'] });
+    const both = source({ slug: 'duloxetine', generic: 'Duloxetine', indications: ['depression', 'neuropathic-pain'] });
+    const neither = source({ slug: 'lisinopril', generic: 'Lisinopril', indications: ['hypertension'] });
+
+    const cards = buildCards([anxiety, both, neither], defs, config({
+      scope: { ...DEFAULT_CONFIG.scope, indications: ['anxiety', 'depression'] },
+    }));
+
+    expect(cards.map((card) => card.slug).sort()).toEqual(['alprazolam', 'duloxetine']);
+  });
+
+  it('reads a category and an indication as the drugs in both', () => {
+    // The two axes are not the same question: picking Antidepressants and
+    // "Neuropathic pain" asks for the antidepressants used for nerve pain,
+    // not for every drug that is either.
+    const both = source({
+      slug: 'duloxetine', generic: 'Duloxetine',
+      tags: ['antidepressants'], indications: ['depression', 'neuropathic-pain'],
+    });
+    const categoryOnly = source({
+      slug: 'sertraline', generic: 'Sertraline', tags: ['antidepressants'], indications: ['depression'],
+    });
+    const indicationOnly = source({
+      slug: 'gabapentin', generic: 'Gabapentin', tags: ['anticonvulsants'], indications: ['neuropathic-pain'],
+    });
+
+    const cards = buildCards([both, categoryOnly, indicationOnly], defs, config({
+      scope: { ...DEFAULT_CONFIG.scope, categories: ['antidepressants'], indications: ['neuropathic-pain'] },
+    }));
+
+    expect(cards.map((card) => card.slug)).toEqual(['duloxetine']);
   });
 
   it('narrows to a tagged list', () => {

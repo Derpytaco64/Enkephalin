@@ -36,6 +36,17 @@ export type StudyScope = {
    */
   categories: string[];
   /**
+   * What the drugs are used for, as indication slugs (see
+   * `lib/drugs/indications.ts`). The third axis for the same reason as the
+   * second: "the antihypertensives" and "the drugs used for hypertension"
+   * overlap but are not the same question, and a drug has several indications
+   * the way it has several categories.
+   *
+   * Narrows like the others -- several indications mean any of them, and a
+   * list or category still applies on top.
+   */
+  indications: string[];
+  /**
    * The FDA class, far more granular than a category: 80 of its 119 values
    * name a single drug. Kept as a filter and as the axis same-class distractors
    * are drawn along; `categories` is what you study by.
@@ -82,7 +93,10 @@ export function sessionRules(config: StudyConfig) {
 
 export const DEFAULT_CONFIG: StudyConfig = {
   sessionMode: 'review',
-  scope: { tags: [], categories: [], classes: [], schedules: [], routes: [], verifiedOnly: false, dueOnly: true },
+  scope: {
+    tags: [], categories: [], indications: [], classes: [], schedules: [], routes: [],
+    verifiedOnly: false, dueOnly: true,
+  },
   yearLevel: null,
   fields: [],
   // One card per drug by default: a field set over 236 drugs runs to
