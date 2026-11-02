@@ -91,11 +91,11 @@ Extraction notes, all handled in the script:
 
 The class used is the FDA **Established Pharmacologic Class (EPC)**, because it reads the way a
 pharmacy course does — *HMG-CoA Reductase Inhibitor*, *Proton Pump Inhibitor*, *Angiotensin
-Converting Enzyme Inhibitor* — rather than in database register. **216 of 237 (91%)** have one. ATC,
+Converting Enzyme Inhibitor* — rather than in database register. **217 of 237 (92%)** have one. ATC,
 MoA, and VA classes are captured alongside as candidates but are not promoted automatically: ATC
 classifies by *product*, so it mislabels topiramate as an anti-obesity drug via its
-phentermine/topiramate combination sibling. The remaining **21 drugs fall to a human pick** from the
-captured candidates rather than being guessed.
+phentermine/topiramate combination sibling. The remaining **20 show as *Uncategorized*** rather than
+being guessed at from a second vocabulary — see [open item 1](#open-items).
 
 This is the one bulk lookup the project allows, and the justification is narrow: a class is a fact
 to be looked up, not prose to be written.
@@ -109,9 +109,30 @@ overlap. That ordering matters: unweighted, methenamine's *Urinary tract infecti
 pulled *ANTISPASMODICS,URINARY,OTHER* level with the correct *Other antibacterials* on the bare word
 "urinary".
 
-This produces a **hint, never an assignment** — 17 of the 21 get one; `drug_class` stays null and
-the drug stays in the review queue either way. The remaining 4 (buspirone, chlorhexidine,
+This produces a **hint, never an assignment** — 16 of the 20 get one; `drug_class` stays null and
+the drug shows as *Uncategorized* either way. The remaining 4 (buspirone, chlorhexidine,
 phytonadione, potassium chloride) have no defensible hint and are left blank rather than guessed.
+
+**A combination product's own classes are routinely incomplete, and the half they name is not
+always the half that matters.** RxClass gave Piperacillin/Tazobactam only *beta Lactamase
+Inhibitor* — the adjuvant, with the antibacterial missing — and Lisinopril/Hydrochlorothiazide only
+*Thiazide Diuretic*, losing the ACE inhibitor. `resolve()` consulted a combination's ingredients
+only when the product returned *nothing at all*, so three drugs were confidently classed as their
+own adjuvant and Amoxicillin/Clavulanate sat in the review queue even though plain amoxicillin
+resolves fine. Ampicillin/Sulbactam happening to return both is what made the gap easy to miss.
+Ingredients are now always consulted and unioned, with three rules behind the primary class:
+
+- **Ingredient order is the product's own order**, and the first leads. Sorting the union
+  alphabetically instead made Codeine/Guaifenesin an *Expectorant* and Dipyridamole/Aspirin an
+  *NSAID*, each naming the adjunct over the point of the drug.
+- **Salts are stripped from ingredients** as well as forms, because a class belongs to the active
+  moiety: "Codeine phosphate" resolves cleanly and carries no EPC of its own.
+- **An adjuvant never leads** (`ADJUVANT_CLASSES`), whatever the naming order. Carbidopa is named
+  first and is only there to protect levodopa, so order alone would have classed Sinemet as a
+  decarboxylase inhibitor — telling a student its purpose is the opposite of what it is.
+
+Seven classes changed, none was lost, and Sacubitril/Valsartan remains a known limit: sacubitril
+has no EPC of its own, so the pair keeps only the ARB half.
 
 Name resolution needed real work — the sheet appends route and release qualifiers (*Clonidine ER*,
 *Fentanyl Transdermal Patch*), writes combinations three different ways (`/`, `with`, `and`), and
@@ -709,7 +730,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 0 | **done — first run verified 2026-10-29** — scaffold, theme tokens, Dockerfile, compose, Drizzle schema, migrate-on-start, healthcheck. Node 26.13 + Docker 29.9 installed; first migration generated (21 tables) and applied on boot; `docker compose up` serves `/` and `/api/health` with both services healthy |
 | 1 | **done — 2026-10-29** — better-auth, login, invite-gated register, roles, admin seeded from env, `/admin/invites`. No migration needed: the auth tables already matched better-auth 1.7. See [Phase 1 plan](#phase-1--auth-invites-and-roles) |
 | 2 | `field_defs` + dynamic field rendering + admin field editor — **before** any content lands |
-| 3 | **done — imported 2026-10-29** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 216 classed), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
+| 3 | **done — imported 2026-10-29, classes corrected 2026-11-01** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 217 classed, 20 uncategorized), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection |
 | 6 | [Stored dosing structure](#dosing-is-stored-twice-prose-to-read-structure-to-compare) + backfill, then quiz + distractor generation + scoring + history. The structure lands first: the quiz cannot sample an honest dosing distractor without it |
@@ -829,9 +850,20 @@ reachable one-handed; browse table degrades to cards.
 
 ## Open items
 
-1. **21 drugs need a drug class confirmed** — 17 arrive with a ranked hint (topiramate →
-   *ANTICONVULSANTS*, gabapentin → *ANTICONVULSANTS*, mirtazapine → *ANTIDEPRESSANTS,OTHER*); 4 need
-   a manual pick. One click each in the verification queue.
+1. **20 drugs show as *Uncategorized*, and that is their answer for now** (2026-11-01). They are
+   not unresolved: all 237 resolve to an RxCUI, and each of the 20 has an ATC or VA candidate
+   recorded. What they lack is an FDA **EPC**, the one class vocabulary this project trusts —
+   vitamins and electrolytes (folic acid, phytonadione, potassium chloride, omega-3, icosapent),
+   anticonvulsants with no EPC entry (gabapentin, pregabalin, topiramate, levetiracetam,
+   divalproex), drugs that are their own class (lithium, buspirone), newer CNS agents and a
+   biologic, chlorhexidine, and methenamine.
+
+   Promoting their ATC or VA candidate was considered and rejected: class drives colour coding
+   *and* same-class distractor generation, so mixing EPC's `HMG-CoA Reductase Inhibitor` with VA's
+   `ANTICONVULSANTS` would give an incoherent axis and unreliable "same class" grouping.
+   `drug_class` therefore stays null, `lib/drugs/drug-class.ts` renders null as *Uncategorized*,
+   and the browse filter offers it as its own option. `class_candidates` and `class_suggestion`
+   are kept for whenever someone wants to revisit. **16 of the 20 still carry a ranked hint.**
 2. **7 drugs need brand↔indication pairing confirmed**: albuterol, bupropion, digoxin, divalproex,
    fluoxetine, lamotrigine, tirzepatide. Tirzepatide is the one that matters most —
    Mounjaro/Diabetes vs Zepbound/Weight management. Four brands additionally carry a

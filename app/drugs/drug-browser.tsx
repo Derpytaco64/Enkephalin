@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { BrowseFacets, DrugIndexRow } from '@/lib/drugs/browse';
+import { classLabel, isUncategorized } from '@/lib/drugs/drug-class';
 import { scheduleColor } from '@/lib/drugs/schedule';
 
 const VERIFICATION_LABELS = {
@@ -95,7 +96,14 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
     return searched.filter((row) => {
       // Class and indication match on substring rather than equality, so a
       // half-typed "beta" narrows the list before you pick a suggestion.
-      if (filters.drugClass && !contains(row.drugClass ?? '', filters.drugClass)) return false;
+      if (filters.drugClass) {
+        // "Uncategorized" asks for the drugs that have no class, which a
+        // substring match over an empty string could never find.
+        const matched = isUncategorized(filters.drugClass)
+          ? !row.drugClass
+          : contains(row.drugClass ?? '', filters.drugClass);
+        if (!matched) return false;
+      }
       if (filters.indication && !row.indications.some((text) => contains(text, filters.indication))) return false;
       if (filters.schedule && row.schedule !== filters.schedule) return false;
       if (filters.tag && !row.tags.includes(filters.tag)) return false;
@@ -320,7 +328,7 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
                   {row.brands.join(', ') || '—'}
                 </span>
 
-                <span className="text-sm text-[var(--muted)] sm:text-right">{row.drugClass ?? ''}</span>
+                <span className="text-sm text-[var(--muted)] sm:text-right">{classLabel(row.drugClass)}</span>
               </li>
             ))}
           </ul>

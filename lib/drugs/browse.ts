@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { drugBrands, drugIndications, drugTags, drugs, tags } from '@/db/schema';
+import { UNCATEGORIZED } from '@/lib/drugs/drug-class';
 import { formatFieldValue } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
 
@@ -126,7 +127,12 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
       // localeCompare, not the default sort: that one is ASCII, so
       // "beta2-Adrenergic Agonist" would land after "Xanthine Oxidase
       // Inhibitor" purely for being lower-case.
-      classes: [...new Set(rows.map((r) => r.drugClass).filter((c): c is string => Boolean(c)))].sort(byName),
+      // Uncategorized rides at the end rather than being sorted into the Us:
+      // it is the absence of a class, not a class beginning with U.
+      classes: [
+        ...[...new Set(rows.map((r) => r.drugClass).filter((c): c is string => Boolean(c)))].sort(byName),
+        ...(rows.some((r) => !r.drugClass) ? [UNCATEGORIZED] : []),
+      ],
       indications: [...new Set(rows.flatMap((r) => r.indications))].sort(byName),
       schedules: [...new Set(rows.map((r) => r.schedule).filter((s): s is string => Boolean(s)))].sort(byName),
       tags: [...facetTags.values()].sort((a, b) => byName(a.label, b.label)),

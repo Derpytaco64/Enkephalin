@@ -799,10 +799,12 @@
      "starred": false
     }
    ],
-   "class_suggestion": "PENICILLINS,AMINO DERIVATIVES",
+   "class_suggestion": null,
    "class_candidates_ranked": [
     "PENICILLINS,AMINO DERIVATIVES",
-    "Penicillins with extended spectrum"
+    "Penicillins with extended spectrum",
+    "Combinations for eradication of Helicobacter pylori",
+    "H. PYLORI AGENTS"
    ],
    "dosing": "500/125 mg by mouth every 8 hours OR 875/125 mg every 12 hours",
    "schedule": null,
@@ -810,20 +812,27 @@
    "moa": "Inhibits bacterial cell wall synthesis via acylation transpeptidase enzyme and inhibition of beta-lactamase",
    "bbw": "",
    "bbw_status": "none",
-   "drug_class": null,
+   "drug_class": "Penicillin-class Antibacterial",
    "class_candidates": {
-    "epc": [],
+    "epc": [
+     "Penicillin-class Antibacterial",
+     "beta Lactamase Inhibitor"
+    ],
     "atc": [
+     "Combinations for eradication of Helicobacter pylori",
      "Penicillins with extended spectrum"
     ],
-    "moa": [],
+    "moa": [
+     "beta Lactamase Inhibitors"
+    ],
     "va": [
+     "H. PYLORI AGENTS",
      "PENICILLINS,AMINO DERIVATIVES"
     ]
    },
    "rxcui": "19711",
    "variants": [],
-   "needs_class_review": true,
+   "needs_class_review": false,
    "needs_pairing_review": false,
    "pairing_suggested_by_asterisk": false,
    "source_page": 2
@@ -863,6 +872,7 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "AMPHETAMINES",
     "Centrally acting sympathomimetics"
    ],
    "dosing": "5-20 mg (XR) by mouth once a day",
@@ -880,7 +890,9 @@
      "Centrally acting sympathomimetics"
     ],
     "moa": [],
-    "va": []
+    "va": [
+     "AMPHETAMINES"
+    ]
    },
    "rxcui": "253146",
    "variants": [],
@@ -919,6 +931,7 @@
     "PENICILLINS,AMINO DERIVATIVES",
     "Penicillins with extended spectrum",
     "Antibiotics",
+    "BETA-LACTAMS ANTIMICROBIALS,OTHER",
     "Beta-lactamase inhibitors"
    ],
    "dosing": "1.5 g IV infusion every 6 hours (dose is combination of ampicillin and sulbactam)",
@@ -935,15 +948,16 @@
     ],
     "atc": [
      "Antibiotics",
-     "Beta-lactamase inhibitors",
      "Combinations of penicillins, incl. beta-lactamase inhibitors",
-     "Penicillins with extended spectrum"
+     "Penicillins with extended spectrum",
+     "Beta-lactamase inhibitors"
     ],
     "moa": [
      "beta Lactamase Inhibitors"
     ],
     "va": [
-     "PENICILLINS,AMINO DERIVATIVES"
+     "PENICILLINS,AMINO DERIVATIVES",
+     "BETA-LACTAMS ANTIMICROBIALS,OTHER"
     ]
    },
    "rxcui": "1009148",
@@ -1801,10 +1815,14 @@
    "class_suggestion": null,
    "class_candidates_ranked": [
     "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
+    "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION",
     "Corticosteroids",
     "Corticosteroids acting locally",
     "Corticosteroids, potent (group III)",
     "ANTIASTHMA,OTHER",
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "GLUCOCORTICOIDS",
     "Glucocorticoids",
     "Selective beta-2-adrenoreceptor agonists"
    ],
@@ -1829,11 +1847,15 @@
      "Selective beta-2-adrenoreceptor agonists"
     ],
     "moa": [
-     "Adrenergic beta2-Agonists",
-     "Corticosteroid Hormone Receptor Agonists"
+     "Corticosteroid Hormone Receptor Agonists",
+     "Adrenergic beta2-Agonists"
     ],
     "va": [
-     "ANTIASTHMA,OTHER"
+     "ANTI-INFLAMMATORIES,INHALATION",
+     "ANTI-INFLAMMATORIES,NASAL",
+     "ANTIASTHMA,OTHER",
+     "GLUCOCORTICOIDS",
+     "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION"
     ]
    },
    "rxcui": "389132",
@@ -2026,7 +2048,26 @@
    "class_suggestion": null,
    "class_candidates_ranked": [
     "NON-OPIOID ANALGESICS",
-    "OPIOID ANALGESICS"
+    "OPIOID ANALGESICS",
+    "Opioids in combination with non-opioid analgesics",
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIMIGRAINE AGENTS",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "ANTIHISTAMINE/ANTITUSSIVE",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+    "Anilides",
+    "CNS MEDICATIONS,OTHER",
+    "CNS STIMULANTS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "DIURETICS,OTHER",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
+    "Other dermatologicals",
+    "SKELETAL MUSCLE RELAXANTS",
+    "Tests for gastric secretion",
+    "Xanthine derivatives"
    ],
    "dosing": "Capsule – 50 mg/300 mg/40 mg Tablet – 50 mg/325 mg/40 mg Dose - 1-2 capsule/tablet every four hours as needed not to exceed 6 capsules/tablets per day",
    "schedule": null,
@@ -2037,13 +2078,35 @@
    "drug_class": "Barbiturate",
    "class_candidates": {
     "epc": [
-     "Barbiturate"
+     "Barbiturate",
+     "Central Nervous System Stimulant",
+     "Methylxanthine"
     ],
-    "atc": [],
+    "atc": [
+     "Anilides",
+     "Opioids in combination with non-opioid analgesics",
+     "Other dermatologicals",
+     "Tests for gastric secretion",
+     "Xanthine derivatives"
+    ],
     "moa": [],
     "va": [
      "NON-OPIOID ANALGESICS",
-     "OPIOID ANALGESICS"
+     "OPIOID ANALGESICS",
+     "ANTIHISTAMINE/ANTITUSSIVE",
+     "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+     "CNS MEDICATIONS,OTHER",
+     "COLD REMEDIES,OTHER",
+     "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+     "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+     "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
+     "ANTIMIGRAINE AGENTS",
+     "CNS STIMULANTS,OTHER",
+     "DIURETICS,OTHER",
+     "SKELETAL MUSCLE RELAXANTS"
     ]
    },
    "rxcui": "19860",
@@ -3487,7 +3550,13 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
     "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "COLD REMEDIES,OTHER",
+    "DECONGESTANT/EXPECTORANT",
+    "Expectorants",
     "OPIOID ANALGESICS",
     "Opioids in combination with non-opioid analgesics",
     "Opium alkaloids and derivatives"
@@ -3501,18 +3570,25 @@
    "drug_class": "Opioid Agonist",
    "class_candidates": {
     "epc": [
-     "Opioid Agonist"
+     "Opioid Agonist",
+     "Expectorant"
     ],
     "atc": [
      "Opioids in combination with non-opioid analgesics",
-     "Opium alkaloids and derivatives"
+     "Opium alkaloids and derivatives",
+     "Expectorants"
     ],
     "moa": [
      "Full Opioid Agonists"
     ],
     "va": [
      "OPIOID ANALGESICS",
-     "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS"
+     "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+     "COLD REMEDIES,OTHER",
+     "DECONGESTANT/ANTITUSSIVE/EXPECTORANT",
+     "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+     "DECONGESTANT/EXPECTORANT",
+     "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS"
     ]
    },
    "rxcui": "2670",
@@ -4411,9 +4487,18 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
     "DIAGNOSTICS,OTHER",
+    "NON-OPIOID ANALGESICS",
+    "OPIOID ANALGESICS",
+    "Opioids in combination with non-opioid analgesics",
+    "Other agents for local oral treatment",
     "PLATELET AGGREGATION INHIBITORS",
-    "Platelet aggregation inhibitors excl. heparin"
+    "Platelet aggregation inhibitors excl. heparin",
+    "SKELETAL MUSCLE RELAXANTS",
+    "SODIUM BICARBONATE CONTAINING ANTACIDS",
+    "Salicylic acid and derivatives"
    ],
    "dosing": "200 mg/25 mg capsule by mouth twice daily",
    "schedule": null,
@@ -4424,15 +4509,27 @@
    "drug_class": "Platelet Aggregation Inhibitor",
    "class_candidates": {
     "epc": [
-     "Platelet Aggregation Inhibitor"
+     "Platelet Aggregation Inhibitor",
+     "Nonsteroidal Anti-inflammatory Drug"
     ],
     "atc": [
-     "Platelet aggregation inhibitors excl. heparin"
+     "Platelet aggregation inhibitors excl. heparin",
+     "Opioids in combination with non-opioid analgesics",
+     "Other agents for local oral treatment",
+     "Salicylic acid and derivatives"
     ],
-    "moa": [],
+    "moa": [
+     "Cyclooxygenase Inhibitors"
+    ],
     "va": [
      "DIAGNOSTICS,OTHER",
-     "PLATELET AGGREGATION INHIBITORS"
+     "PLATELET AGGREGATION INHIBITORS",
+     "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+     "NON-OPIOID ANALGESICS",
+     "OPIOID ANALGESICS",
+     "SKELETAL MUSCLE RELAXANTS",
+     "SODIUM BICARBONATE CONTAINING ANTACIDS"
     ]
    },
    "rxcui": "3521",
@@ -5984,9 +6081,14 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
     "Corticosteroids",
     "Corticosteroids, potent (group III)",
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
     "ANTIASTHMA,OTHER",
+    "ANTIHISTAMINES,NASAL",
     "Glucocorticoids"
    ],
    "dosing": "1 inhalation of 100/25 mcg daily",
@@ -6002,16 +6104,21 @@
      "beta2-Adrenergic Agonist"
     ],
     "atc": [
+     "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
      "Corticosteroids",
      "Corticosteroids, potent (group III)",
      "Glucocorticoids"
     ],
     "moa": [
-     "Adrenergic beta2-Agonists",
-     "Corticosteroid Hormone Receptor Agonists"
+     "Corticosteroid Hormone Receptor Agonists",
+     "Adrenergic beta2-Agonists"
     ],
     "va": [
-     "ANTIASTHMA,OTHER"
+     "ANTI-INFLAMMATORIES,INHALATION",
+     "ANTI-INFLAMMATORIES,NASAL",
+     "ANTI-INFLAMMATORY,TOPICAL",
+     "ANTIASTHMA,OTHER",
+     "ANTIHISTAMINES,NASAL"
     ]
    },
    "rxcui": "1424888",
@@ -6047,9 +6154,16 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
+    "BRONCHODILATORS,ANTICHOLINERGIC",
     "Corticosteroids",
     "Corticosteroids, potent (group III)",
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
     "ANTIASTHMA,OTHER",
+    "ANTIHISTAMINES,NASAL",
+    "Anticholinergics",
     "Glucocorticoids"
    ],
    "dosing": "1 inhalation of 100/62.5 /25 mcg daily",
@@ -6058,25 +6172,32 @@
    "moa": "Stimulates synthesis of anti- inflammatory proteins and enzymes, competitively inhibits action of M3 receptors in bronchial smooth muscle, and long-acting beta 2 adrenergic receptor agonist",
    "bbw": "",
    "bbw_status": "none",
-   "drug_class": "Anticholinergic",
+   "drug_class": "Corticosteroid",
    "class_candidates": {
     "epc": [
-     "Anticholinergic",
      "Corticosteroid",
+     "Anticholinergic",
      "beta2-Adrenergic Agonist"
     ],
     "atc": [
+     "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
      "Corticosteroids",
      "Corticosteroids, potent (group III)",
-     "Glucocorticoids"
+     "Glucocorticoids",
+     "Anticholinergics"
     ],
     "moa": [
-     "Adrenergic beta2-Agonists",
+     "Corticosteroid Hormone Receptor Agonists",
      "Cholinergic Antagonists",
-     "Corticosteroid Hormone Receptor Agonists"
+     "Adrenergic beta2-Agonists"
     ],
     "va": [
-     "ANTIASTHMA,OTHER"
+     "ANTI-INFLAMMATORIES,INHALATION",
+     "ANTI-INFLAMMATORIES,NASAL",
+     "ANTI-INFLAMMATORY,TOPICAL",
+     "ANTIASTHMA,OTHER",
+     "ANTIHISTAMINES,NASAL",
+     "BRONCHODILATORS,ANTICHOLINERGIC"
     ]
    },
    "rxcui": "1945038",
@@ -6174,9 +6295,14 @@
    "class_suggestion": null,
    "class_candidates_ranked": [
     "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
+    "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION",
     "Corticosteroids",
     "Corticosteroids, potent (group III)",
     "ANTIASTHMA,OTHER",
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "ANTIHISTAMINES,NASAL",
     "Glucocorticoids",
     "Selective beta-2-adrenoreceptor agonists"
    ],
@@ -6200,11 +6326,16 @@
      "Selective beta-2-adrenoreceptor agonists"
     ],
     "moa": [
-     "Adrenergic beta2-Agonists",
-     "Corticosteroid Hormone Receptor Agonists"
+     "Corticosteroid Hormone Receptor Agonists",
+     "Adrenergic beta2-Agonists"
     ],
     "va": [
-     "ANTIASTHMA,OTHER"
+     "ANTI-INFLAMMATORIES,INHALATION",
+     "ANTI-INFLAMMATORIES,NASAL",
+     "ANTI-INFLAMMATORY,TOPICAL",
+     "ANTIASTHMA,OTHER",
+     "ANTIHISTAMINES,NASAL",
+     "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION"
     ]
    },
    "rxcui": "284635",
@@ -6800,8 +6931,21 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "NON-OPIOID ANALGESICS",
     "OPIOID ANALGESICS",
+    "Opioids in combination with non-opioid analgesics",
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "ANTIHISTAMINE/ANTITUSSIVE",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
     "Anilides",
+    "CNS MEDICATIONS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
     "Opium alkaloids and derivatives"
    ],
    "dosing": "1-2 tablets (5/300 mg per tablet) by mouth every 4- 6 hours as needed",
@@ -6816,14 +6960,27 @@
      "Opioid Agonist"
     ],
     "atc": [
-     "Anilides",
-     "Opium alkaloids and derivatives"
+     "Opioids in combination with non-opioid analgesics",
+     "Opium alkaloids and derivatives",
+     "Anilides"
     ],
     "moa": [
      "Opioid Agonists"
     ],
     "va": [
-     "OPIOID ANALGESICS"
+     "OPIOID ANALGESICS",
+     "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+     "ANTIHISTAMINE/ANTITUSSIVE",
+     "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+     "CNS MEDICATIONS,OTHER",
+     "COLD REMEDIES,OTHER",
+     "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+     "NON-OPIOID ANALGESICS",
+     "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+     "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
     ]
    },
    "rxcui": "214182",
@@ -8326,7 +8483,12 @@
    "class_suggestion": null,
    "class_candidates_ranked": [
     "ANTIHYPERTENSIVE COMBINATIONS",
+    "Angiotensin II receptor blockers (ARBs), other combinations",
+    "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+    "THIAZIDES/RELATED DIURETICS",
+    "ACE INHIBITORS",
     "ACE inhibitors, plain",
+    "Renin-inhibitors",
     "Thiazides, plain"
    ],
    "dosing": "10/12.5 mg by mouth once a day",
@@ -8335,18 +8497,26 @@
    "moa": "Angiotensin-converting enzyme inhibitor and lowers plasma volume by decreasing sodium and water reabsorption",
    "bbw": "Fetal toxicity: discontinue as soon as pregnancy is detected",
    "bbw_status": "from_sheet",
-   "drug_class": "Thiazide Diuretic",
+   "drug_class": "Angiotensin Converting Enzyme Inhibitor",
    "class_candidates": {
     "epc": [
+     "Angiotensin Converting Enzyme Inhibitor",
      "Thiazide Diuretic"
     ],
     "atc": [
      "ACE inhibitors, plain",
+     "Angiotensin II receptor blockers (ARBs), other combinations",
+     "Renin-inhibitors",
      "Thiazides, plain"
     ],
-    "moa": [],
+    "moa": [
+     "Angiotensin-converting Enzyme Inhibitors"
+    ],
     "va": [
-     "ANTIHYPERTENSIVE COMBINATIONS"
+     "ACE INHIBITORS",
+     "ANTIHYPERTENSIVE COMBINATIONS",
+     "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+     "THIAZIDES/RELATED DIURETICS"
     ]
    },
    "rxcui": "214618",
@@ -10211,10 +10381,6 @@
     "ANTINEOPLASTIC HORMONES",
     "Estren derivatives",
     "HORMONES/SYNTHETICS/MODIFIERS,OTHER",
-    "IRON",
-    "Iron bivalent, oral preparations",
-    "Iron in combination with folic acid",
-    "MULTIVITAMINS WITH MINERALS",
     "Progestogens"
    ],
    "dosing": "One tablet by mouth once a day",
@@ -10223,21 +10389,19 @@
    "moa": "Suppresses LH and FSH resulting in inhibition of ovulation. Thickening of cervical mucous may also contribute",
    "bbw": "Cigarette smoking increases risk of CV events. Increased risk of endometrial and breast cancers, cardiovascular disease, and dementia. Discuss risks and benefits with patients",
    "bbw_status": "from_sheet",
-   "drug_class": "Estrogen",
+   "drug_class": "Progestin",
    "class_candidates": {
     "epc": [
-     "Estrogen",
-     "Progestin"
+     "Progestin",
+     "Estrogen"
     ],
     "atc": [
      "Estren derivatives",
-     "Estrogens",
-     "Iron bivalent, oral preparations",
-     "Iron in combination with folic acid",
-     "Natural and semisynthetic estrogens, plain",
      "Progestogens",
      "Progestogens and estrogens, fixed combinations",
-     "Progestogens and estrogens, sequential preparations"
+     "Progestogens and estrogens, sequential preparations",
+     "Estrogens",
+     "Natural and semisynthetic estrogens, plain"
     ],
     "moa": [
      "Estrogen Receptor Agonists"
@@ -10246,12 +10410,10 @@
      "ANTINEOPLASTIC HORMONES",
      "CONTRACEPTIVES,SYSTEMIC",
      "HORMONES/SYNTHETICS/MODIFIERS,OTHER",
-     "IRON",
-     "MULTIVITAMINS WITH MINERALS",
      "PROGESTINS"
     ]
    },
-   "rxcui": "7514+4124+24941",
+   "rxcui": "7514+4124",
    "variants": [],
    "needs_class_review": false,
    "needs_pairing_review": false,
@@ -10308,7 +10470,8 @@
     "Estrogens",
     "Natural and semisynthetic estrogens, plain",
     "Progestogens and estrogens, fixed combinations",
-    "Progestogens and estrogens, sequential preparations"
+    "Progestogens and estrogens, sequential preparations",
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
    ],
    "dosing": "One tablet by mouth once a day",
    "schedule": null,
@@ -10316,23 +10479,24 @@
    "moa": "Suppresses LH and FSH resulting in inhibition of ovulation. Thickening of cervical mucous may also contribute",
    "bbw": "Cigarette smoking increases risk of CV events",
    "bbw_status": "from_sheet",
-   "drug_class": "Estrogen",
+   "drug_class": "Progestin",
    "class_candidates": {
     "epc": [
-     "Estrogen",
-     "Progestin"
+     "Progestin",
+     "Estrogen"
     ],
     "atc": [
-     "Estrogens",
-     "Natural and semisynthetic estrogens, plain",
      "Progestogens and estrogens, fixed combinations",
-     "Progestogens and estrogens, sequential preparations"
+     "Progestogens and estrogens, sequential preparations",
+     "Estrogens",
+     "Natural and semisynthetic estrogens, plain"
     ],
     "moa": [
      "Estrogen Receptor Agonists"
     ],
     "va": [
-     "CONTRACEPTIVES,SYSTEMIC"
+     "CONTRACEPTIVES,SYSTEMIC",
+     "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
     ]
    },
    "rxcui": "214559",
@@ -11052,8 +11216,20 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "NON-OPIOID ANALGESICS",
     "OPIOID ANALGESICS",
+    "Opioids in combination with non-opioid analgesics",
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "ANTIHISTAMINE/ANTITUSSIVE",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
     "Anilides",
+    "CNS MEDICATIONS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
     "Natural opium alkaloids"
    ],
    "dosing": "1 tablet by mouth every 6 hours as needed",
@@ -11068,14 +11244,26 @@
      "Opioid Agonist"
     ],
     "atc": [
-     "Anilides",
-     "Natural opium alkaloids"
+     "Natural opium alkaloids",
+     "Opioids in combination with non-opioid analgesics",
+     "Anilides"
     ],
     "moa": [
      "Full Opioid Agonists"
     ],
     "va": [
-     "OPIOID ANALGESICS"
+     "OPIOID ANALGESICS",
+     "ANTIHISTAMINE/ANTITUSSIVE",
+     "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+     "CNS MEDICATIONS,OTHER",
+     "COLD REMEDIES,OTHER",
+     "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+     "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+     "NON-OPIOID ANALGESICS",
+     "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+     "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
     ]
    },
    "rxcui": "214183",
@@ -11697,6 +11885,7 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "CEPHALOSPORIN 3RD GENERATION",
     "EXTENDED SPECTRUM PENICILLINS",
     "Penicillins with extended spectrum",
     "Beta-lactamase inhibitors"
@@ -11707,20 +11896,22 @@
    "moa": "Inhibition of bacterial cell wall synthesis via inhibiting peptidoglycan transpeptidase + beta-lactamase inhibition",
    "bbw": "",
    "bbw_status": "none",
-   "drug_class": "beta Lactamase Inhibitor",
+   "drug_class": "Penicillin-class Antibacterial",
    "class_candidates": {
     "epc": [
+     "Penicillin-class Antibacterial",
      "beta Lactamase Inhibitor"
     ],
     "atc": [
-     "Beta-lactamase inhibitors",
-     "Penicillins with extended spectrum"
+     "Penicillins with extended spectrum",
+     "Beta-lactamase inhibitors"
     ],
     "moa": [
      "beta Lactamase Inhibitors"
     ],
     "va": [
-     "EXTENDED SPECTRUM PENICILLINS"
+     "EXTENDED SPECTRUM PENICILLINS",
+     "CEPHALOSPORIN 3RD GENERATION"
     ]
    },
    "rxcui": "74169",
@@ -12962,7 +13153,9 @@
    ],
    "class_suggestion": null,
    "class_candidates_ranked": [
+    "ANGIOTENSIN II INHIBITOR",
     "ANTIHYPERTENSIVE COMBINATIONS",
+    "Angiotensin II receptor blockers (ARBs) and calcium channel blockers",
     "Angiotensin II receptor blockers (ARBs), other combinations",
     "Angiotensin II receptor blockers (ARBs), plain"
    ],
@@ -12979,13 +13172,15 @@
     ],
     "atc": [
      "Angiotensin II receptor blockers (ARBs), other combinations",
+     "Angiotensin II receptor blockers (ARBs) and calcium channel blockers",
      "Angiotensin II receptor blockers (ARBs), plain"
     ],
     "moa": [
      "Angiotensin 2 Receptor Antagonists"
     ],
     "va": [
-     "ANTIHYPERTENSIVE COMBINATIONS"
+     "ANTIHYPERTENSIVE COMBINATIONS",
+     "ANGIOTENSIN II INHIBITOR"
     ]
    },
    "rxcui": "1656339",
@@ -13678,6 +13873,8 @@
     "Combinations of sulfonamides and trimethoprim, incl. derivatives",
     "Intermediate-acting sulfonamides",
     "SULFONAMIDE/RELATED ANTIMICROBIALS",
+    "ANTI-INFECTIVE,TOPICAL OPHTHALMIC,OTHER",
+    "ANTI-INFECTIVES,OTHER",
     "Trimethoprim and derivatives"
    ],
    "dosing": "DS – 1 tablet by mouth two times a day",
@@ -13686,11 +13883,11 @@
    "moa": "Inhibition of bacterial dihydrofolic acid and tetrahydrofolic acid synthesis",
    "bbw": "",
    "bbw_status": "none",
-   "drug_class": "Dihydrofolate Reductase Inhibitor Antibacterial",
+   "drug_class": "Sulfonamide Antimicrobial",
    "class_candidates": {
     "epc": [
-     "Dihydrofolate Reductase Inhibitor Antibacterial",
-     "Sulfonamide Antimicrobial"
+     "Sulfonamide Antimicrobial",
+     "Dihydrofolate Reductase Inhibitor Antibacterial"
     ],
     "atc": [
      "Combinations of sulfonamides and trimethoprim, incl. derivatives",
@@ -13698,13 +13895,15 @@
      "Trimethoprim and derivatives"
     ],
     "moa": [
-     "Cytochrome P450 2C8 Inhibitors",
      "Cytochrome P450 2C9 Inhibitors",
+     "Cytochrome P450 2C8 Inhibitors",
      "Dihydrofolate Reductase Inhibitors",
      "Organic Cation Transporter 2 Inhibitors"
     ],
     "va": [
-     "SULFONAMIDE/RELATED ANTIMICROBIALS"
+     "SULFONAMIDE/RELATED ANTIMICROBIALS",
+     "ANTI-INFECTIVE,TOPICAL OPHTHALMIC,OTHER",
+     "ANTI-INFECTIVES,OTHER"
     ]
    },
    "rxcui": "10831",
@@ -14653,7 +14852,11 @@
    "class_suggestion": null,
    "class_candidates_ranked": [
     "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+    "THIAZIDES/RELATED DIURETICS",
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "Angiotensin II receptor blockers (ARBs), other combinations",
     "Other potassium-sparing agents",
+    "Renin-inhibitors",
     "Thiazides, plain"
    ],
    "dosing": "1-2 doses by mouth two times a day",
@@ -14670,11 +14873,15 @@
     ],
     "atc": [
      "Other potassium-sparing agents",
+     "Angiotensin II receptor blockers (ARBs), other combinations",
+     "Renin-inhibitors",
      "Thiazides, plain"
     ],
     "moa": [],
     "va": [
-     "POTASSIUM SPARING/COMBINATIONS DIURETICS"
+     "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+     "ANTIHYPERTENSIVE COMBINATIONS",
+     "THIAZIDES/RELATED DIURETICS"
     ]
    },
    "rxcui": "258337",

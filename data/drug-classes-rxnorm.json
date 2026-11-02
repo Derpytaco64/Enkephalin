@@ -236,17 +236,28 @@
   },
   {
    "generic": "Amoxicillin/ Clavulanate",
-   "primary_class": null,
-   "needs_review": true,
+   "primary_class": "Penicillin-class Antibacterial",
+   "needs_review": false,
    "rxcui": "19711",
-   "matched_as": "Amoxicillin/ Clavulanate",
-   "path": "direct",
-   "epc": [],
+   "ingredient_rxcuis": [
+    "723",
+    "48203"
+   ],
+   "matched_as": "Amoxicillin/ Clavulanate / Amoxicillin / Clavulanate",
+   "path": "components",
+   "epc": [
+    "Penicillin-class Antibacterial",
+    "beta Lactamase Inhibitor"
+   ],
    "atc": [
+    "Combinations for eradication of Helicobacter pylori",
     "Penicillins with extended spectrum"
    ],
-   "moa": [],
+   "moa": [
+    "beta Lactamase Inhibitors"
+   ],
    "va": [
+    "H. PYLORI AGENTS",
     "PENICILLINS,AMINO DERIVATIVES"
    ]
   },
@@ -255,8 +266,12 @@
    "primary_class": "Central Nervous System Stimulant",
    "needs_review": false,
    "rxcui": "253146",
-   "matched_as": "Amphetamine/Dextroamphetamine",
-   "path": "normalized",
+   "ingredient_rxcuis": [
+    "725",
+    "3288"
+   ],
+   "matched_as": "Amphetamine/Dextroamphetamine / Amphetamine / Dextroamphetamine",
+   "path": "components",
    "epc": [
     "Central Nervous System Stimulant"
    ],
@@ -264,30 +279,37 @@
     "Centrally acting sympathomimetics"
    ],
    "moa": [],
-   "va": []
+   "va": [
+    "AMPHETAMINES"
+   ]
   },
   {
    "generic": "Ampicillin/ Sulbactam",
    "primary_class": "Penicillin-class Antibacterial",
    "needs_review": false,
    "rxcui": "1009148",
-   "matched_as": "Ampicillin/ Sulbactam",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "733",
+    "10167"
+   ],
+   "matched_as": "Ampicillin/ Sulbactam / Ampicillin / Sulbactam",
+   "path": "components",
    "epc": [
     "Penicillin-class Antibacterial",
     "beta Lactamase Inhibitor"
    ],
    "atc": [
     "Antibiotics",
-    "Beta-lactamase inhibitors",
     "Combinations of penicillins, incl. beta-lactamase inhibitors",
-    "Penicillins with extended spectrum"
+    "Penicillins with extended spectrum",
+    "Beta-lactamase inhibitors"
    ],
    "moa": [
     "beta Lactamase Inhibitors"
    ],
    "va": [
-    "PENICILLINS,AMINO DERIVATIVES"
+    "PENICILLINS,AMINO DERIVATIVES",
+    "BETA-LACTAMS ANTIMICROBIALS,OTHER"
    ]
   },
   {
@@ -569,8 +591,12 @@
    "primary_class": "Corticosteroid",
    "needs_review": false,
    "rxcui": "389132",
-   "matched_as": "Budesonide/ Formoterol",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "19831",
+    "25255"
+   ],
+   "matched_as": "Budesonide/ Formoterol / Budesonide / Formoterol",
+   "path": "components",
    "epc": [
     "Corticosteroid",
     "beta2-Adrenergic Agonist"
@@ -584,11 +610,15 @@
     "Selective beta-2-adrenoreceptor agonists"
    ],
    "moa": [
-    "Adrenergic beta2-Agonists",
-    "Corticosteroid Hormone Receptor Agonists"
+    "Corticosteroid Hormone Receptor Agonists",
+    "Adrenergic beta2-Agonists"
    ],
    "va": [
-    "ANTIASTHMA,OTHER"
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTIASTHMA,OTHER",
+    "GLUCOCORTICOIDS",
+    "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION"
    ]
   },
   {
@@ -635,16 +665,42 @@
    "primary_class": "Barbiturate",
    "needs_review": false,
    "rxcui": "19860",
-   "matched_as": "Butalbital",
-   "path": "normalized",
-   "epc": [
-    "Barbiturate"
+   "ingredient_rxcuis": [
+    "161",
+    "1886"
    ],
-   "atc": [],
+   "matched_as": "Butalbital / Butalbital / Acetaminophen / Caffeine",
+   "path": "components",
+   "epc": [
+    "Barbiturate",
+    "Central Nervous System Stimulant",
+    "Methylxanthine"
+   ],
+   "atc": [
+    "Anilides",
+    "Opioids in combination with non-opioid analgesics",
+    "Other dermatologicals",
+    "Tests for gastric secretion",
+    "Xanthine derivatives"
+   ],
    "moa": [],
    "va": [
     "NON-OPIOID ANALGESICS",
-    "OPIOID ANALGESICS"
+    "OPIOID ANALGESICS",
+    "ANTIHISTAMINE/ANTITUSSIVE",
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+    "CNS MEDICATIONS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC",
+    "ANTIMIGRAINE AGENTS",
+    "CNS STIMULANTS,OTHER",
+    "DIURETICS,OTHER",
+    "SKELETAL MUSCLE RELAXANTS"
    ]
   },
   {
@@ -676,8 +732,12 @@
    "primary_class": "Aromatic Amino Acid",
    "needs_review": false,
    "rxcui": "103990",
-   "matched_as": "Carbidopa/Levodopa",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "2019",
+    "6375"
+   ],
+   "matched_as": "Carbidopa/Levodopa / Carbidopa / Levodopa",
+   "path": "components",
    "epc": [
     "Aromatic Amino Acid",
     "Aromatic Amino Acid Decarboxylation Inhibitor"
@@ -1099,21 +1159,31 @@
    "primary_class": "Opioid Agonist",
    "needs_review": false,
    "rxcui": "2670",
-   "matched_as": "Codeine",
-   "path": "normalized",
+   "ingredient_rxcuis": [
+    "5032"
+   ],
+   "matched_as": "Codeine / Codeine / Guaifenesin",
+   "path": "components",
    "epc": [
-    "Opioid Agonist"
+    "Opioid Agonist",
+    "Expectorant"
    ],
    "atc": [
     "Opioids in combination with non-opioid analgesics",
-    "Opium alkaloids and derivatives"
+    "Opium alkaloids and derivatives",
+    "Expectorants"
    ],
    "moa": [
     "Full Opioid Agonists"
    ],
    "va": [
     "OPIOID ANALGESICS",
-    "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS"
+    "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "COLD REMEDIES,OTHER",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "DECONGESTANT/EXPECTORANT",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS"
    ]
   },
   {
@@ -1394,18 +1464,33 @@
    "primary_class": "Platelet Aggregation Inhibitor",
    "needs_review": false,
    "rxcui": "3521",
-   "matched_as": "Dipyridamole",
-   "path": "normalized",
+   "ingredient_rxcuis": [
+    "1191"
+   ],
+   "matched_as": "Dipyridamole / Dipyridamole / Aspirin",
+   "path": "components",
    "epc": [
-    "Platelet Aggregation Inhibitor"
+    "Platelet Aggregation Inhibitor",
+    "Nonsteroidal Anti-inflammatory Drug"
    ],
    "atc": [
-    "Platelet aggregation inhibitors excl. heparin"
+    "Platelet aggregation inhibitors excl. heparin",
+    "Opioids in combination with non-opioid analgesics",
+    "Other agents for local oral treatment",
+    "Salicylic acid and derivatives"
    ],
-   "moa": [],
+   "moa": [
+    "Cyclooxygenase Inhibitors"
+   ],
    "va": [
     "DIAGNOSTICS,OTHER",
-    "PLATELET AGGREGATION INHIBITORS"
+    "PLATELET AGGREGATION INHIBITORS",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+    "NON-OPIOID ANALGESICS",
+    "OPIOID ANALGESICS",
+    "SKELETAL MUSCLE RELAXANTS",
+    "SODIUM BICARBONATE CONTAINING ANTACIDS"
    ]
   },
   {
@@ -1914,49 +1999,70 @@
    "primary_class": "Corticosteroid",
    "needs_review": false,
    "rxcui": "1424888",
-   "matched_as": "Fluticasone furoate/Vilanterol",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "41126",
+    "1424884"
+   ],
+   "matched_as": "Fluticasone furoate/Vilanterol / Fluticasone / Vilanterol",
+   "path": "components",
    "epc": [
     "Corticosteroid",
     "beta2-Adrenergic Agonist"
    ],
    "atc": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
     "Corticosteroids",
     "Corticosteroids, potent (group III)",
     "Glucocorticoids"
    ],
    "moa": [
-    "Adrenergic beta2-Agonists",
-    "Corticosteroid Hormone Receptor Agonists"
+    "Corticosteroid Hormone Receptor Agonists",
+    "Adrenergic beta2-Agonists"
    ],
    "va": [
-    "ANTIASTHMA,OTHER"
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "ANTIASTHMA,OTHER",
+    "ANTIHISTAMINES,NASAL"
    ]
   },
   {
    "generic": "Fluticasone furoate/ Umeclidinium bromide/ Vilanterol",
-   "primary_class": "Anticholinergic",
+   "primary_class": "Corticosteroid",
    "needs_review": false,
    "rxcui": "1945038",
-   "matched_as": "Fluticasone furoate/ Umeclidinium bromide/ Vilanterol",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "41126",
+    "1487514",
+    "1424884"
+   ],
+   "matched_as": "Fluticasone furoate/ Umeclidinium bromide/ Vilanterol / Fluticasone / Umeclidinium / Vilanterol",
+   "path": "components",
    "epc": [
-    "Anticholinergic",
     "Corticosteroid",
+    "Anticholinergic",
     "beta2-Adrenergic Agonist"
    ],
    "atc": [
+    "Adrenergics in combination with corticosteroids or other drugs, excl. anticholinergics",
     "Corticosteroids",
     "Corticosteroids, potent (group III)",
-    "Glucocorticoids"
+    "Glucocorticoids",
+    "Anticholinergics"
    ],
    "moa": [
-    "Adrenergic beta2-Agonists",
+    "Corticosteroid Hormone Receptor Agonists",
     "Cholinergic Antagonists",
-    "Corticosteroid Hormone Receptor Agonists"
+    "Adrenergic beta2-Agonists"
    ],
    "va": [
-    "ANTIASTHMA,OTHER"
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "ANTIASTHMA,OTHER",
+    "ANTIHISTAMINES,NASAL",
+    "BRONCHODILATORS,ANTICHOLINERGIC"
    ]
   },
   {
@@ -1986,8 +2092,12 @@
    "primary_class": "Corticosteroid",
    "needs_review": false,
    "rxcui": "284635",
-   "matched_as": "Fluticasone/ Salmeterol",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "41126",
+    "36117"
+   ],
+   "matched_as": "Fluticasone/ Salmeterol / Fluticasone / Salmeterol",
+   "path": "components",
    "epc": [
     "Corticosteroid",
     "beta2-Adrenergic Agonist"
@@ -2000,11 +2110,16 @@
     "Selective beta-2-adrenoreceptor agonists"
    ],
    "moa": [
-    "Adrenergic beta2-Agonists",
-    "Corticosteroid Hormone Receptor Agonists"
+    "Corticosteroid Hormone Receptor Agonists",
+    "Adrenergic beta2-Agonists"
    ],
    "va": [
-    "ANTIASTHMA,OTHER"
+    "ANTI-INFLAMMATORIES,INHALATION",
+    "ANTI-INFLAMMATORIES,NASAL",
+    "ANTI-INFLAMMATORY,TOPICAL",
+    "ANTIASTHMA,OTHER",
+    "ANTIHISTAMINES,NASAL",
+    "BRONCHODILATORS,SYMPATHOMIMETIC,INHALATION"
    ]
   },
   {
@@ -2185,20 +2300,37 @@
    "primary_class": "Opioid Agonist",
    "needs_review": false,
    "rxcui": "214182",
-   "matched_as": "Hydrocodone/ Acetaminophen",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "5489",
+    "161"
+   ],
+   "matched_as": "Hydrocodone/ Acetaminophen / Hydrocodone / Acetaminophen",
+   "path": "components",
    "epc": [
     "Opioid Agonist"
    ],
    "atc": [
-    "Anilides",
-    "Opium alkaloids and derivatives"
+    "Opioids in combination with non-opioid analgesics",
+    "Opium alkaloids and derivatives",
+    "Anilides"
    ],
    "moa": [
     "Opioid Agonists"
    ],
    "va": [
-    "OPIOID ANALGESICS"
+    "OPIOID ANALGESICS",
+    "OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "ANTIHISTAMINE/ANTITUSSIVE",
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+    "CNS MEDICATIONS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID ANALGESICS",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
    ]
   },
   {
@@ -2661,21 +2793,33 @@
   },
   {
    "generic": "Lisinopril/Hydrochlorothiazi de",
-   "primary_class": "Thiazide Diuretic",
+   "primary_class": "Angiotensin Converting Enzyme Inhibitor",
    "needs_review": false,
    "rxcui": "214618",
-   "matched_as": "Lisinopril/Hydrochlorothiazide",
-   "path": "normalized",
+   "ingredient_rxcuis": [
+    "29046",
+    "5487"
+   ],
+   "matched_as": "Lisinopril/Hydrochlorothiazide / Lisinopril / Hydrochlorothiazide",
+   "path": "components",
    "epc": [
+    "Angiotensin Converting Enzyme Inhibitor",
     "Thiazide Diuretic"
    ],
    "atc": [
     "ACE inhibitors, plain",
+    "Angiotensin II receptor blockers (ARBs), other combinations",
+    "Renin-inhibitors",
     "Thiazides, plain"
    ],
-   "moa": [],
+   "moa": [
+    "Angiotensin-converting Enzyme Inhibitors"
+   ],
    "va": [
-    "ANTIHYPERTENSIVE COMBINATIONS"
+    "ACE INHIBITORS",
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+    "THIAZIDES/RELATED DIURETICS"
    ]
   },
   {
@@ -3241,24 +3385,26 @@
   },
   {
    "generic": "Norethindrone/Ethinyl estradiol/Ferrous fumarate",
-   "primary_class": "Estrogen",
+   "primary_class": "Progestin",
    "needs_review": false,
-   "rxcui": "7514+4124+24941",
-   "matched_as": "Norethindrone / Ethinyl estradiol / Ferrous fumarate",
+   "rxcui": "7514+4124",
+   "ingredient_rxcuis": [
+    "7514",
+    "4124"
+   ],
+   "matched_as": "Norethindrone / Ethinyl estradiol",
    "path": "components",
    "epc": [
-    "Estrogen",
-    "Progestin"
+    "Progestin",
+    "Estrogen"
    ],
    "atc": [
     "Estren derivatives",
-    "Estrogens",
-    "Iron bivalent, oral preparations",
-    "Iron in combination with folic acid",
-    "Natural and semisynthetic estrogens, plain",
     "Progestogens",
     "Progestogens and estrogens, fixed combinations",
-    "Progestogens and estrogens, sequential preparations"
+    "Progestogens and estrogens, sequential preparations",
+    "Estrogens",
+    "Natural and semisynthetic estrogens, plain"
    ],
    "moa": [
     "Estrogen Receptor Agonists"
@@ -3267,33 +3413,36 @@
     "ANTINEOPLASTIC HORMONES",
     "CONTRACEPTIVES,SYSTEMIC",
     "HORMONES/SYNTHETICS/MODIFIERS,OTHER",
-    "IRON",
-    "MULTIVITAMINS WITH MINERALS",
     "PROGESTINS"
    ]
   },
   {
    "generic": "Norgestimate/Ethinyl estradiol",
-   "primary_class": "Estrogen",
+   "primary_class": "Progestin",
    "needs_review": false,
    "rxcui": "214559",
-   "matched_as": "Norgestimate/Ethinyl estradiol",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "31994",
+    "4124"
+   ],
+   "matched_as": "Norgestimate/Ethinyl estradiol / Norgestimate / Ethinyl estradiol",
+   "path": "components",
    "epc": [
-    "Estrogen",
-    "Progestin"
+    "Progestin",
+    "Estrogen"
    ],
    "atc": [
-    "Estrogens",
-    "Natural and semisynthetic estrogens, plain",
     "Progestogens and estrogens, fixed combinations",
-    "Progestogens and estrogens, sequential preparations"
+    "Progestogens and estrogens, sequential preparations",
+    "Estrogens",
+    "Natural and semisynthetic estrogens, plain"
    ],
    "moa": [
     "Estrogen Receptor Agonists"
    ],
    "va": [
-    "CONTRACEPTIVES,SYSTEMIC"
+    "CONTRACEPTIVES,SYSTEMIC",
+    "HORMONES/SYNTHETICS/MODIFIERS,OTHER"
    ]
   },
   {
@@ -3513,20 +3662,36 @@
    "primary_class": "Opioid Agonist",
    "needs_review": false,
    "rxcui": "214183",
-   "matched_as": "Oxycodone/Acetaminophen",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "7804",
+    "161"
+   ],
+   "matched_as": "Oxycodone/Acetaminophen / Oxycodone / Acetaminophen",
+   "path": "components",
    "epc": [
     "Opioid Agonist"
    ],
    "atc": [
-    "Anilides",
-    "Natural opium alkaloids"
+    "Natural opium alkaloids",
+    "Opioids in combination with non-opioid analgesics",
+    "Anilides"
    ],
    "moa": [
     "Full Opioid Agonists"
    ],
    "va": [
-    "OPIOID ANALGESICS"
+    "OPIOID ANALGESICS",
+    "ANTIHISTAMINE/ANTITUSSIVE",
+    "ANTIHISTAMINE/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "ANTIHISTAMINE/DECONGESTANT/EXPECTORANT",
+    "CNS MEDICATIONS,OTHER",
+    "COLD REMEDIES,OTHER",
+    "DECONGESTANT/ANTITUSSIVE/ANALGESIC",
+    "DECONGESTANT/ANTITUSSIVE/EXPECTORANT/ANALGESIC",
+    "NON-OPIOID ANALGESICS",
+    "NON-OPIOID-CONTAINING ANTITUSSIVES/EXPECTORANTS",
+    "NONSALICYLATE NSAIs,ANTIRHEUMATIC"
    ]
   },
   {
@@ -3732,23 +3897,29 @@
   },
   {
    "generic": "Piperacillin/Tazobactam",
-   "primary_class": "beta Lactamase Inhibitor",
+   "primary_class": "Penicillin-class Antibacterial",
    "needs_review": false,
    "rxcui": "74169",
-   "matched_as": "Piperacillin/Tazobactam",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "8339",
+    "37617"
+   ],
+   "matched_as": "Piperacillin/Tazobactam / Piperacillin / Tazobactam",
+   "path": "components",
    "epc": [
+    "Penicillin-class Antibacterial",
     "beta Lactamase Inhibitor"
    ],
    "atc": [
-    "Beta-lactamase inhibitors",
-    "Penicillins with extended spectrum"
+    "Penicillins with extended spectrum",
+    "Beta-lactamase inhibitors"
    ],
    "moa": [
     "beta Lactamase Inhibitors"
    ],
    "va": [
-    "EXTENDED SPECTRUM PENICILLINS"
+    "EXTENDED SPECTRUM PENICILLINS",
+    "CEPHALOSPORIN 3RD GENERATION"
    ]
   },
   {
@@ -4135,20 +4306,26 @@
    "primary_class": "Angiotensin 2 Receptor Blocker",
    "needs_review": false,
    "rxcui": "1656339",
-   "matched_as": "Sacubitril/Valsartan",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "1656328",
+    "69749"
+   ],
+   "matched_as": "Sacubitril/Valsartan / Sacubitril / Valsartan",
+   "path": "components",
    "epc": [
     "Angiotensin 2 Receptor Blocker"
    ],
    "atc": [
     "Angiotensin II receptor blockers (ARBs), other combinations",
+    "Angiotensin II receptor blockers (ARBs) and calcium channel blockers",
     "Angiotensin II receptor blockers (ARBs), plain"
    ],
    "moa": [
     "Angiotensin 2 Receptor Antagonists"
    ],
    "va": [
-    "ANTIHYPERTENSIVE COMBINATIONS"
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "ANGIOTENSIN II INHIBITOR"
    ]
   },
   {
@@ -4375,14 +4552,18 @@
   },
   {
    "generic": "Sulfamethoxazole/Trimethop rim",
-   "primary_class": "Dihydrofolate Reductase Inhibitor Antibacterial",
+   "primary_class": "Sulfonamide Antimicrobial",
    "needs_review": false,
    "rxcui": "10831",
-   "matched_as": "Sulfamethoxazole/Trimethoprim",
-   "path": "normalized",
+   "ingredient_rxcuis": [
+    "10180",
+    "10829"
+   ],
+   "matched_as": "Sulfamethoxazole/Trimethoprim / Sulfamethoxazole / Trimethoprim",
+   "path": "components",
    "epc": [
-    "Dihydrofolate Reductase Inhibitor Antibacterial",
-    "Sulfonamide Antimicrobial"
+    "Sulfonamide Antimicrobial",
+    "Dihydrofolate Reductase Inhibitor Antibacterial"
    ],
    "atc": [
     "Combinations of sulfonamides and trimethoprim, incl. derivatives",
@@ -4390,13 +4571,15 @@
     "Trimethoprim and derivatives"
    ],
    "moa": [
-    "Cytochrome P450 2C8 Inhibitors",
     "Cytochrome P450 2C9 Inhibitors",
+    "Cytochrome P450 2C8 Inhibitors",
     "Dihydrofolate Reductase Inhibitors",
     "Organic Cation Transporter 2 Inhibitors"
    ],
    "va": [
-    "SULFONAMIDE/RELATED ANTIMICROBIALS"
+    "SULFONAMIDE/RELATED ANTIMICROBIALS",
+    "ANTI-INFECTIVE,TOPICAL OPHTHALMIC,OTHER",
+    "ANTI-INFECTIVES,OTHER"
    ]
   },
   {
@@ -4706,19 +4889,27 @@
    "primary_class": "Potassium-sparing Diuretic",
    "needs_review": false,
    "rxcui": "258337",
-   "matched_as": "Triamterene/ Hydrochlorothiazide",
-   "path": "direct",
+   "ingredient_rxcuis": [
+    "10763",
+    "5487"
+   ],
+   "matched_as": "Triamterene/ Hydrochlorothiazide / Triamterene / Hydrochlorothiazide",
+   "path": "components",
    "epc": [
     "Potassium-sparing Diuretic",
     "Thiazide Diuretic"
    ],
    "atc": [
     "Other potassium-sparing agents",
+    "Angiotensin II receptor blockers (ARBs), other combinations",
+    "Renin-inhibitors",
     "Thiazides, plain"
    ],
    "moa": [],
    "va": [
-    "POTASSIUM SPARING/COMBINATIONS DIURETICS"
+    "POTASSIUM SPARING/COMBINATIONS DIURETICS",
+    "ANTIHYPERTENSIVE COMBINATIONS",
+    "THIAZIDES/RELATED DIURETICS"
    ]
   },
   {

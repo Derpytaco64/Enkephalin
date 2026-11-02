@@ -82,7 +82,13 @@ def components(name):
     """
     name = re.sub(r'\s*\([^)]*\)', '', name)
     parts = re.split(r'\s*/\s*|\s+with\s+|\s*,\s*|\s+and\s+', name, flags=re.I)
-    parts = [re.sub(FORMS, '', p, flags=re.I).strip() for p in parts]
+    # Salts go as well as forms. A pharmacologic class belongs to the active
+    # moiety, and the salt is a different RxCUI that often carries no class at
+    # all: "Codeine phosphate" resolves cleanly and has no EPC, so the
+    # combination took its class from the guaifenesin and called a cough syrup
+    # an Expectorant rather than an Opioid Agonist.
+    parts = [re.sub(SALTS, '', re.sub(FORMS, '', p, flags=re.I), flags=re.I).strip()
+             for p in parts]
     return [p for p in parts if len(p) > 2]
 
 
@@ -115,34 +121,80 @@ def classes(cui):
     return {k: sorted(set(v)) for k, v in out.items()}
 
 
+EMPTY = {'epc': [], 'atc': [], 'moa': [], 'va': []}
+
+# Classes that describe a pharmacokinetic adjuvant rather than a therapy, and so
+# must never lead a combination however the product is named. Tazobactam and
+# clavulanate protect their penicillin; carbidopa protects levodopa and has no
+# antiparkinson action of its own. Naming order alone would have classed
+# Carbidopa/Levodopa as a decarboxylase inhibitor, which tells a student the
+# drug's purpose is the opposite of what it is.
+ADJUVANT_CLASSES = {
+    'beta Lactamase Inhibitor',
+    'Aromatic Amino Acid Decarboxylation Inhibitor',
+}
+
+
 def resolve(generic):
     cui, matched = rxcui(generic)
-    if cui:
-        got = classes(cui)
-        if any(got.values()):
-            return {'rxcui': cui, 'matched_as': matched,
-                    'path': 'direct' if matched == generic else 'normalized',
-                    **got}
-    # Combination product: union the ingredients' classes.
+    direct = classes(cui) if cui else dict(EMPTY)
     parts = components(generic)
+
+    # A combination product's own classes are routinely incomplete, and the half
+    # they name is not always the half that matters: RxClass gives
+    # Piperacillin/Tazobactam only "beta Lactamase Inhibitor", losing the
+    # antibacterial, and Lisinopril/Hydrochlorothiazide only "Thiazide
+    # Diuretic", losing the ACE inhibitor. Ampicillin/Sulbactam happens to
+    # return both, which is what made the gap easy to miss.
+    #
+    # So the ingredients are always consulted for a combination and unioned
+    # with the product's own result. Consulting them only when the product
+    # returned *nothing* -- the previous behaviour -- left three drugs
+    # confidently classed as their own adjuvant, and put Amoxicillin/Clavulanate
+    # in the review queue even though plain amoxicillin resolves fine.
     if len(parts) > 1:
-        merged = {'epc': [], 'atc': [], 'moa': [], 'va': []}
-        cuis, names = [], []
+        merged = {k: [] for k in EMPTY}
+        cuis = [cui] if cui else []
+        names = [matched] if matched else []
+
+        # Ingredient order is the product's own order, and the primary class is
+        # taken from the front of this list -- so the ingredient the product is
+        # named for first leads. Sorting alphabetically instead made
+        # Codeine/Guaifenesin an "Expectorant" and Dipyridamole/Aspirin an
+        # "NSAID", both of which name the adjunct over the point of the drug.
         for part in parts:
             pcui, pmatch = rxcui(part)
             if not pcui:
                 continue
             cuis.append(pcui)
             names.append(pmatch)
-            for k, v in classes(pcui).items():
-                merged[k].extend(v)
-        if cuis:
-            return {'rxcui': '+'.join(cuis), 'matched_as': ' / '.join(names),
-                    'path': 'components',
-                    **{k: sorted(set(v)) for k, v in merged.items()}}
+            for key, value in classes(pcui).items():
+                merged[key].extend(value)
+
+        # Anything the product knew that its ingredients did not, kept at the
+        # back rather than dropped.
+        for key, value in direct.items():
+            merged[key].extend(value)
+
+        if any(merged.values()):
+            ordered = {k: list(dict.fromkeys(v)) for k, v in merged.items()}
+            ordered['epc'] = sorted(ordered['epc'], key=lambda c: c in ADJUVANT_CLASSES)
+            # The product keeps its own RxCUI where it has one -- a lookup
+            # provider needs a real identifier, and "214182+5489+161" is not
+            # one. The ingredient CUIs are recorded beside it instead.
+            return {'rxcui': cui or '+'.join(cuis),
+                    'ingredient_rxcuis': [c for c in cuis if c != cui],
+                    'matched_as': ' / '.join(names),
+                    'path': 'components', **ordered}
+
+    if cui and any(direct.values()):
+        return {'rxcui': cui, 'matched_as': matched,
+                'path': 'direct' if matched == generic else 'normalized',
+                **direct}
+
     return {'rxcui': cui, 'matched_as': matched,
             'path': 'unresolved' if not cui else 'no-classes',
-            'epc': [], 'atc': [], 'moa': [], 'va': []}
+            **dict(EMPTY)}
 
 
 def main():
