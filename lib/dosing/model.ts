@@ -165,6 +165,14 @@ export type Duration = {
  * sequence ("200 mg initially then 100 mg every 12 hours" -- two steps).
  */
 export type Regimen = {
+  /**
+   * The slice of the sheet's wording this regimen was read from. Kept so a
+   * stored row is auditable against its source without re-deriving the split,
+   * and so the drug editor can show prose, sig and readback side by side.
+   */
+  sourceText: string;
+  /** Which OR-branch of the statement this is. */
+  alternative: number;
   /** 0 unless the sheet gives a sequence; ordering is the sheet's own. */
   step: number;
   /** "Load", "Maintenance", "Day 1" -- the sheet's word for this step. */
@@ -189,6 +197,8 @@ export type Regimen = {
 /** An empty regimen, so builders and the parser start from one shape. */
 export function emptyRegimen(): Regimen {
   return {
+    sourceText: '',
+    alternative: 0,
     step: 0,
     label: null,
     amounts: [],

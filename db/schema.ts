@@ -2,6 +2,9 @@ import {
   boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, real,
   text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
+// Types only, so nothing is imported at runtime and this file stays loadable
+// by `node --experimental-strip-types` for the scripts.
+import type { Amount, Duration, Frequency, Site } from '../lib/dosing/model.ts';
 
 /* ---------------------------------------------------------------- enums -- */
 
@@ -172,6 +175,69 @@ export const brandIndications = pgTable('brand_indications', {
   brandId: uuid('brand_id').notNull().references(() => drugBrands.id, { onDelete: 'cascade' }),
   indicationId: uuid('indication_id').notNull().references(() => drugIndications.id, { onDelete: 'cascade' }),
 }, (t) => [primaryKey({ columns: [t.brandId, t.indicationId] })]);
+
+/**
+ * Structured dosing: the comparable form of what `drugs.fields.dosing` holds
+ * as prose.
+ *
+ * Every drug gets at least one row, including the 31 whose wording the parser
+ * cannot decompose -- those arrive with empty components, `needs_review` set
+ * and their own slice of prose in `source_text`, so the information is present
+ * and askable rather than missing. Nothing here is a second source of truth:
+ * the prose stays what a profile shows, and the sig string is *printed* from
+ * these components rather than stored, so the two cannot drift apart.
+ *
+ * One drug has several rows wherever one dosing statement describes more than
+ * one regimen: `alternative` separates the branches the sheet joins with OR,
+ * and `step` the stages it joins with "then".
+ *
+ * See PLAN.md, "Dosing is stored twice: prose to read, structure to compare".
+ */
+export const dosingRegimens = pgTable('dosing_regimens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  drugId: uuid('drug_id').notNull().references(() => drugs.id, { onDelete: 'cascade' }),
+
+  /**
+   * The variant axes for per-route and per-population dosing. Both carry a
+   * value rather than a null so the unique index below actually constrains:
+   * in Postgres nulls are distinct, so a nullable key would let the backfill
+   * insert duplicates on every run.
+   */
+  variantRoute: text('variant_route').notNull().default('standard'),
+  population: text('population').notNull().default('adult'),
+
+  alternative: integer('alternative').notNull().default(0),
+  step: integer('step').notNull().default(0),
+  /** The sheet's own word for this step: "Load", "Initial", "Day 1". */
+  label: text('label'),
+
+  /**
+   * The slice of prose this row was read from. Keeps a row auditable against
+   * its source, and is the whole content of a row the parser refused.
+   */
+  sourceText: text('source_text').notNull(),
+
+  amounts: jsonb('amounts').$type<Amount[]>().notNull().default([]),
+  routes: text('routes').array().$type<string[]>().notNull().default([]),
+  site: jsonb('site').$type<Site | null>(),
+  frequency: jsonb('frequency').$type<Frequency>().notNull(),
+  modifiers: text('modifiers').array().$type<string[]>().notNull().default([]),
+  duration: jsonb('duration').$type<Duration | null>(),
+  ceiling: jsonb('ceiling').$type<Amount | null>(),
+  /** Stored and rendered, never compared: wording is not a fact. */
+  qualifiers: text('qualifiers').array().$type<string[]>().notNull().default([]),
+
+  status: verificationStatus('status').notNull().default('unverified'),
+  /** The parser could not fully read this one; a human should look. */
+  needsReview: boolean('needs_review').notNull().default(false),
+  reviewNotes: text('review_notes').array().$type<string[]>().notNull().default([]),
+  source: text('source'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('dosing_regimens_drug_idx').on(t.drugId),
+  uniqueIndex('dosing_regimens_unique')
+    .on(t.drugId, t.variantRoute, t.population, t.alternative, t.step),
+]);
 
 /* -------------------------------------------------------------- tags ----- */
 

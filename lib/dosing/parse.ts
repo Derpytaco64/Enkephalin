@@ -7,7 +7,7 @@ import {
   type RouteCode,
   type Site,
   type UnitCode,
-} from './model';
+} from './model.ts';
 
 /**
  * Prose -> components, for the one-time backfill and for the drug editor.
@@ -571,7 +571,7 @@ function segment(prose: string): { text: string; step: number; label: string | n
 }
 
 /** Reads one segment into one regimen, and reports what it could not place. */
-function readRegimen(text: string, step: number, label: string | null): {
+function readRegimen(text: string, alternative: number, step: number, label: string | null): {
   regimen: Regimen;
   residue: string[];
   qualifiers: string[];
@@ -611,7 +611,7 @@ function readRegimen(text: string, step: number, label: string | null): {
     if (note) ambiguities.push(note);
   }
 
-  const regimen: Regimen = { ...emptyRegimen(), step, label };
+  const regimen: Regimen = { ...emptyRegimen(), sourceText: normalize(text), alternative, step, label };
 
   regimen.ceiling = readCeiling(reader);
   regimen.duration = readDuration(reader);
@@ -694,7 +694,7 @@ export function parseDosing(prose: string, actives: string[] = []): ParseResult 
   let unquizzable = false;
 
   for (const piece of segment(text)) {
-    const { regimen, residue, qualifiers, ambiguities } = readRegimen(piece.text, piece.step, piece.label);
+    const { regimen, residue, qualifiers, ambiguities } = readRegimen(piece.text, piece.alternative, piece.step, piece.label);
     regimens.push(regimen);
     unconsumed.push(...residue);
     notes.push(...ambiguities);

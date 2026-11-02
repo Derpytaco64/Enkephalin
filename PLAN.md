@@ -604,10 +604,21 @@ Rules that follow:
 
 1. **A distractor must differ from the correct answer on the components**, not on its wording. The
    same check keeps the three wrong options distinct from each other.
-2. **A regimen with no components is excluded from multiple choice** rather than asked with
-   unreliable options. "Dose individualized based on serum levels" and "titrated to clinical effect"
-   are real values here — honest to display, impossible to quiz against. They stay answerable as
-   free recall on a flashcard, where there are no wrong options to collide with.
+2. **A regimen with no components is still stored, still asked, and marked** (decided 2026-11-01).
+   Every one of the 236 drugs has a `dosing_regimens` row; the 29 whose wording the parser cannot
+   decompose arrive with empty components, `needs_review` set, the reason recorded, and their prose
+   in `source_text`. The information is therefore present and askable rather than absent, which is
+   what was wanted: *"I want all the current information working quizzes and flashcards."*
+
+   What such a row cannot support is the strict distractor check — with nothing to compare, the
+   engine cannot prove a wrong option is not also right for this drug. So phase 6 compares the
+   **wording** for these rows, requiring a candidate to differ from the answer on every number it
+   contains, and the `needs_review` flag is what tells it to take that path. That is weaker than
+   comparing components, and the trade was made deliberately: a question that needs a correction is
+   better here than a drug missing from the deck. Where the sheet gives no dose at all — rivaroxaban's
+   *"Extremely variable (reference indication and renal function)"*, vancomycin's *"Individualized
+   doses"* — the wording **is** the right answer, and a specific numeric distractor is plainly wrong,
+   so those are safer than they look.
 3. **Sig is a rendering, never a second source of truth.** `100 mg QD PO` is printed from the
    components, so a card can ask either way round: prose to sig, or sig to prose. The abbreviations
    are themselves worth drilling — QD, BID, PRN, PO — and that is a card type the structure gives
@@ -733,7 +744,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 3 | **done — imported 2026-10-29, classes corrected 2026-11-01** — `extract-top-drugs.py` (237 drugs), `fetch-drug-classes.py` (237 resolved, 217 classed, 20 uncategorized), `build-seed.py` → `data/drugs-seed.json`, `sync-content.ts` → Postgres: 236 drugs, 352 brands, 249 indications. Re-running writes nothing |
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field verification markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection |
-| 6 | [Stored dosing structure](#dosing-is-stored-twice-prose-to-read-structure-to-compare) + backfill, then quiz + distractor generation + scoring + history. The structure lands first: the quiz cannot sample an honest dosing distractor without it |
+| 6 | **structure + backfill done — 2026-11-01** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows, 164 parsed clean, 43 needing review, 29 stored prose-only and flagged. Remaining: quiz + [distractor generation](#direction-decides-what-counts-as-correct) + scoring + history |
 | 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
 | 8 | Admin: drug editor + **lookup panel**, users, invites, tags, verification queue, settings, audit, export |
 | 9 | Content elaboration in batches against the real sheet |

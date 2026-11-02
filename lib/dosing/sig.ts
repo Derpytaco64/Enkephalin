@@ -8,7 +8,7 @@ import {
   type Frequency,
   type Regimen,
   type Site,
-} from './model';
+} from './model.ts';
 
 /**
  * Printing, not storing. Both renderings below are derived from the components
