@@ -14,7 +14,7 @@ describe('toSig', () => {
     const sig = toSig(regimen({
       amounts: [mg(10)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 1 },
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
     }));
 
     expect(sig).toBe('10 mg PO QD');
@@ -26,7 +26,7 @@ describe('toSig', () => {
     expect(toSig(regimen({
       amounts: [mg(200, 300)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 1 },
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
     }))).toBe('200-300 mg PO QD');
   });
 
@@ -36,7 +36,7 @@ describe('toSig', () => {
     expect(toSig(regimen({
       amounts: [mg(0.25, 0.5)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 3 },
+      frequency: { kind: 'per_day', times: 3, timesHigh: null },
       modifiers: ['PRN'],
     }))).toBe('0.25-0.5 mg PO TID PRN');
   });
@@ -76,7 +76,7 @@ describe('toSig', () => {
     expect(toSig(regimen({
       amounts: [mg(25), mg(100)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 3 },
+      frequency: { kind: 'per_day', times: 3, timesHigh: null },
     }))).toBe('25/100 mg PO TID');
   });
 
@@ -86,7 +86,7 @@ describe('toSig', () => {
     const mixed = toSig(regimen({
       amounts: [mg(15), { low: 15, high: null, unit: 'mL', perKg: false, per: null, active: null }],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 1 },
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
     }));
 
     expect(mixed).toBe('15 mg + 15 mL PO QD');
@@ -109,7 +109,7 @@ describe('toSig', () => {
       amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null, active: null }],
       routes: ['NAS'],
       site: { region: 'nostril', basis: 'each', note: null },
-      frequency: { kind: 'per_day', times: 1 },
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
     }))).toBe('2 spray NAS each nostril QD');
   });
 
@@ -120,9 +120,9 @@ describe('toSig', () => {
       amounts: [{ low: 1, high: null, unit: 'drop', perKg: false, per: null, active: null }],
       routes: ['OPH'],
       site: { region: 'eye', basis: 'affected', note: null },
-      frequency: { kind: 'per_day', times: 1 },
-      modifiers: ['EVENING'],
-    }))).toBe('1 gtt OPH affected eye QD in the evening');
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
+      modifiers: ['PM'],
+    }))).toBe('1 gtt OPH affected eye QD PM');
   });
 
   it('offers every route the sheet offers', () => {
@@ -149,14 +149,14 @@ describe('toSig', () => {
     expect(toSig(regimen({
       amounts: [mg(250, 500)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 3 },
+      frequency: { kind: 'per_day', times: 3, timesHigh: null },
       duration: { low: 7, high: null, unit: 'day', cycleDays: null },
     }))).toBe('250-500 mg PO TID x 7 days');
 
     expect(toSig(regimen({
       amounts: [mg(12.5)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 1 },
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
       ceiling: { low: 900, high: null, unit: 'mg', perKg: false, per: 'day', active: null },
       label: 'Initial',
     }))).toBe('Initial: 12.5 mg PO QD (max 900 mg/day)');
@@ -178,7 +178,7 @@ describe('toEnglish', () => {
     expect(toEnglish(regimen({
       amounts: [mg(0.25, 0.5)],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 3 },
+      frequency: { kind: 'per_day', times: 3, timesHigh: null },
       modifiers: ['PRN'],
     }))).toBe('0.25 to 0.5 mg by mouth three times a day as needed');
   });
@@ -193,7 +193,7 @@ describe('toEnglish', () => {
         { ...mg(100), active: 'levodopa' },
       ],
       routes: ['PO'],
-      frequency: { kind: 'per_day', times: 3 },
+      frequency: { kind: 'per_day', times: 3, timesHigh: null },
     });
 
     expect(toSig(combination)).toBe('25/100 mg PO TID');
@@ -213,14 +213,14 @@ describe('toEnglish', () => {
       amounts: [{ low: 1, high: null, unit: 'drop', perKg: false, per: null, active: null }],
       routes: ['OPH'],
       site: { region: 'eye', basis: 'each', note: null },
-      frequency: { kind: 'per_day', times: 2 },
+      frequency: { kind: 'per_day', times: 2, timesHigh: null },
     }))).toBe('1 drop into the eye in each eye twice a day');
 
     expect(toEnglish(regimen({
       amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null, active: null }],
       routes: ['NAS'],
       site: { region: 'nostril', basis: 'each', note: null },
-      frequency: { kind: 'per_day', times: 1 },
+      frequency: { kind: 'per_day', times: 1, timesHigh: null },
     }))).toBe('2 sprays into the nose in each nostril once a day');
   });
 

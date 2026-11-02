@@ -799,7 +799,19 @@ the provider.
 - Inclusive `fields→drug` wrong options are single-drug composites, not cross-drug scrambles.
 
 **Unit tests** (Vitest) on logic invisible in the UI: `lib/srs/` transitions, `lib/quiz/` distractor
-selection, `lib/fields/` hot-column sync and `card_key` hashing, `lib/lookup/` response mapping.
+selection, `lib/fields/` hot-column sync and `card_key` hashing, `lib/lookup/` response mapping,
+`lib/dosing/` parsing and sig rendering.
+
+**One harness quirk, since it wastes an afternoon if you meet it cold.** `npm test` clears
+`node_modules/.vite/vitest` before running. With that cache warm, roughly one run in three died
+after about nine seconds with *"No test files found"* and a `code.charCodeAt is not a function`
+stack out of Vite's sourcemap reader — which is the error *printer* crashing on the real error, so
+the real error is never shown. It is not a missing test file, not the config, and not the test
+database: `vitest list` still collected all 177, and a traced `globalSetup` completed cleanly on
+the runs that failed. Clearing the cache each run is reliable and costs nothing measurable, since
+a cold pass and a warm pass both take about 33 seconds. `vitest.config.mts` carries the `.mts`
+extension for the same family of reasons: as `.ts` it was loaded as CommonJS and reparsed as ESM,
+which Vite warns is going away.
 
 **Per-user color** — overriding a class color changes it on browse, profile, and quiz for that user
 and *not* for a second test account. Reset restores the admin default. The picker warns on a

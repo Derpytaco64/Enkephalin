@@ -97,7 +97,12 @@ export const SITE_LABELS: Record<SiteRegion, { one: string; many: string }> = {
  * system exists to refuse.
  */
 export type Frequency =
-  | { kind: 'per_day'; times: number }
+  /**
+   * `timesHigh` makes the count itself a range: nystatin is "2-3 times a day"
+   * and clozapine "1-2 times a day", which is not the same claim as either
+   * endpoint alone.
+   */
+  | { kind: 'per_day'; times: number; timesHigh: number | null }
   | { kind: 'interval'; low: number; high: number | null; unit: 'minute' | 'hour' | 'day' | 'week' | 'month' }
   | { kind: 'once' }
   /** An infusion: the rate on the amount carries the schedule. */
@@ -109,7 +114,7 @@ export type Frequency =
  * reason they are not frequency values: "three times a day as needed" is TID
  * *and* PRN, and 12 drugs in this data set are written that way.
  */
-export type Modifier = 'PRN' | 'HS' | 'AC' | 'PC' | 'AM' | 'PM' | 'EVENING' | 'WITH_FOOD';
+export type Modifier = 'PRN' | 'HS' | 'AC' | 'PC' | 'AM' | 'PM' | 'WITH_FOOD';
 
 export const MODIFIERS: Record<Modifier, { sig: string; label: string }> = {
   PRN: { sig: 'PRN', label: 'as needed' },
@@ -118,7 +123,6 @@ export const MODIFIERS: Record<Modifier, { sig: string; label: string }> = {
   PC: { sig: 'PC', label: 'after meals' },
   AM: { sig: 'AM', label: 'in the morning' },
   PM: { sig: 'PM', label: 'in the evening' },
-  EVENING: { sig: 'in the evening', label: 'in the evening' },
   WITH_FOOD: { sig: 'with food', label: 'with food' },
 };
 

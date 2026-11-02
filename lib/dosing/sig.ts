@@ -79,6 +79,13 @@ function renderAmounts(amounts: Amount[], sig: boolean): string {
 function renderFrequency(frequency: Frequency, sig: boolean): string {
   switch (frequency.kind) {
     case 'per_day': {
+      // A range of counts has no sig abbreviation -- there is no code meaning
+      // "two or three times a day" -- so it is spelled out either way.
+      if (frequency.timesHigh !== null) {
+        const span = `${num(frequency.times)}${sig ? '-' : ' to '}${num(frequency.timesHigh)}`;
+        return sig ? `${span}x/day` : `${span} times a day`;
+      }
+
       if (sig) {
         const codes: Record<number, string> = { 1: 'QD', 2: 'BID', 3: 'TID', 4: 'QID' };
         return codes[frequency.times] ?? `${frequency.times}x/day`;
