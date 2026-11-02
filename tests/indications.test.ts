@@ -36,12 +36,14 @@ describe('indicationSlug', () => {
 
 describe('indicationOptions', () => {
   it('counts drugs rather than rows', () => {
+    // The vocabulary makes two spellings one row, so the double-counting this
+    // guards against now arrives as the same slug reached twice -- a drug on
+    // both an indication and, through a brand, the same one again.
     const options = indicationOptions([
-      { drugId: 'a', text: 'Seizure' },
-      // Same drug written up both ways: one drug, not two.
-      { drugId: 'a', text: 'Seizures' },
-      { drugId: 'b', text: 'Seizures' },
-      { drugId: 'c', text: 'Hypertension' },
+      { drugId: 'a', slug: 'seizures', label: 'Seizures' },
+      { drugId: 'a', slug: 'seizures', label: 'Seizures' },
+      { drugId: 'b', slug: 'seizures', label: 'Seizures' },
+      { drugId: 'c', slug: 'hypertension', label: 'Hypertension' },
     ]);
 
     expect(options).toEqual([
@@ -50,7 +52,7 @@ describe('indicationOptions', () => {
     ]);
   });
 
-  it('drops text that slugs to nothing', () => {
-    expect(indicationOptions([{ drugId: 'a', text: '  ' }])).toEqual([]);
+  it('ignores a row with no slug', () => {
+    expect(indicationOptions([{ drugId: 'a', slug: '', label: '  ' }])).toEqual([]);
   });
 });

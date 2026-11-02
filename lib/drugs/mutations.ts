@@ -4,14 +4,13 @@ import {
   auditLog,
   dosingRegimens,
   drugBrands,
-  drugIndications,
   drugTags,
   drugs,
   tags,
   type FieldValue,
 } from '@/db/schema';
 import { isUniqueViolation } from '@/lib/db-errors';
-import { canonicalIndication } from '@/lib/drugs/indications';
+import { setDrugIndicationLinks } from '@/lib/drugs/indication-store';
 import { activesOf, parseDosing } from '@/lib/dosing/parse';
 import type { FieldDef } from '@/lib/fields/registry';
 
@@ -195,31 +194,17 @@ export async function setDrugIndications(slug: string, raw: string, actorId: str
   const drug = await drugBySlug(slug);
   if (!drug) return { ok: false, message: 'That drug no longer exists.' };
 
-  // Typed wording goes through the same table the importer uses: type
-  // "Seizure" and it is stored as "Seizures", so the database keeps one
-  // spelling however the words arrive.
-  const wanted = unique(lines(raw).map((text) => canonicalIndication(text)));
-  const rows = await db
-    .select()
-    .from(drugIndications)
-    .where(eq(drugIndications.drugId, drug.id))
-    .orderBy(asc(drugIndications.sortOrder));
-
-  await syncList({
-    rows,
-    wanted,
-    nameOf: (row) => row.text,
-    insert: async (text, sortOrder) => {
-      await db.insert(drugIndications).values({ drugId: drug.id, text, sortOrder });
-    },
-    reorder: async (row, sortOrder) => {
-      await db.update(drugIndications).set({ sortOrder }).where(eq(drugIndications.id, row.id));
-    },
-    remove: async (ids) => { await db.delete(drugIndications).where(inArray(drugIndications.id, ids)); },
-  });
+  // Typed wording joins the shared vocabulary rather than being stored on the
+  // drug: type "Seizure" and it finds the "Seizures" row, so there is one of
+  // each however the words arrive. Wording that matches nothing is a new entry,
+  // and the audit line says which were made so a typo is traceable.
+  const { labels, created } = await setDrugIndicationLinks(drug.id, lines(raw));
 
   await touch(drug.id);
-  await audit({ actorId, action: 'drug.indications', drugId: drug.id, diff: { indications: wanted } });
+  await audit({
+    actorId, action: 'drug.indications', drugId: drug.id,
+    diff: { indications: labels, ...(created.length > 0 && { newIndications: created.map((row) => row.label) }) },
+  });
   return { ok: true };
 }
 
@@ -495,12 +480,7 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
     })));
   }
 
-  const indications = unique(lines(input.indications).map((text) => canonicalIndication(text)));
-  if (indications.length > 0) {
-    await db.insert(drugIndications).values(indications.map((text, sortOrder) => ({
-      drugId, text, sortOrder,
-    })));
-  }
+  await setDrugIndicationLinks(drugId, lines(input.indications));
 
   const dosing = input.dosing.trim();
   if (dosing) {

@@ -10,6 +10,7 @@ import {
   drugTags,
   drugs,
   fieldDefs,
+  indications,
   sessions,
   siteSettings,
   studyCards,
@@ -30,6 +31,7 @@ async function wipe() {
   await db.delete(drugTags);
   await db.delete(drugBrands);
   await db.delete(drugIndications);
+  await db.delete(indications);
   await db.delete(studyCards);
   await db.delete(studyPresets);
   await db.delete(drugs);
@@ -75,11 +77,22 @@ async function seedContent() {
     .values({ slug: 'alprazolam', genericName: 'Alprazolam', schedule: 'CIV' })
     .returning({ id: drugs.id });
 
+  const words = await db
+    .insert(indications)
+    .values([
+      { slug: 'diabetes', label: 'Diabetes' },
+      { slug: 'weight-management', label: 'Weight management' },
+    ])
+    .returning({ id: indications.id, slug: indications.slug });
+  const wordId = (slug: string) => words.find((row) => row.slug === slug)!.id;
+
   const [diabetes] = await db
     .insert(drugIndications)
-    .values({ drugId: drug.id, text: 'Diabetes', sortOrder: 0 })
+    .values({ drugId: drug.id, indicationId: wordId('diabetes'), sortOrder: 0 })
     .returning({ id: drugIndications.id });
-  await db.insert(drugIndications).values({ drugId: drug.id, text: 'Weight management', sortOrder: 1 });
+  await db
+    .insert(drugIndications)
+    .values({ drugId: drug.id, indicationId: wordId('weight-management'), sortOrder: 1 });
 
   const [mounjaro] = await db
     .insert(drugBrands)

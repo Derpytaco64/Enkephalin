@@ -17,6 +17,7 @@ import { asc, eq, inArray } from 'drizzle-orm';
 // scripts/restore-backup.ts run this under `node --experimental-strip-types`,
 // which resolves no path aliases.
 import { db } from '../../db/index.ts';
+import { resolveIndications } from '../drugs/indication-store.ts';
 import {
   brandIndications,
   drugBrands,
@@ -25,6 +26,7 @@ import {
   drugs,
   dosingRegimens,
   fieldDefs,
+  indications,
   siteSettings,
   studyCards,
   studyPresets,
@@ -179,12 +181,20 @@ export async function exportBackup(): Promise<Backup> {
     userRows, prefRows, presetRows, cardRows,
   ] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.slug)),
-    db.select().from(drugIndications).orderBy(asc(drugIndications.sortOrder)),
+    db
+      .select({
+        drugId: drugIndications.drugId,
+        label: indications.label,
+      })
+      .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .orderBy(asc(drugIndications.sortOrder)),
     db.select().from(drugBrands).orderBy(asc(drugBrands.sortOrder)),
     db
-      .select({ brandId: brandIndications.brandId, text: drugIndications.text })
+      .select({ brandId: brandIndications.brandId, label: indications.label })
       .from(brandIndications)
-      .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId)),
+      .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId))
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId)),
     db
       .select().from(dosingRegimens)
       .orderBy(asc(dosingRegimens.alternative), asc(dosingRegimens.step)),
@@ -207,8 +217,8 @@ export async function exportBackup(): Promise<Backup> {
   const indicationsByBrand = new Map<string, string[]>();
   for (const link of linkRows) {
     const list = indicationsByBrand.get(link.brandId);
-    if (list) list.push(link.text);
-    else indicationsByBrand.set(link.brandId, [link.text]);
+    if (list) list.push(link.label);
+    else indicationsByBrand.set(link.brandId, [link.label]);
   }
 
   const slugById = new Map(drugRows.map((drug) => [drug.id, drug.slug]));
@@ -227,7 +237,7 @@ export async function exportBackup(): Promise<Backup> {
     needsPairingReview: drug.needsPairingReview,
     dosingUnique: drug.dosingUnique,
     sourcePage: drug.sourcePage,
-    indications: (indicationsByDrug.get(drug.id) ?? []).map((row) => row.text),
+    indications: (indicationsByDrug.get(drug.id) ?? []).map((row) => row.label),
     brands: (brandsByDrug.get(drug.id) ?? []).map((brand) => ({
       name: brand.name,
       family: brand.family,
@@ -532,14 +542,19 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
       report.drugsInserted += 1;
     }
 
+    // Indications travel as wording, not as ids, so a backup stays readable
+    // and restores into a database whose vocabulary rows are different objects.
+    // `resolveIndications` is what reunites them: a label the target already
+    // knows joins that row, and one it does not becomes a new entry.
     await db.delete(drugIndications).where(eq(drugIndications.drugId, drugId));
     const indicationIdByText = new Map<string, string>();
-    for (const [index, text] of drug.indications.entries()) {
+    const { rows: vocabulary } = await resolveIndications(drug.indications);
+    for (const [index, indication] of vocabulary.entries()) {
       const [row] = await db
         .insert(drugIndications)
-        .values({ drugId, text, sortOrder: index })
+        .values({ drugId, indicationId: indication.id, sortOrder: index })
         .returning({ id: drugIndications.id });
-      indicationIdByText.set(text, row.id);
+      indicationIdByText.set(indication.label, row.id);
     }
 
     await db.delete(drugBrands).where(eq(drugBrands.drugId, drugId));

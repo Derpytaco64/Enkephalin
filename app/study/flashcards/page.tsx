@@ -1,7 +1,7 @@
 import { asc, count, eq, ne } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
-import { drugIndications, drugTags, tags } from '@/db/schema';
+import { drugIndications, drugTags, indications, tags } from '@/db/schema';
 import { indicationOptions } from '@/lib/drugs/indications';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
@@ -73,9 +73,16 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
     // Grouped in code rather than SQL: the slug folds the sheet's plural and
     // abbreviated variants together, and the count has to be of drugs after
     // that folding.
-    db.select({ drugId: drugIndications.drugId, text: drugIndications.text }).from(drugIndications),
+    db
+      .select({
+        drugId: drugIndications.drugId,
+        slug: indications.slug,
+        label: indications.label,
+      })
+      .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId)),
   ]);
-  const indications = indicationOptions(indicationRows);
+  const indicationChoices = indicationOptions(indicationRows);
 
   const config = configFromSearch(search, defs);
   // The drug's own name is the stimulus or the answer, never one of the things
@@ -171,13 +178,13 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             />
           )}
 
-          {indications.length > 0 && (
+          {indicationChoices.length > 0 && (
             <ScopePicker
               name="ind"
               legend="Indications"
               description="What the drug is used for, in the sheet’s own words. Pick several for the drugs treating any of them."
               filterLabel="Filter indications"
-              options={indications}
+              options={indicationChoices}
               selected={config.scope.indications}
               control={control}
             />

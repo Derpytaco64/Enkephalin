@@ -11,6 +11,7 @@ import {
   drugTags,
   drugs,
   fieldDefs,
+  indications,
   sessions,
   tags,
   users,
@@ -30,6 +31,8 @@ import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 
 const ADMIN = 'user-admin';
+/** A textarea's line break, spelled this way so no editing tool can eat it. */
+const NL = String.fromCharCode(10);
 let defs: FieldDef[];
 
 async function def(key: string) {
@@ -45,6 +48,7 @@ beforeEach(async () => {
   await db.delete(drugTags);
   await db.delete(drugBrands);
   await db.delete(drugIndications);
+  await db.delete(indications);
   await db.delete(drugs);
   await db.delete(tags);
   await db.delete(fieldDefs);
@@ -62,6 +66,17 @@ beforeEach(async () => {
     { slug: 'statins', label: 'Statins', kind: 'system' },
   ]);
 });
+
+/** The drug's indications in their own order, as a reader would see them. */
+async function indicationsOf(drugId: string) {
+  const rows = await db
+    .select({ label: indications.label })
+    .from(drugIndications)
+    .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+    .where(eq(drugIndications.drugId, drugId))
+    .orderBy(asc(drugIndications.sortOrder));
+  return rows.map((row) => row.label);
+}
 
 async function seedDrug() {
   const [drug] = await db
@@ -178,8 +193,11 @@ describe('updateDrugIdentity', () => {
 describe('setDrugBrands and setDrugIndications', () => {
   it('keeps what a kept row carries, and removes only what left the list', async () => {
     const drugId = await seedDrug();
+    const [word] = await db
+      .insert(indications).values({ slug: 'anxiety', label: 'Anxiety' })
+      .returning({ id: indications.id });
     const [indication] = await db
-      .insert(drugIndications).values({ drugId, text: 'Anxiety', sortOrder: 0 })
+      .insert(drugIndications).values({ drugId, indicationId: word.id, sortOrder: 0 })
       .returning({ id: drugIndications.id });
     const [brand] = await db
       .insert(drugBrands)
@@ -220,10 +238,7 @@ describe('setDrugBrands and setDrugIndications', () => {
     const drugId = await seedDrug();
     await setDrugIndications('alprazolam', 'Anxiety\nanxiety\nPanic disorder', ADMIN);
 
-    const rows = await db
-      .select().from(drugIndications).where(eq(drugIndications.drugId, drugId))
-      .orderBy(asc(drugIndications.sortOrder));
-    expect(rows.map((row) => row.text)).toEqual(['Anxiety', 'Panic disorder']);
+    expect(await indicationsOf(drugId)).toEqual(['Anxiety', 'Panic disorder']);
   });
 
   it('stores the canonical wording of an indication, whatever was typed', async () => {
@@ -231,15 +246,51 @@ describe('setDrugBrands and setDrugIndications', () => {
     const typed = ['Seizure', 'Bacterial infection', 'BPH'].join(String.fromCharCode(10));
     await setDrugIndications('alprazolam', typed, ADMIN);
 
-    const rows = await db
-      .select().from(drugIndications).where(eq(drugIndications.drugId, drugId))
-      .orderBy(asc(drugIndications.sortOrder));
-
     // Same table the importer uses, so however the words arrive the database
     // holds one spelling of each.
-    expect(rows.map((row) => row.text)).toEqual([
+    expect(await indicationsOf(drugId)).toEqual([
       'Seizures', 'Bacterial infections', 'Benign prostatic hypertrophy (BPH)',
     ]);
+  });
+
+  it('joins the vocabulary row another drug already made', async () => {
+    const drugId = await seedDrug();
+    await setDrugIndications('alprazolam', 'Anxiety', ADMIN);
+
+    const [other] = await db
+      .insert(drugs).values({ slug: 'lorazepam', genericName: 'Lorazepam' })
+      .returning({ id: drugs.id });
+    // Typed differently on purpose: it is the same indication, so it must be
+    // the same row rather than a second filter entry.
+    await setDrugIndications('lorazepam', 'anxiety', ADMIN);
+
+    expect(await db.select().from(indications)).toHaveLength(1);
+    expect(await indicationsOf(other.id)).toEqual(['Anxiety']);
+    expect(await indicationsOf(drugId)).toEqual(['Anxiety']);
+  });
+
+  it('keeps the link row, and its brand pairing, through a reorder', async () => {
+    const drugId = await seedDrug();
+    await setDrugIndications('alprazolam', ['Anxiety', 'Panic disorder'].join(NL), ADMIN);
+
+    const before = await db
+      .select().from(drugIndications).where(eq(drugIndications.drugId, drugId));
+    const anxiety = before.find((row) => row.sortOrder === 0)!;
+    const [brand] = await db
+      .insert(drugBrands).values({ drugId, name: 'Xanax', family: 'Xanax' })
+      .returning({ id: drugBrands.id });
+    await db.insert(brandIndications).values({ brandId: brand.id, indicationId: anxiety.id });
+
+    // Panic disorder first this time. The rows are diffed by indication, so
+    // Anxiety keeps its id -- and a pairing hanging off that id survives.
+    await setDrugIndications('alprazolam', ['Panic disorder', 'Anxiety'].join(NL), ADMIN);
+
+    expect(await indicationsOf(drugId)).toEqual(['Panic disorder', 'Anxiety']);
+    const after = await db
+      .select().from(drugIndications).where(eq(drugIndications.id, anxiety.id));
+    expect(after).toHaveLength(1);
+    expect(await db.select().from(brandIndications).where(eq(brandIndications.brandId, brand.id)))
+      .toHaveLength(1);
   });
 
   it('refuses a drug that is gone', async () => {

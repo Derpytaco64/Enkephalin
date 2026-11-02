@@ -1,7 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
-import { brandIndications, drugBrands, drugIndications, drugTags, drugs, tags } from '@/db/schema';
+import {
+  brandIndications, drugBrands, drugIndications, drugTags, drugs, indications, tags,
+} from '@/db/schema';
 import { syncDrugs, type SeedDrug } from '@/lib/content/sync';
 
 beforeEach(async () => {
@@ -9,6 +11,7 @@ beforeEach(async () => {
   await db.delete(drugTags);
   await db.delete(drugBrands);
   await db.delete(drugIndications);
+  await db.delete(indications);
   await db.delete(drugs);
   await db.delete(tags);
 });
@@ -97,10 +100,11 @@ describe('syncDrugs', () => {
     await syncDrugs(seed());
 
     const rows = await db
-      .select({ brand: drugBrands.name, indication: drugIndications.text })
+      .select({ brand: drugBrands.name, indication: indications.label })
       .from(brandIndications)
       .innerJoin(drugBrands, eq(drugBrands.id, brandIndications.brandId))
-      .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId));
+      .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId))
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId));
 
     expect(rows).toHaveLength(2);
     expect(rows).toEqual(
@@ -129,13 +133,42 @@ describe('syncDrugs', () => {
 
     const alprazolam = await drugBySlug('alprazolam');
     const rows = await db
-      .select({ text: drugIndications.text })
+      .select({ text: indications.label })
       .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
       .where(eq(drugIndications.drugId, alprazolam.id));
 
     // The sheet says "Seizure"; the database keeps "Seizures", so a profile
     // and a quiz option read the same words.
     expect(rows.map((row) => row.text)).toEqual(['Seizures']);
+  });
+
+  it('shares one vocabulary row between drugs with the same indication', async () => {
+    const seeded = seed();
+    seeded[2].indications = [{ id: 'al--ind-1', text: 'Diabetes' }];
+    await syncDrugs(seeded);
+
+    // Tirzepatide and alprazolam both say Diabetes. One row, so renaming it
+    // later is one edit and the study filter finds both drugs.
+    const rows = await db.select().from(indications).where(eq(indications.slug, 'diabetes'));
+    expect(rows).toHaveLength(1);
+
+    const links = await db
+      .select({ drugId: drugIndications.drugId })
+      .from(drugIndications)
+      .where(eq(drugIndications.indicationId, rows[0].id));
+    expect(links).toHaveLength(2);
+  });
+
+  it('reports the wordings it had to invent, and nothing on a re-run', async () => {
+    const first = await syncDrugs(seed());
+    // Every indication in the sheet is new the first time round.
+    expect(first.newIndications.length).toBeGreaterThan(0);
+
+    const second = await syncDrugs(seed());
+    // A re-import that invents a wording means the sheet grew a second
+    // spelling of something, which is worth seeing rather than absorbing.
+    expect(second.newIndications).toEqual([]);
   });
 
   it('does not re-add the sheet spelling beside the canonical one', async () => {
@@ -295,7 +328,11 @@ describe('syncDrugs', () => {
 
     // A human confirms the pairing, which clears the flag and adds the link.
     await db.update(drugBrands).set({ defaultPairingSuspect: false }).where(eq(drugBrands.id, brand.id));
-    const [indication] = await db.select().from(drugIndications).where(eq(drugIndications.text, 'Anxiety'));
+    const [indication] = await db
+      .select({ id: drugIndications.id })
+      .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .where(eq(indications.label, 'Anxiety'));
     await db.insert(brandIndications).values({ brandId: brand.id, indicationId: indication.id });
 
     await syncDrugs(withSuspect);
@@ -361,10 +398,15 @@ describe('syncDrugs', () => {
     expect(report.drugsUpdated).toBe(0);
 
     const rows = await db
-      .select({ brand: drugBrands.name, indication: drugIndications.text, dosing: drugBrands.dosingOverride })
+      .select({
+        brand: drugBrands.name,
+        indication: indications.label,
+        dosing: drugBrands.dosingOverride,
+      })
       .from(brandIndications)
       .innerJoin(drugBrands, eq(drugBrands.id, brandIndications.brandId))
-      .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId));
+      .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId))
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId));
 
     // Each brand is pinned to its own row's indication, so neither falls back
     // to covering both.

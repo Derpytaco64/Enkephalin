@@ -2,7 +2,8 @@ import { eq } from 'drizzle-orm';
 // Relative rather than '@/...' on purpose: scripts/sync-content.ts runs this
 // under `node --experimental-strip-types`, which resolves no path aliases.
 import { db } from '../../db/index.ts';
-import { canonicalIndication } from '../drugs/indications.ts';
+import { indicationSlug } from '../drugs/indications.ts';
+import { resolveIndications } from '../drugs/indication-store.ts';
 import { extractRoutes } from './routes.ts';
 import {
   brandIndications,
@@ -10,6 +11,7 @@ import {
   drugIndications,
   drugTags,
   drugs,
+  indications,
   tags,
   type FieldValue,
 } from '../../db/schema.ts';
@@ -57,6 +59,12 @@ export type SyncReport = {
   brandsInserted: number;
   brandsUpdated: number;
   indicationsInserted: number;
+  /**
+   * Wordings the vocabulary did not already hold. Expected to be empty on a
+   * re-import: anything here is either a genuinely new indication or the sheet
+   * having invented a second spelling of one we already have.
+   */
+  newIndications: string[];
   linksInserted: number;
   tagsLinked: number;
   /** Sheet values withheld because a person had written their own. */
@@ -89,6 +97,7 @@ function emptyReport(): SyncReport {
     brandsInserted: 0,
     brandsUpdated: 0,
     indicationsInserted: 0,
+    newIndications: [],
     linksInserted: 0,
     tagsLinked: 0,
     humanKept: [],
@@ -185,20 +194,50 @@ async function ensureTopListTag() {
 }
 
 async function syncIndications(drugId: string, seed: SeedDrug, report: SyncReport) {
-  const existing = await db.select().from(drugIndications).where(eq(drugIndications.drugId, drugId));
-  const byText = new Map(existing.map((row) => [row.text, row]));
+  const existing = await db
+    .select({
+      id: drugIndications.id,
+      indicationId: drugIndications.indicationId,
+      sortOrder: drugIndications.sortOrder,
+      label: indications.label,
+    })
+    .from(drugIndications)
+    .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+    .where(eq(drugIndications.drugId, drugId));
+  const byIndication = new Map(existing.map((row) => [row.indicationId, row]));
   const seeded = seed.indications ?? [];
 
-  // seed id -> database id, so brand links can be resolved below
+  // Through the shared vocabulary, which both canonicalises the wording and
+  // reuses the row another drug already made -- so the sheet's two spellings
+  // of one indication become one entry, and a re-import cannot put the old
+  // spelling back beside the new one. See lib/drugs/indications.ts.
+  const { rows, created } = await resolveIndications(seeded.map((i) => i.text));
+  report.newIndications.push(...created.map((row) => row.label));
+
+  // Looked up by slug rather than by position: `resolveIndications` folds two
+  // spellings of one indication into a single row, so the list it returns is
+  // shorter than the list that went in and a positional pairing would quietly
+  // attach a brand to the wrong indication.
+  const bySlug = new Map(rows.map((row) => [row.slug, row]));
+
+  // seed id -> drug_indications id, so brand links can be resolved below
   const idMap = new Map<string, string>();
+  const wanted = new Set<string>();
 
-  // Canonicalised on the way in, so the sheet's two spellings of one
-  // indication become one row -- and a re-import cannot put the old spelling
-  // back next to the new one. See lib/drugs/indications.ts.
   for (const [index, indication] of seeded.entries()) {
-    const text = canonicalIndication(indication.text);
-    const found = byText.get(text);
+    const vocabulary = bySlug.get(indicationSlug(indication.text));
+    if (!vocabulary) continue; // blank wording; resolveIndications dropped it
 
+    // A sheet row that lists one indication twice under two ids: both ids
+    // point at the one link row rather than fighting over its sort order.
+    if (wanted.has(vocabulary.id)) {
+      const found = byIndication.get(vocabulary.id);
+      if (found) idMap.set(indication.id, found.id);
+      continue;
+    }
+    wanted.add(vocabulary.id);
+
+    const found = byIndication.get(vocabulary.id);
     if (found) {
       if (found.sortOrder !== index) {
         await db.update(drugIndications).set({ sortOrder: index }).where(eq(drugIndications.id, found.id));
@@ -207,17 +246,21 @@ async function syncIndications(drugId: string, seed: SeedDrug, report: SyncRepor
       continue;
     }
 
-    const [created] = await db
+    const [row] = await db
       .insert(drugIndications)
-      .values({ drugId, text, sortOrder: index })
+      .values({ drugId, indicationId: vocabulary.id, sortOrder: index })
       .returning({ id: drugIndications.id });
-    idMap.set(indication.id, created.id);
+    byIndication.set(vocabulary.id, {
+      id: row.id, indicationId: vocabulary.id, sortOrder: index, label: vocabulary.label,
+    });
+    idMap.set(indication.id, row.id);
     report.indicationsInserted += 1;
   }
 
-  const seededTexts = new Set(seeded.map((i) => canonicalIndication(i.text)));
+  // Left in place rather than deleted: an indication a person added by hand is
+  // not the sheet's to remove, so it is reported and kept.
   for (const row of existing) {
-    if (!seededTexts.has(row.text)) report.orphanIndications.push(`${seed.slug}: ${row.text}`);
+    if (!wanted.has(row.indicationId)) report.orphanIndications.push(`${seed.slug}: ${row.label}`);
   }
 
   return idMap;

@@ -26,6 +26,7 @@ import {
   drugBrands,
   drugIndications,
   drugs,
+  indications as indicationVocabulary,
   type FieldValue,
 } from '../db/schema.ts';
 
@@ -152,8 +153,9 @@ async function applyPairings() {
       .from(drugBrands)
       .where(eq(drugBrands.drugId, drug.id));
     const indications = await db
-      .select({ id: drugIndications.id, text: drugIndications.text })
+      .select({ id: drugIndications.id, text: indicationVocabulary.label })
       .from(drugIndications)
+      .innerJoin(indicationVocabulary, eq(indicationVocabulary.id, drugIndications.indicationId))
       .where(eq(drugIndications.drugId, drug.id));
 
     // Every name in the table must exist, or the confirmation is about

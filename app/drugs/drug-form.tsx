@@ -3,12 +3,15 @@
 import { useActionState, useState } from 'react';
 import type { FieldValue } from '@/db/schema';
 import { activesOf, parseDosing } from '@/lib/dosing/parse';
+import { indicationSlug } from '@/lib/drugs/indications';
 import type { Result } from '@/lib/drugs/mutations';
 import type { FieldDef } from '@/lib/fields/registry';
 import { DosingPreview } from './dosing-preview';
 
 const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm';
 const hint = 'mt-1 text-xs text-[var(--muted)]';
+/** A textarea's line break. */
+const NEWLINE = String.fromCharCode(10);
 
 export type EditableField = { def: FieldDef; value: FieldValue | undefined };
 export type AssignableTag = { slug: string; label: string; kind: string };
@@ -45,6 +48,66 @@ const PARSE_BORDERS: Record<string, string> = {
   needs_review: 'var(--unverified)',
   refused: 'var(--flagged)',
 };
+
+/**
+ * The indications box, with the one thing a plain textarea could not tell you:
+ * which lines join an indication that already exists, and which would make a
+ * new one.
+ *
+ * Making one is allowed -- it is how the vocabulary grows -- but it used to be
+ * indistinguishable from a typo. Writing "Panic disorderr" really did create a
+ * study filter holding one drug, with nobody told. Now it says so before you
+ * save, matched by slug so case and the alias table behave the same way here
+ * as they will in the database.
+ */
+function IndicationsField({
+  indications,
+  known,
+}: {
+  indications: string[];
+  known: string[];
+}) {
+  const [text, setText] = useState(indications.join(NEWLINE));
+
+  const bySlug = new Map(known.map((label) => [indicationSlug(label), label]));
+  const joining: string[] = [];
+  const creating: string[] = [];
+  const seen = new Set<string>();
+
+  for (const line of text.split(NEWLINE)) {
+    const slug = indicationSlug(line);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+
+    const match = bySlug.get(slug);
+    if (match) joining.push(match);
+    else creating.push(line.trim());
+  }
+
+  return (
+    <div>
+      <label htmlFor="indications" className="block text-sm font-medium">Indications</label>
+      <textarea
+        id="indications" name="indications" rows={4}
+        value={text} onChange={(event) => setText(event.target.value)}
+        className={control}
+      />
+      <p className={hint}>
+        One per line. These are a study filter as well as a fact, so they come from one shared
+        list of {known.length}: match a phrase and the drug joins that filter.
+      </p>
+
+      {joining.length > 0 && <p className={hint}>Joining: {joining.join(' · ')}</p>}
+      {creating.length > 0 && (
+        <p className="mt-1 text-xs" style={{ color: 'var(--unverified)' }}>
+          New to the list, so saving adds {creating.length === 1 ? 'it' : 'them'}:{' '}
+          {creating.join(' · ')}. Right if this really is a new indication &mdash; a typo if
+          not, and fixable under Admin &rarr; Indications.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function FieldRow({
   field,
@@ -166,6 +229,7 @@ export function DrugForm({
   drug,
   brands,
   indications,
+  knownIndications,
   fields,
   allTags,
   tagSlugs,
@@ -183,6 +247,8 @@ export function DrugForm({
   };
   brands: string[];
   indications: string[];
+  /** Every indication the database already holds, so a new one is visible. */
+  knownIndications: string[];
   /** Empty when creating: there is nothing to attach a value to yet. */
   fields: EditableField[];
   allTags: AssignableTag[];
@@ -279,17 +345,7 @@ export function DrugForm({
             </p>
           </div>
 
-          <div>
-            <label htmlFor="indications" className="block text-sm font-medium">Indications</label>
-            <textarea
-              id="indications" name="indications" rows={4}
-              defaultValue={indications.join('\n')} className={control}
-            />
-            <p className={hint}>
-              One per line. These are a study filter as well as a fact, so wording matters: match an
-              existing phrase and the drug joins that filter.
-            </p>
-          </div>
+          <IndicationsField indications={indications} known={knownIndications} />
         </div>
       </section>
 

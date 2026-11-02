@@ -501,9 +501,10 @@ weight-management one. Semaglutide is the same shape (Ozempic vs Wegovy). A Bran
 built from flat lists would teach the wrong pair, confidently.
 
 ```
-drug_indications  id, drug_id, text, sort_order
+indications       id, slug, label
+drug_indications  id, drug_id, indication_id, sort_order   -- unique (drug, indication)
 drug_brands       id, drug_id, name, route, form, dosing_override, sort_order, note
-brand_indications brand_id, indication_id
+brand_indications brand_id, indication_id                  -- -> drug_indications.id
 ```
 
 **The default costs nothing.** A brand with no `brand_indications` rows covers *all* of its drug's
@@ -516,6 +517,42 @@ narrower.
 this split with no asterisk at all, and *Adcirca\** points at an indication the sheet never lists. So
 the asterisk only ever seeds a **suggestion** (2 drugs), while any drug with competing brands *and*
 multiple indications is flagged for human pairing regardless.
+
+### An indication is a row, shared between drugs (2026-11-02)
+
+It was free text per drug until migration 0005, and the trouble was never storage. "Hypertension"
+existed sixteen times as sixteen unrelated strings, so there was no such thing as *the* indication
+to rename; a typo forked a new study filter silently -- typing `Panic disorderr` in the editor
+really did create a 93rd filter entry holding one drug, tested live and reverted; and the filter
+only held together because `lib/drugs/indications.ts` ran the same slug function at both ends and
+the two happened to agree.
+
+As rows: 92 entries over 249 links, one of each, with the slug stored rather than derived. The
+study scope carries that slug, the picker lists those rows, and the deck builder reads the same
+column -- so a link cannot select drugs the picker did not offer. `drug_indications` keeps its own
+id, which is what `brand_indications` points at, so the 24 brand pairings survived the migration
+untouched and a brand stays paired to *this drug's* indication rather than to the word in the
+abstract.
+
+**Every writer goes through `resolveIndications`** (`lib/drugs/indication-store.ts`), which matches
+on slug and creates only what is genuinely new: the importer, the drug editor, and a restore from
+backup. Backups still carry wording rather than ids, so a dump stays readable and restores into a
+database whose rows are different objects. The editor says which lines join an existing indication
+and which would add one -- a typo is now visible before saving rather than discovered in a filter
+list weeks later.
+
+**`/admin/indications` is the repair bench**, and does the two things free text could not: rename
+one everywhere at once (the slug stays, so saved study links keep working), and merge a
+near-duplicate into the one you meant, moving its drugs. Both are audited. Deleting is only
+offered for an indication no drug carries; one in use is a merge, not a delete, so nothing can be
+silently dropped off a drug.
+
+**The alias table did not go away.** `lib/drugs/indications.ts` still folds the sheet's own two
+spellings (`Seizure` -> `Seizures`, `Bacterial infection` -> `Bacterial infections`, `BPH` ->
+the expansion) on the way in, because a re-import would otherwise put the old spelling back as a
+second row. Judgement calls are still refused there -- `Chronic pain` is not `Pain` -- and the
+merge screen is where a person makes that call instead. `npm run seed` now reports new *wordings*
+separately from new links, so a sheet that invents a second spelling says so.
 
 ### Route is recorded; per-route and per-population detail is not, yet
 
@@ -1099,6 +1136,32 @@ reachable one-handed; browse table degrades to cards.
 ---
 
 ## Open items
+
+**Queued by the owner, 2026-11-02** — in their words, to be worked after the quiz modes:
+
+- **A quiz finishes and the page breaks.** Saving reported `0 of 83` and `0%` while the attempt
+  itself landed correctly in *Recent papers*, and the "what you missed" list named questions that
+  were never asked. Two separate faults in one screen, so: find why the finish action's score is
+  zero when the row it writes is not, and why the misses come from a different set of questions.
+  **Fix this first** — it is a live bug on a path the owner uses, not a refinement.
+- **Per-drug and per-fact quiz modes**, matching the flashcards' `inclusive` / `exclusive`. In
+  progress next; `buildQuiz` currently always asks one field per question and ignores `mode`.
+- **Controlled-schedule questions should only be asked of scheduled drugs.** 213 of the 236 are
+  not controlled, so the deck fills with a hundred questions whose answer is "no control" and the
+  actual schedules get lost in them. The field stays recorded as `none` for the rest -- this is
+  about what gets *asked*, not what is stored.
+- **A drug profile, reachable mid-session.** Clicking a drug during a quiz or a flashcard run
+  should open its profile without ending the run: a new tab, or a panel over the session.
+- **Say "Correct" and "Your answer"** on a marked question, instead of the current wording. And
+  when the answer chosen is wrong, show what it *would* have been right for -- the distractor's own
+  drug or fact -- because that is the thing that teaches the distinction.
+- **Quiz settings get out of the way once a paper starts**: hidden, or shown compact and
+  uneditable. Editing them mid-run is not a thing anyone wants.
+- **"Paper" is the wrong word.** *Paper settings* and *Recent papers* become *Quiz settings* and
+  *Previous quizzes*.
+- **A sig glossary on the drug editing screen**, next to the dosing box: what the codes mean, so
+  the notation is readable without leaving the form.
+
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
    `fields` as a comma-joined string, but the field picker is a checkbox group: it submits

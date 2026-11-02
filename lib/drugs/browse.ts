@@ -1,6 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { drugBrands, drugIndications, drugTags, drugs, tags } from '@/db/schema';
+import { drugBrands, drugIndications, drugTags, drugs, indications, tags } from '@/db/schema';
 import { UNCATEGORIZED } from '@/lib/drugs/drug-class';
 import { formatFieldValue } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
@@ -44,8 +44,9 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db.select({ drugId: drugBrands.drugId, name: drugBrands.name }).from(drugBrands).orderBy(asc(drugBrands.sortOrder)),
     db
-      .select({ drugId: drugIndications.drugId, text: drugIndications.text })
+      .select({ drugId: drugIndications.drugId, label: indications.label })
       .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
       .orderBy(asc(drugIndications.sortOrder)),
     db
       .select({ drugId: drugTags.drugId, slug: tags.slug, label: tags.label, kind: tags.kind })
@@ -64,8 +65,8 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
   const indicationsByDrug = new Map<string, string[]>();
   for (const indication of indicationRows) {
     const list = indicationsByDrug.get(indication.drugId);
-    if (list) list.push(indication.text);
-    else indicationsByDrug.set(indication.drugId, [indication.text]);
+    if (list) list.push(indication.label);
+    else indicationsByDrug.set(indication.drugId, [indication.label]);
   }
 
   const tagsByDrug = new Map<string, string[]>();

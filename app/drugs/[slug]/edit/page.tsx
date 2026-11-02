@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/db';
 import { tags } from '@/db/schema';
+import { listIndications } from '@/lib/drugs/indication-store';
 import { getDrugProfile } from '@/lib/drugs/profile';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireAdmin } from '@/lib/session';
@@ -24,7 +25,7 @@ export default async function EditDrugPage({
 
   // Every field, not the viewer's visible subset: this is the editor, and a
   // field you have hidden on profiles is still one you can fill in here.
-  const [profile, defs, assignable] = await Promise.all([
+  const [profile, defs, assignable, vocabulary] = await Promise.all([
     getDrugProfile(slug),
     listFieldDefs(),
     db
@@ -32,6 +33,7 @@ export default async function EditDrugPage({
       .from(tags)
       .where(ne(tags.kind, 'system'))
       .orderBy(asc(tags.kind), asc(tags.label)),
+    listIndications(),
   ]);
   if (!profile) notFound();
 
@@ -75,6 +77,7 @@ export default async function EditDrugPage({
         }}
         brands={brands.map((brand) => brand.name)}
         indications={indications}
+        knownIndications={vocabulary.map((row) => row.label)}
         fields={fields}
         allTags={assignable}
         tagSlugs={current.filter((tag) => tag.kind !== 'system').map((tag) => tag.slug)}

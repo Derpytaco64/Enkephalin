@@ -16,8 +16,11 @@
  * this file is not where one gets made. The drug's own profile always shows
  * the sheet's wording; only the filter groups.
  *
- * Client-safe: no database imports, so the picker and the deck builder derive
- * the same slug from the same code rather than agreeing by coincidence.
+ * Client-safe: no database imports, so the picker and the editor derive the
+ * same slug from the same code rather than agreeing by coincidence. The
+ * vocabulary itself is a table since migration 0005 -- see
+ * lib/drugs/indication-store.ts, which is the only thing that writes to it,
+ * and which canonicalises through this file on the way in.
  */
 
 /**
@@ -61,20 +64,25 @@ export function indicationSlug(text: string): string {
 export type IndicationOption = { slug: string; label: string; count: number };
 
 /**
- * Folds `(drugId, text)` rows into the picker's options: one entry per slug,
- * labelled with the canonical wording, counting *drugs* rather than rows so a
- * drug written up under both "Seizure" and "Seizures" counts once.
+ * Folds the stored `(drugId, slug, label)` rows into the picker's options: one
+ * entry per indication, counting drugs rather than rows.
+ *
+ * Since migration 0005 the slug is stored rather than derived here, so the
+ * picker and the deck builder read the same key off the same row instead of
+ * agreeing by running the same string function twice. The count is still over
+ * a Set, because a drug reached by two different joins is one drug.
  */
-export function indicationOptions(rows: { drugId: string; text: string }[]): IndicationOption[] {
+export function indicationOptions(
+  rows: { drugId: string; slug: string; label: string }[],
+): IndicationOption[] {
   const bySlug = new Map<string, { label: string; drugIds: Set<string> }>();
 
   for (const row of rows) {
-    const slug = indicationSlug(row.text);
-    if (!slug) continue;
+    if (!row.slug) continue;
 
-    const entry = bySlug.get(slug);
+    const entry = bySlug.get(row.slug);
     if (entry) entry.drugIds.add(row.drugId);
-    else bySlug.set(slug, { label: canonicalIndication(row.text), drugIds: new Set([row.drugId]) });
+    else bySlug.set(row.slug, { label: row.label, drugIds: new Set([row.drugId]) });
   }
 
   return [...bySlug]

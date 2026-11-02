@@ -36,6 +36,13 @@
       "when": 1793641153598,
       "tag": "0004_one_wording_per_indication",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793641153599,
+      "tag": "0005_indications_as_rows",
+      "breakpoints": true
     }
   ]
 }

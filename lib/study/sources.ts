@@ -14,11 +14,11 @@ import {
   drugIndications,
   drugTags,
   drugs,
+  indications,
   tags,
   type FieldValue,
 } from '@/db/schema';
 import { toSig } from '@/lib/dosing/sig';
-import { indicationSlug } from '@/lib/drugs/indications';
 import type { CardSource } from './cards';
 
 /**
@@ -37,8 +37,13 @@ export async function loadCardSources(): Promise<CardSource[]> {
       .from(drugBrands)
       .orderBy(asc(drugBrands.sortOrder)),
     db
-      .select({ drugId: drugIndications.drugId, text: drugIndications.text })
+      .select({
+        drugId: drugIndications.drugId,
+        slug: indications.slug,
+        label: indications.label,
+      })
       .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
       .orderBy(asc(drugIndications.sortOrder)),
     db
       .select({ drugId: drugTags.drugId, slug: tags.slug })
@@ -77,12 +82,13 @@ export async function loadCardSources(): Promise<CardSource[]> {
   };
 
   const brandsByDrug = group(brandRows, 'name');
-  const indicationsByDrug = group(indicationRows, 'text');
+  const indicationsByDrug = group(indicationRows, 'label');
+  const indicationSlugsByDrug = group(indicationRows, 'slug');
   const tagsByDrug = group(tagRows, 'slug');
 
   return drugRows.map((drug) => {
     const brands = brandsByDrug.get(drug.id) ?? [];
-    const indications = indicationsByDrug.get(drug.id) ?? [];
+    const indicationLabels = indicationsByDrug.get(drug.id) ?? [];
     const routeValue = drug.fields.route?.value ?? '';
 
     return {
@@ -93,16 +99,16 @@ export async function loadCardSources(): Promise<CardSource[]> {
       schedule: drug.schedule,
       routes: routeValue ? routeValue.split('\n').map((route) => route.trim()).filter(Boolean) : [],
       tags: tagsByDrug.get(drug.id) ?? [],
-      // Slugged here with the same helper the picker uses, so "Seizures" and
-      // "Seizure" land on one filter rather than two half-decks.
-      indications: [...new Set(indications.map((text) => indicationSlug(text)).filter(Boolean))],
+      // The stored slug, which is the same row the picker listed -- so the
+      // scope a link carries and the drugs it selects cannot drift apart.
+      indications: [...new Set(indicationSlugsByDrug.get(drug.id) ?? [])],
       dosingSig: sigByDrug.get(drug.id) ?? null,
       needsPairingReview: drug.needsPairingReview,
       values: {
         ...drug.fields,
         generic: sheetValue(drug.genericName),
         brand: sheetValue(brands.join('\n') || null),
-        indication: sheetValue(indications.join('\n') || null),
+        indication: sheetValue(indicationLabels.join('\n') || null),
         drug_class: sheetValue(drug.drugClass),
         // Not controlled is an answer, not a gap -- 213 of the 236 are not --
         // so it is recorded as "none" and the card asks the question honestly.

@@ -1,7 +1,7 @@
 import { count } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
-import { drugBrands, drugIndications, dosingRegimens, drugs, studyCards, tags } from '@/db/schema';
+import { drugBrands, drugIndications, dosingRegimens, drugs, indications, studyCards, tags } from '@/db/schema';
 import { requireAdmin } from '@/lib/session';
 import { restoreAction } from './actions';
 import { RestoreForm } from './restore-form';
@@ -12,10 +12,13 @@ export const dynamic = 'force-dynamic';
 export default async function DataPage() {
   await requireAdmin();
 
-  const [[drugCount], [brandCount], [indicationCount], [regimenCount], [tagCount], [cardCount]] =
-    await Promise.all([
+  const [
+    [drugCount], [brandCount], [indicationCount], [linkCount],
+    [regimenCount], [tagCount], [cardCount],
+  ] = await Promise.all([
       db.select({ n: count() }).from(drugs),
       db.select({ n: count() }).from(drugBrands),
+      db.select({ n: count() }).from(indications),
       db.select({ n: count() }).from(drugIndications),
       db.select({ n: count() }).from(dosingRegimens),
       db.select({ n: count() }).from(tags),
@@ -37,6 +40,7 @@ export default async function DataPage() {
           <li>{drugCount.n} drugs</li>
           <li>{brandCount.n} brands</li>
           <li>{indicationCount.n} indications</li>
+          <li>{linkCount.n} drug indications</li>
           <li>{regimenCount.n} dosing rows</li>
           <li>{tagCount.n} tags</li>
           <li>{cardCount.n} card schedules</li>

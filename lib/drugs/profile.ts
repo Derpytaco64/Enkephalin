@@ -6,6 +6,7 @@ import {
   drugIndications,
   drugTags,
   drugs,
+  indications,
   tags,
   userPreferences,
 } from '@/db/schema';
@@ -31,14 +32,20 @@ export async function getDrugProfile(slug: string, userId?: string) {
   const [brandRows, indicationRows, linkRows, tagRows, defs, prefs, siblings] = await Promise.all([
     db.select().from(drugBrands).where(eq(drugBrands.drugId, drug.id)).orderBy(asc(drugBrands.sortOrder)),
     db
-      .select()
+      .select({ slug: indications.slug, label: indications.label })
       .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
       .where(eq(drugIndications.drugId, drug.id))
       .orderBy(asc(drugIndications.sortOrder)),
+    // `brand_indications` hangs off the link row, not the vocabulary, so a
+    // brand is paired to this drug's indication rather than to the word in the
+    // abstract -- which is what keeps the pairing meaningful when two drugs
+    // share an indication.
     db
-      .select({ brandId: brandIndications.brandId, text: drugIndications.text })
+      .select({ brandId: brandIndications.brandId, label: indications.label })
       .from(brandIndications)
       .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId))
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
       .where(eq(drugIndications.drugId, drug.id)),
     db
       .select({ slug: tags.slug, label: tags.label, kind: tags.kind })
@@ -61,8 +68,8 @@ export async function getDrugProfile(slug: string, userId?: string) {
   const indicationsByBrand = new Map<string, string[]>();
   for (const link of linkRows) {
     const list = indicationsByBrand.get(link.brandId);
-    if (list) list.push(link.text);
-    else indicationsByBrand.set(link.brandId, [link.text]);
+    if (list) list.push(link.label);
+    else indicationsByBrand.set(link.brandId, [link.label]);
   }
 
   const brands: ProfileBrand[] = brandRows.map((brand) => ({
@@ -85,7 +92,7 @@ export async function getDrugProfile(slug: string, userId?: string) {
   return {
     drug,
     brands,
-    indications: indicationRows.map((row) => row.text),
+    indications: indicationRows.map((row) => row.label),
     tags: tagRows,
     defs: visibleDefs,
     siblings,

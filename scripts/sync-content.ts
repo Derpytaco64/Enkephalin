@@ -16,13 +16,23 @@ const report = await syncDrugsFromFile(file, { force });
 
 console.log(`drugs:        ${report.drugsInserted} new, ${report.drugsUpdated} updated, ${report.drugsUnchanged} unchanged`);
 console.log(`brands:       ${report.brandsInserted} new, ${report.brandsUpdated} updated`);
-console.log(`indications:  ${report.indicationsInserted} new`);
+console.log(`indications:  ${report.indicationsInserted} new on drugs, ${report.newIndications.length} new wordings`);
 console.log(`brand links:  ${report.linksInserted} new`);
 console.log(`tagged:       ${report.tagsLinked}`);
 
 if (report.humanKept.length > 0) {
   console.log(`\nkept ${report.humanKept.length} hand-written value(s) over the sheet (use --force to overwrite):`);
   for (const key of report.humanKept) console.log(`  ${key}`);
+}
+
+// An empty list is the normal state and the one worth noticing: the sheet
+// invented a wording we did not already hold, which is either a genuinely new
+// indication or a second spelling of one that is now two study filters.
+if (report.newIndications.length > 0) {
+  console.log(`
+wordings the vocabulary did not hold, now added:`);
+  for (const label of report.newIndications) console.log(`  ${label}`);
+  console.log('  check Admin -> Indications for a near-duplicate to merge.');
 }
 
 if (report.mergedSlugs.length > 0) {

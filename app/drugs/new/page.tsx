@@ -2,6 +2,7 @@ import { asc, ne } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
 import { tags } from '@/db/schema';
+import { listIndications } from '@/lib/drugs/indication-store';
 import { requireAdmin } from '@/lib/session';
 import { createDrugAction } from '../actions';
 import { DrugForm } from '../drug-form';
@@ -12,11 +13,14 @@ export const dynamic = 'force-dynamic';
 export default async function NewDrugPage() {
   await requireAdmin();
 
-  const assignable = await db
-    .select({ slug: tags.slug, label: tags.label, kind: tags.kind })
-    .from(tags)
-    .where(ne(tags.kind, 'system'))
-    .orderBy(asc(tags.kind), asc(tags.label));
+  const [assignable, vocabulary] = await Promise.all([
+    db
+      .select({ slug: tags.slug, label: tags.label, kind: tags.kind })
+      .from(tags)
+      .where(ne(tags.kind, 'system'))
+      .orderBy(asc(tags.kind), asc(tags.label)),
+    listIndications(),
+  ]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -33,6 +37,7 @@ export default async function NewDrugPage() {
         submitLabel="Add drug"
         brands={[]}
         indications={[]}
+        knownIndications={vocabulary.map((row) => row.label)}
         fields={[]}
         allTags={assignable}
         tagSlugs={[]}

@@ -154,12 +154,37 @@ export const drugs = pgTable('drugs', {
 
 /* ------------------------------------------ brands and indications ------- */
 
+/**
+ * The vocabulary of indications, one row per thing a drug can be for.
+ *
+ * It was free text on each drug until migration 0005, and the trouble with
+ * that was not storage but typing: "Hypertension" existed sixteen times as
+ * sixteen unrelated strings, a typo forked a new study filter of one drug
+ * without saying so, and renaming one meant finding every drug that carried
+ * it. As rows there is one of each, a typo is visible as a new entry you did
+ * not mean to make, and renaming or merging is a single edit.
+ *
+ * The slug is the address -- it is in every study link -- and the label is what
+ * is read. See lib/drugs/indications.ts for the wording rules.
+ */
+export const indications = pgTable('indications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  label: text('label').notNull(),
+});
+
+/** Which drug is for which indication, in the drug's own order. */
 export const drugIndications = pgTable('drug_indications', {
   id: uuid('id').primaryKey().defaultRandom(),
   drugId: uuid('drug_id').notNull().references(() => drugs.id, { onDelete: 'cascade' }),
-  text: text('text').notNull(),
+  indicationId: uuid('indication_id').notNull().references(() => indications.id, { onDelete: 'cascade' }),
   sortOrder: integer('sort_order').notNull().default(0),
-}, (t) => [index('drug_indications_drug_idx').on(t.drugId)]);
+}, (t) => [
+  index('drug_indications_drug_idx').on(t.drugId),
+  // One drug cannot be for the same indication twice, which free text could
+  // not say and a typo used to work around.
+  uniqueIndex('drug_indications_unique').on(t.drugId, t.indicationId),
+]);
 
 export const drugBrands = pgTable('drug_brands', {
   id: uuid('id').primaryKey().defaultRandom(),
