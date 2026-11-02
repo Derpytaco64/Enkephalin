@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
-import { TEST_DATABASE_URL, TEST_DB_CONTAINER, TEST_DB_PORT } from './test-db';
+import { TEST_DATABASE_URL, TEST_DB_CONTAINER, TEST_DB_PORT } from './test-db.mjs';
 
 /**
  * Surfaces docker's stderr. Without it a failure here reaches you as vitest's

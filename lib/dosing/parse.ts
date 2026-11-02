@@ -67,7 +67,10 @@ const UNIT_WORDS: [RegExp, UnitCode][] = [
 ];
 
 const ROUTE_WORDS: [RegExp, RouteCode][] = [
-  [/\bby mouth\b|\borally\b|\boral\b|\bPO\b/i, 'PO'],
+  // "oral rinse" is excluded on purpose: chlorhexidine is swished and spat,
+  // and PO would say it is swallowed. With no code for the oral cavity as a
+  // route, the honest result is no route and a flag.
+  [/\bby mouth\b|\borally\b|\boral\b(?!\s+rinse)|\bPO\b/i, 'PO'],
   [/\bintravenous(?:ly)?\b|\bIV\b/i, 'IV'],
   [/\bintramuscular(?:ly)?\b|\bIM\b/i, 'IM'],
   [/\bsubcutaneous(?:ly)?\b|\bsub-?Q\b|\bSQ\b|\bSC\b/i, 'SC'],
@@ -102,6 +105,9 @@ const SITE_WORDS: [RegExp, Site['region'], Site['basis']][] = [
   [/\b(?:in|into|per)?\s*each ear\b/i, 'ear', 'each'],
   [/\baffected ear\b/i, 'ear', 'affected'],
   [/\baffected area\b/i, 'skin', 'affected'],
+  // Chlorhexidine is swished and spat. The mouth is where it goes; it has no
+  // route code here, because PO would say it is swallowed.
+  [/\boral rinse\b|\bswish\b/i, 'mouth', 'affected'],
 ];
 
 /**
@@ -117,7 +123,9 @@ const FILLER = new RegExp(
   'a|an|the|of|by|to|in|into|on|at|per|as|for|and|or|with|is|are|be|may|up|' +
   'apply|applied|take|taken|instill|instilled|administer|administered|give|given|use|used|' +
   'inject|injected|infuse|infused|infusion|bolus|swallow|placed|swish|rinse|' +
-  'divided|regimen|consisting|total|dose|doses' +
+  // "divided" is deliberately NOT here: it changes a per-dose amount into a
+  // daily total, so letting it pass as filler loses the distinction silently.
+  'regimen|consisting|total|dose|doses' +
   ')\\b',
   'gi',
 );
@@ -151,7 +159,7 @@ function count(token: string): number {
  * compared -- because refusing a row over "ER" would bury the real refusals.
  */
 const DECORATION: { pattern: RegExp; note?: string }[] = [
-  { pattern: /\b(?:ER|XR|SR|XL|DR|IR|CR|MDI|HFA|DPI)\b/ },
+  { pattern: /\b(?:ER|XR|SR|XL|DR|IR|CR|LA|DS|MDI|HFA|DPI)\b/ },
   { pattern: /\b\d+\s*(?:hours?|minutes?)\s*(?:apart|intervals?)\b/i },
   { pattern: /\bat \d+\s*hours?\s*intervals?\b/i },
   { pattern: /\bover \d+\s*(?:seconds?|minutes?|hours?)\b/i },
@@ -164,9 +172,27 @@ const DECORATION: { pattern: RegExp; note?: string }[] = [
   { pattern: /\bif [^,.]*/i },
   { pattern: /\bdiskus\b/i },
   { pattern: /\bon an empty stomach\b/i },
-  // "200 mg/25 mg capsule by mouth": a bare form noun standing before the
-  // route names the product, and is not a second dose.
-  { pattern: /\b(?:capsules?|tablets?|caps?|tabs?)\b(?=\s+(?:by mouth|orally|PO)\b)/i },
+  /**
+   * "200 mg/25 mg capsule by mouth": a form noun standing straight after a
+   * strength names the product, and is not a second dose.
+   *
+   * It must follow a *mass unit* to count as decoration. Without that condition
+   * this also ate the form out of "One tablet by mouth once a day", orphaning
+   * the count and failing five rows including both oral contraceptives.
+   */
+  { pattern: /(?<=\b(?:mg|mcg|g)\s{0,3})(?:capsules?|tablets?|caps?|tabs?)\b(?=\s+(?:by mouth|orally|PO)\b)/i },
+  /**
+   * "240 mg by mouth divided 1-2 times daily" is a daily *total* split across
+   * doses, so each dose is 120-240 mg -- not 240 mg one-to-two times a day,
+   * which is what a flat reading says and would be up to double the dose.
+   * Two drugs are written this way, and nothing else in the parse catches it:
+   * the word was being swallowed as filler and every token still accounted
+   * for, so the coverage guard saw a clean row.
+   */
+  {
+    pattern: /\bdivided\b/i,
+    note: 'The source gives a daily total without saying how it is divided, so the frequency is ambiguous.',
+  },
   /**
    * "4 grams daily in 1 or 2 doses", "50 mg daily in single or divided doses".
    * Not decoration at all, once a frequency has also been read: a daily total
@@ -174,7 +200,7 @@ const DECORATION: { pattern: RegExp; note?: string }[] = [
    * row wants a human rather than a confident "QD".
    */
   {
-    pattern: /\b(?:in|as)\s+(?:a\s+)?(?:single|\d+(?:\s*or\s*\d+)?)\s*(?:or\s+divided\s+)?doses?\b/i,
+    pattern: new RegExp(`\\b(?:in|as)\\s+(?:a\\s+)?(?:single|(?:${COUNT})(?:\\s*or\\s*(?:${COUNT}))?)\\s*(?:or\\s+)?(?:divided\\s+)?doses?\\b`, 'i'),
     note: 'The source gives a daily total without saying how it is divided, so the frequency is ambiguous.',
   },
   {
@@ -233,8 +259,15 @@ function normalize(prose: string): string {
   return prose
     .replace(/[–—]/g, '-')
     .replace(/’/g, "'")
+    // A thousands separator, which otherwise reads as a dose a thousand times
+    // too small: heparin's "5,000 units" parsed as 5 and left ",000" behind.
+    .replace(/(\d),(\d{3})\b/g, '$1$2')
     // The sheet wraps mid-range: "every 4- 6 hours".
     .replace(/(\d)\s*-\s*(\d)/g, '$1-$2')
+    // "with morning meal" carries both facts. Collapsing it to WITH_FOOD threw
+    // the morning away, which no guard could see because the text was consumed.
+    .replace(/\bwith (morning|evening) meal\b/i, (_match, when: string) =>
+      `with food in the ${when.toLowerCase() === 'morning' ? 'morning' : 'evening'}`)
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -265,7 +298,9 @@ function readAmounts(reader: Reader, qualifiers: string[]): Amount[] {
   // incomplete, so this runs first.
   const actuated = reader.take(
     new RegExp(
-      `(${COUNT})\\s*(inhalations?|puffs?|sprays?|drops?|tablets?|capsules?)\\s+of\\s+([\\d.\\s/]+\\s*(?:mcg|mg|g))`,
+      // The strength may itself be a combination, and may spell its unit on
+      // each half: "160 mcg/4.5 mcg" as well as "100/25 mcg".
+      `(${COUNT})\\s*(inhalations?|puffs?|sprays?|drops?|tablets?|capsules?)\\s+of\\s+([\\d.\\s/]+\\s*(?:mcg|mg|g)(?:\\s*/\\s*[\\d.\\s/]+\\s*(?:mcg|mg|g))*)`,
       'i',
     ),
   );
@@ -388,8 +423,9 @@ function readFrequency(reader: Reader): Regimen['frequency'] {
     return { kind: 'interval', low: 2, high: null, unit: 'day' };
   }
 
-  // "once weekly", "once a week", "once per month".
-  const onceEvery = reader.take(/\bonce (?:a |per |every )?(week|month|day)(?:ly)?\b|\bQWK\b/i);
+  // "once weekly", "once a week", "once per month", and the bare "monthly"
+  // that fremanezumab is written with.
+  const onceEvery = reader.take(/\b(?:once )?(?:a |per |every )?(week|month|day)(?:ly)?\b|\bQWK\b/i);
   if (onceEvery) {
     const unit = (onceEvery[1] ?? 'week') as 'week' | 'month' | 'day';
     return unit === 'day'
@@ -420,8 +456,10 @@ function readFrequency(reader: Reader): Regimen['frequency'] {
 
 function readDuration(reader: Reader): Duration | null {
   const cycle = reader.take(new RegExp(`\\bevery (${NUM})[- ]day cycle\\b`, 'i'));
+  // "for 7 days", "for a maximum of 5 days", and the sheet's own shorthand
+  // "x 10-14 days" -- which is the same notation this module prints.
   const span = reader.take(
-    new RegExp(`\\bfor (?:a maximum of )?(${NUM})(?:\\s*-\\s*(${NUM}))?\\s*(doses?|days?|weeks?|months?)\\b`, 'i'),
+    new RegExp(`\\b(?:for|x)\\s*(?:a maximum of )?(${NUM})(?:\\s*-\\s*(${NUM}))?\\s*(doses?|days?|weeks?|months?)\\b`, 'i'),
   );
 
   if (!span && !cycle) return null;
@@ -458,8 +496,9 @@ function readCeiling(reader: Reader): Amount | null {
 
 function readSite(reader: Reader): Site | null {
   for (const [pattern, region, basis] of SITE_WORDS) {
-    const match = reader.take(pattern);
-    if (match) return { region, basis, note: null };
+    // Every mention, since the sheet can name the site twice in one breath:
+    // "Swish oral rinse" is the swishing and the rinse, one place.
+    if (reader.takeAll(pattern).length > 0) return { region, basis, note: null };
   }
   return null;
 }
@@ -501,6 +540,11 @@ function segment(prose: string): { text: string; step: number; label: string | n
       if (phase) {
         label = phase[1];
         text = text.slice(phase[0].length);
+        // The label can carry the only route the step states -- ephedrine is
+        // "IV bolus: 5-10 mg once" -- so hand any route word back to the body
+        // rather than losing it to the label.
+        const route = label.match(/\b(IV|IM|subQ|SC|PO)\b/i);
+        if (route) text = `${route[1]} ${text}`;
       }
 
       // Or trailing, as in "200 mg by mouth initially then ...".
@@ -542,7 +586,8 @@ function readRegimen(text: string, step: number, label: string | null): {
   // "(dose is combination of ampicillin and sulbactam)".
   for (const match of reader.takeAll(/\(([^)]*)\)/)) {
     const inner = match[1].trim();
-    if (!inner) continue;
+    // "affected eye(s)" leaves a bare "s", which is not a qualifier.
+    if (!inner || inner.toLowerCase() === 's') continue;
 
     const ceiling = new Reader(inner);
     if (readCeiling(ceiling)) {
@@ -559,7 +604,10 @@ function readRegimen(text: string, step: number, label: string | null): {
   for (const { pattern, note } of DECORATION) {
     const match = reader.take(pattern);
     if (!match) continue;
-    qualifiers.push(match[0].trim());
+    // Consumed spans are blanked rather than removed, so a match reaching over
+    // one arrives full of holes: "may repeat dose          MAX total 50 mg".
+    const text = match[0].replace(/\s+/g, ' ').trim();
+    if (text) qualifiers.push(text);
     if (note) ambiguities.push(note);
   }
 
@@ -570,8 +618,11 @@ function readRegimen(text: string, step: number, label: string | null): {
   regimen.amounts = readAmounts(reader, qualifiers);
   regimen.site = readSite(reader);
 
+  // Every mention is consumed, but each route is recorded once: phytonadione
+  // says "by mouth" and then "orally" for the same thing, and one of the two
+  // would otherwise be left as residue and fail the row.
   for (const [pattern, code] of ROUTE_WORDS) {
-    if (reader.take(pattern)) regimen.routes.push(code);
+    if (reader.takeAll(pattern).length > 0) regimen.routes.push(code);
   }
 
   regimen.frequency = readFrequency(reader);
@@ -590,6 +641,9 @@ function readRegimen(text: string, step: number, label: string | null): {
     else if (regimen.site?.region === 'ear') regimen.routes.push('OTIC');
     else if (regimen.site?.region === 'nostril') regimen.routes.push('NAS');
     else if (regimen.site?.region === 'skin') regimen.routes.push('TOP');
+    // "Apply three times a day" names the route in its verb. Mupirocin and
+    // triamcinolone are written this way with no other route word at all.
+    else if (/^\s*appl(?:y|ied)\b/i.test(text)) regimen.routes.push('TOP');
   }
 
   // "5-10 mg by mouth at bedtime" states a frequency, in the way a pharmacist
@@ -606,7 +660,10 @@ function readRegimen(text: string, step: number, label: string | null): {
   // "titrated to clinical effect", is wording rather than residue.
   const qualifierTail = leftover.join(' ');
   if (NOT_QUIZZABLE.test(qualifierTail)) {
-    qualifiers.push(qualifierTail);
+    // The sheet's own wording, not the residue tokens: stripping punctuation
+    // turned epoprostenol's "increments of 1-2 ng/kg/min" into
+    // "increments 1 2 ng kg min", which a reader cannot reconstruct.
+    qualifiers.push(normalize(text));
     regimen.qualifiers = qualifiers;
     return { regimen, residue: [], qualifiers, ambiguities };
   }
@@ -716,10 +773,12 @@ export function parseDosing(prose: string, actives: string[] = []): ParseResult 
   }
 
   return {
+    // Deduplicated: two steps of one regimen, or two phrasings in one step,
+    // raise the same concern and should say it once.
     status: notes.length > 0 ? 'needs_review' : 'parsed',
     regimens,
     quizzable: !unquizzable,
-    notes,
+    notes: [...new Set(notes)],
     unconsumed: [],
   };
 }

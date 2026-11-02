@@ -110,7 +110,9 @@ describe('toSig', () => {
       routes: ['NAS'],
       site: { region: 'nostril', basis: 'each', note: null },
       frequency: { kind: 'per_day', times: 1, timesHigh: null },
-    }))).toBe('2 spray NAS each nostril QD');
+      // "sprays", because a sig abbreviates (tab, gtt) but pluralises a unit
+      // it writes out in full.
+    }))).toBe('2 sprays NAS each nostril QD');
   });
 
   it('keeps "affected" distinct from "each"', () => {
@@ -214,14 +216,16 @@ describe('toEnglish', () => {
       routes: ['OPH'],
       site: { region: 'eye', basis: 'each', note: null },
       frequency: { kind: 'per_day', times: 2, timesHigh: null },
-    }))).toBe('1 drop into the eye in each eye twice a day');
+      // The site says where, so the readback drops the route label rather than
+      // stuttering "into the eye in each eye".
+    }))).toBe('1 drop in each eye twice a day');
 
     expect(toEnglish(regimen({
       amounts: [{ low: 2, high: null, unit: 'spray', perKg: false, per: null, active: null }],
       routes: ['NAS'],
       site: { region: 'nostril', basis: 'each', note: null },
       frequency: { kind: 'per_day', times: 1, timesHigh: null },
-    }))).toBe('2 sprays into the nose in each nostril once a day');
+    }))).toBe('2 sprays in each nostril once a day');
   });
 
   it('keeps qualifiers visible without letting them into the comparison', () => {

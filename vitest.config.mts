@@ -1,9 +1,8 @@
 import { defineConfig } from 'vitest/config';
-import { TEST_DATABASE_URL } from './tests/test-db';
+import { TEST_DATABASE_URL } from './tests/test-db.mjs';
 
 export default defineConfig({
-  // The config is loaded as CommonJS (no "type": "module"), so import.meta
-  // is unavailable here. Vitest always runs from the project root.
+  // Vitest always runs from the project root.
   resolve: { alias: { '@': process.cwd() } },
   test: {
     include: ['tests/**/*.test.ts'],

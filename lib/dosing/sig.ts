@@ -48,7 +48,10 @@ function renderAmounts(amounts: Amount[], sig: boolean): string {
   const text = (amount: Amount) => {
     const unit = UNITS[amount.unit];
     const plural = amount.high !== null || amount.low !== 1;
-    const unitText = sig ? unit.sig : plural ? unit.plural : unit.label;
+    // A sig abbreviates rather than pluralising -- "1-2 tab", not "tabs" --
+    // except where the unit is a word already: "5000 units".
+    const sigText = plural && unit.sig === unit.label ? unit.plural : unit.sig;
+    const unitText = sig ? sigText : plural ? unit.plural : unit.label;
     const space = sig && unit.class === 'count' ? ' ' : ' ';
     return `${amountRange(amount, sig ? '-' : ' to ')}${space}${amountTail(amount, unitText)}`;
   };
@@ -169,7 +172,17 @@ export function toEnglish(regimen: Regimen): string {
   const amounts = renderAmounts(regimen.amounts, false);
   if (amounts) parts.push(amounts);
 
-  if (regimen.routes.length > 0) {
+  // The site already says where, so naming the route too reads as a stutter:
+  // "1 drop into the eye to the affected eye". The sig keeps both, since there
+  // the route is a code rather than a phrase.
+  const siteImplies: Partial<Record<string, string>> = {
+    eye: 'OPH', ear: 'OTIC', nostril: 'NAS', skin: 'TOP',
+  };
+  const redundant = regimen.site !== null
+    && regimen.routes.length === 1
+    && siteImplies[regimen.site.region] === regimen.routes[0];
+
+  if (regimen.routes.length > 0 && !redundant) {
     parts.push(regimen.routes.map((code) => ROUTES[code].label).join(' or '));
   }
   if (regimen.site) parts.push(renderSite(regimen.site, false));
