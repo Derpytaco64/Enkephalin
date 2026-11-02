@@ -1181,8 +1181,14 @@ reachable one-handed; browse table degrades to cards.
   about what changing one does, since it redraws the questions.
 - **done — 2026-11-02.** ~~"Paper" is the wrong word~~: *Quiz settings*, *Previous quizzes*,
   *Another quiz*.
-- **A sig glossary on the drug editing screen**, next to the dosing box: what the codes mean, so
-  the notation is readable without leaving the form.
+- **done — 2026-11-02.** ~~A sig glossary on the drug editing screen~~: a collapsed panel under
+  the dosing preview on both the edit and the add screens, every row read off `lib/dosing/model.ts`
+  rather than retyped — so the codes a person is shown and the codes the printer writes cannot
+  drift apart. `PER_DAY_CODES` and `INTERVAL_LETTERS` moved out of `sig.ts` into the model for
+  that reason, which is the only change to the printer. The panel explains the *output*: you write
+  prose and the sig is printed from it, so the point being made is that `10 mg by mouth once a day`
+  is what produces `10 mg PO QD`, and a word missing from the sig is a word the parser did not
+  understand.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

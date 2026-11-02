@@ -7,6 +7,7 @@ import { indicationSlug } from '@/lib/drugs/indications';
 import type { Result } from '@/lib/drugs/mutations';
 import type { FieldDef } from '@/lib/fields/registry';
 import { DosingPreview } from './dosing-preview';
+import { SigGlossary } from './sig-glossary';
 
 const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm';
 const hint = 'mt-1 text-xs text-[var(--muted)]';
@@ -190,7 +191,10 @@ function FieldRow({
           </label>
 
           {!unique && (
-            <DosingPreview prose={text} generic={generic} id={`parse_${def.key}`} />
+            <>
+              <DosingPreview prose={text} generic={generic} id={`parse_${def.key}`} />
+              <SigGlossary />
+            </>
           )}
         </>
       )}
@@ -442,7 +446,12 @@ function DosingOnCreate({ generic }: { generic: string }) {
         Unique or complicated sig
       </label>
 
-      {!unique && <DosingPreview prose={prose} generic={generic} />}
+      {!unique && (
+        <>
+          <DosingPreview prose={prose} generic={generic} />
+          <SigGlossary />
+        </>
+      )}
       <p className={hint}>Everything else is on the edit screen, which opens next.</p>
     </>
   );

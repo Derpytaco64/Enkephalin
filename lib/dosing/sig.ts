@@ -1,5 +1,7 @@
 import {
+  INTERVAL_LETTERS,
   MODIFIERS,
+  PER_DAY_CODES,
   ROUTES,
   SITE_LABELS,
   UNITS,
@@ -89,14 +91,11 @@ function renderFrequency(frequency: Frequency, sig: boolean): string {
         return sig ? `${span}x/day` : `${span} times a day`;
       }
 
-      if (sig) {
-        const codes: Record<number, string> = { 1: 'QD', 2: 'BID', 3: 'TID', 4: 'QID' };
-        return codes[frequency.times] ?? `${frequency.times}x/day`;
-      }
-      const words: Record<number, string> = {
-        1: 'once a day', 2: 'twice a day', 3: 'three times a day', 4: 'four times a day',
-      };
-      return words[frequency.times] ?? `${frequency.times} times a day`;
+      // Both halves come from one table, which is also what the editor's
+      // glossary reads -- see PER_DAY_CODES.
+      const code = PER_DAY_CODES[frequency.times];
+      if (sig) return code?.sig ?? `${frequency.times}x/day`;
+      return code?.label ?? `${frequency.times} times a day`;
     }
     case 'interval': {
       const span = frequency.high === null
@@ -104,7 +103,7 @@ function renderFrequency(frequency: Frequency, sig: boolean): string {
         : `${num(frequency.low)}${sig ? '-' : ' to '}${num(frequency.high)}`;
 
       if (sig) {
-        const letter = { minute: 'MIN', hour: 'H', day: 'D', week: 'WK', month: 'MO' }[frequency.unit];
+        const letter = INTERVAL_LETTERS[frequency.unit];
         if (frequency.unit === 'day' && frequency.low === 2 && frequency.high === null) return 'QOD';
         if (frequency.low === 1 && frequency.high === null) return `Q${letter}`;
         return `Q${span}${letter}`;

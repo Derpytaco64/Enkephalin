@@ -110,6 +110,28 @@ export type Frequency =
   | { kind: 'unspecified' };
 
 /**
+ * The shorthand for a count per day, and the letter for an interval.
+ *
+ * Here rather than inside the printer because the editor's glossary reads the
+ * same tables: a code shown to a person and a code written into a sig that
+ * came from two lists would eventually disagree, and the one place that is
+ * guaranteed not to notice is the glossary.
+ *
+ * Counts above four have no code -- there is no abbreviation meaning "five
+ * times a day" -- and neither does a range of counts, so both are spelled out.
+ */
+export const PER_DAY_CODES: Record<number, { sig: string; label: string }> = {
+  1: { sig: 'QD', label: 'once a day' },
+  2: { sig: 'BID', label: 'twice a day' },
+  3: { sig: 'TID', label: 'three times a day' },
+  4: { sig: 'QID', label: 'four times a day' },
+};
+
+export const INTERVAL_LETTERS: Record<'minute' | 'hour' | 'day' | 'week' | 'month', string> = {
+  minute: 'MIN', hour: 'H', day: 'D', week: 'WK', month: 'MO',
+};
+
+/**
  * Modifiers are orthogonal to frequency and combine freely, which is the whole
  * reason they are not frequency values: "three times a day as needed" is TID
  * *and* PRN, and 12 drugs in this data set are written that way.
