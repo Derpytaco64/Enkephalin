@@ -33,7 +33,7 @@ import {
   users,
   type FieldValue,
 } from '../../db/schema.ts';
-import type { Amount, Duration, Frequency, Site } from '../dosing/model.ts';
+import type { Amount, Duration, Frequency, Modifier, RouteCode, Site } from '../dosing/model.ts';
 
 /**
  * Bumped when the shape changes in a way a restore has to know about. A
@@ -63,10 +63,10 @@ export type BackupRegimen = {
   label: string | null;
   sourceText: string;
   amounts: Amount[];
-  routes: string[];
+  routes: RouteCode[];
   site: Site | null;
   frequency: Frequency;
-  modifiers: string[];
+  modifiers: Modifier[];
   duration: Duration | null;
   ceiling: Amount | null;
   qualifiers: string[];

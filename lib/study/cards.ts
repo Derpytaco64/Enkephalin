@@ -17,6 +17,13 @@ export type CardSource = {
   tags: string[];
   /** Indication slugs, not the prose: the scope compares slug to slug. */
   indications: string[];
+  /**
+   * The drug's dosing as printed sig, or null where any of its rows could not
+   * be decoded. This is the comparable form: "1 gram by mouth two times a day"
+   * and "1 g by mouth two times a day" are different sentences and the same
+   * dose, and only the sig knows that.
+   */
+  dosingSig: string | null;
   /** Shown as a to-do on the profile; it does not hold cards back. */
   needsPairingReview: boolean;
   values: Record<string, FieldValue | undefined>;

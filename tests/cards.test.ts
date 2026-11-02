@@ -36,6 +36,7 @@ function source(partial: Partial<CardSource> = {}): CardSource {
     routes: ['Oral'],
     tags: ['top-drugs-2026'],
     indications: ['anxiety'],
+    dosingSig: '0.25 mg PO TID',
     needsPairingReview: false,
     values: {
       generic: value({ value: 'Alprazolam' }),

@@ -8,7 +8,16 @@
  */
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { drugBrands, drugIndications, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
+import {
+  dosingRegimens,
+  drugBrands,
+  drugIndications,
+  drugTags,
+  drugs,
+  tags,
+  type FieldValue,
+} from '@/db/schema';
+import { toSig } from '@/lib/dosing/sig';
 import { indicationSlug } from '@/lib/drugs/indications';
 import type { CardSource } from './cards';
 
@@ -21,7 +30,7 @@ function sheetValue(value: string | null): FieldValue {
 }
 
 export async function loadCardSources(): Promise<CardSource[]> {
-  const [drugRows, brandRows, indicationRows, tagRows] = await Promise.all([
+  const [drugRows, brandRows, indicationRows, tagRows, regimenRows] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db
       .select({ drugId: drugBrands.drugId, name: drugBrands.name })
@@ -35,7 +44,26 @@ export async function loadCardSources(): Promise<CardSource[]> {
       .select({ drugId: drugTags.drugId, slug: tags.slug })
       .from(drugTags)
       .innerJoin(tags, eq(tags.id, drugTags.tagId)),
+    db
+      .select().from(dosingRegimens)
+      .orderBy(asc(dosingRegimens.alternative), asc(dosingRegimens.step)),
   ]);
+
+  // One comparable key per drug: every regimen printed as sig and joined. Null
+  // the moment a row has no components, because half a reading compares to
+  // nothing -- such a drug falls back to being compared by its wording, which
+  // is all it ever had.
+  const sigByDrug = new Map<string, string | null>();
+  for (const regimen of regimenRows) {
+    if (sigByDrug.get(regimen.drugId) === null) continue;
+    const sig = regimen.amounts.length > 0 ? toSig(regimen) : '';
+    if (!sig) {
+      sigByDrug.set(regimen.drugId, null);
+      continue;
+    }
+    const current = sigByDrug.get(regimen.drugId);
+    sigByDrug.set(regimen.drugId, current ? `${current} | ${sig}` : sig);
+  }
 
   const group = <T, K extends keyof T>(rows: T[], pick: K) => {
     const map = new Map<string, T[K][]>();
@@ -68,6 +96,7 @@ export async function loadCardSources(): Promise<CardSource[]> {
       // Slugged here with the same helper the picker uses, so "Seizures" and
       // "Seizure" land on one filter rather than two half-decks.
       indications: [...new Set(indications.map((text) => indicationSlug(text)).filter(Boolean))],
+      dosingSig: sigByDrug.get(drug.id) ?? null,
       needsPairingReview: drug.needsPairingReview,
       values: {
         ...drug.fields,

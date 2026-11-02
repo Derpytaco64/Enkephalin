@@ -27,6 +27,7 @@ function source(partial: Partial<CardSource> & { slug: string; generic: string }
     routes: [],
     tags: [],
     indications: [],
+    dosingSig: null,
     needsPairingReview: false,
     values: {},
     ...partial,
@@ -128,6 +129,103 @@ describe('buildQuiz', () => {
     // string as a right answer.
     for (const option of wrong) expect(asked.acceptable).not.toContain(option);
     expect(wrong).not.toContain(correct);
+  });
+
+  it('treats one indication written two ways as one answer', () => {
+    // The sheet writes both: carbamazepine "Seizure", divalproex "Seizures".
+    // Offering one as the wrong answer to the other offers a right answer.
+    const asked = source({
+      slug: 'carbamazepine', generic: 'Carbamazepine',
+      values: { indication: value({ value: 'Seizure' }) },
+    });
+    const twin = source({
+      slug: 'divalproex', generic: 'Divalproex sodium',
+      values: { indication: value({ value: 'Seizures' }) },
+    });
+    const others = [
+      source({ slug: 'lisinopril', generic: 'Lisinopril', values: { indication: value({ value: 'Hypertension' }) } }),
+      source({ slug: 'metformin', generic: 'Metformin', values: { indication: value({ value: 'Diabetes' }) } }),
+      source({ slug: 'sertraline', generic: 'Sertraline', values: { indication: value({ value: 'Depression' }) } }),
+    ];
+
+    const questions = buildQuiz([asked, twin, ...others], defs, config({ fields: ['indication'] }));
+    const question = questions.find((row) => row.slug === 'carbamazepine')!;
+
+    expect(question.options).not.toContain('Seizures');
+    expect(question.options[question.correctIndex]).toBe('Seizure');
+  });
+
+  it('matches a clue to its plural when asking which drug', () => {
+    const asked = source({
+      slug: 'carbamazepine', generic: 'Carbamazepine',
+      values: { indication: value({ value: 'Seizure' }) },
+    });
+    const twin = source({
+      slug: 'divalproex', generic: 'Divalproex sodium',
+      values: { indication: value({ value: 'Seizures' }) },
+    });
+    const others = [
+      source({ slug: 'lisinopril', generic: 'Lisinopril', values: { indication: value({ value: 'Hypertension' }) } }),
+      source({ slug: 'metformin', generic: 'Metformin', values: { indication: value({ value: 'Diabetes' }) } }),
+      source({ slug: 'sertraline', generic: 'Sertraline', values: { indication: value({ value: 'Depression' }) } }),
+    ];
+
+    const questions = buildQuiz([asked, twin, ...others], defs, config({
+      fields: ['indication'], direction: 'fields_to_drug',
+    }));
+    const question = questions.find((row) => row.slug === 'carbamazepine')!;
+
+    // Divalproex is a right answer to "which drug treats seizures", however
+    // the sheet spelled it, so it cannot be one of the wrong ones.
+    expect(question.acceptable.sort()).toEqual(['Carbamazepine', 'Divalproex sodium']);
+    expect(question.options).not.toContain('Divalproex sodium');
+  });
+
+  it('treats one dose written two ways as one answer', () => {
+    // Real pair from the sheet: methenamine "1 gram by mouth two times a day"
+    // and valacyclovir "1 g by mouth two times a day". Different sentences,
+    // same dose, so the sig is what has to be compared.
+    const asked = source({
+      slug: 'valacyclovir', generic: 'Valacyclovir', dosingSig: '1 g PO BID',
+      values: { dosing: value({ value: '1 g by mouth two times a day' }) },
+    });
+    const twin = source({
+      slug: 'methenamine', generic: 'Methenamine', dosingSig: '1 g PO BID',
+      values: { dosing: value({ value: '1 gram by mouth two times a day' }) },
+    });
+    const others = [
+      source({ slug: 'metformin', generic: 'Metformin', dosingSig: '500 mg PO BID', values: { dosing: value({ value: '500 mg by mouth twice a day' }) } }),
+      source({ slug: 'lisinopril', generic: 'Lisinopril', dosingSig: '10 mg PO QD', values: { dosing: value({ value: '10 mg by mouth once a day' }) } }),
+      source({ slug: 'simvastatin', generic: 'Simvastatin', dosingSig: '20 mg PO QHS', values: { dosing: value({ value: '20 mg by mouth at bedtime' }) } }),
+    ];
+
+    const questions = buildQuiz([asked, twin, ...others], defs, config({ fields: ['dosing'] }));
+    const question = questions.find((row) => row.slug === 'valacyclovir')!;
+
+    expect(question.options).not.toContain('1 gram by mouth two times a day');
+    expect(question.options[question.correctIndex]).toBe('1 g by mouth two times a day');
+  });
+
+  it('compares undecoded dosing by its wording, which is all it has', () => {
+    // No sig on either, so the only honest comparison is the text -- and two
+    // identical strings still cannot both be offered.
+    const asked = source({
+      slug: 'one', generic: 'One', dosingSig: null,
+      values: { dosing: value({ value: 'Dose per protocol' }) },
+    });
+    const twin = source({
+      slug: 'two', generic: 'Two', dosingSig: null,
+      values: { dosing: value({ value: 'Dose per protocol' }) },
+    });
+    const others = [
+      source({ slug: 'three', generic: 'Three', values: { dosing: value({ value: 'Titrate to effect' }) } }),
+      source({ slug: 'four', generic: 'Four', values: { dosing: value({ value: 'Per pharmacy' }) } }),
+    ];
+
+    const questions = buildQuiz([asked, twin, ...others], defs, config({ fields: ['dosing'] }));
+    const question = questions.find((row) => row.slug === 'one')!;
+
+    expect(question.options.filter((option) => option === 'Dose per protocol')).toHaveLength(1);
   });
 
   it('asks a list field about one item rather than the whole list', () => {

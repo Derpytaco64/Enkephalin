@@ -177,11 +177,29 @@ Transcription of the note:
   the question would silently vanish. Measured on the real data: a statins + dosing paper gives
   four questions, each one correct answer plus exactly one class-mate plus two from elsewhere.
 
-  Two guards, both about the words rather than about pharmacology. An option never repeats a
-  string already on screen -- two drugs written up as "10 mg by mouth once a day" would otherwise
-  make a question with two right answers. And every value the question would *also* accept is
-  excluded from the distractors and shown after answering: asked "which drug treats dyslipidemia?"
-  the sheet makes **ten** drugs right, so nine of them cannot be offered as wrong.
+  **Two answers count as the same answer by meaning, not spelling** -- `answerKey` in
+  `lib/study/quiz.ts`, and the first version of this got it wrong by comparing lowercased text:
+
+  - *Indications* go through the alias table that `lib/drugs/indications.ts` already holds, because
+    the sheet writes one indication two ways. Three real pairs: *Seizure* / *Seizures*, *Bacterial
+    infection* / *Bacterial infections*, *BPH* / *Benign prostatic hypertrophy (BPH)*. Offering one
+    as the wrong answer to the other is offering a right answer.
+  - *Dosing* compares the **printed sig**, which is exactly what the structured components are for.
+    Measured on the real data: 200 of 236 drugs have a comparable sig and **56 of them share a dose
+    with at least one other drug** -- eight drugs are *20 mg PO QD*, six are *10 mg PO QD*. Text
+    comparison catches the identically-worded ones and misses the rest: sertraline's "50 mg by
+    mouth once a day" and nortriptyline's "50 mg by mouth daily in single or divided doses" are the
+    same dose in different words.
+  - Everything else falls back to trimmed, lowercased text, which is the most that can be claimed
+    about prose nobody has decoded.
+
+  On top of that, every value the question would *also* accept is excluded from the distractors and
+  shown after answering: asked "which drug is dosed 20 mg PO QD?" the sheet makes **eight** drugs
+  right, so seven cannot be offered as wrong. Asked "which drug treats dyslipidemia?", ten are.
+
+  Swept over the real database to check rather than assume: 66,080 generated questions across
+  dosing and indication in both directions and mechanism reversed -- no option repeated, no
+  also-right answer offered as wrong, and no dosing option drawn from a drug with the same sig.
 
   A sig marked *unique/complicated* is quizzed as multiple choice like anything else. Its wording
   is distinctive enough that no other option could accidentally be right, which is the owner's

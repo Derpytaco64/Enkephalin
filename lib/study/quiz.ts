@@ -19,6 +19,7 @@
  * distinction and is ignored here.
  */
 import type { FieldValue } from '@/db/schema';
+import { indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
 import { answerText, inScope, type CardSource } from './cards';
@@ -68,7 +69,29 @@ function atomsOf(def: FieldDef, value: FieldValue | undefined): string[] | null 
   return text === null ? null : [text];
 }
 
-type Candidate = { source: CardSource; atoms: string[] };
+/**
+ * Two answers are the same answer when this key matches -- which is a question
+ * about meaning, not spelling, and the reason it is not just `toLowerCase`.
+ *
+ * - **Indications** go through the alias table, because the sheet writes one
+ *   indication two ways: *Seizure* and *Seizures*, *Bacterial infection* and
+ *   *Bacterial infections*, *BPH* and its expansion. Offering one as the wrong
+ *   answer to the other is offering a right answer.
+ * - **Dosing** compares the printed sig where the drug has one. *1 gram by
+ *   mouth two times a day* and *1 g by mouth two times a day* are different
+ *   sentences and the same dose; so are *50 mg by mouth once a day* and *50 mg
+ *   by mouth daily in single or divided doses*. Eight sigs in the sheet are
+ *   shared by differently-worded drugs, so this is not hypothetical.
+ * - Everything else falls back to the trimmed, lowercased text, which is the
+ *   most that can be claimed about prose nobody has decoded.
+ */
+function answerKey(def: FieldDef, source: CardSource, text: string): string {
+  if (def.key === 'indication') return indicationSlug(text) || text.trim().toLowerCase();
+  if (def.key === 'dosing' && source.dosingSig) return `sig:${source.dosingSig.toLowerCase()}`;
+  return text.trim().toLowerCase();
+}
+
+type Candidate = { source: CardSource; atoms: string[]; keys: string[] };
 
 /** Fisher-Yates over a copy, with the rng injectable so tests are decidable. */
 function shuffled<T>(items: T[], rng: () => number): T[] {
@@ -117,7 +140,8 @@ export function buildQuiz(
     // the distractor pool, and it is deliberately the whole database.
     const candidates: Candidate[] = sources.flatMap((source) => {
       const atoms = atomsOf(def, source.values[def.key]);
-      return atoms === null ? [] : [{ source, atoms }];
+      if (atoms === null) return [];
+      return [{ source, atoms, keys: atoms.map((text) => answerKey(def, source, text)) }];
     });
     if (candidates.length === 0) continue;
 
@@ -142,17 +166,18 @@ export function buildQuiz(
 function drawDistractors(input: {
   asked: CardSource;
   candidates: Candidate[];
+  /** Keys, not texts: what counts as "already answered" is a meaning. */
   exclude: Set<string>;
-  textOf: (candidate: Candidate) => string[];
+  offersOf: (candidate: Candidate) => { text: string; key: string }[];
   count: number;
   rng: () => number;
 }): { text: string; slug: string }[] {
-  const { asked, candidates, exclude, textOf, count, rng } = input;
+  const { asked, candidates, exclude, offersOf, count, rng } = input;
   const taken = new Set(exclude);
   const drawn: { text: string; slug: string }[] = [];
 
   const offers = (candidate: Candidate) =>
-    textOf(candidate).filter((text) => !taken.has(text.toLowerCase()));
+    offersOf(candidate).filter((option) => !taken.has(option.key));
 
   const others = candidates.filter((candidate) => candidate.source.drugId !== asked.drugId);
   const sameClass = asked.drugClass
@@ -172,8 +197,8 @@ function drawDistractors(input: {
     for (const candidate of shuffled(from, rng)) {
       const choice = pick(offers(candidate), rng);
       if (choice === undefined) continue;
-      taken.add(choice.toLowerCase());
-      drawn.push({ text: choice, slug: candidate.source.slug });
+      taken.add(choice.key);
+      drawn.push({ text: choice.text, slug: candidate.source.slug });
       return true;
     }
     return false;
@@ -199,17 +224,18 @@ function factQuestion(
   rng: () => number,
 ): QuizQuestion | null {
   const asked = candidate.source;
-  const correct = pick(candidate.atoms, rng);
+  const index = Math.floor(rng() * candidate.atoms.length);
+  const correct = candidate.atoms[index];
   if (correct === undefined) return null;
 
   const acceptable = candidate.atoms;
-  const exclude = new Set(acceptable.map((text) => text.toLowerCase()));
+  const exclude = new Set(candidate.keys);
 
   const distractors = drawDistractors({
     asked,
     candidates,
     exclude,
-    textOf: (other) => other.atoms,
+    offersOf: (other) => other.atoms.map((text, at) => ({ text, key: other.keys[at] })),
     count: optionCount - 1,
     rng,
   });
@@ -251,14 +277,15 @@ function nameQuestion(
   rng: () => number,
 ): QuizQuestion | null {
   const asked = candidate.source;
-  const clue = pick(candidate.atoms, rng);
+  const at = Math.floor(rng() * candidate.atoms.length);
+  const clue = candidate.atoms[at];
   if (clue === undefined) return null;
+  const clueKey = candidate.keys[at];
 
   // Any drug the clue is also true of is a right answer, so it cannot be a
-  // wrong one. Two drugs sharing a mechanism is common and harmless; two
-  // drugs sharing it while one is keyed "the" answer is not.
-  const alsoTrue = candidates.filter((other) =>
-    other.atoms.some((text) => text.toLowerCase() === clue.toLowerCase()));
+  // wrong one -- matched on the key, so a drug written up as "Seizures" is
+  // caught when the clue says "Seizure".
+  const alsoTrue = candidates.filter((other) => other.keys.includes(clueKey));
   const acceptable = alsoTrue.map((other) => other.source.generic);
   const exclude = new Set(acceptable.map((name) => name.toLowerCase()));
 
@@ -266,7 +293,8 @@ function nameQuestion(
     asked,
     candidates,
     exclude,
-    textOf: (other) => [other.source.generic],
+    // The options are names here, so a name is its own key.
+    offersOf: (other) => [{ text: other.source.generic, key: other.source.generic.toLowerCase() }],
     count: optionCount - 1,
     rng,
   });

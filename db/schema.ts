@@ -4,7 +4,7 @@ import {
 } from 'drizzle-orm/pg-core';
 // Types only, so nothing is imported at runtime and this file stays loadable
 // by `node --experimental-strip-types` for the scripts.
-import type { Amount, Duration, Frequency, Site } from '../lib/dosing/model.ts';
+import type { Amount, Duration, Frequency, Modifier, RouteCode, Site } from '../lib/dosing/model.ts';
 
 /* ---------------------------------------------------------------- enums -- */
 
@@ -241,10 +241,10 @@ export const dosingRegimens = pgTable('dosing_regimens', {
   sourceText: text('source_text').notNull(),
 
   amounts: jsonb('amounts').$type<Amount[]>().notNull().default([]),
-  routes: text('routes').array().$type<string[]>().notNull().default([]),
+  routes: text('routes').array().$type<RouteCode[]>().notNull().default([]),
   site: jsonb('site').$type<Site | null>(),
   frequency: jsonb('frequency').$type<Frequency>().notNull(),
-  modifiers: text('modifiers').array().$type<string[]>().notNull().default([]),
+  modifiers: text('modifiers').array().$type<Modifier[]>().notNull().default([]),
   duration: jsonb('duration').$type<Duration | null>(),
   ceiling: jsonb('ceiling').$type<Amount | null>(),
   /** Stored and rendered, never compared: wording is not a fact. */
