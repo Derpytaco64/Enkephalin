@@ -685,6 +685,36 @@ Adding a field later = one row in `field_defs` via the admin UI. No migration, n
 
 ---
 
+### Colour is cosmetic, and nothing studied may depend on it (2026-11-02)
+
+A standing rule, stated by the owner and now enforced by
+`tests/colour-is-cosmetic.test.ts`: **no question is ever based on the palette or on a class's
+colour.**
+
+The reason is that a palette is a per-user preference. One person's CIV is red and another's is
+green, and either of them can change it in Settings. A question whose answer depended on a colour
+would have a different answer for each reader, and could be got right by editing a setting rather
+than by learning anything.
+
+The subtler half is the **hint**. Nobody would write "which of these is the blue one", but
+colour-coding the four options of a multiple-choice question would do it by accident: the right
+answer becomes the option whose colour matches the drug in the prompt, and the paper is answerable
+without being read. So the ban covers the study *pages*, not only the question builder — a cue is
+as fatal as a premise.
+
+It was already true when the rule was stated: nothing under `lib/study/` or `lib/fields/` mentions
+colour, the palette has seven consumers and all of them are browse, profile or settings, and
+`drug_class` has been `isQuizzable: false` since the field was defined — it earns its place by
+driving colour, the browse filter and same-class distractor sampling, not by being asked.
+
+The test reads the source of `lib/study/**` and `app/study/**` and fails on any import from
+`lib/theme/`, because the failure it guards against is silent: a quiz with a colour cue still
+scores, still saves and still looks exactly right. It was checked by planting
+`import { colorFor } from '@/lib/theme/palette'` in `lib/study/quiz.ts` and confirming the suite
+went red naming that file — a guard that cannot fail is decoration. It also asserts the asked-field
+set excludes `drug_class` in the database *and* in `CORE_FIELD_DEFS`, so a hand-edited row cannot
+quietly make the class askable.
+
 ### One colour per value, and 3:1 not 4.5:1 (2026-11-02)
 
 Phase 7 landed, and two things in the feature description above turned out to be wrong once
