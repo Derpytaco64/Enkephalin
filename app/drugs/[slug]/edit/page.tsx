@@ -4,11 +4,14 @@ import { notFound } from 'next/navigation';
 import { db } from '@/db';
 import { tags } from '@/db/schema';
 import { listIndications } from '@/lib/drugs/indication-store';
+import { mergeCandidates, previewDelete } from '@/lib/drugs/merge';
 import { getDrugProfile } from '@/lib/drugs/profile';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireAdmin } from '@/lib/session';
 import { saveDrugAction } from '../../actions';
 import { DrugForm, type EditableField } from '../../drug-form';
+import { deleteDrugAction, mergeDrugAction, previewMergeAction } from './actions';
+import { DangerZone } from './danger-zone';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +28,7 @@ export default async function EditDrugPage({
 
   // Every field, not the viewer's visible subset: this is the editor, and a
   // field you have hidden on profiles is still one you can fill in here.
-  const [profile, defs, assignable, vocabulary] = await Promise.all([
+  const [profile, defs, assignable, vocabulary, removal, candidates] = await Promise.all([
     getDrugProfile(slug),
     listFieldDefs(),
     db
@@ -34,8 +37,10 @@ export default async function EditDrugPage({
       .where(ne(tags.kind, 'system'))
       .orderBy(asc(tags.kind), asc(tags.label)),
     listIndications(),
+    previewDelete(slug),
+    mergeCandidates(slug),
   ]);
-  if (!profile) notFound();
+  if (!profile || !removal) notFound();
 
   const { drug, brands, indications, tags: current } = profile;
 
@@ -82,6 +87,16 @@ export default async function EditDrugPage({
         allTags={assignable}
         tagSlugs={current.filter((tag) => tag.kind !== 'system').map((tag) => tag.slug)}
         systemTags={current.filter((tag) => tag.kind === 'system').map((tag) => tag.label)}
+      />
+
+      <DangerZone
+        slug={drug.slug}
+        generic={drug.genericName}
+        deletePreview={removal}
+        candidates={candidates}
+        previewMerge={previewMergeAction}
+        merge={mergeDrugAction}
+        remove={deleteDrugAction}
       />
     </main>
   );

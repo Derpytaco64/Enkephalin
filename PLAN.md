@@ -977,6 +977,52 @@ with the CII badge. Not clicked through in a browser: the trigger was verified `
 reason in the served HTML of both runners, and the gate, the keyboard stand-down and the
 no-revalidate rule are each held by a test.
 
+### Two rows that should never have been two (2026-11-03)
+
+Delete and merge, at the bottom of the drug editor, because that is where you are standing when you
+notice a duplicate.
+
+**A merge is not a delete with extra steps.** A drug is referenced by its brands, its indication
+links, its list memberships, its dosing rows, every SRS schedule anyone holds for it and every quiz
+answer anyone has given about it — all `on delete cascade`. That is right for a delete and wrong for
+a merge: a merge says *these were always the same drug*, so the history belongs to the survivor.
+Every quiz answer moves, because the quiz weights "ask me this again" from them and the question was
+always about the same drug.
+
+One rule for the content, stated once: **the survivor keeps everything it has; the loser fills gaps
+and hands over what the survivor lacks entirely.** A per-field choice would be an editing session
+wearing a merge's clothes. The exceptions are the three places a database constraint forces a
+decision, and each is the same answer — keep the survivor's:
+
+- a brand name the survivor already has is dropped, not duplicated (case-insensitively: *ZOCOR* is
+  *Zocor*);
+- a schedule colliding on (person, card key) keeps the survivor's, because that is the one the
+  person has actually been answering against;
+- dosing moves only into a drug with none. Half of one drug's regimens beside half of another's
+  would read as one contradictory schedule.
+
+**The subtle one was `brand_indications`.** It points at a `drug_indications` row rather than at the
+vocabulary, so a brand that moves has to find its pairing already pointing at the *survivor's* link
+row — otherwise the pairing is dangling or silently gone. Indications are therefore merged first,
+re-pointing the loser's brand pairings before dropping its duplicate links. There is a test that
+plants exactly that case, because nothing about the symptom would point at the cause.
+
+**Delete is hard, not a `deleted_at` flag.** A soft-deleted drug would have to be filtered out of
+browse, search, every study scope, the card builder and the quiz pool — six places where forgetting
+one means a deleted drug quietly still being asked about. The safety net is `/admin/data`, which
+exports the whole database as one file, and the audit entry carries what was destroyed, since the
+row itself will not be there to say.
+
+Both show what they will do before they will do it, from the same queries the write uses. The delete
+copy points at merge whenever study history would go with it. An indication nothing else is for
+stays in the vocabulary afterwards — deliberately, since it is shared — and `/admin/indications`
+already lists unused ones.
+
+Verified against the real database: previewing *Clonidine ER* into *Clonidine* reports Kapvay and
+ADHD moving, one list moving and two already shared, and its dosing discarded because Clonidine has
+its own. A full round trip on two throwaway drugs merged and deleted cleanly and left the count back
+at 236 — including the vocabulary rows it orphaned, which is how that behaviour got noticed.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1420,7 +1466,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Remaining: drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Remaining: the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
