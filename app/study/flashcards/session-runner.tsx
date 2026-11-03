@@ -11,6 +11,7 @@ import {
   grade as gradeSession,
 } from '@/lib/study/blocks';
 import { GRADE_BUTTONS, type Grade } from '@/lib/study/srs';
+import { LookupPanel } from '../_components/lookup-panel';
 import { gradeCardAction } from './actions';
 
 /* Red through green, defined in app/globals.css so that this file does not
@@ -22,6 +23,21 @@ import { gradeCardAction } from './actions';
    the binary pair takes the ends. That does mean "Good" is the green end on
    the binary scale and the third step on the four-point one -- correct either
    way, because what the colour says is how far along this row you are. */
+
+/**
+ * A keystroke aimed at a text field is not a keystroke aimed at the runner.
+ *
+ * There was nothing to type into here until the lookup panel arrived, so this
+ * never mattered; the moment it did, typing "2" into the search box would have
+ * answered the question.
+ */
+function typingSomewhere(event: KeyboardEvent): boolean {
+  const target = event.target as HTMLElement | null;
+  if (target === null) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
 const GRADE_STEPS = ['--grade-1', '--grade-2', '--grade-3', '--grade-4'] as const;
 
 function gradeStep(index: number, total: number): string {
@@ -45,6 +61,7 @@ export function SessionRunner({
   const byId = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const [session, setSession] = useState(() => createSession(cards.map((card) => card.id), config.blockSize));
   const [revealed, setRevealed] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
 
   const rules = sessionRules(config);
   const buttons = GRADE_BUTTONS[rules.grading];
@@ -75,6 +92,7 @@ export function SessionRunner({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (!card) return;
+      if (lookingUp || typingSomewhere(event)) return;
 
       if (event.code === 'Space' || event.key === 'Enter') {
         event.preventDefault();
@@ -92,7 +110,7 @@ export function SessionRunner({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [answer, buttons, card, revealed]);
+  }, [answer, buttons, card, lookingUp, revealed]);
 
   if (cards.length === 0) {
     return (
@@ -181,9 +199,17 @@ export function SessionRunner({
         </div>
       )}
 
+      <div className="mt-6">
+        <LookupPanel
+          available={revealed}
+          unavailableReason="Flip it first, then look it up"
+          onOpenChange={setLookingUp}
+        />
+      </div>
+
       {/* A new tab on purpose: a session is in-memory, so navigating to the
           profile and back would start the block over. */}
-      <p className="mt-6 text-xs text-[var(--muted)]">
+      <p className="mt-3 text-xs text-[var(--muted)]">
         <a href={`/drugs/${card.slug}`} target="_blank" rel="noreferrer" className="underline">
           Open {card.generic} &#8599;
         </a>

@@ -4,9 +4,24 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { StudyConfig } from '@/lib/study/config';
 import type { QuizQuestion } from '@/lib/study/quiz';
+import { LookupPanel } from '../_components/lookup-panel';
 import type { FinishState } from './actions';
 
 type Answer = { chosenIndex: number | null };
+/**
+ * A keystroke aimed at a text field is not a keystroke aimed at the runner.
+ *
+ * There was nothing to type into here until the lookup panel arrived, so this
+ * never mattered; the moment it did, typing "2" into the search box would have
+ * answered the question.
+ */
+function typingSomewhere(event: KeyboardEvent): boolean {
+  const target = event.target as HTMLElement | null;
+  if (target === null) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
 
 /**
  * What the answer you gave was actually right about.
@@ -100,6 +115,7 @@ export function QuizRunner({
   // one; anything else leaves the paper in hand alone.
   const [questions] = useState(served);
   const [index, setIndex] = useState(0);
+  const [lookingUp, setLookingUp] = useState(false);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [finished, setFinished] = useState(false);
   const [saved, setSaved] = useState<FinishState | null>(null);
@@ -126,6 +142,9 @@ export function QuizRunner({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (finished || !question) return;
+      // The panel owns the keyboard while it is open, and the search box owns
+      // it while it has focus.
+      if (lookingUp || typingSomewhere(event)) return;
       if (event.key === ' ' || event.key === 'Enter') {
         if (answers[question.id]) {
           event.preventDefault();
@@ -155,7 +174,7 @@ export function QuizRunner({
       })),
     }).then((result) => { if (live) setSaved(result); });
     return () => { live = false; };
-  }, [finished, saved, answers, config, questions, onFinish]);
+  }, [lookingUp, finished, saved, answers, config, questions, onFinish]);
 
   if (questions.length === 0) {
     return (
@@ -185,9 +204,13 @@ export function QuizRunner({
                 ? 'Recorded, with which fields let you down.'
                 : saved.message}
           </p>
-          <Link href="/study/quiz" className="mt-4 inline-block text-sm text-[var(--accent)] underline">
-            Another quiz
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <Link href="/study/quiz" className="text-sm text-[var(--accent)] underline">
+              Another quiz
+            </Link>
+            {/* Nothing left to answer, so nothing left to protect. */}
+            <LookupPanel available unavailableReason="" onOpenChange={setLookingUp} />
+          </div>
         </div>
 
         {wrong.length > 0 && (
@@ -321,6 +344,14 @@ export function QuizRunner({
           </div>
         )}
       </article>
+
+      <div className="mt-4">
+        <LookupPanel
+          available={answered}
+          unavailableReason="Answer first, then look it up"
+          onOpenChange={setLookingUp}
+        />
+      </div>
 
       <p className="mt-3 text-xs text-[var(--muted)]">
         1–{question.options.length} to answer, space to move on.

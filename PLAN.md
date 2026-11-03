@@ -917,6 +917,43 @@ No site default colour *axis*, deliberately: `sitePreferences()` answers `class`
 ever needed otherwise. A migration for a setting with one plausible value is a migration spent on a
 question nobody asked.
 
+### A lookup you cannot reach mid-question (2026-11-02)
+
+A panel on both runners that shows a drug without leaving the session, **shut while a quiz question
+is unanswered or a flashcard unflipped** — the owner's condition, and the right one: a question you
+have not answered is a retrieval attempt in progress, and looking the answer up there turns the one
+moment that teaches something into reading.
+
+Disabled rather than hidden, and the button says what has to happen first (*Answer first, then look
+it up* / *Flip it first, then look it up*). Knowing the panel is there is most of the value of it
+being there; a trigger that silently appears later is a feature nobody finds.
+
+Three things it had to get right beyond that:
+
+- **Nothing revalidates.** A study page is `force-dynamic` and randomised, so `revalidatePath` on
+  one re-renders a *different* paper under a live session — the "0 of 83" bug. A lookup must not be
+  able to change the question, so both actions are plain reads and a test asserts the word does not
+  appear in either file's code.
+- **The runners' keyboards stand down.** Neither key handler checked where a keystroke was aimed,
+  which never mattered because there was nothing to type into — and the moment there was, typing
+  "2" into the search box would have answered the question. Both now ignore events from a text
+  field, and ignore everything while the panel is open.
+- **It closes itself when it stops being allowed.** Answering is not the only way out of a
+  question: *Next* moves to the following one, where the panel has to shut without being touched.
+
+Searched on the server, unlike `/drugs`, which ships all 236 rows and searches them in the browser
+— right for a page whose whole job is the list, wrong for a page already carrying a paper. And
+"contains" rather than the fuzzy match `/drugs` uses: you reach for this knowing what you want, and
+a fuzzy match that confidently returns the wrong drug mid-session is worse than no match. A brand
+hit says which brand it was, because searching *Zocor* and being shown *Simvastatin* needs the
+connection stated.
+
+Checked live on the real data: `zocor` → Simvastatin (as Zocor), `xanax` → Alprazolam (as Xanax XR),
+`ozempic` → Semaglutide, `%` → nothing, and Morphine's card carries its four fields in two groups
+with the CII badge. Not clicked through in a browser: the trigger was verified `disabled` with its
+reason in the served HTML of both runners, and the gate, the keyboard stand-down and the
+no-revalidate rule are each held by a test.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1360,7 +1397,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Remaining: drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
