@@ -941,6 +941,29 @@ Three things it had to get right beyond that:
 - **It closes itself when it stops being allowed.** Answering is not the only way out of a
   question: *Next* moves to the following one, where the panel has to shut without being touched.
 
+**The way in is the drug's name** (revised 2026-11-02, same day). The panel first shipped with its
+own *Look up a drug* button beside the runner, next to the new-tab links that had always been there.
+That was two affordances for one act, and one of them cost you the session. Now every drug named in
+a runner is the trigger — the question's drug, the drug a wrong answer actually belonged to, every
+row of the summary, the flashcard's own drug — and there is no separate control. The search box
+lives inside the panel, where looking up *something else* belongs: it is the rarer thing.
+
+One panel per runner rather than one per link: the runner holds which drug is open, so a summary of
+twelve missed questions is twelve buttons and one overlay, not twelve overlays. Every runner link
+out to a new tab is gone, and a test asserts none comes back — the whole point was that a drug name
+should not cost a paper.
+
+That change closed a leak as well. The flashcard footer said *Open Morphine* whether or not the card
+had been turned over, and on a fact-to-drug card the drug **is** the answer. It is gated now, like
+everything else.
+
+A trigger that is not allowed renders no control at all — the sentence saying what has to happen
+first, not a disabled button. And the gate is stated on every trigger even where its position makes
+it unreachable (the quiz's row only exists once the question is answered), so that moving a row
+cannot quietly move the rule with it. A test walks every `LookupTrigger` and `LookupPanel` in both
+runners and fails on any that is ungated or does not name a drug: the way this rule gets lost is not
+somebody removing it, it is somebody adding a second way in and forgetting.
+
 Searched on the server, unlike `/drugs`, which ships all 236 rows and searches them in the browser
 — right for a page whose whole job is the list, wrong for a page already carrying a paper. And
 "contains" rather than the fuzzy match `/drugs` uses: you reach for this knowing what you want, and

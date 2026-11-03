@@ -171,9 +171,33 @@ describe('the rules the lookup panel runs under', () => {
   it('is shut while a question is unanswered and a card unflipped', () => {
     expect(quiz).toContain('available={answered}');
     expect(flashcards).toContain('available={revealed}');
-    // Disabled, not merely styled: a trigger that only looks unavailable is
-    // still a button somebody can press.
-    expect(panel).toContain('disabled={!available}');
+  });
+
+  // Every trigger and every panel must be gated. An ungated one is how this
+  // rule gets lost: not by someone removing it, but by someone adding a
+  // second way in and forgetting.
+  it('has no way in that is not gated, and none that does not name a drug', () => {
+    for (const [name, source] of [['quiz', quiz], ['flashcards', flashcards]] as const) {
+      const triggers = source.match(/<LookupTrigger[\s\S]{0,400}?\/>/g) ?? [];
+      expect(triggers.length, `${name} has triggers`).toBeGreaterThan(0);
+      for (const trigger of triggers) {
+        expect(trigger, `${name} trigger is gated`).toMatch(/available(=|\s|$)/);
+        expect(trigger, `${name} trigger names a drug`).toContain('drug={{');
+      }
+
+      const panels = source.match(/<LookupPanel[\s\S]{0,400}?\/>/g) ?? [];
+      expect(panels.length, `${name} has a panel`).toBeGreaterThan(0);
+      for (const panel of panels) {
+        expect(panel, `${name} panel is gated`).toMatch(/available(=|\s|$)/);
+      }
+    }
+  });
+
+  it('offers nothing to press while it is not allowed', () => {
+    // Not a disabled button: when the gate is shut the trigger is not a
+    // control at all, it is the sentence saying what has to happen first.
+    expect(panel).toContain('if (!available) {');
+    expect(panel).toContain('{unavailableReason}');
   });
 
   it('closes itself if it stops being allowed while open', () => {
@@ -181,10 +205,16 @@ describe('the rules the lookup panel runs under', () => {
     expect(panel).toContain('if (!available && open) close()');
   });
 
-  it('stands the runner keyboard down, so typing cannot answer', () => {
+  it('loads the drug the trigger named, without it being searched for', () => {
+    expect(panel).toContain('lookupDrugAction(drug.slug)');
+  });
+
+  it('leaves no new-tab drug link in a runner, so one way in means one way in', () => {
+    // The panel keeps a "Full profile" link out to a new tab. The runners
+    // should have none of their own: two affordances for the same drug name,
+    // one of which costs the session, is the thing this replaced.
     for (const [name, source] of [['quiz', quiz], ['flashcards', flashcards]] as const) {
-      expect(source, name).toContain('if (lookingUp || typingSomewhere(event)) return;');
-      expect(source, name).toContain('function typingSomewhere');
+      expect(code(source), name).not.toContain('target="_blank"');
     }
   });
 

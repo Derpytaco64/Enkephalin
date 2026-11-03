@@ -11,7 +11,7 @@ import {
   grade as gradeSession,
 } from '@/lib/study/blocks';
 import { GRADE_BUTTONS, type Grade } from '@/lib/study/srs';
-import { LookupPanel } from '../_components/lookup-panel';
+import { LookupPanel, LookupTrigger, type LookupTarget } from '../_components/lookup-panel';
 import { gradeCardAction } from './actions';
 
 /* Red through green, defined in app/globals.css so that this file does not
@@ -61,7 +61,7 @@ export function SessionRunner({
   const byId = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const [session, setSession] = useState(() => createSession(cards.map((card) => card.id), config.blockSize));
   const [revealed, setRevealed] = useState(false);
-  const [lookingUp, setLookingUp] = useState(false);
+  const [lookup, setLookup] = useState<LookupTarget | null>(null);
 
   const rules = sessionRules(config);
   const buttons = GRADE_BUTTONS[rules.grading];
@@ -92,7 +92,7 @@ export function SessionRunner({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (!card) return;
-      if (lookingUp || typingSomewhere(event)) return;
+      if (lookup !== null || typingSomewhere(event)) return;
 
       if (event.code === 'Space' || event.key === 'Enter') {
         event.preventDefault();
@@ -110,7 +110,7 @@ export function SessionRunner({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [answer, buttons, card, lookingUp, revealed]);
+  }, [answer, buttons, card, lookup, revealed]);
 
   if (cards.length === 0) {
     return (
@@ -199,21 +199,19 @@ export function SessionRunner({
         </div>
       )}
 
-      <div className="mt-6">
-        <LookupPanel
+      {/* The card's drug, over the session. It used to be a new-tab link
+          that named the drug whether or not the card had been turned over --
+          which on a fact-to-drug card is the answer. */}
+      <p className="mt-6">
+        <LookupTrigger
+          drug={{ slug: card.slug, generic: card.generic }}
           available={revealed}
           unavailableReason="Flip it first, then look it up"
-          onOpenChange={setLookingUp}
+          onOpen={setLookup}
         />
-      </div>
-
-      {/* A new tab on purpose: a session is in-memory, so navigating to the
-          profile and back would start the block over. */}
-      <p className="mt-3 text-xs text-[var(--muted)]">
-        <a href={`/drugs/${card.slug}`} target="_blank" rel="noreferrer" className="underline">
-          Open {card.generic} &#8599;
-        </a>
       </p>
+
+      <LookupPanel drug={lookup} available={revealed} onClose={() => setLookup(null)} />
     </div>
   );
 }

@@ -5,48 +5,114 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LookupCard, LookupHit } from '@/lib/study/lookup';
 import { lookupDrugAction, searchDrugsAction } from './lookup-actions';
 
+/** The drug a trigger names, which is what the panel opens on. */
+export type LookupTarget = { slug: string; generic: string };
+
 /**
- * Look a drug up without leaving the session.
+ * A drug name you can press to see the drug.
  *
- * Closed until the card is turned over. A quiz question you have not answered
- * and a flashcard you have not flipped are both a retrieval attempt in
- * progress, and a lookup there is not studying -- it turns the one moment that
- * teaches something into reading. So the trigger is disabled and says what has
- * to happen first, rather than being hidden: knowing the panel is there is the
- * point of it being there at all.
+ * Every drug named in a runner is one of these, and there is no separate
+ * "look up a drug" button: the name in front of you *is* the way in, and a
+ * second control for the same act was one control too many. Searching for
+ * something else is still possible once the panel is open, which is where that
+ * belongs -- it is the rarer thing.
  *
- * An overlay rather than a page, because a session is in memory. Navigating
- * away loses the paper, which is why every other way out of a runner opens a
- * new tab.
+ * Disabled while a question is unanswered or a card unflipped, and it says
+ * what has to happen first rather than disappearing. That gate is the point:
+ * a retrieval attempt in progress is the one moment that teaches something,
+ * and reading the answer instead is not studying. Hiding the control would
+ * also hide the rule.
  */
-export function LookupPanel({
+export function LookupTrigger({
+  drug,
   available,
   unavailableReason,
-  onOpenChange,
+  onOpen,
+  className = 'text-sm text-[var(--accent)] underline',
 }: {
+  drug: LookupTarget;
   available: boolean;
-  /** Shown on the disabled trigger: what has to happen first. */
   unavailableReason: string;
-  /** So the runner can stand its keyboard down while this is open. */
-  onOpenChange?: (open: boolean) => void;
+  onOpen: (drug: LookupTarget) => void;
+  className?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  if (!available) {
+    return (
+      <span className="text-sm text-[var(--muted)]" title={unavailableReason}>
+        {unavailableReason}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(drug)}
+      title={`Look up ${drug.generic} without leaving the session`}
+      className={className}
+    >
+      {drug.generic}
+    </button>
+  );
+}
+
+/**
+ * The drug itself, over the session rather than instead of it.
+ *
+ * Controlled: the runner holds which drug is open, so one panel serves every
+ * name on the page -- the question's drug, the drug a wrong answer belonged
+ * to, every row of the summary -- instead of a panel per link each with its
+ * own state.
+ *
+ * An overlay rather than a page, because a session is in memory. Navigating
+ * away loses the paper, which is why the only link out of here opens a new
+ * tab.
+ */
+export function LookupPanel({
+  drug,
+  available,
+  onClose,
+}: {
+  /** Null is closed. */
+  drug: LookupTarget | null;
+  /** False shuts it, wherever it was opened from. */
+  available: boolean;
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<LookupHit[]>([]);
   const [card, setCard] = useState<LookupCard | null>(null);
   const [searching, setSearching] = useState(false);
   const box = useRef<HTMLInputElement>(null);
 
-  const close = useCallback(() => {
-    setOpen(false);
-    onOpenChange?.(false);
-  }, [onOpenChange]);
+  const open = drug !== null;
 
-  // Shut the moment it stops being allowed. Answering is not the only way out
-  // of a question: Next moves to the following one, where this must close.
+  const close = useCallback(() => {
+    setQuery('');
+    setHits([]);
+    setCard(null);
+    onClose();
+  }, [onClose]);
+
+  // Shut the moment it stops being allowed, whatever opened it. Answering is
+  // not the only way out of a question: Next moves to the following one, where
+  // this has to close without being touched.
   useEffect(() => {
     if (!available && open) close();
   }, [available, open, close]);
+
+  // The drug the trigger named, loaded without being searched for.
+  useEffect(() => {
+    if (drug === null) return;
+
+    let current = true;
+    void lookupDrugAction(drug.slug).then((found) => {
+      if (current) setCard(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, [drug]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,10 +126,6 @@ export function LookupPanel({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
-
-  useEffect(() => {
-    if (open) box.current?.focus();
-  }, [open]);
 
   // Debounced, and a reply is dropped if the box has moved on since -- without
   // that, a slow early query overwrites the answer to a later one.
@@ -92,27 +154,7 @@ export function LookupPanel({
     };
   }, [query, open]);
 
-  const show = async (slug: string) => {
-    setCard(await lookupDrugAction(slug));
-  };
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          if (!available) return;
-          setOpen(true);
-          onOpenChange?.(true);
-        }}
-        disabled={!available}
-        title={available ? 'Look a drug up' : unavailableReason}
-        className="rounded border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--fg)] disabled:cursor-not-allowed disabled:text-[var(--muted)] disabled:opacity-70"
-      >
-        {available ? 'Look up a drug' : unavailableReason}
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8">
@@ -131,7 +173,7 @@ export function LookupPanel({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Generic or brand name"
+            placeholder="Look up something else"
             autoComplete="off"
             className="h-9 min-w-48 flex-1 rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
           />
@@ -153,7 +195,7 @@ export function LookupPanel({
               <li key={hit.slug}>
                 <button
                   type="button"
-                  onClick={() => show(hit.slug)}
+                  onClick={() => void lookupDrugAction(hit.slug).then(setCard)}
                   className="flex w-full flex-wrap items-baseline gap-x-2 gap-y-1 py-2 text-left text-sm"
                 >
                   <span className={hit.slug === card?.slug ? 'font-medium underline' : 'font-medium'}>
@@ -175,7 +217,9 @@ export function LookupPanel({
           </ul>
         )}
 
-        {card !== null && (
+        {card === null ? (
+          <p className="mt-4 text-sm text-[var(--muted)]">Fetching {drug.generic}…</p>
+        ) : (
           <article className="mt-4 border-t border-[var(--border)] pt-4">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <h2 className="text-lg font-medium">{card.generic}</h2>

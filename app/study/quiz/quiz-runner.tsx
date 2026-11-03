@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { StudyConfig } from '@/lib/study/config';
 import type { QuizQuestion } from '@/lib/study/quiz';
-import { LookupPanel } from '../_components/lookup-panel';
+import { LookupPanel, LookupTrigger, type LookupTarget } from '../_components/lookup-panel';
 import type { FinishState } from './actions';
 
 type Answer = { chosenIndex: number | null };
@@ -39,13 +39,16 @@ function typingSomewhere(event: KeyboardEvent): boolean {
 function Mismatch({
   question,
   chosenIndex,
+  onLookup,
 }: {
   question: QuizQuestion;
   chosenIndex: number;
+  onLookup: (drug: LookupTarget) => void;
 }) {
   const chosen = question.options[chosenIndex];
   const owner = question.fromGeneric[chosenIndex];
   const fact = question.fromFact[chosenIndex];
+  const slug = question.fromSlug[chosenIndex];
   if (!owner) return null;
 
   // Both halves of the pair wear the colour the wrong option was marked in,
@@ -72,12 +75,17 @@ function Mismatch({
       <span className="text-[var(--muted)]">&ldquo;</span>
       <span className={half}>{chosen}</span>
       <span className="text-[var(--muted)]">&rdquo; is the {question.fieldLabel.toLowerCase()} of </span>
-      <a
-        href={`/drugs/${question.fromSlug[chosenIndex]}`} target="_blank" rel="noreferrer"
-        className={`${half} underline`}
-      >
-        {owner} &#8599;
-      </a>
+      {slug === null ? (
+        <span className={half}>{owner}</span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onLookup({ slug, generic: owner })}
+          className={`${half} underline`}
+        >
+          {owner}
+        </button>
+      )}
       <span className="text-[var(--muted)]">.</span>
     </>
   );
@@ -115,7 +123,7 @@ export function QuizRunner({
   // one; anything else leaves the paper in hand alone.
   const [questions] = useState(served);
   const [index, setIndex] = useState(0);
-  const [lookingUp, setLookingUp] = useState(false);
+  const [lookup, setLookup] = useState<LookupTarget | null>(null);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [finished, setFinished] = useState(false);
   const [saved, setSaved] = useState<FinishState | null>(null);
@@ -144,7 +152,7 @@ export function QuizRunner({
       if (finished || !question) return;
       // The panel owns the keyboard while it is open, and the search box owns
       // it while it has focus.
-      if (lookingUp || typingSomewhere(event)) return;
+      if (lookup !== null || typingSomewhere(event)) return;
       if (event.key === ' ' || event.key === 'Enter') {
         if (answers[question.id]) {
           event.preventDefault();
@@ -174,7 +182,7 @@ export function QuizRunner({
       })),
     }).then((result) => { if (live) setSaved(result); });
     return () => { live = false; };
-  }, [lookingUp, finished, saved, answers, config, questions, onFinish]);
+  }, [lookup, finished, saved, answers, config, questions, onFinish]);
 
   if (questions.length === 0) {
     return (
@@ -204,14 +212,12 @@ export function QuizRunner({
                 ? 'Recorded, with which fields let you down.'
                 : saved.message}
           </p>
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            <Link href="/study/quiz" className="text-sm text-[var(--accent)] underline">
-              Another quiz
-            </Link>
-            {/* Nothing left to answer, so nothing left to protect. */}
-            <LookupPanel available unavailableReason="" onOpenChange={setLookingUp} />
-          </div>
+          <Link href="/study/quiz" className="mt-4 inline-block text-sm text-[var(--accent)] underline">
+            Another quiz
+          </Link>
         </div>
+
+        <LookupPanel drug={lookup} available onClose={() => setLookup(null)} />
 
         {wrong.length > 0 && (
           <section className="mt-8">
@@ -235,18 +241,23 @@ export function QuizRunner({
                           <span className="text-[var(--flagged)]">{row.options[chosen]}</span>
                         </p>
                         <p className="mt-2 text-sm text-[var(--muted)]">
-                          <Mismatch question={row} chosenIndex={chosen} />
+                          <Mismatch question={row} chosenIndex={chosen} onLookup={setLookup} />
                         </p>
                       </>
                     ) : (
                       <p className="text-sm text-[var(--muted)]">Not answered.</p>
                     )}
-                    <a
-                      href={`/drugs/${row.slug}`} target="_blank" rel="noreferrer"
-                      className="mt-2 inline-block text-xs text-[var(--accent)] underline"
-                    >
-                      {row.generic} &#8599;
-                    </a>
+                    {/* Nothing left to answer by the summary, so nothing
+                        left to protect. */}
+                    <div className="mt-2">
+                      <LookupTrigger
+                        drug={{ slug: row.slug, generic: row.generic }}
+                        available
+                        unavailableReason=""
+                        onOpen={setLookup}
+                        className="text-xs text-[var(--accent)] underline"
+                      />
+                    </div>
                   </li>
                 );
               })}
@@ -315,7 +326,7 @@ export function QuizRunner({
         {answered && answer?.chosenIndex !== null && answer?.chosenIndex !== undefined
           && answer.chosenIndex !== question.correctIndex && (
           <p className="mt-4 rounded border border-[var(--border)] p-3 text-sm">
-            <Mismatch question={question} chosenIndex={answer.chosenIndex} />
+            <Mismatch question={question} chosenIndex={answer.chosenIndex} onLookup={setLookup} />
           </p>
         )}
 
@@ -328,14 +339,21 @@ export function QuizRunner({
             >
               {index + 1 < questions.length ? 'Next' : 'Finish'}
             </button>
-            {/* A new tab on purpose: looking a drug up mid-paper must not
-                navigate away from the paper, which would lose it. */}
-            <a
-              href={`/drugs/${question.slug}`} target="_blank" rel="noreferrer"
-              className="text-sm text-[var(--accent)] underline"
-            >
-              {question.generic} &#8599;
-            </a>
+            {/* The drug itself, over the paper rather than instead of it.
+                This used to open a new tab, which was the only way to look
+                something up without losing the session.
+
+                This row only renders once the question is answered, so the
+                gate below never actually shows its sentence here -- it is
+                stated anyway, so that moving the row cannot quietly move the
+                rule with it. The flashcard footer, which renders either way,
+                is where the sentence is seen. */}
+            <LookupTrigger
+              drug={{ slug: question.slug, generic: question.generic }}
+              available={answered}
+              unavailableReason="Answer first, then look it up"
+              onOpen={setLookup}
+            />
             {question.acceptable.length > 1 && (
               <span className="text-xs text-[var(--muted)]">
                 Also right: {question.acceptable.filter((text) => text !== question.options[question.correctIndex]).join(', ')}
@@ -345,13 +363,7 @@ export function QuizRunner({
         )}
       </article>
 
-      <div className="mt-4">
-        <LookupPanel
-          available={answered}
-          unavailableReason="Answer first, then look it up"
-          onOpenChange={setLookingUp}
-        />
-      </div>
+      <LookupPanel drug={lookup} available={answered} onClose={() => setLookup(null)} />
 
       <p className="mt-3 text-xs text-[var(--muted)]">
         1–{question.options.length} to answer, space to move on.
