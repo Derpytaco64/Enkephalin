@@ -21,6 +21,10 @@ export default function AdminHome() {
           <span className="ml-2 text-sm text-[var(--muted)]">rename and merge</span>
         </li>
         <li>
+          <Link href="/admin/look" className="text-[var(--accent)] underline">Look</Link>
+          <span className="ml-2 text-sm text-[var(--muted)]">default theme and colours</span>
+        </li>
+        <li>
           <Link href="/admin/data" className="text-[var(--accent)] underline">Data</Link>
           <span className="ml-2 text-sm text-[var(--muted)]">export and restore</span>
         </li>

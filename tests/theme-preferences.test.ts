@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import { accounts, sessions, siteSettings, userPreferences, users } from '@/db/schema';
 import {
-  clearPalette, getPreferences, setColorAxis, setPaletteColor, setPaletteColors, setTheme,
-  themeAttribute,
+  clearPalette, clearSitePalette, getPreferences, setColorAxis, setPaletteColor, setPaletteColors,
+  setSitePaletteColor, setSitePaletteColors, setSiteTheme, setTheme, themeAttribute,
 } from '@/lib/theme/preferences';
 
 const ME = 'user-student';
@@ -201,5 +201,96 @@ describe('setPaletteColors', () => {
     await setPaletteColor(ME, 'class:Old', '#222222');
     expect(await setPaletteColors(ME, 'class', {})).toEqual({ ok: true, value: { changed: 0 } });
     expect((await getPreferences(ME)).paletteOverrides).toEqual({});
+  });
+});
+
+/* The site palette is the same rules over a different row, which is exactly
+   the kind of pair that drifts. These assert the behaviour the per-user tests
+   above assert, plus the one thing only the site half can get wrong: writing
+   to `user_preferences` by accident. */
+describe('the site palette', () => {
+  it('creates the settings row on the first change', async () => {
+    expect(await db.select().from(siteSettings)).toHaveLength(0);
+
+    expect(await setSitePaletteColor('class:Biguanide', '#123456')).toEqual({
+      ok: true,
+      value: { color: '#123456' },
+    });
+
+    const [row] = await db.select().from(siteSettings);
+    expect(row.defaultPalette).toEqual({ 'class:Biguanide': '#123456' });
+  });
+
+  it('reaches somebody who has chosen nothing, and only them', async () => {
+    await setSitePaletteColor('class:Biguanide', '#123456');
+    expect((await getPreferences(ME)).paletteOverrides).toEqual({ 'class:Biguanide': '#123456' });
+
+    // Their own answer wins once they have one, and the site moving does not
+    // take it back.
+    await setPaletteColor(ME, 'class:Biguanide', '#abcdef');
+    await setSitePaletteColor('class:Biguanide', '#654321');
+    expect((await getPreferences(ME)).paletteOverrides).toEqual({ 'class:Biguanide': '#abcdef' });
+  });
+
+  it('never writes to anybody’s own row', async () => {
+    await setSitePaletteColor('class:Biguanide', '#123456');
+    await setSitePaletteColors('class', { 'class:Statin': '#0ea5e9' });
+    await setSiteTheme('dark');
+    await clearSitePalette();
+
+    expect(await db.select().from(userPreferences)).toHaveLength(0);
+  });
+
+  it('holds the same line on keys and colours as the per-user writer', async () => {
+    await setSitePaletteColor('class:Biguanide', '#123456');
+
+    expect(await setSitePaletteColor('not-a-key', '#123456')).toMatchObject({ ok: false });
+    expect(await setSitePaletteColor('class:Biguanide', 'cornflower')).toMatchObject({ ok: false });
+    expect(await setSitePaletteColors('class', { 'tag:statins': '#123456' }))
+      .toMatchObject({ ok: false });
+
+    // A refused edit leaves what was stored alone.
+    const [row] = await db.select().from(siteSettings);
+    expect(row.defaultPalette).toEqual({ 'class:Biguanide': '#123456' });
+  });
+
+  it('shuffles one axis without touching the schedule ramp', async () => {
+    await setSitePaletteColor('schedule:CII', '#dc2626');
+    await setSitePaletteColors('class', { 'class:Statin': '#0ea5e9', 'class:Biguanide': '#f59e0b' });
+
+    const [row] = await db.select().from(siteSettings);
+    expect(row.defaultPalette).toEqual({
+      'schedule:CII': '#dc2626',
+      'class:Statin': '#0ea5e9',
+      'class:Biguanide': '#f59e0b',
+    });
+  });
+
+  it('sets the default theme without disturbing the palette', async () => {
+    await setSitePaletteColor('class:Biguanide', '#123456');
+    expect(await setSiteTheme('dark')).toEqual({ ok: true });
+    expect(await setSiteTheme('puce')).toMatchObject({ ok: false });
+
+    const [row] = await db.select().from(siteSettings);
+    expect(row.defaultTheme).toBe('dark');
+    expect(row.defaultPalette).toEqual({ 'class:Biguanide': '#123456' });
+  });
+
+  it('clears the default palette and leaves the theme standing', async () => {
+    await setSiteTheme('dark');
+    await setSitePaletteColor('class:Biguanide', '#123456');
+
+    expect(await clearSitePalette()).toEqual({ ok: true });
+    const [row] = await db.select().from(siteSettings);
+    expect(row.defaultPalette).toEqual({});
+    expect(row.defaultTheme).toBe('dark');
+  });
+
+  it('leaves a registration mode alone, which shares the row', async () => {
+    await db.insert(siteSettings).values({ id: 1, registrationMode: 'open' });
+    await setSitePaletteColor('class:Biguanide', '#123456');
+
+    const [row] = await db.select().from(siteSettings);
+    expect(row.registrationMode).toBe('open');
   });
 });

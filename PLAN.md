@@ -887,6 +887,36 @@ The fix: `tests/migrate-test-db.mts` does the migration in its own process under
 `tests/global-setup.ts` keeps itself to node builtins and shells out to it. Verified by three
 consecutive full runs.
 
+### One set of palette rules, two rows to write them to (2026-11-02)
+
+Phase 7's last piece: `/admin/look`, where an admin sets the theme and colours everyone gets before
+they choose anything. Three decisions in it.
+
+**The editing rules are a third module now.** `lib/theme/overrides.ts` holds `withColor` and
+`withAxisColors` as plain functions over a map — what a key is, what a blank means, which axis a
+batch may touch — and both `user_preferences` and `site_settings.default_palette` are those
+functions over a different row. Writing the site half as a copy of the user half would have been two
+answers to "is `class:a:b` a key", and the pair would have drifted the first time either changed.
+`PaletteEditor` already took its three actions as props, so the UI needed no change at all.
+
+**Separate actions rather than one taking a scope.** `app/admin/look/actions.ts` is the per-user
+action with `requireAdmin` in place of `requireUser`. A scope that arrives in a form is a scope a
+request can claim, and "write the site default" should not be reachable by adding a field to a POST.
+
+**Every axis is editable here, and the axis lives in the URL.** On `/settings` you edit the axis you
+chose to look at, which is right for a reader. The site default is not a reader's choice, so an
+admin setting the schedule ramp should not have to switch their own view to the schedule axis first.
+
+The trap the page had to name: an admin with their own colours — this one has 119 — edits the
+default, looks at `/drugs`, and sees nothing move, because their own entries layer over the site's
+key by key. The page counts them and says so, with a link to clear them. Found by looking at the
+rendered preview and noticing it showed the built-in ramp while `/drugs` showed the shuffle, which
+is the correct behaviour for both and reads as a bug if nothing explains it.
+
+No site default colour *axis*, deliberately: `sitePreferences()` answers `class` and nothing has
+ever needed otherwise. A migration for a setting with one plausible value is a migration spent on a
+question nobody asked.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1329,7 +1359,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
-| 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). Remaining: the admin editor for the site default palette |
+| 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
 | 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change

@@ -9,10 +9,11 @@
  */
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { userPreferences } from '@/db/schema';
+import { siteSettings, userPreferences } from '@/db/schema';
 import type { Result } from '@/lib/drugs/mutations';
 import { getSiteSettings } from '@/lib/settings';
-import { isColorAxis, normalizeHex, type ColorAxis } from './palette';
+import { withAxisColors, withColor, type Overrides } from './overrides';
+import { isColorAxis, type ColorAxis } from './palette';
 
 export type ThemePref = 'light' | 'dark' | 'system';
 
@@ -109,6 +110,16 @@ export async function setColorAxis(userId: string, axis: unknown): Promise<Resul
   return { ok: true };
 }
 
+/** The user's own entries, without the site's underneath them. */
+async function userOverrides(userId: string): Promise<Overrides> {
+  const [row] = await db
+    .select({ overrides: userPreferences.paletteOverrides })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, userId))
+    .limit(1);
+  return row?.overrides ?? {};
+}
+
 /**
  * Pins one value's colour, or clears it back to the default when `color` is
  * blank.
@@ -123,75 +134,87 @@ export async function setPaletteColor(
   key: string,
   color: string,
 ): Promise<Result<{ color: string | null }>> {
-  if (!/^[a-z]+:[^:]{1,200}$/.test(key)) {
-    return { ok: false, message: 'That is not something with a colour.' };
-  }
+  const edit = withColor(await userOverrides(userId), key, color);
+  if (!edit.ok) return edit;
 
-  const [row] = await db
-    .select({ overrides: userPreferences.paletteOverrides })
-    .from(userPreferences)
-    .where(eq(userPreferences.userId, userId))
-    .limit(1);
-  const overrides = { ...(row?.overrides ?? {}) };
-
-  if (color.trim() === '') {
-    delete overrides[key];
-    await upsert(userId, { paletteOverrides: overrides });
-    return { ok: true, value: { color: null } };
-  }
-
-  const hex = normalizeHex(color);
-  if (hex === null) {
-    return { ok: false, message: 'Give a colour as a hex code, like #2563eb.' };
-  }
-
-  overrides[key] = hex;
-  await upsert(userId, { paletteOverrides: overrides });
-  return { ok: true, value: { color: hex } };
+  await upsert(userId, { paletteOverrides: edit.value!.overrides });
+  return { ok: true, value: { color: edit.value!.color } };
 }
 
-/**
- * Replaces every colour on one axis at once, leaving the other axes alone.
- *
- * Scoped by the key prefix rather than by clearing the lot: shuffling the
- * classes should not quietly throw away a schedule colour someone chose
- * deliberately, and the schedule ramp is the one place colour carries meaning
- * -- CII strongest through CV faintest -- so it is not something to overwrite
- * as a side effect.
- */
+/** Replaces every colour on one axis at once, leaving the other axes alone. */
 export async function setPaletteColors(
   userId: string,
   axis: Exclude<ColorAxis, 'none'>,
-  entries: Record<string, string>,
+  entries: Overrides,
 ): Promise<Result<{ changed: number }>> {
-  const prefix = `${axis}:`;
+  const edit = withAxisColors(await userOverrides(userId), axis, entries);
+  if (!edit.ok) return edit;
 
-  const cleaned: Record<string, string> = {};
-  for (const [key, color] of Object.entries(entries)) {
-    if (!key.startsWith(prefix)) {
-      return { ok: false, message: 'Those colours are not all on that axis.' };
-    }
-    const hex = normalizeHex(color);
-    if (hex === null) return { ok: false, message: 'Give a colour as a hex code, like #2563eb.' };
-    cleaned[key] = hex;
-  }
-
-  const [row] = await db
-    .select({ overrides: userPreferences.paletteOverrides })
-    .from(userPreferences)
-    .where(eq(userPreferences.userId, userId))
-    .limit(1);
-
-  const kept = Object.fromEntries(
-    Object.entries(row?.overrides ?? {}).filter(([key]) => !key.startsWith(prefix)),
-  );
-
-  await upsert(userId, { paletteOverrides: { ...kept, ...cleaned } });
-  return { ok: true, value: { changed: Object.keys(cleaned).length } };
+  await upsert(userId, { paletteOverrides: edit.value!.overrides });
+  return { ok: true, value: { changed: edit.value!.changed } };
 }
 
 /** Back to the defaults, all of them at once. */
 export async function clearPalette(userId: string): Promise<Result> {
   await upsert(userId, { paletteOverrides: {} });
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+   The site's own answers: what everyone gets before they choose anything, and
+   what a signed-out visitor gets full stop.
+
+   Deliberately the same rules and the same shape as the per-user writers
+   above, over `site_settings` rather than `user_preferences`, so the two
+   palettes cannot disagree about what a key is or what clearing one means.
+   Authorisation is not here -- these are called only from an admin-gated
+   action, and a function that checks its own caller is a function you cannot
+   test or reuse.
+   ------------------------------------------------------------------------ */
+
+/** Creates row 1 on first change, like the per-user upsert. */
+async function upsertSite(
+  patch: Partial<{ defaultTheme: ThemePref; defaultPalette: Overrides }>,
+): Promise<void> {
+  await db
+    .insert(siteSettings)
+    .values({ id: 1, ...patch })
+    .onConflictDoUpdate({ target: siteSettings.id, set: patch });
+}
+
+async function siteOverrides(): Promise<Overrides> {
+  return (await getSiteSettings())?.defaultPalette ?? {};
+}
+
+export async function setSiteTheme(theme: unknown): Promise<Result> {
+  if (!isThemePref(theme)) return { ok: false, message: 'That is not a theme.' };
+  await upsertSite({ defaultTheme: theme });
+  return { ok: true };
+}
+
+export async function setSitePaletteColor(
+  key: string,
+  color: string,
+): Promise<Result<{ color: string | null }>> {
+  const edit = withColor(await siteOverrides(), key, color);
+  if (!edit.ok) return edit;
+
+  await upsertSite({ defaultPalette: edit.value!.overrides });
+  return { ok: true, value: { color: edit.value!.color } };
+}
+
+export async function setSitePaletteColors(
+  axis: Exclude<ColorAxis, 'none'>,
+  entries: Overrides,
+): Promise<Result<{ changed: number }>> {
+  const edit = withAxisColors(await siteOverrides(), axis, entries);
+  if (!edit.ok) return edit;
+
+  await upsertSite({ defaultPalette: edit.value!.overrides });
+  return { ok: true, value: { changed: edit.value!.changed } };
+}
+
+export async function clearSitePalette(): Promise<Result> {
+  await upsertSite({ defaultPalette: {} });
   return { ok: true };
 }
