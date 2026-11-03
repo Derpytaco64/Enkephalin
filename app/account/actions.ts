@@ -3,7 +3,7 @@
 import { headers } from 'next/headers';
 import { APIError } from 'better-auth';
 import { auth } from '@/lib/auth';
-import { setDisplayName, setProfileImage } from '@/lib/account/store';
+import { setDisplayName, setEmail, setProfileImage } from '@/lib/account/store';
 import type { Result } from '@/lib/drugs/mutations';
 import { requireUser } from '@/lib/session';
 import { MIN_PASSWORD_LENGTH } from '@/lib/users';
@@ -38,6 +38,22 @@ export async function saveProfileAction(input: {
   }
 
   return { ok: true };
+}
+
+/**
+ * Changing the address you sign in with.
+ *
+ * The password is checked inside `setEmail`, against better-auth's own hash,
+ * because there is no endpoint for this: better-auth's `changeEmail` is built
+ * around sending a verification link, which is the one thing this deployment
+ * cannot do. See `lib/account/store.ts` for why that is the whole protection.
+ */
+export async function changeEmailAction(input: {
+  email: string;
+  currentPassword: string;
+}): Promise<Result<{ email: string }>> {
+  const session = await requireUser();
+  return setEmail(session.user.id, input.email, input.currentPassword);
 }
 
 /**

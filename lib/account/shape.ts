@@ -58,3 +58,33 @@ export function initialsFor(input: { name?: string | null; email: string }): str
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
+
+/**
+ * The longest email anyone may store: the RFC's own limit on an address.
+ *
+ * Worth stating because the column is unbounded `text`, and the sign-in form
+ * is not the only thing that reads it -- the header's title attribute and the
+ * users admin both render it in a row.
+ */
+export const EMAIL_LIMIT = 254;
+
+/**
+ * Deliberately not an RFC-complete address grammar.
+ *
+ * An exhaustive pattern accepts things no mail server would and rejects things
+ * it should not, and the only real check -- sending to it and seeing whether it
+ * arrives -- is the one this app cannot perform, since there is no mailer. So
+ * this catches the mistakes a person makes typing into the box (a missing @, a
+ * space, a bare hostname) and leaves the rest to the person reading it back to
+ * themselves.
+ */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Lowercased and trimmed: the column is unique, and Dana@ is dana@. */
+export function normalizeEmail(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+export function isStorableEmail(value: string): boolean {
+  return value.length <= EMAIL_LIMIT && EMAIL.test(value);
+}

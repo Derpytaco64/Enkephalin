@@ -6,6 +6,10 @@ export default function AdminHome() {
       <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
       <ul className="mt-6 space-y-2">
         <li>
+          <Link href="/admin/users" className="text-[var(--accent)] underline">Users</Link>
+          <span className="ml-2 text-sm text-[var(--muted)]">roles, access, password resets</span>
+        </li>
+        <li>
           <Link href="/admin/fields" className="text-[var(--accent)] underline">Fields</Link>
         </li>
         <li>

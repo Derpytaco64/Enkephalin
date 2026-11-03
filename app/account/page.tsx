@@ -4,7 +4,8 @@ import { db } from '@/db';
 import { sessions, users } from '@/db/schema';
 import { requireUser } from '@/lib/session';
 import { MIN_PASSWORD_LENGTH } from '@/lib/users';
-import { changePasswordAction, saveProfileAction } from './actions';
+import { changeEmailAction, changePasswordAction, saveProfileAction } from './actions';
+import { EmailForm } from './email-form';
 import { PasswordForm } from './password-form';
 import { ProfileForm } from './profile-form';
 
@@ -15,7 +16,8 @@ export const dynamic = 'force-dynamic';
  * Your account, as distinct from `/settings`.
  *
  * The split is who the setting is about: this page is about *you* -- the name,
- * the picture, the password and the sessions -- and `/settings` is about how
+ * the picture, the address you sign in with and the password -- and `/settings`
+ * is about how
  * the site looks to you. Keeping the password beside the theme toggle would
  * have put the one irreversible control on the page people open to try colour
  * schemes.
@@ -62,6 +64,13 @@ export default async function AccountPage() {
 
       <section className="mt-10">
         <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
+          Email
+        </h2>
+        <EmailForm email={user.email} change={changeEmailAction} />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
           Password
         </h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
@@ -76,8 +85,8 @@ export default async function AccountPage() {
 
       <section className="mt-10 border-t border-[var(--border)] pt-6 text-sm text-[var(--muted)]">
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[8rem_1fr]">
-          <dt>Email</dt>
-          <dd className="text-[var(--fg)]">{user.email}</dd>
+          {/* No Email row: the form above states it, and three copies of the
+              same address on one page is two too many. */}
           <dt>Role</dt>
           <dd className="text-[var(--fg)]">
             {session.user.role === 'admin' ? 'Admin' : 'Student'}
@@ -90,8 +99,8 @@ export default async function AccountPage() {
           </dd>
         </dl>
         <p className="mt-3 text-xs">
-          The email is the sign-in name and cannot be changed here — it would need to be verified,
-          and verification needs a mailer.
+          Nothing on this page is verified by email, because there is no mailer. An address you
+          mistype is an address you sign in with — and a forgotten password needs an admin.
         </p>
       </section>
     </main>

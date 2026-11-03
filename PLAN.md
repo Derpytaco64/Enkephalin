@@ -1023,6 +1023,85 @@ ADHD moving, one list moving and two already shared, and its dosing discarded be
 its own. A full round trip on two throwaway drugs merged and deleted cleanly and left the count back
 at 236 — including the vocabulary rows it orphaned, which is how that behaviour got noticed.
 
+### The only way back in (2026-11-03)
+
+`/admin/users`, built next because of one fact about this deployment rather than because a roster
+of one needed managing: **there is no mailer, so an admin setting a password here is the only route
+back into a locked-out account.** `/account` can change a password you still know. Nothing could
+change one you had forgotten. That made this screen a prerequisite for inviting anybody, not a
+convenience.
+
+**One rule prevents lockout, and it is a rule about the actor, not a count.** You may not change
+the role on, disable, or delete *your own* account. No "is this the last admin?" check is needed:
+the only account that can remove the last admin's access is that admin's own, and it is refused.
+A count would be the thing that got it wrong — it has to be right about disabled admins, about the
+row being deleted, and about two admins demoting each other at once. The actor check is right
+without knowing any of that. Every action re-reads the session rather than taking an actor from the
+form, because an actor the browser supplies is not a guard.
+
+Your own row therefore *offers less*, rather than offering controls that will refuse: role and
+status render as text and Delete is absent. A disabled control reads as broken; an absent one reads
+as deliberate.
+
+The rest of the decisions:
+
+- **Disabling drops every session immediately.** `lib/session.ts` already revokes them on the
+  account's next request, which covers a status changed by hand in the database — but an open tab
+  doing nothing might never make one.
+- **Setting a password drops them too.** Whoever is being given a new password either has no
+  session, which is why we are here, or should not keep the old one.
+- **The new password is shown as it is typed**, because an admin setting somebody else's has to
+  read it back to them. It is never written to the audit row, hashed or otherwise.
+- **Sign out is allowed on yourself**, unlike the three above, and keeps the session doing the
+  asking — otherwise the click would end on the login page.
+- **Delete is hard, and takes the study history with it**: schedules, quiz attempts, saved setups
+  and preferences all cascade. That history is theirs and nobody else's, so the footprint is counted
+  first and written into the audit row, which is all that will be left to say how much there was.
+  The copy points at disabling, which keeps everything.
+- `audit_log.actor_id` is `set null`, so what a deleted admin did stays recorded without a name on
+  it. There is a test for that, because it is the one reference that does not cascade.
+
+Searching escapes `%` and `_` before building the `ILIKE`, the same rule the drug lookup follows:
+unescaped, searching for a percent sign returns the whole roster.
+
+Verified against the live database on a throwaway classmate account created and deleted by the
+check: self role-change and self-delete both refused by message, promote and demote, disable
+dropping 2 sessions and enable dropping 0, force-logout dropping 1, a password set whose hash the
+sign-in verifier accepts, then the footprint, the delete, and the roster back to 1. The served page
+with two accounts showed the role select, Disable and Delete on the classmate's row and none of the
+three on the admin's own.
+
+### Changing the address you sign in with (2026-11-03)
+
+Asked for, and the interesting part is what cannot come with it. **The email is the sign-in name**,
+and there is no mailer — so the new address cannot be verified before the switch and the old one
+cannot be told the switch happened. What is left is proving ownership: the **current password is
+required**, and that is the whole protection. Without it, a session left open on a shared laptop
+would be enough to move somebody's account to an address they do not own.
+
+better-auth's own `changeEmail` is not used. It is built around sending a verification link, which
+is the one thing this deployment cannot do; with no sender configured it would either fail or
+quietly change nothing. So the column is written directly, and the password is checked against
+better-auth's hash with **its own verifier** — `verifyPassword` from `better-auth/crypto`, the
+counterpart of the `hashPassword` that `lib/users.ts` already uses — so this does not become a
+second opinion about how a password is stored.
+
+`email_verified` goes to **false**. That is honest rather than convenient: nobody confirmed the new
+address. If a mailer is configured later and verification is turned on, this account will be asked
+to verify, which is exactly right.
+
+The address validator is deliberately not an RFC-complete grammar. An exhaustive pattern accepts
+things no mail server would and rejects things it should not, and the only real test — sending to it
+— is the one this app cannot run. So it catches what a person mistypes (a missing `@`, a space, a
+bare hostname) and the page says plainly that nothing will be sent to either address.
+
+An audit row is written, because this is the one self-service change that moves who can get into
+the account. The unique constraint is caught and reported as *another account already uses that
+address*, since claiming an old address or a classmate's is a thing people do by accident.
+
+Still not possible, and still stated on the page: resetting a **forgotten** password. That is the
+admin screen above.
+
 ### A front door, and a face on it (2026-11-03)
 
 The home page said *"Scaffold is up. Drug browser, flashcards, and quiz come next."* for five
@@ -1490,9 +1569,10 @@ profiles. History in `quiz_attempts` with per-field accuracy, so weak areas are 
 on it, the catalogue's size, one-click restarts of the last deck and the last quiz, the saved setups,
 and a card per area. Every figure is counted per request in `lib/home/overview.ts`.
 
-**Account** (`/account`) — display name, profile picture, password change. Distinct from
-`/settings`, which is how the site looks; this is who you are. No email change and no forgotten-
-password reset: both need a mailer.
+**Account** (`/account`) — display name, profile picture, email change and password change.
+Distinct from `/settings`, which is how the site looks; this is who you are. Changing the email or
+the password requires the current password, since the email is the sign-in name. No forgotten-
+password reset — that needs a mailer, so it is the admin screen's job.
 
 **Theming & per-user color** (`/settings`) — light/dark/system, persisted per user, applied
 server-side to avoid a flash on load. Choose the **color axis** (drug class, schedule, a tag kind, or
@@ -1505,8 +1585,10 @@ entry and for the whole palette.
 **Admin** (`/admin`):
 
 - **Users** — list, search, change role, disable/enable, force-logout, set a new password, delete.
-  Not built. "Trigger password reset" became "set a new password" because there is no mailer: a
-  person can change their own at `/account`, and a forgotten one needs an admin to set it.
+  **Done 2026-11-03.** "Trigger password reset" became "set a new password" because there is no
+  mailer, which also makes this the only recovery path there is. You cannot change the role on,
+  disable, or delete your own account — see
+  [The only way back in](#the-only-way-back-in-2026-11-03).
 - **Invites** — generate (max-uses, expiry, note), revoke, see who redeemed what.
 - **Fields** — create, rename, reorder, regroup, retype, set enum options, mark quizzable, set the
   prompt template and lookup mapping, soft-delete.
@@ -1556,7 +1638,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Remaining: the dosing review bench, the users admin, bulk field-set, the brand↔indication pairing editor, the flagged queue, site settings, the audit UI |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Users admin done 2026-11-03, and the self-service email change with it — see [The only way back in](#the-only-way-back-in-2026-11-03) and [Changing the address you sign in with](#changing-the-address-you-sign-in-with-2026-11-03). Remaining: the dosing review bench, bulk field-set, the brand↔indication pairing editor, the flagged queue, site settings, the audit UI |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
@@ -1580,7 +1662,7 @@ flow needs is passed through compose.
 |---|---|---|
 | Where the admin seed runs | In-process on boot, from `instrumentation.ts`, skipped if an admin already exists | The password must be hashed by better-auth or login silently fails, and better-auth is only resolvable inside the bundled server — the runner image copies just `tsx`, `drizzle-orm` and `postgres` |
 | Roles | Our own `users.role` + `users.status` | better-auth's admin plugin would need `banned`/`banReason`/`banExpires` added, leaving `banned` and `status` as two answers to "can this person log in". Phase 8's user management is a few lines against our columns; only impersonation is unique to the plugin, and it is not a feature here |
-| Email verification | Off; the seeded admin is marked verified | No SMTP is configured. Defers phase 8's "trigger password reset", which needs a mailer first |
+| Email verification | Off; the seeded admin is marked verified | No SMTP is configured. Phase 8's "trigger password reset" became *an admin sets a new password*, since nothing can be sent; and a self-service email change writes `email_verified = false`, because nobody confirmed the new address |
 
 **Build order** — each step verifiable before the next:
 
@@ -1829,6 +1911,26 @@ reachable one-handed; browse table degrades to cards.
   force-logout, and setting a new password for somebody who has forgotten theirs. That last one is
   the only route a forgotten password has, since there is no mailer, so the users admin is now the
   gap with a real consequence rather than a tidy-up.
+
+- **done — 2026-11-03.** ~~The users admin~~, picked up immediately after, for the reason the
+  paragraph above gives: it is the only route back into a locked-out account. `/admin/users` lists,
+  searches, changes a role, disables and enables, signs an account out everywhere, sets a new
+  password, and deletes. See [The only way back in](#the-only-way-back-in-2026-11-03) — the rule
+  worth remembering is that lockout is prevented by *who the actor is*, not by counting admins: you
+  cannot change the role on, disable, or delete your own account, and your own row simply does not
+  offer those three.
+
+  Verified live on a throwaway classmate account created and deleted by the check, with the real
+  admin row only ever read: every write exercised, both self-guards refusing by message, a set
+  password whose hash the sign-in verifier accepts, and the roster back to one account.
+
+- **done — 2026-11-03.** ~~Change the associated email~~. On `/account`, and it needs the current
+  password — the email *is* the sign-in name, so a borrowed session must not be able to move the
+  account to somebody else's address. See
+  [Changing the address you sign in with](#changing-the-address-you-sign-in-with-2026-11-03) for
+  why better-auth's own `changeEmail` is not used (it is built around a verification email) and why
+  `email_verified` goes to false (nobody confirmed the new address). Nothing is sent to either
+  address, and the page says so rather than leaving someone waiting.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
