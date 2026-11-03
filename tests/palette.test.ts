@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CATEGORICAL_RAMP, checkFill, colorFor, contrastRatio, MIN_FILL_CONTRAST, normalizeHex,
-  paletteKey, readableTextOn, SCHEDULE_COLORS, SURFACE_DARK, SURFACE_LIGHT,
+  CATEGORICAL_RAMP, checkFill, colorFor, contrastRatio, hslToHex, MIN_FILL_CONTRAST,
+  normalizeHex, paletteKey, randomPalette, readableOnHue, readableTextOn, SCHEDULE_COLORS,
+  SURFACE_DARK, SURFACE_LIGHT,
 } from '@/lib/theme/palette';
 
 describe('normalizeHex', () => {
@@ -127,5 +128,77 @@ describe('colorFor', () => {
   it('keys an override by axis, so one value can differ per axis', () => {
     expect(paletteKey('class', 'Opioid')).toBe('class:Opioid');
     expect(paletteKey('schedule', 'CII')).toBe('schedule:CII');
+  });
+});
+
+describe('readableOnHue', () => {
+  it('finds a passing colour on every hue around the wheel', () => {
+    // The band is not the same width at every hue: yellow around 60 degrees
+    // only clears 3:1 on both grounds at a lower saturation and a darker
+    // lightness than blue does. A single fixed lightness would hand out a
+    // yellow nobody can see on white.
+    for (let hue = 0; hue < 360; hue += 3) {
+      const hex = readableOnHue(hue);
+      expect(hex, `hue ${hue}`).not.toBeNull();
+      expect(checkFill(hex!).ok, `hue ${hue} -> ${hex}`).toBe(true);
+    }
+  });
+
+  it('wraps, so arithmetic on hues needs no modulo at the call site', () => {
+    expect(readableOnHue(370)).toBe(readableOnHue(10));
+    expect(readableOnHue(-10)).toBe(readableOnHue(350));
+  });
+});
+
+describe('hslToHex', () => {
+  it('agrees with the obvious cases', () => {
+    expect(hslToHex(0, 1, 0.5)).toBe('#ff0000');
+    expect(hslToHex(120, 1, 0.5)).toBe('#00ff00');
+    expect(hslToHex(240, 1, 0.5)).toBe('#0000ff');
+    expect(hslToHex(0, 0, 1)).toBe('#ffffff');
+    expect(hslToHex(0, 0, 0)).toBe('#000000');
+  });
+});
+
+describe('randomPalette', () => {
+  const classes = Array.from({ length: 119 }, (_, at) => `class:Class ${at}`);
+
+  it('gives every key a colour that passes the contrast check', () => {
+    // The shuffle must not be a way around the check the editor enforces by
+    // hand. If this fails, pressing one button fills the app with colours the
+    // same screen would have warned about.
+    const palette = randomPalette(classes);
+    expect(Object.keys(palette)).toHaveLength(classes.length);
+    for (const [key, color] of Object.entries(palette)) {
+      expect(checkFill(color).ok, `${key} -> ${color}`).toBe(true);
+    }
+  });
+
+  it('spreads the wheel instead of drawing each hue independently', () => {
+    // Independent draws cluster: over a hundred classes you get six
+    // near-identical greens and a gap where orange should be. Even spacing is
+    // what makes the result look chosen rather than spilt.
+    const palette = randomPalette(classes);
+    const distinct = new Set(Object.values(palette));
+    expect(distinct.size).toBeGreaterThan(classes.length * 0.8);
+  });
+
+  it('differs between presses', () => {
+    const one = Object.values(randomPalette(classes));
+    const two = Object.values(randomPalette(classes));
+    expect(one).not.toEqual(two);
+  });
+
+  it('is decidable when the rng is', () => {
+    // A constant rng rotates by 0 and shuffles to the identity, so the hues
+    // come out in order -- which is what makes the spacing assertable at all.
+    const keys = ['class:a', 'class:b', 'class:c', 'class:d'];
+    const palette = randomPalette(keys, () => 0);
+    expect(palette).toEqual(randomPalette(keys, () => 0));
+    expect(Object.keys(palette)).toEqual(keys);
+  });
+
+  it('has nothing to say about an empty axis', () => {
+    expect(randomPalette([])).toEqual({});
   });
 });

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { Result } from '@/lib/drugs/mutations';
 import {
-  checkFill, MIN_FILL_CONTRAST, normalizeHex, readableTextOn,
+  checkFill, MIN_FILL_CONTRAST, normalizeHex, readableTextOn, type ColorAxis,
 } from '@/lib/theme/palette';
 import type { Swatch } from '@/lib/theme/swatches';
 
@@ -25,14 +25,18 @@ import type { Swatch } from '@/lib/theme/swatches';
  */
 export function PaletteEditor({
   swatches,
+  axis,
   axisLabel,
   setColor,
   clearAll,
+  shuffle,
 }: {
   swatches: Swatch[];
+  axis: ColorAxis;
   axisLabel: string;
   setColor: (formData: FormData) => Promise<Result<{ color: string | null }>>;
   clearAll: () => Promise<Result>;
+  shuffle: (formData: FormData) => Promise<Result<{ changed: number }>>;
 }) {
   const [filter, setFilter] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -77,17 +81,46 @@ export function PaletteEditor({
           {shown.length} of {swatches.length}
           {overridden.length > 0 && ` · ${overridden.length} changed`}
         </span>
-        {overridden.length > 0 && (
-          <button
-            type="button"
-            onClick={run(clearAll)}
-            disabled={pending}
-            className="ml-auto text-xs text-[var(--danger)] underline disabled:opacity-60"
-          >
-            Reset every colour
-          </button>
-        )}
+
+        <span className="ml-auto flex flex-wrap items-baseline gap-3">
+          {/* Not offered on the schedule axis: that ramp runs strongest to
+              faintest on purpose, and shuffling it would throw away the one
+              piece of meaning colour carries here. */}
+          {axis !== 'schedule' && (
+            <button
+              type="button"
+              onClick={run(() => {
+                const form = new FormData();
+                form.set('axis', axis);
+                return shuffle(form);
+              })}
+              disabled={pending}
+              className="text-xs text-[var(--accent)] underline disabled:opacity-60"
+            >
+              Shuffle all {swatches.length}
+            </button>
+          )}
+          {overridden.length > 0 && (
+            <button
+              type="button"
+              onClick={run(clearAll)}
+              disabled={pending}
+              className="text-xs text-[var(--danger)] underline disabled:opacity-60"
+            >
+              Reset every colour
+            </button>
+          )}
+        </span>
       </div>
+
+      {axis !== 'schedule' && (
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Shuffling spreads the hue wheel across all {swatches.length} and deals it out at random,
+          so no two presses match and nothing clusters. Every colour it picks still clears the
+          contrast check in both themes. <span className="font-medium">Reset every colour</span>{' '}
+          undoes it.
+        </p>
+      )}
 
       {error !== null && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
 

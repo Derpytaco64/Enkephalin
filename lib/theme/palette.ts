@@ -198,3 +198,83 @@ export function colorFor(
   if (tag === undefined) return null;
   return pick(paletteKey('tag', tag), ramp(tag));
 }
+
+/* ----------------------------------------------------- shuffling ------- */
+
+export function hslToHex(hue: number, saturation: number, lightness: number): string {
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const sector = ((hue % 360) + 360) % 360 / 60;
+  const second = chroma * (1 - Math.abs((sector % 2) - 1));
+  const base = lightness - chroma / 2;
+
+  const [r, g, b] = (() => {
+    if (sector < 1) return [chroma, second, 0];
+    if (sector < 2) return [second, chroma, 0];
+    if (sector < 3) return [0, chroma, second];
+    if (sector < 4) return [0, second, chroma];
+    if (sector < 5) return [second, 0, chroma];
+    return [chroma, 0, second];
+  })();
+
+  const byte = (value: number) => Math.round((value + base) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `#${byte(r)}${byte(g)}${byte(b)}`;
+}
+
+/**
+ * A colour on this hue that clears the fill check in both themes.
+ *
+ * Needed because the readable band is not the same width at every hue:
+ * measured across the wheel, yellow around 60 degrees only makes 3:1 on both
+ * grounds at a lower saturation and a darker lightness than blue does. So the
+ * search walks saturation down from vivid and lightness out from the middle,
+ * and takes the first colour that passes rather than assuming one lightness
+ * suits every hue -- which is how a shuffle would otherwise hand out a yellow
+ * nobody can see on white.
+ */
+export function readableOnHue(hue: number): string | null {
+  for (const saturation of [0.75, 0.6, 0.45]) {
+    for (const lightness of [0.5, 0.46, 0.54, 0.42, 0.58, 0.4, 0.38]) {
+      const hex = hslToHex(hue, saturation, lightness);
+      if (checkFill(hex).ok) return hex;
+    }
+  }
+  return null;
+}
+
+/**
+ * A fresh colour for each of these keys: the hue wheel divided evenly, rotated
+ * somewhere random, then dealt out in a random order.
+ *
+ * Even spacing rather than a random hue per key, because independent draws
+ * cluster -- over a hundred classes you would get six near-identical greens
+ * and a gap where orange should be. Spacing them makes the result look chosen
+ * rather than spilt, and the random rotation plus the shuffle is what makes
+ * two presses differ.
+ *
+ * It cannot hand out an unreadable colour: every hue is resolved through
+ * `readableOnHue`, and the handful that resolve to nothing at all fall back to
+ * the fixed ramp.
+ */
+export function randomPalette(
+  keys: string[],
+  rng: () => number = Math.random,
+): Record<string, string> {
+  if (keys.length === 0) return {};
+
+  const rotation = rng() * 360;
+  const hues = keys.map((_, at) => rotation + (360 * at) / keys.length);
+
+  for (let at = hues.length - 1; at > 0; at -= 1) {
+    const other = Math.floor(rng() * (at + 1));
+    [hues[at], hues[other]] = [hues[other], hues[at]];
+  }
+
+  const palette: Record<string, string> = {};
+  keys.forEach((key, at) => {
+    palette[key] = readableOnHue(hues[at])
+      ?? CATEGORICAL_RAMP[at % CATEGORICAL_RAMP.length];
+  });
+  return palette;
+}

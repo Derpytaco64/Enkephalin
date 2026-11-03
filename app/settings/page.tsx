@@ -3,7 +3,9 @@ import { requireUser } from '@/lib/session';
 import { colorFor, readableTextOn } from '@/lib/theme/palette';
 import { getPreferences } from '@/lib/theme/preferences';
 import { listSwatches, sampleDrugs } from '@/lib/theme/swatches';
-import { clearPaletteAction, saveLookAction, setColorAction } from './actions';
+import {
+  clearPaletteAction, randomizePaletteAction, saveLookAction, setColorAction,
+} from './actions';
 import { LookForm } from './look-form';
 import { PaletteEditor } from './palette-editor';
 
@@ -87,9 +89,11 @@ export default async function SettingsPage() {
         ) : (
           <PaletteEditor
             swatches={swatches}
+            axis={preferences.colorAxis}
             axisLabel={AXIS_NOUN[preferences.colorAxis]}
             setColor={setColorAction}
             clearAll={clearPaletteAction}
+            shuffle={randomizePaletteAction}
           />
         )}
       </section>

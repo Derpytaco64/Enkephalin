@@ -745,6 +745,21 @@ The editor **warns and allows**. Nothing becomes unreadable by picking badly —
 badge stays legible either way — so forbidding a colour would be refusing someone their own
 preference over a taste they are entitled to.
 
+**Shuffle all** deals a fresh colour to everything on the axis. Three things it is not: it is not
+random per entry (independent draws cluster — over a hundred classes you get six near-identical
+greens and a gap where orange should be — so it divides the hue wheel evenly, rotates it somewhere
+random and deals it out shuffled); it is not a way round the contrast check (every hue is resolved
+through `readableOnHue`, and a test asserts all 119 outputs pass the same check the editor enforces
+by hand); and it is not offered on the **schedule** axis, hidden in the UI and refused in the
+action, because that ramp is ordinal — shuffling CII through CV would throw away the one piece of
+meaning colour carries in this app. Writes are scoped by key prefix, so shuffling classes leaves a
+schedule colour someone chose deliberately alone, and *Reset every colour* undoes it.
+
+The readable band is not the same width at every hue, which is why the search varies saturation as
+well as lightness: measured across the wheel, yellow near 60 degrees only clears 3:1 on both
+grounds at a lower saturation and a darker lightness than blue does. A single fixed lightness would
+have handed out a yellow nobody can see on white.
+
 **The axis owns colour, so a page means one thing by it.** The schedule badge is filled only when
 schedule *is* the axis; otherwise it is neutral text and the colour on the page means whatever
 Settings says. Browse grew a dot rather than a fill, because a class name does not fit in a row.

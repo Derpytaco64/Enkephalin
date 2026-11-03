@@ -150,6 +150,46 @@ export async function setPaletteColor(
   return { ok: true, value: { color: hex } };
 }
 
+/**
+ * Replaces every colour on one axis at once, leaving the other axes alone.
+ *
+ * Scoped by the key prefix rather than by clearing the lot: shuffling the
+ * classes should not quietly throw away a schedule colour someone chose
+ * deliberately, and the schedule ramp is the one place colour carries meaning
+ * -- CII strongest through CV faintest -- so it is not something to overwrite
+ * as a side effect.
+ */
+export async function setPaletteColors(
+  userId: string,
+  axis: Exclude<ColorAxis, 'none'>,
+  entries: Record<string, string>,
+): Promise<Result<{ changed: number }>> {
+  const prefix = `${axis}:`;
+
+  const cleaned: Record<string, string> = {};
+  for (const [key, color] of Object.entries(entries)) {
+    if (!key.startsWith(prefix)) {
+      return { ok: false, message: 'Those colours are not all on that axis.' };
+    }
+    const hex = normalizeHex(color);
+    if (hex === null) return { ok: false, message: 'Give a colour as a hex code, like #2563eb.' };
+    cleaned[key] = hex;
+  }
+
+  const [row] = await db
+    .select({ overrides: userPreferences.paletteOverrides })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, userId))
+    .limit(1);
+
+  const kept = Object.fromEntries(
+    Object.entries(row?.overrides ?? {}).filter(([key]) => !key.startsWith(prefix)),
+  );
+
+  await upsert(userId, { paletteOverrides: { ...kept, ...cleaned } });
+  return { ok: true, value: { changed: Object.keys(cleaned).length } };
+}
+
 /** Back to the defaults, all of them at once. */
 export async function clearPalette(userId: string): Promise<Result> {
   await upsert(userId, { paletteOverrides: {} });

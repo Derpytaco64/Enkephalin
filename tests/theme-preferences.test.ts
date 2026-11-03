@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import { accounts, sessions, siteSettings, userPreferences, users } from '@/db/schema';
 import {
-  clearPalette, getPreferences, setColorAxis, setPaletteColor, setTheme, themeAttribute,
+  clearPalette, getPreferences, setColorAxis, setPaletteColor, setPaletteColors, setTheme,
+  themeAttribute,
 } from '@/lib/theme/preferences';
 
 const ME = 'user-student';
@@ -155,5 +156,50 @@ describe('the preferences row', () => {
     await setTheme(ME, 'dark');
     expect(await db.select().from(userPreferences).where(eq(userPreferences.userId, ME)))
       .toHaveLength(1);
+  });
+});
+
+describe('setPaletteColors', () => {
+  it('replaces one axis and leaves the others alone', async () => {
+    await setPaletteColor(ME, 'schedule:CII', '#111111');
+    await setPaletteColor(ME, 'class:Old', '#222222');
+
+    const result = await setPaletteColors(ME, 'class', {
+      'class:New one': '#333333',
+      'class:New two': '#444444',
+    });
+    expect(result).toEqual({ ok: true, value: { changed: 2 } });
+
+    // Shuffling the classes must not throw away a schedule colour someone
+    // chose deliberately -- and the class colours it replaced are gone, not
+    // merged, or a shuffle would accumulate dead keys forever.
+    expect((await getPreferences(ME)).paletteOverrides).toEqual({
+      'schedule:CII': '#111111',
+      'class:New one': '#333333',
+      'class:New two': '#444444',
+    });
+  });
+
+  it('refuses an entry that is not on the axis it claims', async () => {
+    const result = await setPaletteColors(ME, 'class', { 'schedule:CII': '#111111' });
+    expect(result).toEqual({ ok: false, message: 'Those colours are not all on that axis.' });
+    expect(await db.select().from(userPreferences)).toEqual([]);
+  });
+
+  it('refuses the whole batch if any colour is not one', async () => {
+    const result = await setPaletteColors(ME, 'class', {
+      'class:Fine': '#123456',
+      'class:Not': 'octarine',
+    });
+    expect(result.ok).toBe(false);
+    // All or nothing: half a shuffle is worse than none, because you cannot
+    // tell by looking which half took.
+    expect(await db.select().from(userPreferences)).toEqual([]);
+  });
+
+  it('clears an axis when given nothing', async () => {
+    await setPaletteColor(ME, 'class:Old', '#222222');
+    expect(await setPaletteColors(ME, 'class', {})).toEqual({ ok: true, value: { changed: 0 } });
+    expect((await getPreferences(ME)).paletteOverrides).toEqual({});
   });
 });
