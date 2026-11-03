@@ -16,7 +16,15 @@ export async function SiteHeader() {
           email and Sign out, which does not fit on a phone -- and without a
           wrap it did not shrink, it overflowed the page sideways. */}
       <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-3">
-        <Link href="/" className="font-semibold tracking-tight">
+        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+          {/* Decorative, so alt is empty: the word beside it already says the
+              name, and alt="Enkephalin" would have a screen reader read the
+              wordmark twice. Width and height are set so the row does not
+              shift as the image arrives. */}
+          <img
+            src="/enkephalin.webp" alt="" width={256} height={256}
+            className="h-6 w-6 shrink-0"
+          />
           Enkephalin
         </Link>
 
