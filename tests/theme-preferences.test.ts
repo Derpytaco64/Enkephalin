@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import { accounts, sessions, siteSettings, userPreferences, users } from '@/db/schema';
 import {
-  clearPalette, clearSitePalette, getPreferences, setColorAxis, setPaletteColor, setPaletteColors,
-  setSitePaletteColor, setSitePaletteColors, setSiteTheme, setTheme, themeAttribute,
+  clearPalette, clearSitePalette, getPreferences, seasonAttribute, setColorAxis, setPaletteColor,
+  setPaletteColors, setSeason, setSitePaletteColor, setSitePaletteColors, setSiteSeason,
+  setSiteTheme, setTheme, themeAttribute,
 } from '@/lib/theme/preferences';
 
 const ME = 'user-student';
@@ -55,7 +56,35 @@ describe('getPreferences', () => {
 
   it('survives a site with no settings row at all', async () => {
     const prefs = await getPreferences(ME);
-    expect(prefs).toEqual({ theme: 'system', colorAxis: 'class', paletteOverrides: {} });
+    expect(prefs).toEqual({
+      theme: 'system', colorAxis: 'class', season: 'off', paletteOverrides: {},
+    });
+  });
+});
+
+describe('setSeason', () => {
+  it('is a third independent setting, not a theme', async () => {
+    // The whole reason it is its own column: picking autumn must not pick a
+    // brightness, and "autumn, dark" has to be sayable.
+    await setTheme(ME, 'dark');
+    await setSeason(ME, 'autumn');
+
+    const prefs = await getPreferences(ME);
+    expect(prefs.theme).toBe('dark');
+    expect(prefs.season).toBe('autumn');
+  });
+
+  it('keeps the choice rather than the season it resolves to', async () => {
+    // `auto` has to survive a round trip, or the settings form would show
+    // whichever season it is today and saving it would pin that one forever.
+    await setSeason(ME, 'auto');
+    expect((await getPreferences(ME)).season).toBe('auto');
+  });
+
+  it('refuses something that is not a season', async () => {
+    await setSeason(ME, 'winter');
+    expect((await setSeason(ME, 'autumnal')).ok).toBe(false);
+    expect((await getPreferences(ME)).season).toBe('winter');
   });
 });
 
@@ -292,5 +321,39 @@ describe('the site palette', () => {
 
     const [row] = await db.select().from(siteSettings);
     expect(row.registrationMode).toBe('open');
+  });
+});
+
+describe('the site default season', () => {
+  it('reaches somebody with no preferences row of their own', async () => {
+    await setSiteSeason('winter');
+    expect((await getPreferences(ME)).season).toBe('winter');
+  });
+
+  it('stops reaching them the moment they answer for themselves', async () => {
+    // Which is what the admin screen warns about: a site default is a floor,
+    // not an override, and an admin who has visited Settings will not see it.
+    await setSiteSeason('winter');
+    await setSeason(ME, 'off');
+    expect((await getPreferences(ME)).season).toBe('off');
+  });
+
+  it('is what a signed-out visitor on the login page gets', async () => {
+    await setSiteSeason('autumn');
+    expect((await getPreferences(null)).season).toBe('autumn');
+  });
+
+  it('refuses something that is not a season', async () => {
+    expect((await setSiteSeason('decembery')).ok).toBe(false);
+  });
+});
+
+describe('seasonAttribute', () => {
+  it('is absent for off, so <html> carries no data-season at all', () => {
+    expect(seasonAttribute('off')).toBeNull();
+  });
+
+  it('resolves auto against the date it is given', () => {
+    expect(seasonAttribute('auto', new Date(2026, 11, 25))).toBe('winter');
   });
 });

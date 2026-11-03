@@ -39,6 +39,7 @@ export default async function SettingsPage() {
       <LookForm
         theme={preferences.theme}
         axis={preferences.colorAxis}
+        season={preferences.season}
         save={saveLookAction}
       />
 

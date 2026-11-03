@@ -8,11 +8,26 @@ import { contrastRatio } from '@/lib/theme/palette';
 
 const CSS = readFileSync('app/globals.css', 'utf8');
 
+/**
+ * Where the chrome stops.
+ *
+ * The seasons section that follows it also defines `--name: #hex;` values, and
+ * without a boundary the explicit-dark slice would run to the end of the file
+ * and swallow them -- which would fail the "two dark blocks are identical"
+ * check below for a reason that had nothing to do with the chrome. A season is
+ * decoration and deliberately touches none of the tokens checked here; see the
+ * comment on the section itself, and tests/seasons.test.ts for its own rules.
+ */
+const CHROME_ENDS = '/* ===== seasons';
+
 /** The three blocks that define the chrome: light, system dark, explicit dark. */
 function blocks(): Record<string, string> {
   const light = CSS.slice(CSS.indexOf(':root {'), CSS.indexOf('@media'));
   const systemDark = CSS.slice(CSS.indexOf('@media'), CSS.indexOf(':root[data-theme="dark"]'));
-  const explicitDark = CSS.slice(CSS.indexOf(':root[data-theme="dark"]'));
+  const explicitDark = CSS.slice(
+    CSS.indexOf(':root[data-theme="dark"]'),
+    CSS.indexOf(CHROME_ENDS),
+  );
   return { light, systemDark, explicitDark };
 }
 
@@ -40,6 +55,10 @@ const BORDER = 0.7;
 
 describe('the grade scale', () => {
   it('finds the three theme blocks it is meant to be checking', () => {
+    // The marker is load-bearing: without it the slicing silently takes in the
+    // seasons section and this whole file starts checking the wrong thing.
+    expect(CSS.indexOf(CHROME_ENDS), 'the seasons marker').toBeGreaterThan(0);
+
     const parsed = blocks();
     for (const [name, block] of Object.entries(parsed)) {
       expect(block.length, name).toBeGreaterThan(200);

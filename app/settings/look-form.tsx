@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Result } from '@/lib/drugs/mutations';
 import type { ColorAxis } from '@/lib/theme/palette';
 import type { ThemePref } from '@/lib/theme/preferences';
+import { SEASON_LABELS, SEASON_PREFS, type SeasonPref } from '@/lib/theme/seasons';
 
 const AXIS_LABELS: Record<ColorAxis, string> = {
   class: 'Drug class',
@@ -23,10 +24,12 @@ const AXIS_LABELS: Record<ColorAxis, string> = {
 export function LookForm({
   theme,
   axis,
+  season,
   save,
 }: {
   theme: ThemePref;
   axis: ColorAxis;
+  season: SeasonPref;
   save: (formData: FormData) => Promise<Result>;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +60,22 @@ export function LookForm({
           </select>
           <p className="mt-1 text-xs text-[var(--muted)]">
             Applied while the page is built, so there is no flash of the wrong one on the way in.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="season" className="block text-sm font-medium">Season</label>
+          <select id="season" name="season" defaultValue={season} className={control}>
+            {SEASON_PREFS.map((value) => (
+              <option key={value} value={value}>{SEASON_LABELS[value]}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {/* Said plainly, because "season" beside "theme" reads like a
+                second answer to the same question, and it is not. */}
+            A tint and a few drifting motes over whichever theme you picked — it does not choose
+            light or dark for you. Nothing in a deck or a quiz depends on it, and it stops moving
+            if your system asks for reduced motion.
           </p>
         </div>
 

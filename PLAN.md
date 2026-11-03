@@ -1023,6 +1023,69 @@ ADHD moving, one list moving and two already shared, and its dosing discarded be
 its own. A full round trip on two throwaway drugs merged and deleted cleanly and left the count back
 at 236 — including the vocabulary rows it orphaned, which is how that behaviour got noticed.
 
+### A season is not a theme (2026-11-03)
+
+Four seasonal decorations — spring petals, summer fireflies, autumn leaves, winter snow — and the
+first decision is the one everything else follows from: **a season is a separate setting from
+light-or-dark, not four more values on it.**
+
+Light-or-dark is a *brightness*, and every contrast figure in `app/globals.css` is measured against
+it. A season is a layer on top of whichever brightness is in force. Folded together, choosing
+autumn would have chosen a brightness for somebody, and "autumn, but dark" would have needed eight
+enum values to say. So migration 0008 adds `season_pref` and a column on `user_preferences` — plus
+`site_settings.default_season`, since "the whole site goes autumn in October" is a thing somebody
+would actually want. Default `off` on both: an upgrade must not start animating under anyone who
+did not ask.
+
+**What a season is allowed to touch is exactly three values**: a low-alpha `--season-wash` painted
+over the page ground, and `--season-ink` / `--season-ink-2` for the motes. It may not redefine
+`--fg`, `--muted`, `--border`, `--accent` or anything else text or a control edge is drawn in —
+asserted, because that is what lets every existing contrast guarantee stand unexamined.
+
+The wash does move the effective background, so `tests/seasons.test.ts` composites each wash over
+each ground in each theme and re-checks every text ink against the result. **That check found a
+real pre-existing problem.** Light `--muted` was `#6b7280`, which measures **4.72:1** on `--bg` —
+a fifth of a point above the line, for the token carrying most of the explanatory prose in the app.
+Any wash pushed it under. It is now `#5b6270`: 5.98 unwashed, 5.49 under the heaviest wash, and
+still plainly quieter than `--fg`. The season is what surfaced it; the fix is an improvement for
+everybody, season or not.
+
+**The ornament cannot carry information, and that is enforced rather than intended.** It is one
+layer in the root layout, built from one value, identical on every page — so it cannot differ
+beside a question and cannot hint at an answer. The mote table in `lib/theme/seasons.ts` is a
+**fixed list, not randomised**, for that reason first (a varying ornament could in principle encode
+something), and secondarily because generating it per render changes it under every navigation
+while generating it in the browser means a flash of nothing. A test walks `app/study` and
+`lib/study` for any mention of the layer and expects none.
+
+Mechanics worth keeping:
+
+- Only `translate`, `rotate` and `opacity` are animated — never a layout property — so the whole
+  layer runs on the compositor. A test parses the keyframes and fails on a fourth property.
+  `translate` and `rotate` as separate CSS properties rather than one `transform` is what lets a
+  fall and a tumble be two independent animations instead of fighting over one declaration.
+- Drift is in `vw`, not a percentage: a percentage on `translate` resolves against the element's own
+  8px width, which would be no drift at all.
+- Twenty motes is the ceiling. Past that it stops reading as weather and starts reading as a fault.
+- Every delay is negative, so the screen arrives populated instead of filling up over the first
+  half-minute, and no larger than its own duration, so it reads as a phase inside one trip.
+- `prefers-reduced-motion` hides the motes but keeps the wash, which does not move. Hidden rather
+  than frozen: a frozen mote is not weather, it is a speck of dirt nobody can wipe off. Printing
+  drops the layer entirely.
+- `pointer-events: none`, `aria-hidden`, `contain: layout paint`, and z-index 0 against the
+  content's 1 — a decoration must never sit on top of the page it decorates.
+
+`auto` reads the season off the date by whole months, December through February being winter.
+Meteorological rather than astronomical because the equinoxes drift by a day or two a year and
+would need a table, and nobody will dispute that the 21st of September is autumn-ish. Northern
+hemisphere; the four explicit choices are the whole hemisphere setting.
+
+Verified on the running container: the migration applied on boot (`season_pref` with its six
+labels, both columns defaulting to `off`), `off` puts no `data-season` on `<html>` and renders no
+layer at all, and each season renders its own ornament and nothing else — winter 20 flakes falling
+without spin, summer 16 sparks rising, spring 14 petals, autumn 14 leaves, `auto` resolving to
+autumn on 3 November. The preference was set back to `off` afterwards.
+
 ### The only way back in (2026-11-03)
 
 `/admin/users`, built next because of one fact about this deployment rather than because a roster
@@ -1574,6 +1637,12 @@ Distinct from `/settings`, which is how the site looks; this is who you are. Cha
 the password requires the current password, since the email is the sign-in name. No forgotten-
 password reset — that needs a mailer, so it is the admin screen's job.
 
+**Seasonal decoration** (`/settings`, `/admin/look`) — spring, summer, autumn or winter, or
+`auto` to follow the date. A tint over the page ground and a handful of drifting motes, layered over
+whichever theme is in force rather than replacing it; `off` by default. Pure CSS, one inert layer in
+the root layout, identical on every page so it can never become a study cue. See
+[A season is not a theme](#a-season-is-not-a-theme-2026-11-03).
+
 **Theming & per-user color** (`/settings`) — light/dark/system, persisted per user, applied
 server-side to avoid a flash on load. Choose the **color axis** (drug class, schedule, a tag kind, or
 off) and **override any individual color** in a palette editor. Admin sets the site default palette;
@@ -1923,6 +1992,19 @@ reachable one-handed; browse table degrades to cards.
   Verified live on a throwaway classmate account created and deleted by the check, with the real
   admin row only ever read: every write exercised, both self-guards refusing by message, a set
   password whose hash the sign-in verifier accepts, and the roster back to one account.
+
+- **done — 2026-11-03.** ~~Seasonal themes with dynamic elements~~. Four of them plus `auto`, in
+  `/settings` and as a site default in `/admin/look`. The decision that shaped it:
+  [A season is not a theme](#a-season-is-not-a-theme-2026-11-03) — it is a second setting, layered
+  over light-or-dark rather than replacing it, touching only a wash and two ornament colours. The
+  contrast check written for it found that light `--muted` had been sitting at 4.72:1 all along;
+  it is now 5.98.
+
+  Asked for alongside it, and **not built**: dynamic elements tied to light and dark themselves
+  rather than to the season. A list was put to the owner — a drifting starfield in dark, a dust-mote
+  sunbeam in light, paper grain, a focus bloom, time-of-day warmth, a streak flame and an idle
+  wordmark — with the ornament layer built as a general mechanism so any of them is a stylesheet
+  block and a mote kind rather than new machinery. Awaiting a pick.
 
 - **done — 2026-11-03.** ~~Change the associated email~~. On `/account`, and it needs the current
   password — the email *is* the sign-in name, so a borrowed session must not be able to move the

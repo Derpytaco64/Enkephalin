@@ -28,6 +28,21 @@ export const userRole = pgEnum('user_role', ['student', 'admin']);
 export const userStatus = pgEnum('user_status', ['active', 'disabled']);
 export const themePref = pgEnum('theme_pref', ['light', 'dark', 'system']);
 export const colorAxis = pgEnum('color_axis', ['class', 'schedule', 'tag', 'none']);
+
+/**
+ * A seasonal decoration, which is *not* a theme.
+ *
+ * Deliberately a separate column from `theme_pref` rather than four more
+ * values on it. A season is a tint and an ornament; light-or-dark is a
+ * brightness. Folding them together would mean choosing autumn chose a
+ * brightness for you, and "autumn, dark" would need eight enum values to say.
+ *
+ * `auto` reads the season off the date. `off` is the default, because
+ * decoration is opt-in -- an upgrade should not start animating under anyone.
+ */
+export const seasonPref = pgEnum('season_pref', [
+  'off', 'auto', 'spring', 'summer', 'autumn', 'winter',
+]);
 export const studyMode = pgEnum('study_mode', ['inclusive', 'exclusive']);
 
 export const studyDirection = pgEnum('study_direction', [
@@ -376,6 +391,7 @@ export const userPreferences = pgTable('user_preferences', {
   userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   theme: themePref('theme').notNull().default('system'),
   colorAxis: colorAxis('color_axis').notNull().default('class'),
+  season: seasonPref('season').notNull().default('off'),
 
   // Per-user overrides layered over the site default palette,
   // e.g. { "class:beta-adrenergic-blocker": "#1f6feb" }.
@@ -490,6 +506,7 @@ export const siteSettings = pgTable('site_settings', {
   siteName: text('site_name').notNull().default('Enkephalin'),
   registrationMode: text('registration_mode').notNull().default('invite'),
   defaultTheme: themePref('default_theme').notNull().default('system'),
+  defaultSeason: seasonPref('default_season').notNull().default('off'),
   defaultPalette: jsonb('default_palette').$type<Record<string, string>>().notNull().default({}),
   disclaimerText: text('disclaimer_text').notNull()
     .default('Enkephalin is a study aid, not a clinical reference. Do not use it for patient care.'),

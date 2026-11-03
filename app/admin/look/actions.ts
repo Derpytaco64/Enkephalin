@@ -5,7 +5,7 @@ import type { Result } from '@/lib/drugs/mutations';
 import { requireAdmin } from '@/lib/session';
 import { isColorAxis, randomPalette } from '@/lib/theme/palette';
 import {
-  clearSitePalette, setSitePaletteColor, setSitePaletteColors, setSiteTheme,
+  clearSitePalette, setSitePaletteColor, setSitePaletteColors, setSiteSeason, setSiteTheme,
 } from '@/lib/theme/preferences';
 import { listSwatches } from '@/lib/theme/swatches';
 
@@ -29,9 +29,14 @@ function applied() {
 export async function saveSiteThemeAction(formData: FormData): Promise<Result> {
   await requireAdmin();
 
-  const result = await setSiteTheme(formData.get('theme'));
-  if (result.ok) applied();
-  return result;
+  const theme = await setSiteTheme(formData.get('theme'));
+  if (!theme.ok) return theme;
+
+  const season = await setSiteSeason(formData.get('season'));
+  if (!season.ok) return season;
+
+  applied();
+  return { ok: true };
 }
 
 export async function setSiteColorAction(formData: FormData): Promise<Result<{ color: string | null }>> {

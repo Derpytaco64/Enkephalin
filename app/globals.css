@@ -27,7 +27,12 @@
   --surface: #ffffff;
   --border: #e4e4e7;
   --fg: #18181b;
-  --muted: #6b7280;
+  /* Was #6b7280, which measured 4.72:1 on --bg -- a fifth of a point above the
+     line, for a token that carries most of the explanatory prose in the app.
+     The seasons' contrast check is what surfaced it: any wash over the ground
+     pushed it under 4.5. #5b6270 reads 5.98 there and 5.49 under the heaviest
+     wash, and is still plainly quieter than --fg. */
+  --muted: #5b6270;
   --accent: #1f6feb;
   --accent-fg: #ffffff;
   --danger: #b42318;
@@ -129,3 +134,177 @@ body {
 }
 
 .grade-step:hover { border-color: var(--grade); }
+
+/* ===== seasons =============================================================
+
+   Decoration, and only decoration.
+
+   A season is NOT a theme. Light-or-dark is a brightness, and every contrast
+   figure above is written against it; a season is a layer on top of whichever
+   brightness is in force. So nothing below redefines --fg, --muted, --accent,
+   --border or any other token that text or a control edge is drawn in. What a
+   season adds is exactly three values: a low-alpha --season-wash painted over
+   the page ground, and --season-ink / --season-ink-2 for the motes.
+
+   The wash does move the effective background a little, which is why
+   tests/seasons.test.ts composites every wash over both grounds in both themes
+   and checks the text still clears 4.5:1. Keep the alphas where they are, or
+   that test will tell you.
+
+   Same three-block dance as the chrome: light on the bare selector, dark twice
+   -- once guarded for the system preference, once for an explicit choice.
+   ========================================================================= */
+
+:root[data-season="spring"] {
+  --season-wash: rgb(22 101 52 / 0.05);
+  --season-ink: #e879a6;
+  --season-ink-2: #86b049;
+}
+:root[data-season="summer"] {
+  --season-wash: rgb(180 83 9 / 0.045);
+  --season-ink: #d97706;
+  --season-ink-2: #0284c7;
+}
+:root[data-season="autumn"] {
+  --season-wash: rgb(154 52 18 / 0.055);
+  --season-ink: #c2410c;
+  --season-ink-2: #a16207;
+}
+:root[data-season="winter"] {
+  /* Pale blue-grey rather than white: a white flake on a white page is a
+     flake nobody can see. In the dark block below it goes near-white. */
+  --season-wash: rgb(30 64 175 / 0.05);
+  --season-ink: #93a9c4;
+  --season-ink-2: #64748b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-season="spring"] {
+    --season-wash: rgb(74 222 128 / 0.05);
+    --season-ink: #f9a8d4;
+    --season-ink-2: #a3e635;
+  }
+  :root:not([data-theme="light"])[data-season="summer"] {
+    --season-wash: rgb(251 191 36 / 0.045);
+    --season-ink: #fcd34d;
+    --season-ink-2: #67e8f9;
+  }
+  :root:not([data-theme="light"])[data-season="autumn"] {
+    --season-wash: rgb(249 115 22 / 0.055);
+    --season-ink: #fb923c;
+    --season-ink-2: #fbbf24;
+  }
+  :root:not([data-theme="light"])[data-season="winter"] {
+    --season-wash: rgb(147 197 253 / 0.05);
+    --season-ink: #e0f2fe;
+    --season-ink-2: #bae6fd;
+  }
+}
+
+:root[data-theme="dark"][data-season="spring"] {
+  --season-wash: rgb(74 222 128 / 0.05);
+  --season-ink: #f9a8d4;
+  --season-ink-2: #a3e635;
+}
+:root[data-theme="dark"][data-season="summer"] {
+  --season-wash: rgb(251 191 36 / 0.045);
+  --season-ink: #fcd34d;
+  --season-ink-2: #67e8f9;
+}
+:root[data-theme="dark"][data-season="autumn"] {
+  --season-wash: rgb(249 115 22 / 0.055);
+  --season-ink: #fb923c;
+  --season-ink-2: #fbbf24;
+}
+:root[data-theme="dark"][data-season="winter"] {
+  --season-wash: rgb(147 197 253 / 0.05);
+  --season-ink: #e0f2fe;
+  --season-ink-2: #bae6fd;
+}
+
+/* The layer itself. Fixed and inert: it never takes a click, it is hidden from
+   assistive technology at the element, and `contain` tells the browser that
+   nothing inside it can affect the layout of the page it decorates.
+
+   z-index 0 against the content's 1 (app/layout.tsx), so it sits above the
+   body's own background and below everything that is actually read. */
+.season {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+.season-wash {
+  position: absolute;
+  inset: 0;
+  background: var(--season-wash);
+}
+
+.season-mote {
+  position: absolute;
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  background: var(--mote-ink);
+  opacity: var(--mote-opacity);
+  /* Only `translate` and `rotate` are animated -- never width, top or left --
+     so the browser can run the whole layer on the compositor. The two are
+     separate CSS properties rather than one `transform`, which is what lets a
+     fall and a tumble be two independent animations instead of fighting over
+     the same declaration. */
+  will-change: translate, rotate;
+}
+
+.season-fall { animation: season-fall var(--dur) linear var(--delay) infinite; }
+.season-fall.season-spins {
+  animation:
+    season-fall var(--dur) linear var(--delay) infinite,
+    season-spin var(--dur) linear var(--delay) infinite;
+}
+
+/* Summer rises from the bottom instead, and pulses rather than tumbles. */
+.season-rise {
+  top: auto;
+  bottom: 0;
+  animation:
+    season-rise var(--dur) linear var(--delay) infinite,
+    season-glow calc(var(--dur) / 5) ease-in-out var(--delay) infinite alternate;
+}
+
+/* Drift is in vw, not a percentage: a percentage on `translate` resolves
+   against the element's own 8px width, which would be no drift at all. */
+@keyframes season-fall {
+  from { translate: 0 -12vh; }
+  to { translate: var(--drift) 112vh; }
+}
+@keyframes season-rise {
+  from { translate: 0 12vh; }
+  to { translate: var(--drift) -112vh; }
+}
+@keyframes season-spin {
+  from { rotate: 0deg; }
+  to { rotate: var(--spin); }
+}
+@keyframes season-glow {
+  from { opacity: calc(var(--mote-opacity) * 0.2); }
+  to { opacity: var(--mote-opacity); }
+}
+
+.season-flake { border-radius: 50%; }
+.season-leaf { border-radius: 0 60% 0 60%; }
+.season-petal { border-radius: 60% 0 60% 0; height: calc(var(--size) * 0.6); }
+.season-spark { border-radius: 50%; box-shadow: 0 0 6px var(--mote-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The wash stays, because it does not move. The motes go entirely rather
+     than freezing in place: a frozen mote is not weather, it is a speck of
+     dirt on the screen that nobody can wipe off. */
+  .season-mote { display: none; }
+}
+
+@media print {
+  .season { display: none; }
+}

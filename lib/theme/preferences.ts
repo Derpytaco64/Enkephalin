@@ -14,6 +14,7 @@ import type { Result } from '@/lib/drugs/mutations';
 import { getSiteSettings } from '@/lib/settings';
 import { withAxisColors, withColor, type Overrides } from './overrides';
 import { isColorAxis, type ColorAxis } from './palette';
+import { isSeasonPref, resolveSeason, type Season, type SeasonPref } from './seasons';
 
 export type ThemePref = 'light' | 'dark' | 'system';
 
@@ -24,6 +25,12 @@ export function isThemePref(value: unknown): value is ThemePref {
 export type Preferences = {
   theme: ThemePref;
   colorAxis: ColorAxis;
+  /**
+   * The *choice*, not the season. `auto` has to survive being read back, or
+   * the settings form would show whichever season it happens to be today and
+   * saving it would pin that one forever.
+   */
+  season: SeasonPref;
   /** The user's own, over the site default. Keyed as in `paletteKey`. */
   paletteOverrides: Record<string, string>;
 };
@@ -41,6 +48,7 @@ export async function sitePreferences(): Promise<Preferences> {
   return {
     theme: isThemePref(settings?.defaultTheme) ? settings.defaultTheme : 'system',
     colorAxis: 'class',
+    season: isSeasonPref(settings?.defaultSeason) ? settings.defaultSeason : 'off',
     paletteOverrides: settings?.defaultPalette ?? {},
   };
 }
@@ -66,6 +74,12 @@ export async function getPreferences(userId: string | null): Promise<Preferences
   return {
     theme: isThemePref(row.theme) ? row.theme : site.theme,
     colorAxis: isColorAxis(row.colorAxis) ? row.colorAxis : site.colorAxis,
+    // `off` is the column default, so somebody who has never touched this has
+    // a row saying `off` -- which is also the site's default until an admin
+    // changes it. A site season therefore reaches only people with no
+    // preferences row at all, which is the same way the theme behaves and is
+    // the honest reading of "default".
+    season: isSeasonPref(row.season) ? row.season : site.season,
     // The user's entries win, key by key, so overriding one colour does not
     // discard the site's answer for the rest.
     paletteOverrides: { ...site.paletteOverrides, ...row.paletteOverrides },
@@ -83,12 +97,24 @@ export function themeAttribute(theme: ThemePref): 'light' | 'dark' | null {
   return theme === 'system' ? null : theme;
 }
 
+/**
+ * What goes on `<html>` as `data-season`, resolved once per render.
+ *
+ * Resolved on the server rather than in the browser so the wash arrives with
+ * the page, like the theme -- and so the ornament the layout draws and the
+ * wash the stylesheet paints cannot disagree about which season it is.
+ */
+export function seasonAttribute(season: SeasonPref, now?: Date): Season | null {
+  return resolveSeason(season, now);
+}
+
 /** Creates the row on first change; `theme` and `colorAxis` are independent. */
 async function upsert(
   userId: string,
   patch: Partial<{
     theme: ThemePref;
     colorAxis: ColorAxis;
+    season: SeasonPref;
     paletteOverrides: Record<string, string>;
   }>,
 ): Promise<void> {
@@ -107,6 +133,12 @@ export async function setTheme(userId: string, theme: unknown): Promise<Result> 
 export async function setColorAxis(userId: string, axis: unknown): Promise<Result> {
   if (!isColorAxis(axis)) return { ok: false, message: 'That is not a colour axis.' };
   await upsert(userId, { colorAxis: axis });
+  return { ok: true };
+}
+
+export async function setSeason(userId: string, season: unknown): Promise<Result> {
+  if (!isSeasonPref(season)) return { ok: false, message: 'That is not a season.' };
+  await upsert(userId, { season });
   return { ok: true };
 }
 
@@ -174,7 +206,11 @@ export async function clearPalette(userId: string): Promise<Result> {
 
 /** Creates row 1 on first change, like the per-user upsert. */
 async function upsertSite(
-  patch: Partial<{ defaultTheme: ThemePref; defaultPalette: Overrides }>,
+  patch: Partial<{
+    defaultTheme: ThemePref;
+    defaultSeason: SeasonPref;
+    defaultPalette: Overrides;
+  }>,
 ): Promise<void> {
   await db
     .insert(siteSettings)
@@ -189,6 +225,12 @@ async function siteOverrides(): Promise<Overrides> {
 export async function setSiteTheme(theme: unknown): Promise<Result> {
   if (!isThemePref(theme)) return { ok: false, message: 'That is not a theme.' };
   await upsertSite({ defaultTheme: theme });
+  return { ok: true };
+}
+
+export async function setSiteSeason(season: unknown): Promise<Result> {
+  if (!isSeasonPref(season)) return { ok: false, message: 'That is not a season.' };
+  await upsertSite({ defaultSeason: season });
   return { ok: true };
 }
 

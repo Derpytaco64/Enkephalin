@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/session';
 import { getSiteSettings } from '@/lib/settings';
 import { colorFor, isColorAxis, readableTextOn, type ColorAxis } from '@/lib/theme/palette';
 import { getPreferences, isThemePref } from '@/lib/theme/preferences';
+import { isSeasonPref } from '@/lib/theme/seasons';
 import { listSwatches, sampleDrugs } from '@/lib/theme/swatches';
 import {
   clearSitePaletteAction, randomizeSitePaletteAction, saveSiteThemeAction, setSiteColorAction,
@@ -46,6 +47,7 @@ export default async function AdminLookPage({
   const settings = await getSiteSettings();
   const sitePalette = settings?.defaultPalette ?? {};
   const theme = isThemePref(settings?.defaultTheme) ? settings.defaultTheme : 'system';
+  const season = isSeasonPref(settings?.defaultSeason) ? settings.defaultSeason : 'off';
 
   const [swatches, samples, mine] = await Promise.all([
     // The site palette alone, with no personal colours layered on: the point
@@ -70,7 +72,7 @@ export default async function AdminLookPage({
         colour — so changing one here moves it for everyone who has not picked that one themselves.
       </p>
 
-      <SiteThemeForm theme={theme} save={saveSiteThemeAction} />
+      <SiteThemeForm theme={theme} season={season} save={saveSiteThemeAction} />
 
       <section className="mt-10">
         <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">

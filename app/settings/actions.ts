@@ -5,7 +5,7 @@ import type { Result } from '@/lib/drugs/mutations';
 import { requireUser } from '@/lib/session';
 import { isColorAxis, randomPalette } from '@/lib/theme/palette';
 import {
-  clearPalette, setColorAxis, setPaletteColor, setPaletteColors, setTheme,
+  clearPalette, setColorAxis, setPaletteColor, setPaletteColors, setSeason, setTheme,
 } from '@/lib/theme/preferences';
 import { listSwatches } from '@/lib/theme/swatches';
 
@@ -32,6 +32,9 @@ export async function saveLookAction(formData: FormData): Promise<Result> {
 
   const axis = await setColorAxis(session.user.id, formData.get('axis'));
   if (!axis.ok) return axis;
+
+  const season = await setSeason(session.user.id, formData.get('season'));
+  if (!season.ok) return season;
 
   applied();
   return { ok: true };
