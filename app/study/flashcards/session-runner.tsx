@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudyCardSpec } from '@/lib/study/cards';
 import { sessionRules, type StudyConfig } from '@/lib/study/config';
 import {
@@ -12,6 +12,23 @@ import {
 } from '@/lib/study/blocks';
 import { GRADE_BUTTONS, type Grade } from '@/lib/study/srs';
 import { gradeCardAction } from './actions';
+
+/* Red through green, defined in app/globals.css so that this file does not
+   import lib/theme -- the study pages are held clear of the palette on
+   purpose, and these four are chrome, not a drug's colour.
+
+   Stepped by *position in the row that is on screen*, not by grade name, so
+   both scales read red-to-green end to end: four buttons take all four steps,
+   the binary pair takes the ends. That does mean "Good" is the green end on
+   the binary scale and the third step on the four-point one -- correct either
+   way, because what the colour says is how far along this row you are. */
+const GRADE_STEPS = ['--grade-1', '--grade-2', '--grade-3', '--grade-4'] as const;
+
+function gradeStep(index: number, total: number): string {
+  const last = GRADE_STEPS.length - 1;
+  if (total < 2) return GRADE_STEPS[last];
+  return GRADE_STEPS[Math.round((index * last) / (total - 1))];
+}
 
 export function SessionRunner({
   cards,
@@ -153,9 +170,12 @@ export function SessionRunner({
               key={button.grade}
               type="button"
               onClick={() => answer(button.grade)}
-              className="min-w-32 flex-1 rounded border border-[var(--border)] px-4 py-3 text-sm hover:bg-[var(--surface)]"
+              style={{ '--grade': `var(${gradeStep(index, buttons.length)})` } as CSSProperties}
+              className="grade-step min-w-32 flex-1 rounded border px-4 py-3 text-sm"
             >
-              {button.label} <span className="text-xs text-[var(--muted)]">{index + 1}</span>
+              {/* The keyboard hint inherits the grade colour rather than
+                  --muted, which on a tinted fill came in under 4.5:1. */}
+              {button.label} <span className="text-xs opacity-90">{index + 1}</span>
             </button>
           ))}
         </div>

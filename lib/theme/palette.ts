@@ -201,6 +201,27 @@ export function colorFor(
 
 /* ----------------------------------------------------- shuffling ------- */
 
+/**
+ * The fill for a controlled-substance badge, or null for a drug that carries
+ * no schedule.
+ *
+ * Always coloured, whatever axis the reader picked. Everything else on a page
+ * defers to that choice, because a colour should mean one thing at a time --
+ * but CI through CV is not a way of looking at a drug, it is a fact about
+ * handling it, and the badge is the only place it appears. Reads the
+ * `schedule:` overrides regardless of axis, so the Settings editor still
+ * governs which red.
+ */
+export function scheduleBadge(
+  schedule: string | null | undefined,
+  overrides: Record<string, string> = {},
+): { backgroundColor: string; color: string } | null {
+  if (!schedule) return null;
+  const fill = colorFor('schedule', { schedule }, overrides);
+  if (fill === null) return null;
+  return { backgroundColor: fill, color: readableTextOn(fill) };
+}
+
 export function hslToHex(hue: number, saturation: number, lightness: number): string {
   const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
   const sector = ((hue % 360) + 360) % 360 / 60;

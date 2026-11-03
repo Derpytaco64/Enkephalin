@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
-import { colorFor, readableTextOn } from '@/lib/theme/palette';
+import { colorFor, readableTextOn, scheduleBadge } from '@/lib/theme/palette';
 import { getPreferences } from '@/lib/theme/preferences';
 import { requireUser } from '@/lib/session';
 import type { FieldValue } from '@/db/schema';
@@ -122,15 +122,10 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
             {drug.drugClass}
           </span>
         )}
+        {/* Always filled, on every axis: see scheduleBadge. */}
         {drug.schedule && (
-          <span
-            className={axis === 'schedule' && color !== null
-              ? 'rounded px-2 py-0.5 text-sm'
-              : 'rounded border border-[var(--border)] px-2 py-0.5 text-sm text-[var(--muted)]'}
-            style={axis === 'schedule' && color !== null
-              ? { backgroundColor: color, color: readableTextOn(color) }
-              : undefined}
-          >
+          <span className="rounded px-2 py-0.5 text-sm"
+            style={scheduleBadge(drug.schedule, paletteOverrides) ?? undefined}>
             {drug.schedule}
           </span>
         )}

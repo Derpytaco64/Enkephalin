@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   CATEGORICAL_RAMP, checkFill, colorFor, contrastRatio, hslToHex, MIN_FILL_CONTRAST,
   normalizeHex, paletteKey, randomPalette, readableOnHue, readableTextOn, SCHEDULE_COLORS,
+  scheduleBadge,
   SURFACE_DARK, SURFACE_LIGHT,
 } from '@/lib/theme/palette';
 
@@ -200,5 +202,51 @@ describe('randomPalette', () => {
 
   it('has nothing to say about an empty axis', () => {
     expect(randomPalette([])).toEqual({});
+  });
+});
+
+describe('scheduleBadge', () => {
+  it('colours a controlled drug whatever the reader chose to colour by', () => {
+    // The axis is not a parameter at all: that is the point of the function.
+    const badge = scheduleBadge('CII');
+    expect(badge).not.toBeNull();
+    expect(badge!.backgroundColor).toBe(SCHEDULE_COLORS.CII);
+  });
+
+  it('has no badge to colour when a drug is not controlled', () => {
+    expect(scheduleBadge(null)).toBeNull();
+    expect(scheduleBadge(undefined)).toBeNull();
+    expect(scheduleBadge('')).toBeNull();
+  });
+
+  it('still obeys the editor, which writes schedule keys on any axis', () => {
+    const badge = scheduleBadge('CIV', { [paletteKey('schedule', 'CIV')]: '#123456' });
+    expect(badge!.backgroundColor).toBe('#123456');
+  });
+
+  it('ignores an override that is not a colour', () => {
+    const badge = scheduleBadge('CIV', { [paletteKey('schedule', 'CIV')]: 'cornflower' });
+    expect(badge!.backgroundColor).toBe(SCHEDULE_COLORS.CIV);
+  });
+
+  it('picks text that can be read on the fill', () => {
+    for (const schedule of Object.keys(SCHEDULE_COLORS)) {
+      const badge = scheduleBadge(schedule)!;
+      const ratio = contrastRatio(badge.color, badge.backgroundColor);
+      expect(ratio, `${schedule} (${ratio.toFixed(2)}:1)`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('is what both pages and the preview use, rather than their own rule', () => {
+    // Three call sites drifting apart is exactly what the helper is for.
+    const sources = [
+      'app/drugs/drug-browser.tsx',
+      'app/drugs/[slug]/page.tsx',
+      'app/settings/page.tsx',
+    ];
+    for (const path of sources) {
+      const source = readFileSync(path, 'utf8');
+      expect(source, path).toContain('scheduleBadge(');
+    }
   });
 });

@@ -13,7 +13,14 @@
    answer — so it is resolved in lib/theme/palette.ts, where the editor and the
    page read the same function and cannot disagree. --surface below is the
    ground those colours are checked against, light and dark; keep
-   SURFACE_LIGHT and SURFACE_DARK in step with it. */
+   SURFACE_LIGHT and SURFACE_DARK in step with it.
+
+   One more ramp lives here rather than in the palette: --grade-1..4, the
+   red-to-green steps on the flashcard grade buttons. It is a light/dark pair
+   like the rest of the chrome, it is not editable, and it stands for an action
+   you are taking rather than a fact about a drug -- which is also why the study
+   pages may reach it. They may not import lib/theme at all; see
+   tests/colour-is-cosmetic.test.ts. */
 
 :root {
   --bg: #fcfcfd;
@@ -31,6 +38,14 @@
   --verified: #067647;
   --flagged: #b42318;
   --not-applicable: #9ca3af;
+
+  /* The grade scale, red through green. The 800-series rather than the 700s
+     the markers above use: a step tints its own button background, and the
+     lighter values only cleared 4.2:1 against that tint. These clear 5.2. */
+  --grade-1: #991b1b;
+  --grade-2: #92400e;
+  --grade-3: #3f6212;
+  --grade-4: #166534;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -50,6 +65,11 @@
     --verified: #5ddba4;
     --flagged: #ff8b80;
     --not-applicable: #6b7280;
+
+    --grade-1: #ff8b80;
+    --grade-2: #ffa06a;
+    --grade-3: #b2dd62;
+    --grade-4: #5ddba4;
   }
 }
 
@@ -69,6 +89,11 @@
   --verified: #5ddba4;
   --flagged: #ff8b80;
   --not-applicable: #6b7280;
+
+  --grade-1: #ff8b80;
+  --grade-2: #ffa06a;
+  --grade-3: #b2dd62;
+  --grade-4: #5ddba4;
 }
 
 html { color-scheme: light dark; }
@@ -78,3 +103,29 @@ body {
   color: var(--fg);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* A grade button wears its step: a 20% tint of the colour for the fill, the
+   colour itself for the text (5.2:1 or better on that tint, both themes), and
+   70% of it for the border -- which clears the 3:1 that WCAG 1.4.11 asks of a
+   control's edge, where the app's plain --border manages 1.27. Hover goes to
+   the full colour on the border rather than a deeper fill, because a deeper
+   fill would walk the text back below 4.5:1. `--grade` is set per button in
+   app/study/flashcards/session-runner.tsx. */
+.grade-step {
+  /* The fallback, and it has to be stated: left to itself the compiler emits
+     `background: var(--grade)` for a browser without color-mix, which is a
+     full-strength fill under same-coloured text -- an invisible label. An
+     outlined button in the step's colour degrades honestly instead. */
+  background: transparent;
+  border-color: var(--grade);
+  color: var(--grade);
+}
+
+@supports (background: color-mix(in srgb, red 20%, white)) {
+  .grade-step {
+    background: color-mix(in srgb, var(--grade) 20%, var(--surface));
+    border-color: color-mix(in srgb, var(--grade) 70%, var(--surface));
+  }
+}
+
+.grade-step:hover { border-color: var(--grade); }

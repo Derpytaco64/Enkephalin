@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/session';
-import { colorFor, readableTextOn } from '@/lib/theme/palette';
+import { colorFor, readableTextOn, scheduleBadge } from '@/lib/theme/palette';
 import { getPreferences } from '@/lib/theme/preferences';
 import { listSwatches, sampleDrugs } from '@/lib/theme/swatches';
 import {
@@ -69,6 +69,15 @@ export default async function SettingsPage() {
                 {color === null && (
                   <span className="text-xs text-[var(--muted)]">
                     {preferences.colorAxis === 'none' ? 'colour off' : 'nothing on this axis'}
+                  </span>
+                )}
+                {/* The control badge is coloured on every axis, so the preview
+                    shows it on every axis too -- except the schedule axis,
+                    where the badge above already is it. */}
+                {preferences.colorAxis !== 'schedule' && drug.schedule && (
+                  <span className="rounded px-1.5 py-0.5 text-xs"
+                    style={scheduleBadge(drug.schedule, preferences.paletteOverrides) ?? undefined}>
+                    {drug.schedule}
                   </span>
                 )}
               </li>

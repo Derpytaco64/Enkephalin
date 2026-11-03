@@ -804,6 +804,51 @@ the space actually available — the list gets about 720px at `lg` once the 15re
 an arbitrary Tailwind value that fails to compile leaves a grid silently one-column. A real check
 at phone width is still worth doing by eye.
 
+### Two colours that do not defer to the axis (2026-11-02)
+
+The rule had been that colour means whatever the reader picked in Settings, and everything else goes
+neutral. Two exceptions now, both asked for:
+
+**The controlled-substance badge is always its schedule's colour.** CI through CV is not a way of
+*looking* at a drug, it is a fact about handling one, and the badge is the only place it appears --
+so deferring to the axis meant the one colour with a legal meaning turned grey whenever someone
+chose to colour by class. `scheduleBadge()` in `lib/theme/palette.ts` is the single rule; the list,
+the profile and the Settings preview all call it rather than each carrying their own condition, and
+it reads the `schedule:` overrides on every axis so the editor still governs which red. The axis
+still owns the dot beside a name, so nothing was lost.
+
+**The flashcard grade buttons are a red-to-green ramp**, `--grade-1..4` in `app/globals.css`. Two
+decisions worth keeping:
+
+- They are *stepped by position in the row on screen*, not by grade name, so both scales read red to
+  green end to end -- four buttons take all four steps, the binary pair takes the ends. "Good" is
+  therefore the green end on the binary scale and the third step on the four-point one, which is
+  correct either way: the colour says how far along the row you are.
+- The ramp lives in CSS, not in `lib/theme/palette.ts`, because the study pages may not import the
+  palette at all -- see [Colour is cosmetic](#colour-is-cosmetic-and-nothing-studied-may-depend-on-it-2026-11-02).
+  These four are chrome, like `--verified` and `--flagged`, and they stand for an action you are
+  taking rather than a fact about a drug.
+
+The light ramp is the 800-series where the existing markers use 700s: a step tints its own button
+background, and the lighter values only reached 4.2:1 against that tint. At 20% fill the text clears
+5.2:1 in both themes and the 70% border clears the 3:1 that WCAG 1.4.11 asks of a control's edge --
+where the app's plain `--border` manages 1.27, which is worth knowing about the rest of the chrome.
+
+Two things the build taught, both now held by `tests/grade-scale.test.ts`:
+
+- **`color-mix` gets a fallback, and the generated one was broken.** Left alone, the compiler emits
+  `background: var(--grade)` for a browser without `color-mix` -- a full-strength fill under
+  same-coloured text, an invisible label. The base rule states `background: transparent` so it
+  degrades to an outlined button instead.
+- **The dark values are written twice** in `globals.css`, once for the system preference and once
+  for an explicit choice, and nothing but a test stops them drifting. A drift would show only to
+  whichever half of the users hit the other code path. The test compares the two blocks token for
+  token -- all of them, not just the ramp -- and was confirmed to fail on a single changed hex digit.
+
+Not verified by eye: the painted buttons. They render only after a card is revealed, which is client
+state, so what was checked is that the container serves the class and all eight token values, that
+the runner asks for all four, and the arithmetic of the step mapping.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:

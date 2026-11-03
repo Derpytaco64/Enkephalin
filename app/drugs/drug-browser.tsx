@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { BrowseFacets, DrugIndexRow } from '@/lib/drugs/browse';
 import { classLabel, isUncategorized } from '@/lib/drugs/drug-class';
-import { colorFor, readableTextOn, type ColorAxis } from '@/lib/theme/palette';
+import { colorFor, scheduleBadge, type ColorAxis } from '@/lib/theme/palette';
 
 const REVIEW_LABELS = {
   flagged: 'Flagged',
@@ -370,18 +370,10 @@ export function DrugBrowser({
                     {row.generic}
                   </Link>
 
+                  {/* Always filled, on every axis: see scheduleBadge. */}
                   {row.schedule && (
-                    // Filled only when the schedule *is* the axis; otherwise
-                    // it is information in a neutral badge, and the colour on
-                    // the page means something else.
-                    <span
-                      className={axis === 'schedule'
-                        ? 'rounded px-1.5 py-0.5 text-xs'
-                        : 'rounded border border-[var(--border)] px-1.5 py-0.5 text-xs text-[var(--muted)]'}
-                      style={axis === 'schedule' && colorOf(row) !== null
-                        ? { backgroundColor: colorOf(row)!, color: readableTextOn(colorOf(row)!) }
-                        : undefined}
-                    >
+                    <span className="rounded px-1.5 py-0.5 text-xs"
+                      style={scheduleBadge(row.schedule, overrides) ?? undefined}>
                       {row.schedule}
                     </span>
                   )}
