@@ -1,7 +1,7 @@
 # Enkephalin — Pharmacy Drug Study Site
 
 > Working plan. This file is the canonical record — update it as decisions change.
-> Last revised: 2026-11-01
+> Last revised: 2026-11-03
 
 ## Context
 
@@ -1023,6 +1023,86 @@ ADHD moving, one list moving and two already shared, and its dosing discarded be
 its own. A full round trip on two throwaway drugs merged and deleted cleanly and left the count back
 at 236 — including the vocabulary rows it orphaned, which is how that behaviour got noticed.
 
+### A front door, and a face on it (2026-11-03)
+
+The home page said *"Scaffold is up. Drug browser, flashcards, and quiz come next."* for five
+phases after all three had landed. What replaces it answers the two questions somebody opening the
+site actually has — **is there anything to do**, and **can I start what I did last time without
+setting it up again** — and then gets out of the way with a card per area.
+
+**The figures are counted, not stored.** `lib/home/overview.ts` is one round of parallel queries:
+the catalogue, the user's own cards and due count, their quiz totals, their last attempt, their
+weakest field and their active days. Nothing is cached and no counter column was added, because a
+counter is a second answer to a question the rows already answer, and it is the one that goes wrong.
+
+Three of the four tiles are records. The fourth is an instruction: the **weakest field** carries its
+own key, so the tile links to a quiz on exactly that field. It needs at least eight answers before
+it will name anything — without a floor the answer is whatever you got wrong once, and the page
+would send you to a quiz about a single unlucky guess — and it will not nominate a field you have
+never missed. Accuracy is read off `quiz_answers` rather than off the attempts' scores, because an
+abandoned attempt is 0 of 0 and would drag an average down for nothing; and it is **withheld**
+rather than shown as 0% before a first answer, since a new account has no record and printing one
+reads as a verdict on it.
+
+**Last-used setups are a new thing, and deliberately not a saved setup.** `study_presets` holds
+setups you *named*, which is a deliberate act most sessions never get; without something else, the
+home page could only offer a blank form to someone who sits the same quiz every evening. So each
+study page records what it was started with in `user_preferences.study_defaults` — a jsonb column
+unread since phase 0, so no migration — as the page's own query parameters, through the same
+whitelist a saved setup goes through, in both directions.
+
+Two decisions in that, both about where the write happens. It is recorded **from the browser**, by a
+component that renders nothing, rather than in the page's own render: the study pages are GETs, and
+a GET that writes is a GET a link prefetch performs. And it is a **jsonb merge**, not a
+read-modify-write, so a deck opened in one tab and a quiz in another both survive — read-then-write
+would have the second overwrite the first's surface with nothing. The action revalidates nothing, for
+the same reason every study action revalidates nothing.
+
+**The top bar.** Five destinations as underlined accent links read as five unrelated interruptions,
+and none of them could say which one you were looking at. They are pills now, the filled one being
+where you are (prefix-matched, so a drug profile keeps *Drugs* lit). The email — a third of the bar
+spent saying something the reader already knows — became the avatar, which is the same information
+on hover and a way into the account when you do not want it.
+
+### An account is not a setting (2026-11-03)
+
+`/account` is the name on your account, the picture beside it and the password behind it.
+`/settings` stays what it was: how the site looks to you. The split is *who the setting is about*,
+and it is worth the extra route — the password is the one irreversible control in the app, and it
+should not sit on the page people open to try colour schemes.
+
+**The password goes through better-auth.** It owns the hash format sign-in verifies against, so
+`auth.api.changePassword` does it. `lib/users.ts` reaches for better-auth's hasher only because
+account *creation* has no endpoint to call — sign-up is disabled — and changing a password does, so
+re-implementing it would be a second answer to how a password is stored. The current password is
+required and better-auth is what checks it: not belt-and-braces, since a signed-in session on a
+shared laptop would otherwise be enough to lock the owner out of their own account. *Sign out
+everywhere else* defaults to **on**, because the usual reason to change a password is thinking
+somebody else has it.
+
+**The picture lives in the row, as a data URL.** There is no object storage here and no upload
+directory in the compose file; adding one would mean a second thing to back up, where
+`/admin/data`'s single-file export already carries a column. The cost is that the bytes ride along
+with every page that renders the header, which is what the 160px square and the 64 KB cap are for —
+about 8 KB of base64 in practice. It is resized **in the browser**: a phone camera's four-megabyte
+JPEG has to become a 160px square, and sending it whole would mean carrying four megabytes through
+a server action and adding an image decoder to a project with no other use for one. Centre-cropped,
+not letterboxed, because the result is drawn in a circle.
+
+Raster only — PNG, JPEG, WebP. **SVG is refused**: it is an image to a browser and a script host to
+an attacker, and this string goes into an `<img src>` other people's pages will render once the
+users admin exists. The regex and the cap are the whole guard, since nothing server-side decodes the
+image, and a test plants an SVG and an over-cap string to prove neither lands.
+
+What is still not possible, and says so on the page: **resetting a forgotten password**, and
+**changing an email**. Both need a mailer. The page states it rather than leaving someone waiting
+for an email that is never coming.
+
+Verified against the live database on a throwaway account created and deleted by the check: the name
+stored trimmed and collapsed, an SVG refused without disturbing the picture already stored, a wrong
+current password rejected as better-auth's `APIError` (which the action turns into a sentence rather
+than a 500), and after the change the new password signed in 200 while the old one got 401.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1406,6 +1486,14 @@ forget", not an Anki clone.
 **Quiz** (`/study/quiz`) — same config, multiple choice, scored, per-question review linking to
 profiles. History in `quiz_attempts` with per-field accuracy, so weak areas are visible by field.
 
+**Home** (`/`) — what is due, how the quizzes are going, the weakest field with a link to a quiz
+on it, the catalogue's size, one-click restarts of the last deck and the last quiz, the saved setups,
+and a card per area. Every figure is counted per request in `lib/home/overview.ts`.
+
+**Account** (`/account`) — display name, profile picture, password change. Distinct from
+`/settings`, which is how the site looks; this is who you are. No email change and no forgotten-
+password reset: both need a mailer.
+
 **Theming & per-user color** (`/settings`) — light/dark/system, persisted per user, applied
 server-side to avoid a flash on load. Choose the **color axis** (drug class, schedule, a tag kind, or
 off) and **override any individual color** in a palette editor. Admin sets the site default palette;
@@ -1416,7 +1504,9 @@ entry and for the whole palette.
 
 **Admin** (`/admin`):
 
-- **Users** — list, search, change role, disable/enable, force-logout, trigger password reset, delete.
+- **Users** — list, search, change role, disable/enable, force-logout, set a new password, delete.
+  Not built. "Trigger password reset" became "set a new password" because there is no mailer: a
+  person can change their own at `/account`, and a forgotten one needs an admin to set it.
 - **Invites** — generate (max-uses, expiry, note), revoke, see who redeemed what.
 - **Fields** — create, rename, reorder, regroup, retype, set enum options, mark quizzable, set the
   prompt template and lookup mapping, soft-delete.
@@ -1466,7 +1556,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Remaining: the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Remaining: the dosing review bench, the users admin, bulk field-set, the brand↔indication pairing editor, the flagged queue, site settings, the audit UI |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
@@ -1708,6 +1798,37 @@ reachable one-handed; browse table degrades to cards.
   prose and the sig is printed from it, so the point being made is that `10 mg by mouth once a day`
   is what produces `10 mg PO QD`, and a word missing from the sig is a word the parser did not
   understand.
+
+**Queued by the owner, 2026-11-03** — the home page, the top bar, and the account screen:
+
+- **done — 2026-11-03.** ~~Spruce up the home page with stats, links that restart the last deck and
+  the last quiz instantly, and buttons to each area~~. Four counted tiles, a *Pick up where you left
+  off* pair, the saved setups as chips, and a card per area. See
+  [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) for the two decisions
+  worth keeping: the weakest-field tile is the only one that is an instruction rather than a record,
+  and "last used" needed somewhere new to live — a named setup is a deliberate act and most sessions
+  never get one.
+
+  Measured on the running app while building it: 3 cards due of 3 scheduled, 84% over 88 answers and
+  2 quizzes, weakest field *Brand names* at 18 of 23, 236 drugs across 119 classes and 352 brands.
+
+- **done — 2026-11-03.** ~~The top bar links should be more stylish, and the email should be a
+  profile circle that opens account settings~~. Pills with the current one filled; the email became
+  the avatar, which falls back to initials off the display name, or off the **local part** of the
+  email so a classful of `@gmail.com` accounts do not all read "G".
+
+- **done — 2026-11-03.** ~~Account settings: display name, password change, profile picture~~.
+  `/account`, kept apart from `/settings` — see
+  [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). The picture is a 160px
+  square resized in the browser and stored on the user's own row; SVG is refused because the string
+  ends up in an `<img src>` other people will render.
+
+  **Asked at the same time, and the answer was no:** there is no admin account-management screen,
+  and before this there was no password change anywhere. There is now, for your own password. What
+  is still missing is the admin side — listing users, changing a role, disabling an account,
+  force-logout, and setting a new password for somebody who has forgotten theirs. That last one is
+  the only route a forgotten password has, since there is no mailer, so the users admin is now the
+  gap with a real consequence rather than a tidy-up.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

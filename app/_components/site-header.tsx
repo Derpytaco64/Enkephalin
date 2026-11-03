@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
+import { Avatar } from './avatar';
+import { NavLinks, type NavItem } from './nav-links';
 import { SignOutButton } from './sign-out-button';
 
 /**
@@ -10,12 +12,20 @@ import { SignOutButton } from './sign-out-button';
 export async function SiteHeader() {
   const session = await getSession();
 
+  const items: NavItem[] = [
+    { href: '/drugs', label: 'Drugs' },
+    { href: '/study/flashcards', label: 'Flashcards' },
+    { href: '/study/quiz', label: 'Quiz' },
+    { href: '/settings', label: 'Settings' },
+    ...(session?.user.role === 'admin' ? [{ href: '/admin' as const, label: 'Admin' }] : []),
+  ];
+
   return (
     <header className="border-b border-[var(--border)]">
-      {/* Wraps. Signed in as an admin this holds the wordmark, four links, the
-          email and Sign out, which does not fit on a phone -- and without a
+      {/* Wraps. Signed in as an admin this holds the wordmark, five pills, the
+          avatar and Sign out, which does not fit on a phone -- and without a
           wrap it did not shrink, it overflowed the page sideways. */}
-      <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-3">
+      <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
           {/* Decorative, so alt is empty: the word beside it already says the
               name, and alt="Enkephalin" would have a screen reader read the
@@ -28,37 +38,39 @@ export async function SiteHeader() {
           Enkephalin
         </Link>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          {session ? (
-            <>
-              <Link href="/drugs" className="text-[var(--accent)] underline">
-                Drugs
+        {session ? (
+          <>
+            <NavLinks items={items} />
+
+            {/* Pushed to the far end, and last in the source as well as on
+                screen, so tabbing reaches the destinations before the account. */}
+            <div className="ml-auto flex items-center gap-3">
+              {/* The email used to sit here as text, which spent a third of
+                  the bar saying something the reader already knows. The
+                  circle is the same information when you want it -- it is the
+                  title -- and a way into the account when you do not. */}
+              <Link
+                href="/account"
+                title={session.user.email}
+                aria-label="Account settings"
+                className="rounded-full ring-offset-2 ring-offset-[var(--bg)]
+                  hover:ring-2 hover:ring-[var(--accent)]
+                  focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              >
+                <Avatar user={session.user} size={32} />
               </Link>
-              <Link href="/study/flashcards" className="text-[var(--accent)] underline">
-                Flashcards
-              </Link>
-              <Link href="/study/quiz" className="text-[var(--accent)] underline">
-                Quiz
-              </Link>
-              <Link href="/settings" className="text-[var(--accent)] underline">
-                Settings
-              </Link>
-              {session.user.role === 'admin' && (
-                <Link href="/admin" className="text-[var(--accent)] underline">
-                  Admin
-                </Link>
-              )}
-              <span className="hidden max-w-[14rem] truncate text-[var(--muted)] sm:inline">
-                {session.user.email}
-              </span>
               <SignOutButton />
-            </>
-          ) : (
-            <Link href="/login" className="text-[var(--accent)] underline">
-              Sign in
-            </Link>
-          )}
-        </div>
+            </div>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            className="ml-auto rounded-full border border-[var(--border)] px-3 py-1.5 text-sm
+              hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Sign in
+          </Link>
+        )}
       </nav>
     </header>
   );

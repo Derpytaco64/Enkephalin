@@ -15,6 +15,7 @@ import { FieldPicker } from '../_components/field-picker';
 import { SaveSetupButton } from '../_components/save-setup-button';
 import { SetupBar } from '../_components/setup-bar';
 import { ScopePicker } from '../_components/scope-picker';
+import { RememberSetup } from '../_components/remember-setup';
 import { SessionRunner } from './session-runner';
 
 export const metadata = { title: 'Flashcards — Enkephalin' };
@@ -261,10 +262,16 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
         </form>
       </details>
 
+      {/* Renders nothing. Tells the server this is the deck to offer on the
+          home page next time, which is why it sits inside the started branch:
+          a page showing its form started nothing. */}
       {started ? (
+        <>
+        <RememberSetup surface="flashcards" params={saveParams} />
         <SessionRunner
           cards={deck.cards} config={config} inScope={deck.inScope} available={deck.available}
         />
+        </>
       ) : (
         <p className="mt-8 text-[var(--muted)]">
           Pick a year or some fields to build a deck. There are{' '}

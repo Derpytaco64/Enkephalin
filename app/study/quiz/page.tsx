@@ -16,6 +16,7 @@ import { FieldPicker } from '../_components/field-picker';
 import { SaveSetupButton } from '../_components/save-setup-button';
 import { SetupBar } from '../_components/setup-bar';
 import { HintedLabel } from '../_components/hint';
+import { RememberSetup } from '../_components/remember-setup';
 import { ScopePicker } from '../_components/scope-picker';
 import { finishQuizAction } from './actions';
 import { QuizRunner } from './quiz-runner';
@@ -329,7 +330,12 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         </form>
       </details>
 
+      {/* Renders nothing. Tells the server this is the quiz to offer on the
+          home page next time, which is why it sits inside the started branch:
+          a page showing its form started nothing. */}
       {started ? (
+        <>
+        <RememberSetup surface="quiz" params={saveParams} />
         <QuizRunner
           // A fresh id per render, so re-submitting the same filters starts a
           // genuinely new paper rather than redisplaying the last one.
@@ -339,6 +345,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
           available={paper.available}
           onFinish={finishQuizAction}
         />
+        </>
       ) : (
         <p className="mt-8 text-[var(--muted)]">
           Pick a year or some fields to sit a quiz. Four options a question: the answer, one near
