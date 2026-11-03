@@ -64,6 +64,13 @@
       "when": 1793641153602,
       "tag": "0008_a_season_is_not_a_theme",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793641153603,
+      "tag": "0009_decoration_has_two_more_switches",
+      "breakpoints": true
     }
   ]
 }

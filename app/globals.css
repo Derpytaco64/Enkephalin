@@ -33,7 +33,12 @@
      pushed it under 4.5. #5b6270 reads 5.98 there and 5.49 under the heaviest
      wash, and is still plainly quieter than --fg. */
   --muted: #5b6270;
-  --accent: #1f6feb;
+  /* Was #1f6feb, which measured 4.52:1 on --bg -- two hundredths above the
+     line, for the colour every link in the app is drawn in. Found the same way
+     --muted was: by compositing a season wash over the ground and watching it
+     drop under. #1560cc reads 5.73 unwashed and 5.17 with a tint and both
+     overlays stacked, and white on it goes from 4.63 to 5.87. */
+  --accent: #1560cc;
   --accent-fg: #ffffff;
   --danger: #b42318;
   --ok: #067647;
@@ -307,4 +312,301 @@ body {
 
 @media print {
   .season { display: none; }
+}
+
+/* --- the season reaching the chrome, when asked ----------------------------
+
+   `data-tint="season"` on <html> means the season is allowed past the wash and
+   into the grounds, the card surfaces and the borders. This is the one place a
+   decoration redefines --bg, --surface and --border, and it is why
+   tests/seasons.test.ts checks every ink against each tinted ground *with the
+   washes composited on top*: the worst case in the app is a tinted ground
+   under a season wash under a daypart wash, and it measures 4.62:1.
+
+   The grounds move barely at all -- these are off-whites and near-blacks, a
+   cast rather than a colour. The borders move a lot, because a border is not
+   text and carries no contrast duty here (the plain --border manages 1.27:1
+   against its surface), and the borders are what actually make the app read as
+   seasonal. --accent is deliberately left alone: it is link text and a button
+   fill, and four seasonal variants of it would be four more contrast pairs to
+   defend for no gain the borders do not already give.
+   ------------------------------------------------------------------------- */
+
+:root[data-tint="season"][data-season="spring"] {
+  --bg: #f8fcf9;
+  --surface: #fdfffd;
+  --border: #d8e6dc;
+}
+:root[data-tint="season"][data-season="summer"] {
+  --bg: #fefbf4;
+  --surface: #fffefa;
+  --border: #ece0ca;
+}
+:root[data-tint="season"][data-season="autumn"] {
+  --bg: #fdfaf6;
+  --surface: #fffdfa;
+  --border: #ebd9c9;
+}
+:root[data-tint="season"][data-season="winter"] {
+  --bg: #f6fafd;
+  --surface: #fcfeff;
+  --border: #d7e2ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-tint="season"][data-season="spring"] {
+    --bg: #0a0f0b;
+    --surface: #121a14;
+    --border: #26342b;
+  }
+  :root:not([data-theme="light"])[data-tint="season"][data-season="summer"] {
+    --bg: #100e08;
+    --surface: #1b1710;
+    --border: #352d1f;
+  }
+  :root:not([data-theme="light"])[data-tint="season"][data-season="autumn"] {
+    --bg: #100c09;
+    --surface: #1b1511;
+    --border: #352a20;
+  }
+  :root:not([data-theme="light"])[data-tint="season"][data-season="winter"] {
+    --bg: #090d13;
+    --surface: #12171f;
+    --border: #232c3a;
+  }
+}
+
+:root[data-theme="dark"][data-tint="season"][data-season="spring"] {
+  --bg: #0a0f0b;
+  --surface: #121a14;
+  --border: #26342b;
+}
+:root[data-theme="dark"][data-tint="season"][data-season="summer"] {
+  --bg: #100e08;
+  --surface: #1b1710;
+  --border: #352d1f;
+}
+:root[data-theme="dark"][data-tint="season"][data-season="autumn"] {
+  --bg: #100c09;
+  --surface: #1b1511;
+  --border: #352a20;
+}
+:root[data-theme="dark"][data-tint="season"][data-season="winter"] {
+  --bg: #090d13;
+  --surface: #12171f;
+  --border: #232c3a;
+}
+
+/* --- nothing drifts behind text -------------------------------------------
+
+   A leaf crossing a paragraph makes the paragraph harder to read, and no
+   amount of lowering the opacity fixes that -- the eye follows the moving
+   thing. So the two elements that hold text, <header> and <main>, paint their
+   own opaque ground and the layer passes *behind* them.
+
+   Two elements rather than a rule per card, because every page in this app is
+   one centred `<main className="mx-auto max-w-...">` column: giving it a
+   background occludes exactly the reading width, at whatever width that page
+   chose, with no per-page work and nothing to forget on the next page. What is
+   left for the weather is the gutters either side -- which is where weather
+   belongs, and which quietly becomes nothing at all on a phone, where there is
+   no room for it beside the words.
+
+   The wash is painted here too, as a flat gradient of the same colour, so the
+   column and the gutters are the same shade and there is no seam down the edge
+   of the text. With no season set, `--season-wash` is undefined, the gradient
+   is invalid at computed-value time, and `background-image` falls back to
+   `none` -- which is exactly the behaviour wanted, and the reason it is
+   written as a gradient rather than as a second background colour.
+   ------------------------------------------------------------------------- */
+
+header,
+main {
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--season-wash), var(--season-wash));
+}
+
+/* ===== ambience ============================================================
+
+   The decorations that belong to light and dark rather than to a season, under
+   `data-ambience` on <html>: a starfield in dark, a dust-mote sunbeam and
+   paper grain in light, and a warmth that follows the clock.
+
+   Every one of them is an overlay with a measured alpha or a shape -- not one
+   redefines a token. The daypart wash composites on top of whatever the season
+   left, and the figure that matters is the stack: a tinted ground, plus a
+   season wash, plus a daypart wash, keeps every ink at 4.62:1 or better.
+   ========================================================================= */
+
+/* Warmth by the clock. Warm at either end of the day, faintly cool at midday,
+   cool-blue overnight. The alphas are smaller than the seasons' because this
+   one is always on once ambience is, and a cast you did not pick has to be
+   fainter than one you did. */
+:root[data-ambience][data-daypart="morning"] { --ambience-wash: rgb(245 158 11 / 0.03); }
+:root[data-ambience][data-daypart="day"] { --ambience-wash: rgb(56 189 248 / 0.025); }
+:root[data-ambience][data-daypart="evening"] { --ambience-wash: rgb(249 115 22 / 0.035); }
+:root[data-ambience][data-daypart="night"] { --ambience-wash: rgb(99 102 241 / 0.03); }
+
+.ambience {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+.ambience-wash {
+  position: absolute;
+  inset: 0;
+  background: var(--ambience-wash);
+}
+
+/* Paper grain: light only, and static. A study aid should read as paper rather
+   than as a lit screen, and the one decoration here that never moves is also
+   the only one that survives `prefers-reduced-motion` untouched. The noise is
+   an inline SVG turbulence rather than an image file, so it costs no request. */
+.ambience-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+}
+
+/* The sunbeam: one wide diagonal band, sweeping over two minutes. */
+.ambience-beam {
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(
+    102deg,
+    transparent 38%,
+    rgb(255 236 190 / 0.5) 47%,
+    rgb(255 244 214 / 0.62) 50%,
+    rgb(255 236 190 / 0.5) 53%,
+    transparent 62%
+  );
+  animation: ambience-sweep 120s ease-in-out infinite alternate;
+}
+
+.ambience-mote {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  opacity: var(--mote-opacity);
+  will-change: translate, opacity;
+}
+
+/* A star sits still and breathes. Anything that travelled would be a firefly,
+   and summer already has those. */
+.ambience-star {
+  background: var(--star-ink);
+  box-shadow: 0 0 var(--size) var(--star-ink);
+  animation: ambience-twinkle var(--dur) ease-in-out var(--delay) infinite alternate;
+}
+
+/* Dust drifts up and sideways at a crawl -- two minutes to cross. */
+.ambience-dust {
+  background: var(--dust-ink);
+  animation: ambience-float var(--dur) linear var(--delay) infinite;
+}
+
+@keyframes ambience-sweep {
+  from { translate: -8vw 0; }
+  to { translate: 8vw 0; }
+}
+@keyframes ambience-twinkle {
+  from { opacity: calc(var(--mote-opacity) * 0.25); }
+  to { opacity: var(--mote-opacity); }
+}
+@keyframes ambience-float {
+  from { translate: 0 6vh; }
+  to { translate: 4vw -10vh; }
+}
+
+/* The two ornament inks. Stated per theme rather than per element, because
+   which of them is visible is settled by the display rules below. */
+:root { --star-ink: #cbd5e1; --dust-ink: #b78a4a; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --star-ink: #e2e8f0; --dust-ink: #b78a4a; }
+}
+:root[data-theme="dark"] { --star-ink: #e2e8f0; --dust-ink: #b78a4a; }
+
+/* Which half is drawn is a CSS question, not a server one: a theme of `system`
+   means the server does not know which it is. Both sets render, and these hide
+   the wrong one. Same three-block dance as everything else in this file. */
+.ambience-star { display: none; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ambience-star { display: block; }
+  :root:not([data-theme="light"]) .ambience-dust,
+  :root:not([data-theme="light"]) .ambience-beam,
+  :root:not([data-theme="light"]) .ambience-grain { display: none; }
+}
+
+:root[data-theme="dark"] .ambience-star { display: block; }
+:root[data-theme="dark"] .ambience-dust,
+:root[data-theme="dark"] .ambience-beam,
+:root[data-theme="dark"] .ambience-grain { display: none; }
+
+:root[data-theme="light"] .ambience-star { display: none; }
+:root[data-theme="light"] .ambience-dust,
+:root[data-theme="light"] .ambience-beam,
+:root[data-theme="light"] .ambience-grain { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The washes and the grain stay -- neither moves. Everything that travels or
+     pulses goes, the beam included, whose whole character is the sweep. */
+  .ambience-mote,
+  .ambience-beam { display: none; }
+}
+
+@media print {
+  .ambience { display: none; }
+}
+
+/* ===== the three that are not switchable ===================================
+
+   A focus ring, a glow on the study streak, and an idle tilt on the wordmark.
+   None has a preference, for one reason each: the ring is an accessibility
+   improvement and not something anyone should be able to turn off; the other
+   two are small enough that a switch would cost more attention than the thing
+   it governs. Both of those stand down under `prefers-reduced-motion`.
+   ========================================================================= */
+
+/* The app had only the browser default, which on a light ground is a thin dark
+   outline easy to lose. Keyboard-only -- `:focus-visible`, not `:focus` -- so
+   a mouse click does not ring the thing it clicked. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The study streak on the home page. `--streak` is set inline from the run
+   length, so a longer run glows harder. The only decoration in the app driven
+   by data -- and the data is already printed beside it in words, which is what
+   keeps it decoration. */
+/* Static, deliberately. A pulsing glow would be the one animation in the whole
+   decoration that cannot run on the compositor -- text-shadow repaints -- and
+   the pulse was never the interesting half. The intensity scaling with the run
+   is, and that needs no frames at all. */
+.streak {
+  text-shadow: 0 0 calc(var(--streak, 0) * 3px) var(--unverified);
+}
+
+/* The mark beside the wordmark, breathing. Two degrees and eleven seconds:
+   enough to notice once, not enough to watch. */
+.mark {
+  animation: mark-idle 11s ease-in-out infinite;
+}
+
+@keyframes mark-idle {
+  0%, 100% { rotate: -2deg; }
+  50% { rotate: 2deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Only the mark moves now; the streak's glow is static. */
+  .mark { animation: none; }
 }

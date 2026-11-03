@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import { accounts, sessions, siteSettings, userPreferences, users } from '@/db/schema';
 import {
-  clearPalette, clearSitePalette, getPreferences, seasonAttribute, setColorAxis, setPaletteColor,
-  setPaletteColors, setSeason, setSitePaletteColor, setSitePaletteColors, setSiteSeason,
-  setSiteTheme, setTheme, themeAttribute,
+  clearPalette, clearSitePalette, decorAttributes, getPreferences, seasonAttribute, setAmbience,
+  setColorAxis, setPaletteColor, setPaletteColors, setSeason, setSeasonTint, setSiteAmbience,
+  setSitePaletteColor, setSitePaletteColors, setSiteSeason, setSiteSeasonTint, setSiteTheme,
+  setTheme, themeAttribute,
 } from '@/lib/theme/preferences';
 
 const ME = 'user-student';
@@ -56,8 +57,15 @@ describe('getPreferences', () => {
 
   it('survives a site with no settings row at all', async () => {
     const prefs = await getPreferences(ME);
+    // Every decoration off, which is the point: an upgrade must not start
+    // animating under somebody who has never opened Settings.
     expect(prefs).toEqual({
-      theme: 'system', colorAxis: 'class', season: 'off', paletteOverrides: {},
+      theme: 'system',
+      colorAxis: 'class',
+      season: 'off',
+      seasonTint: false,
+      ambience: false,
+      paletteOverrides: {},
     });
   });
 });
@@ -355,5 +363,68 @@ describe('seasonAttribute', () => {
 
   it('resolves auto against the date it is given', () => {
     expect(seasonAttribute('auto', new Date(2026, 11, 25))).toBe('winter');
+  });
+});
+
+describe('setSeasonTint and setAmbience', () => {
+  it('turns on from a checked box and off from an absent one', async () => {
+    await setSeasonTint(ME, 'on');
+    await setAmbience(ME, 'on');
+    let prefs = await getPreferences(ME);
+    expect([prefs.seasonTint, prefs.ambience]).toEqual([true, true]);
+
+    // What the form actually sends when both boxes are cleared: nothing.
+    await setSeasonTint(ME, null);
+    await setAmbience(ME, undefined);
+    prefs = await getPreferences(ME);
+    expect([prefs.seasonTint, prefs.ambience]).toEqual([false, false]);
+  });
+
+  it('is independent of the season itself', async () => {
+    // A tint with no season draws nothing, and that is the layout's business
+    // rather than a reason to refuse the setting -- somebody turning the
+    // season back on should find their tint where they left it.
+    await setSeasonTint(ME, 'on');
+    await setSeason(ME, 'off');
+    expect((await getPreferences(ME)).seasonTint).toBe(true);
+  });
+
+  it('has a site default that reaches somebody with no row of their own', async () => {
+    await setSiteSeasonTint('on');
+    await setSiteAmbience('on');
+    const prefs = await getPreferences(ME);
+    expect([prefs.seasonTint, prefs.ambience]).toEqual([true, true]);
+  });
+});
+
+describe('decorAttributes', () => {
+  const base = { season: 'off', seasonTint: false, ambience: false } as const;
+
+  it('stamps nothing at all when everything is off', () => {
+    expect(decorAttributes(base)).toEqual({
+      season: null, tint: null, ambience: false, daypart: null,
+    });
+  });
+
+  it('withholds a tint there is no season to tint', () => {
+    // The stylesheet has no rule for [data-tint] without [data-season], so
+    // stamping one would be stamping a state that means nothing.
+    expect(decorAttributes({ ...base, seasonTint: true }).tint).toBeNull();
+  });
+
+  it('pairs a tint with its season', () => {
+    const decor = decorAttributes({ ...base, season: 'winter', seasonTint: true });
+    expect(decor).toMatchObject({ season: 'winter', tint: 'season' });
+  });
+
+  it('withholds a daypart nothing would read', () => {
+    expect(decorAttributes(base).daypart).toBeNull();
+    expect(decorAttributes({ ...base, ambience: true }, new Date(2026, 10, 3, 19)).daypart)
+      .toBe('evening');
+  });
+
+  it('resolves auto against the date, as the season attribute does', () => {
+    expect(decorAttributes({ ...base, season: 'auto' }, new Date(2026, 6, 4)).season)
+      .toBe('summer');
   });
 });

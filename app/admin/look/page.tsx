@@ -48,6 +48,8 @@ export default async function AdminLookPage({
   const sitePalette = settings?.defaultPalette ?? {};
   const theme = isThemePref(settings?.defaultTheme) ? settings.defaultTheme : 'system';
   const season = isSeasonPref(settings?.defaultSeason) ? settings.defaultSeason : 'off';
+  const seasonTint = settings?.defaultSeasonTint ?? false;
+  const ambience = settings?.defaultAmbience ?? false;
 
   const [swatches, samples, mine] = await Promise.all([
     // The site palette alone, with no personal colours layered on: the point
@@ -72,7 +74,10 @@ export default async function AdminLookPage({
         colour — so changing one here moves it for everyone who has not picked that one themselves.
       </p>
 
-      <SiteThemeForm theme={theme} season={season} save={saveSiteThemeAction} />
+      <SiteThemeForm
+        theme={theme} season={season} seasonTint={seasonTint} ambience={ambience}
+        save={saveSiteThemeAction}
+      />
 
       <section className="mt-10">
         <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">

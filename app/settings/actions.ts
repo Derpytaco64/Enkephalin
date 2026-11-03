@@ -5,7 +5,8 @@ import type { Result } from '@/lib/drugs/mutations';
 import { requireUser } from '@/lib/session';
 import { isColorAxis, randomPalette } from '@/lib/theme/palette';
 import {
-  clearPalette, setColorAxis, setPaletteColor, setPaletteColors, setSeason, setTheme,
+  clearPalette, setAmbience, setColorAxis, setPaletteColor, setPaletteColors, setSeason,
+  setSeasonTint, setTheme,
 } from '@/lib/theme/preferences';
 import { listSwatches } from '@/lib/theme/swatches';
 
@@ -35,6 +36,14 @@ export async function saveLookAction(formData: FormData): Promise<Result> {
 
   const season = await setSeason(session.user.id, formData.get('season'));
   if (!season.ok) return season;
+
+  // An unchecked box is absent from the form rather than false, which is
+  // exactly what these writers read -- see the note on `setSeasonTint`.
+  const tint = await setSeasonTint(session.user.id, formData.get('seasonTint'));
+  if (!tint.ok) return tint;
+
+  const ambience = await setAmbience(session.user.id, formData.get('ambience'));
+  if (!ambience.ok) return ambience;
 
   applied();
   return { ok: true };

@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { contrastRatio } from '@/lib/theme/palette';
+import {
+  CATEGORICAL_RAMP, contrastRatio, SURFACE_DARK, SURFACE_LIGHT,
+} from '@/lib/theme/palette';
 import {
   isSeasonPref, motesFor, ORNAMENTS, resolveSeason, SEASON_LABELS, SEASON_PREFS,
   seasonFromDate, type Season,
@@ -124,14 +126,14 @@ const CHROME = {
   light: {
     bg: '#fcfcfd', surface: '#ffffff',
     inks: {
-      fg: '#18181b', muted: '#5b6270',
+      fg: '#18181b', muted: '#5b6270', accent: '#1560cc',
       flagged: '#b42318', verified: '#067647', unverified: '#b54708',
     },
   },
   dark: {
     bg: '#0b0d10', surface: '#14171c',
     inks: {
-      fg: '#ececf1', muted: '#9aa1ad',
+      fg: '#ececf1', muted: '#9aa1ad', accent: '#6ea8fe',
       flagged: '#ff8b80', verified: '#5ddba4', unverified: '#ffa06a',
     },
   },
@@ -185,9 +187,9 @@ describe('a season wash leaves the text readable', () => {
     }
   });
 
-  it('never redefines a token that text or a control edge is drawn in', () => {
-    // The whole reason the figures above only have to check the wash. If a
-    // season could move --fg or --border, every contrast guarantee in
+  it('never redefines an ink, anywhere in the decoration', () => {
+    // The whole reason the figures above only have to check the grounds. If a
+    // decoration could move --fg or an ink, every contrast guarantee in
     // tests/study-colour.test.ts would be measuring a palette nobody sees.
     const section = CSS.slice(CSS.indexOf('/* ===== seasons'));
     const declared = new Set(
@@ -195,12 +197,27 @@ describe('a season wash leaves the text readable', () => {
     );
 
     for (const token of [
-      '--fg', '--muted', '--accent', '--accent-fg', '--border', '--bg', '--surface',
-      '--danger', '--ok', '--flagged', '--verified', '--unverified',
+      '--fg', '--muted', '--accent', '--accent-fg',
+      '--danger', '--ok', '--flagged', '--verified', '--unverified', '--not-applicable',
       '--grade-1', '--grade-2', '--grade-3', '--grade-4',
     ]) {
       expect([...declared], token).not.toContain(token);
     }
+  });
+
+  it('moves a ground only where a tint was asked for', () => {
+    // --bg, --surface and --border *are* redefined, by the season tint, and
+    // that is the one decoration allowed to. Every rule that does so has to
+    // say [data-tint] in its selector, or a season would be repainting the
+    // chrome for somebody who only asked for snow.
+    const section = CSS.slice(CSS.indexOf('/* ===== seasons'));
+    const offenders: string[] = [];
+
+    for (const [, selector, body] of section.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/--(?:bg|surface|border)\s*:/.test(body)) continue;
+      if (!selector.includes('[data-tint=')) offenders.push(selector.trim());
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('states every season in all three theme blocks', () => {
@@ -266,7 +283,8 @@ describe('the ornament cannot carry information', () => {
     // The rule the whole app runs under: nothing studied may depend on
     // decoration. An ornament rendered by a study page could differ beside a
     // question; one rendered by the layout is the same on every page.
-    expect(readFileSync('app/layout.tsx', 'utf8')).toContain('<SeasonLayer season={drawn} />');
+    expect(readFileSync('app/layout.tsx', 'utf8'))
+      .toContain('<SeasonLayer season={decor.season} />');
 
     const offenders = ['app/study', 'lib/study'].flatMap((dir) => {
       const walk = (path: string): string[] => {
@@ -353,6 +371,139 @@ describe('the mote table', () => {
       for (const mote of motesFor(season)) {
         expect(mote.duration, `${season} duration`).toBeGreaterThanOrEqual(12);
       }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------------
+   The season tint: the one decoration that repaints the chrome.
+
+   With it on, --bg, --surface and --border are seasonal. So the contrast
+   argument has to be made again on the tinted grounds -- and made against the
+   worst case the app can actually produce, which is a tinted ground under a
+   season wash under a daypart wash.
+   --------------------------------------------------------------------- */
+
+const DAYPART_WASHES = [
+  'rgb(245 158 11 / 0.03)',
+  'rgb(56 189 248 / 0.025)',
+  'rgb(249 115 22 / 0.035)',
+  'rgb(99 102 241 / 0.03)',
+];
+
+describe('the season tint', () => {
+  const tintOf = (theme: 'light' | 'dark', season: Season) => rule(
+    theme === 'light'
+      ? `:root[data-tint="season"][data-season="${season}"] {`
+      : `:root[data-theme="dark"][data-tint="season"][data-season="${season}"] {`,
+  );
+
+  it('states all three grounds for every season, in all three theme blocks', () => {
+    for (const season of SEASONS) {
+      for (const selector of [
+        `:root[data-tint="season"][data-season="${season}"] {`,
+        `:root:not([data-theme="light"])[data-tint="season"][data-season="${season}"] {`,
+        `:root[data-theme="dark"][data-tint="season"][data-season="${season}"] {`,
+      ]) {
+        const declared = rule(selector);
+        for (const token of ['--bg', '--surface', '--border']) {
+          expect(declared[token], `${token} in ${selector}`).toMatch(/^#[0-9a-f]{6}$/);
+        }
+      }
+    }
+  });
+
+  it('keeps the two dark statements of each tint identical', () => {
+    for (const season of SEASONS) {
+      const system = rule(
+        `:root:not([data-theme="light"])[data-tint="season"][data-season="${season}"] {`,
+      );
+      expect(tintOf('dark', season), season).toEqual(system);
+    }
+  });
+
+  for (const theme of ['light', 'dark'] as const) {
+    for (const season of SEASONS) {
+      it(`keeps every ink over 4.5:1 with both washes stacked — ${season}, ${theme}`, () => {
+        const chrome = CHROME[theme];
+        const tint = tintOf(theme, season);
+        const seasonWash = rgba(rule(
+          theme === 'light'
+            ? `:root[data-season="${season}"] {`
+            : `:root[data-theme="dark"][data-season="${season}"] {`,
+        )['--season-wash']);
+
+        for (const ground of ['--bg', '--surface'] as const) {
+          for (const daypart of DAYPART_WASHES) {
+            // The worst case the app can produce: tinted ground, season wash,
+            // then the clock's warmth on top of that.
+            const stacked = over(
+              rgba(daypart),
+              hex(over(seasonWash, hex(tint[ground]))),
+            );
+            for (const [name, ink] of Object.entries(chrome.inks)) {
+              const ratio = contrastRatio(ink, stacked);
+              expect(ratio, `${name} on ${ground} ${stacked} (${ratio.toFixed(2)}:1)`)
+                .toBeGreaterThanOrEqual(4.5);
+            }
+          }
+        }
+      });
+    }
+  }
+
+  it('leaves the palette editor telling the truth', () => {
+    // `SURFACE_LIGHT` / `SURFACE_DARK` in lib/theme/palette.ts are the
+    // *untinted* surfaces, and the editor prints every categorical fill's
+    // contrast against them. That is only defensible while a tint moves those
+    // figures by less than the editor's own precision -- so this measures the
+    // thing the comment there claims, rather than counting hex channels.
+    for (const theme of ['light', 'dark'] as const) {
+      const untinted = theme === 'light' ? SURFACE_LIGHT : SURFACE_DARK;
+      for (const season of SEASONS) {
+        const tinted = tintOf(theme, season)['--surface'];
+        for (const fill of CATEGORICAL_RAMP) {
+          const drift = Math.abs(contrastRatio(fill, tinted) - contrastRatio(fill, untinted));
+          expect(drift, `${fill} on ${season} ${theme} (${drift.toFixed(3)})`)
+            .toBeLessThan(0.15);
+        }
+      }
+    }
+  });
+
+  it('is free to move a border, which carries no contrast duty here', () => {
+    // The point of the tint: the borders are what actually make the app read
+    // as seasonal, and a border is not text. The plain --border manages
+    // 1.27:1 against its own surface, so there is nothing to lose.
+    const moved = SEASONS.filter((season) => tintOf('light', season)['--border'] !== '#e4e4e7');
+    expect(moved).toEqual(SEASONS);
+  });
+});
+
+describe('nothing drifts behind text', () => {
+  it('gives the two elements that hold text their own opaque ground', () => {
+    // A leaf crossing a paragraph makes the paragraph harder to read, and
+    // lowering the opacity does not fix it -- the eye follows the moving
+    // thing. Every page in this app is one centred <main>, so one rule
+    // occludes exactly the reading column at whatever width that page chose.
+    const occlusion = CSS.slice(CSS.indexOf('header,\nmain {'));
+    const body = occlusion.slice(0, occlusion.indexOf('}'));
+
+    expect(body).toContain('background-color: var(--bg)');
+    // The wash is repainted on the column, or there would be a visible seam
+    // down the edge of the text where the washed gutter meets it.
+    expect(body).toContain('linear-gradient(var(--season-wash), var(--season-wash))');
+  });
+
+  it('keeps both layers behind the content wrapper', () => {
+    const layout = readFileSync('app/layout.tsx', 'utf8');
+    expect(layout).toContain('relative z-10');
+
+    for (const selector of ['.season {', '.ambience {']) {
+      const block = CSS.slice(CSS.indexOf(selector));
+      const body = block.slice(0, block.indexOf('}'));
+      expect(body, selector).toContain('z-index: 0');
+      expect(body, selector).toContain('pointer-events: none');
     }
   });
 });

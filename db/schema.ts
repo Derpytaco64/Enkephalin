@@ -393,6 +393,16 @@ export const userPreferences = pgTable('user_preferences', {
   colorAxis: colorAxis('color_axis').notNull().default('class'),
   season: seasonPref('season').notNull().default('off'),
 
+  // Whether the season reaches the chrome -- grounds, surfaces, borders -- or
+  // stays the wash and the motes. A depth, not a season, which is why it is
+  // its own column rather than four more enum labels.
+  seasonTint: boolean('season_tint').notNull().default(false),
+
+  // The decorations that belong to light and dark rather than to a season: a
+  // starfield in dark, a sunbeam and paper grain in light, warmth by the
+  // clock. One switch for the set.
+  ambience: boolean('ambience').notNull().default(false),
+
   // Per-user overrides layered over the site default palette,
   // e.g. { "class:beta-adrenergic-blocker": "#1f6feb" }.
   paletteOverrides: jsonb('palette_overrides').$type<Record<string, string>>().notNull().default({}),
@@ -507,6 +517,8 @@ export const siteSettings = pgTable('site_settings', {
   registrationMode: text('registration_mode').notNull().default('invite'),
   defaultTheme: themePref('default_theme').notNull().default('system'),
   defaultSeason: seasonPref('default_season').notNull().default('off'),
+  defaultSeasonTint: boolean('default_season_tint').notNull().default(false),
+  defaultAmbience: boolean('default_ambience').notNull().default(false),
   defaultPalette: jsonb('default_palette').$type<Record<string, string>>().notNull().default({}),
   disclaimerText: text('disclaimer_text').notNull()
     .default('Enkephalin is a study aid, not a clinical reference. Do not use it for patient care.'),

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import { AmbienceLayer } from '@/app/_components/ambience-layer';
 import { SeasonLayer } from '@/app/_components/season-layer';
 import { SiteHeader } from '@/app/_components/site-header';
 import { getSession } from '@/lib/session';
-import { getPreferences, seasonAttribute, themeAttribute } from '@/lib/theme/preferences';
+import { decorAttributes, getPreferences, themeAttribute } from '@/lib/theme/preferences';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,12 +17,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // chose dark, and the cost -- a dynamic layout -- was already being paid by
   // every page reading a session.
   const session = await getSession();
-  const { theme, season } = await getPreferences(session?.user.id ?? null);
+  const preferences = await getPreferences(session?.user.id ?? null);
 
-  // Resolved here, once, so the wash the stylesheet paints and the motes the
-  // layer draws cannot disagree about which season it is. Null for `off`, and
-  // for nobody who has not asked.
-  const drawn = seasonAttribute(season);
+  // Resolved once, together, so the stylesheet and the two layers cannot
+  // disagree -- and so no combination the stylesheet has no rule for can be
+  // stamped: a tint needs a season, a daypart needs ambience.
+  const decor = decorAttributes(preferences);
 
   return (
     <html
@@ -29,15 +30,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       // Absent for `system`, which `globals.css` answers with
       // `prefers-color-scheme`: the server does not get to decide what the
       // operating system thinks.
-      data-theme={themeAttribute(theme) ?? undefined}
-      data-season={drawn ?? undefined}
+      data-theme={themeAttribute(preferences.theme) ?? undefined}
+      data-season={decor.season ?? undefined}
+      data-tint={decor.tint ?? undefined}
+      data-ambience={decor.ambience ? '' : undefined}
+      data-daypart={decor.daypart ?? undefined}
       suppressHydrationWarning
     >
       <body>
-        {/* Behind everything. The layer is z-index 0 and inert; the wrapper
-            below is z-index 1, which is what keeps a decoration from sitting
-            on top of the page it decorates. */}
-        <SeasonLayer season={drawn} />
+        {/* Behind everything. Both layers are z-index 0 and inert; the wrapper
+            below is z-index 1, and `<header>` and `<main>` paint their own
+            opaque grounds -- which is what keeps a leaf from drifting through
+            a paragraph. See "nothing drifts behind text" in globals.css. */}
+        <AmbienceLayer on={decor.ambience} />
+        <SeasonLayer season={decor.season} />
 
         <div className="relative z-10">
           <SiteHeader />

@@ -71,7 +71,17 @@ export default async function Home() {
         <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
         {overview.streak > 0 && (
           <p className="text-sm text-[var(--muted)]">
-            {overview.streak} day{overview.streak === 1 ? '' : 's'} running
+            {/* The glow is the one decoration in the app driven by data, and
+                the data is printed right beside it in words -- which is what
+                keeps it decoration. Capped at six, past which a longer run
+                would only make the text harder to read. */}
+            <span
+              className="streak font-medium text-[var(--fg)]"
+              style={{ ['--streak' as string]: String(Math.min(overview.streak, 6)) }}
+            >
+              {overview.streak} day{overview.streak === 1 ? '' : 's'}
+            </span>{' '}
+            running
           </p>
         )}
       </div>

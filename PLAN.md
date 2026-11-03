@@ -1023,6 +1023,108 @@ ADHD moving, one list moving and two already shared, and its dosing discarded be
 its own. A full round trip on two throwaway drugs merged and deleted cleanly and left the count back
 at 236 — including the vocabulary rows it orphaned, which is how that behaviour got noticed.
 
+### Nothing drifts behind text (2026-11-03)
+
+The first season shipped with motes crossing the page, and a leaf drifting through a paragraph makes
+the paragraph harder to read. Lowering the opacity does not fix it — **the eye follows the moving
+thing** — so the fix is occlusion, not subtlety.
+
+`<header>` and `<main>` now paint their own opaque ground, and both decoration layers pass behind
+them. Two elements, not a rule per card, because every page in this app is one centred
+`<main className="mx-auto max-w-...">`: giving it a background occludes exactly the reading column,
+at whatever width that page chose, with no per-page work and nothing to forget on the next page.
+What is left for the weather is the gutters either side — which is where weather belongs, and which
+quietly becomes nothing at all on a phone, where there is no room for it beside the words.
+
+The wash is repainted on those two elements as a flat gradient of the same colour, so the column and
+the gutters are the same shade and there is no seam down the edge of the text. With no season set,
+`--season-wash` is undefined, the gradient is invalid at computed-value time, and `background-image`
+falls back to `none` — which is exactly the behaviour wanted, and the reason it is written as a
+gradient rather than as a second background colour.
+
+### The season, let into the chrome (2026-11-03)
+
+A second switch, `season_tint`: whether the season stays the wash and the motes, or reaches the page
+ground, the card surfaces and the borders. Its own column rather than four more season labels, for
+the same reason `season` is its own column rather than four more themes — "autumn, background only"
+and "autumn, everything" are a season *plus a depth*.
+
+**The grounds move barely at all** — off-whites and near-blacks, a cast rather than a colour. **The
+borders move a lot**, because a border is not text and carries no contrast duty here (the plain
+`--border` manages 1.27:1 against its surface), and the borders are what actually make the app read
+as seasonal. `--accent` is deliberately left alone: it is link text *and* a button fill, so four
+seasonal variants would be four more contrast pairs to defend for no gain the borders do not already
+give.
+
+This is the one decoration allowed to redefine `--bg`, `--surface` and `--border`, and a test holds
+that line: any rule in the decoration sections touching a ground must say `[data-tint]` in its
+selector, and no rule anywhere in them may touch an ink. The contrast argument is then re-made on
+the tinted grounds against **the worst case the app can actually produce** — a tinted ground, under
+a season wash, under a daypart wash — which measures **4.62:1**.
+
+One knock-on worth knowing: `SURFACE_LIGHT` / `SURFACE_DARK` in `lib/theme/palette.ts` are the
+*untinted* surfaces, and the palette editor prints every categorical fill's contrast against them.
+A test now pins the tolerance — every hue in `CATEGORICAL_RAMP`, on every tinted surface, within
+0.15 of its untinted figure — so the editor cannot start reporting a different number depending on
+the month.
+
+### The light and the dark get their own weather (2026-11-03)
+
+Seven effects, from the list put to the owner, split by whether a preference for them earns its
+keep.
+
+**Under one switch, `ambience`** — because four switches for four decorations is a settings page
+nobody reads:
+
+- **A starfield, in dark.** 14 stars, 1–3px, that do not move: only their opacity does, on long
+  unequal cycles so no two breathe together. A star that travelled would be a firefly, and summer
+  already has those.
+- **A sunbeam and its dust, in light.** One wide diagonal band sweeping over two minutes, with 8
+  motes taking 90–150 seconds to cross. Dust in a shaft of light barely moves, and hurrying it ruins
+  the whole effect.
+- **Paper grain, in light.** An inline-SVG turbulence at 2%, static. A study aid should read as
+  paper rather than as a lit screen, and this is the only decoration in the app that never moves —
+  which also makes it the only one that survives `prefers-reduced-motion` untouched.
+- **Warmth by the clock.** Four buckets — morning, day, evening, night — as another measured
+  overlay rather than a token change, so it composites through the same contrast test as everything
+  else. Buckets rather than a curve, because a curve has to be re-rendered to be seen, and a page
+  that restyles itself while you read it is worse than one that does not.
+
+**Which half shows is a CSS question, not a server one.** A theme of `system` means the server does
+not know whether it is light or dark — only `prefers-color-scheme` does — so both mote sets render
+and the stylesheet hides the wrong one. Twenty-two spare spans, most of them `display: none`, beats
+either choosing wrong for half the readers or flashing the other one on every load. An explicit
+`light` choice has to put the light set *back* over a dark system preference, which is a third block
+and a test.
+
+**With no switch at all**, each for its own reason:
+
+- **A focus ring.** `:focus-visible`, two pixels of `--accent`, offset. An accessibility improvement
+  should not be something anyone can turn off, and the app had only the browser default — which on a
+  light ground is a thin dark outline that is easy to lose. Keyboard-only, so a mouse click does not
+  ring the thing it clicked.
+- **A glow on the study streak**, scaled by the run and capped at six. The only decoration in the
+  app driven by data — and the data is printed beside it in words, which is what keeps it
+  decoration. **Static, not pulsing**: `text-shadow` repaints, so animating it would have been the
+  one thing here that cannot run on the compositor, and the intensity was always the interesting
+  half.
+- **An idle tilt on the wordmark.** Two degrees, eleven seconds, `rotate` so it composites. Enough
+  to notice once, not enough to watch.
+
+**A second pre-existing contrast problem surfaced, the same way the first did.** Light `--accent`
+was `#1f6feb`: **4.52:1** on `--bg`, two hundredths above the line, for the colour every link in the
+app is drawn in. It is now `#1560cc` — 5.73 unwashed, 5.17 with a tint and both overlays stacked,
+and white on it goes from 4.63 to 5.87. Two near-misses found by one composite test is the argument
+for having written it.
+
+Verified on the running container: migration 0009 applied on boot, all 12 tint blocks survive
+minification with the right values, and every combination stamps exactly the attributes the
+stylesheet has rules for — season with tint and ambience in dark giving all five, season off with
+ambience giving no `data-season` or `data-tint`, `auto` under a `system` theme giving `data-season`
+alone. Each guard was then proved by planting its violation: a season moving a ground without a
+tint, an ink redefined by a decoration, a tint that fails contrast, and the occlusion removed. All
+four failed, and only they.
+
 ### A season is not a theme (2026-11-03)
 
 Four seasonal decorations — spring petals, summer fireflies, autumn leaves, winter snow — and the
@@ -1638,10 +1740,21 @@ the password requires the current password, since the email is the sign-in name.
 password reset — that needs a mailer, so it is the admin screen's job.
 
 **Seasonal decoration** (`/settings`, `/admin/look`) — spring, summer, autumn or winter, or
-`auto` to follow the date. A tint over the page ground and a handful of drifting motes, layered over
-whichever theme is in force rather than replacing it; `off` by default. Pure CSS, one inert layer in
-the root layout, identical on every page so it can never become a study cue. See
-[A season is not a theme](#a-season-is-not-a-theme-2026-11-03).
+`auto` to follow the date. A wash over the page ground and a handful of drifting motes, layered over
+whichever theme is in force rather than replacing it; `off` by default. A second switch lets the
+season reach the chrome — grounds, surfaces and borders — instead of staying a wash. See
+[A season is not a theme](#a-season-is-not-a-theme-2026-11-03) and
+[The season, let into the chrome](#the-season-let-into-the-chrome-2026-11-03).
+
+**Ambient decoration** (`/settings`, `/admin/look`) — a starfield in dark; a sweeping sunbeam, its
+dust and a faint paper grain in light; and a warmth that follows the clock. One switch, `off` by
+default, independent of the season. See
+[The light and the dark get their own weather](#the-light-and-the-dark-get-their-own-weather-2026-11-03).
+
+Everything in both is pure CSS behind two inert layers in the root layout, identical on every page so
+neither can become a study cue — and **nothing drifts behind text**: `<header>` and `<main>` paint
+their own grounds and the layers pass behind them, leaving the gutters to the weather. See
+[Nothing drifts behind text](#nothing-drifts-behind-text-2026-11-03).
 
 **Theming & per-user color** (`/settings`) — light/dark/system, persisted per user, applied
 server-side to avoid a flash on load. Choose the **color axis** (drug class, schedule, a tag kind, or
@@ -2000,11 +2113,23 @@ reachable one-handed; browse table degrades to cards.
   contrast check written for it found that light `--muted` had been sitting at 4.72:1 all along;
   it is now 5.98.
 
-  Asked for alongside it, and **not built**: dynamic elements tied to light and dark themselves
-  rather than to the season. A list was put to the owner — a drifting starfield in dark, a dust-mote
-  sunbeam in light, paper grain, a focus bloom, time-of-day warmth, a streak flame and an idle
-  wordmark — with the ornament layer built as a general mechanism so any of them is a stylesheet
-  block and a mote kind rather than new machinery. Awaiting a pick.
+  Asked for alongside it, and built the same day once the owner said yes to all seven: the
+  light-and-dark decorations. See
+  [The light and the dark get their own weather](#the-light-and-the-dark-get-their-own-weather-2026-11-03).
+
+- **done — 2026-11-03.** ~~Let the wider theme match the season too~~, and ~~stop the motes
+  drifting behind text — a leaf through a paragraph makes it harder to read~~. The second is the one
+  worth remembering: the fix is occlusion, not a lower opacity, because the eye follows the moving
+  thing. `<header>` and `<main>` paint their own grounds and the layers pass behind them, which
+  leaves the weather in the gutters and nothing on a phone. See
+  [Nothing drifts behind text](#nothing-drifts-behind-text-2026-11-03) and
+  [The season, let into the chrome](#the-season-let-into-the-chrome-2026-11-03).
+
+  Also **done — 2026-11-03**: ~~all seven of the light/dark dynamic elements~~ from the list put up
+  the same afternoon — starfield, sunbeam, dust, paper grain, clock warmth, focus ring, streak glow,
+  idle wordmark. Four under one `ambience` switch, three with no switch at all. The contrast test
+  written for the seasons caught a *second* pre-existing near-miss while they went in: light
+  `--accent` had been sitting at 4.52:1, and every link in the app is drawn in it.
 
 - **done — 2026-11-03.** ~~Change the associated email~~. On `/account`, and it needs the current
   password — the email *is* the sign-in name, so a borrowed session must not be able to move the

@@ -41,6 +41,16 @@ export function isColorAxis(value: unknown): value is ColorAxis {
 }
 
 /** The two grounds a fill has to sit on, from `globals.css`. */
+/**
+ * The grounds a categorical colour is checked against.
+ *
+ * The *untinted* ones, deliberately. A season tint moves `--surface` by about
+ * one per cent (see the tint blocks in app/globals.css), which moves these
+ * figures by under a twentieth of a point -- far less than the precision the
+ * editor prints. Threading the live surface through here would mean the same
+ * swatch reporting two different numbers depending on the month, for no gain.
+ * `tests/seasons.test.ts` pins the tolerance so that stays true.
+ */
 export const SURFACE_LIGHT = '#ffffff';
 export const SURFACE_DARK = '#14171c';
 

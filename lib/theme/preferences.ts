@@ -14,6 +14,7 @@ import type { Result } from '@/lib/drugs/mutations';
 import { getSiteSettings } from '@/lib/settings';
 import { withAxisColors, withColor, type Overrides } from './overrides';
 import { isColorAxis, type ColorAxis } from './palette';
+import { daypartOf, type Daypart } from './ambience';
 import { isSeasonPref, resolveSeason, type Season, type SeasonPref } from './seasons';
 
 export type ThemePref = 'light' | 'dark' | 'system';
@@ -31,6 +32,16 @@ export type Preferences = {
    * saving it would pin that one forever.
    */
   season: SeasonPref;
+  /**
+   * Whether the season reaches the chrome -- grounds, surfaces, borders -- or
+   * stays the wash and the motes. A depth, not a season.
+   */
+  seasonTint: boolean;
+  /**
+   * The decorations belonging to light and dark rather than to a season: a
+   * starfield, a sunbeam, paper grain, and warmth by the clock.
+   */
+  ambience: boolean;
   /** The user's own, over the site default. Keyed as in `paletteKey`. */
   paletteOverrides: Record<string, string>;
 };
@@ -49,6 +60,8 @@ export async function sitePreferences(): Promise<Preferences> {
     theme: isThemePref(settings?.defaultTheme) ? settings.defaultTheme : 'system',
     colorAxis: 'class',
     season: isSeasonPref(settings?.defaultSeason) ? settings.defaultSeason : 'off',
+    seasonTint: settings?.defaultSeasonTint ?? false,
+    ambience: settings?.defaultAmbience ?? false,
     paletteOverrides: settings?.defaultPalette ?? {},
   };
 }
@@ -80,6 +93,8 @@ export async function getPreferences(userId: string | null): Promise<Preferences
     // preferences row at all, which is the same way the theme behaves and is
     // the honest reading of "default".
     season: isSeasonPref(row.season) ? row.season : site.season,
+    seasonTint: row.seasonTint,
+    ambience: row.ambience,
     // The user's entries win, key by key, so overriding one colour does not
     // discard the site's answer for the rest.
     paletteOverrides: { ...site.paletteOverrides, ...row.paletteOverrides },
@@ -108,6 +123,36 @@ export function seasonAttribute(season: SeasonPref, now?: Date): Season | null {
   return resolveSeason(season, now);
 }
 
+/**
+ * Everything `<html>` carries for decoration, resolved once per render.
+ *
+ * One function rather than four, because the four answers are not independent:
+ * a tint with no season is nothing, and the daypart is pointless without
+ * ambience. Deciding that here means the layout cannot stamp a combination the
+ * stylesheet has no rule for.
+ */
+export type DecorAttributes = {
+  season: Season | null;
+  /** Only ever set alongside a season; the selector needs both. */
+  tint: 'season' | null;
+  ambience: boolean;
+  /** Only ever set alongside ambience. */
+  daypart: Daypart | null;
+};
+
+export function decorAttributes(
+  preferences: Pick<Preferences, 'season' | 'seasonTint' | 'ambience'>,
+  now?: Date,
+): DecorAttributes {
+  const season = seasonAttribute(preferences.season, now);
+  return {
+    season,
+    tint: season !== null && preferences.seasonTint ? 'season' : null,
+    ambience: preferences.ambience,
+    daypart: preferences.ambience ? daypartOf(now) : null,
+  };
+}
+
 /** Creates the row on first change; `theme` and `colorAxis` are independent. */
 async function upsert(
   userId: string,
@@ -115,6 +160,8 @@ async function upsert(
     theme: ThemePref;
     colorAxis: ColorAxis;
     season: SeasonPref;
+    seasonTint: boolean;
+    ambience: boolean;
     paletteOverrides: Record<string, string>;
   }>,
 ): Promise<void> {
@@ -139,6 +186,23 @@ export async function setColorAxis(userId: string, axis: unknown): Promise<Resul
 export async function setSeason(userId: string, season: unknown): Promise<Result> {
   if (!isSeasonPref(season)) return { ok: false, message: 'That is not a season.' };
   await upsert(userId, { season });
+  return { ok: true };
+}
+
+/**
+ * The two cosmetic switches.
+ *
+ * A checkbox posts `'on'` or nothing at all, which is why these read truthiness
+ * rather than demanding a boolean: an unchecked box is absent from the form, and
+ * refusing `undefined` would make unchecking one impossible.
+ */
+export async function setSeasonTint(userId: string, on: unknown): Promise<Result> {
+  await upsert(userId, { seasonTint: on === true || on === 'on' || on === 'true' });
+  return { ok: true };
+}
+
+export async function setAmbience(userId: string, on: unknown): Promise<Result> {
+  await upsert(userId, { ambience: on === true || on === 'on' || on === 'true' });
   return { ok: true };
 }
 
@@ -209,6 +273,8 @@ async function upsertSite(
   patch: Partial<{
     defaultTheme: ThemePref;
     defaultSeason: SeasonPref;
+    defaultSeasonTint: boolean;
+    defaultAmbience: boolean;
     defaultPalette: Overrides;
   }>,
 ): Promise<void> {
@@ -231,6 +297,16 @@ export async function setSiteTheme(theme: unknown): Promise<Result> {
 export async function setSiteSeason(season: unknown): Promise<Result> {
   if (!isSeasonPref(season)) return { ok: false, message: 'That is not a season.' };
   await upsertSite({ defaultSeason: season });
+  return { ok: true };
+}
+
+export async function setSiteSeasonTint(on: unknown): Promise<Result> {
+  await upsertSite({ defaultSeasonTint: on === true || on === 'on' || on === 'true' });
+  return { ok: true };
+}
+
+export async function setSiteAmbience(on: unknown): Promise<Result> {
+  await upsertSite({ defaultAmbience: on === true || on === 'on' || on === 'true' });
   return { ok: true };
 }
 

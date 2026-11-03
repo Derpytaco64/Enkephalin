@@ -40,6 +40,8 @@ export default async function SettingsPage() {
         theme={preferences.theme}
         axis={preferences.colorAxis}
         season={preferences.season}
+        seasonTint={preferences.seasonTint}
+        ambience={preferences.ambience}
         save={saveLookAction}
       />
 

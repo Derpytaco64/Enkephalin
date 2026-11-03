@@ -38,7 +38,7 @@ export async function SiteHeader() {
               between them are 30px tall. */}
           <img
             src="/enkephalin.webp" alt="" width={256} height={256}
-            className="h-8 w-8 shrink-0"
+            className="mark h-8 w-8 shrink-0"
           />
           Enkephalin
         </Link>

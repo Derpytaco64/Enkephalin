@@ -25,11 +25,15 @@ export function LookForm({
   theme,
   axis,
   season,
+  seasonTint,
+  ambience,
   save,
 }: {
   theme: ThemePref;
   axis: ColorAxis;
   season: SeasonPref;
+  seasonTint: boolean;
+  ambience: boolean;
   save: (formData: FormData) => Promise<Result>;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +95,37 @@ export function LookForm({
             carries its own text — so turning it off loses nothing but the colour.
           </p>
         </div>
+      </div>
+
+      {/* The two switches, under the selects they qualify. Checkboxes rather
+          than selects because each is one yes-or-no, and a two-option select
+          is a checkbox that takes an extra click. */}
+      <div className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox" name="seasonTint" defaultChecked={seasonTint} className="mt-1"
+          />
+          <span>
+            Tint the whole theme to match the season
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              Without this, a season is the background wash and the motes. With it, the page,
+              the cards and the borders take the season&rsquo;s cast too — still light or dark as
+              you chose, just warmer or cooler. Nothing to set if the season is off.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="ambience" defaultChecked={ambience} className="mt-1" />
+          <span>
+            Ambient decoration for light and dark
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              A drifting starfield in dark; a slow sunbeam, its dust and a faint paper grain in
+              light; and a warmth that follows the clock. Independent of the season — you can
+              have both, either, or neither.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

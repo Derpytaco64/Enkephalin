@@ -5,7 +5,8 @@ import type { Result } from '@/lib/drugs/mutations';
 import { requireAdmin } from '@/lib/session';
 import { isColorAxis, randomPalette } from '@/lib/theme/palette';
 import {
-  clearSitePalette, setSitePaletteColor, setSitePaletteColors, setSiteSeason, setSiteTheme,
+  clearSitePalette, setSiteAmbience, setSitePaletteColor, setSitePaletteColors, setSiteSeason,
+  setSiteSeasonTint, setSiteTheme,
 } from '@/lib/theme/preferences';
 import { listSwatches } from '@/lib/theme/swatches';
 
@@ -34,6 +35,12 @@ export async function saveSiteThemeAction(formData: FormData): Promise<Result> {
 
   const season = await setSiteSeason(formData.get('season'));
   if (!season.ok) return season;
+
+  const tint = await setSiteSeasonTint(formData.get('seasonTint'));
+  if (!tint.ok) return tint;
+
+  const ambience = await setSiteAmbience(formData.get('ambience'));
+  if (!ambience.ok) return ambience;
 
   applied();
   return { ok: true };

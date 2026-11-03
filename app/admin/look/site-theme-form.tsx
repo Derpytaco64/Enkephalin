@@ -18,10 +18,14 @@ import { SEASON_LABELS, SEASON_PREFS, type SeasonPref } from '@/lib/theme/season
 export function SiteThemeForm({
   theme,
   season,
+  seasonTint,
+  ambience,
   save,
 }: {
   theme: ThemePref;
   season: SeasonPref;
+  seasonTint: boolean;
+  ambience: boolean;
   save: (formData: FormData) => Promise<Result>;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +73,30 @@ export function SiteThemeForm({
         Reaches only people who have never opened their own Settings — once somebody saves there,
         their answer is theirs. Yours included, so set it here and check it signed out.
       </p>
+
+      <div className="mt-4 space-y-2 border-t border-[var(--border)] pt-4">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox" name="seasonTint" defaultChecked={seasonTint} className="mt-1"
+          />
+          <span>
+            Tint the whole theme to match the season
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              Grounds, card surfaces and borders take the season&rsquo;s cast, not just the
+              background wash.
+            </span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="ambience" defaultChecked={ambience} className="mt-1" />
+          <span>
+            Ambient decoration for light and dark
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              A starfield in dark, a sunbeam and paper grain in light, and warmth by the clock.
+            </span>
+          </span>
+        </label>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
