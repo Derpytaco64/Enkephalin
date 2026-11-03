@@ -4,6 +4,11 @@ import type { SetupParams } from '@/lib/study/presets';
 /**
  * The saved setups for this page, at the top of its settings.
  *
+ * Above the settings panel and outside it. Inside, it was invisible exactly
+ * when it mattered: the panel collapses the moment a session starts, and a
+ * session starting is what puts the settings in the URL and so makes there be
+ * anything to save.
+ *
  * Read-only on purpose. Saving and removing happen on `/study/setups`, because
  * a write here would have to re-render this page to show its result -- and
  * re-rendering a study page redraws the deck or the paper underneath a session
@@ -26,14 +31,18 @@ export function SetupBar({
   saveHref: string | null;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-[var(--border)] px-4 py-3">
+    <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
         Saved setups
       </span>
 
       {setups.length === 0 ? (
         <span className="text-xs text-[var(--muted)]">
-          none yet — set this up how you like it, then save it
+          {/* Says where the affordance will be, rather than telling you to use
+              one that is not on screen yet: there is nothing to save until
+              something is running. */}
+          none yet — once something is running, <span className="font-medium">Save this
+          setup</span> appears here
         </span>
       ) : (
         setups.map((setup) => (

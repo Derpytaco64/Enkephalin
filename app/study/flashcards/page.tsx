@@ -125,7 +125,16 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
           matched, or everything scheduled for later -- since those are exactly
           the moments you need the controls. Collapsed once cards are running,
           because then the card is the page. */}
-      <details open={deck.cards.length === 0} className="mt-6 rounded border border-[var(--border)]">
+      {/* Outside the panel below, and above it. The panel collapses once cards
+          are running -- which is exactly when there is a setup worth saving,
+          so a save link inside it would be hidden at the only time it applies. */}
+      <SetupBar
+        path={SURFACES.flashcards.path}
+        setups={setups}
+        saveHref={startsSomething(saveParams) ? saveSetupHref('flashcards', saveParams) : null}
+      />
+
+      <details open={deck.cards.length === 0} className="mt-3 rounded border border-[var(--border)]">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
           Session settings
           {started && (
@@ -141,12 +150,6 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             </span>
           )}
         </summary>
-
-        <SetupBar
-          path={SURFACES.flashcards.path}
-          setups={setups}
-          saveHref={startsSomething(saveParams) ? saveSetupHref('flashcards', saveParams) : null}
-        />
 
         <form method="get" className="border-t border-[var(--border)] p-4">
         <div className="grid gap-4 sm:grid-cols-2">

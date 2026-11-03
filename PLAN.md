@@ -804,6 +804,12 @@ loading. A restored backup, or an export from an older version, is not a reason 
 key into a URL — and a row that does not say which page it belongs to is not offered at all,
 because a link to nowhere is worse than a missing row.
 
+**The bar sits above the settings panel, not inside it.** It shipped inside, which made it
+invisible at the only moment it mattered: the panel collapses as soon as a session starts, and a
+session starting is what puts the settings in the URL and so makes there be anything to save. The
+markup was verified and the path a person walks was not — which is the whole difference between
+"the link renders" and "the link can be reached".
+
 **Writes live on the manager page, never on a study page.** This is the one real constraint. A save
 button on the quiz page would have to re-render that page to show its result, and re-rendering a
 study page redraws the deck or the paper underneath a session in progress — the exact bug that

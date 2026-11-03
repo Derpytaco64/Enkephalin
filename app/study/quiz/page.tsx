@@ -167,6 +167,15 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
         </p>
       )}
 
+      {/* Outside the panel below, and above it. The panel collapses the moment
+          a quiz starts -- which is exactly when there is a setup worth saving,
+          so a save link inside it would be hidden at the only time it applies. */}
+      <SetupBar
+        path={SURFACES.quiz.path}
+        setups={setups}
+        saveHref={startsSomething(saveParams) ? saveSetupHref('quiz', saveParams) : null}
+      />
+
       <details open={!started} className="mt-3 rounded border border-[var(--border)]">
         <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
           {started ? 'Change these and start a new quiz' : 'Quiz settings'}
@@ -176,12 +185,6 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
             </span>
           )}
         </summary>
-
-        <SetupBar
-          path={SURFACES.quiz.path}
-          setups={setups}
-          saveHref={startsSomething(saveParams) ? saveSetupHref('quiz', saveParams) : null}
-        />
 
         <form method="get" className="border-t border-[var(--border)] p-4">
           <div className="grid gap-4 sm:grid-cols-2">
