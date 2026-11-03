@@ -1197,17 +1197,20 @@ reachable one-handed; browse table degrades to cards.
 **Queued by the owner, 2026-11-02** — in their words, to be worked after the quiz modes:
 
 - **done — 2026-11-02.** ~~The explanations under *Question shape*, *Direction* and *Priority*
-  should appear on hovering the field's title~~. They are long enough to be honest and so long
-  enough to bury the controls they describe. `app/study/_components/hint.tsx` makes the label the
-  hover target and the prose an absolutely-positioned popover — absolute so the form does not jump
-  under the cursor — with a `?` next to the title, since hover text nobody knows is there is
-  hidden text. No client boundary: hover state on the label, focus state on the field.
+  should appear on hover, and the `?` beside the title should be the only thing that opens them~~.
+  They are long enough to be honest and so long enough to bury the controls they describe.
+  `app/study/_components/hint.tsx` puts the prose in an absolutely-positioned popover — absolute
+  so the form does not jump under the cursor, and anchored to the title row rather than to the
+  mark, since anchored to the mark it would start halfway across the column and run off the right
+  of a two-column form. No client boundary: hover and focus state on the mark.
 
-  Hover alone would make the explanation unreachable for anyone not using a mouse, and Tailwind
-  wraps `group-hover` in `@media (hover: hover)` so on a phone it simply never fires. So the hint
-  also opens when the control takes focus, which covers tabbing to it *and* tapping the title
-  (tapping a label focuses what it labels), and `aria-describedby` points at it so a screen reader
-  reads it whether or not it is visible.
+  The mark is a real `<button>`, and it sits *outside* the `<label>`. Both are load-bearing. Hover
+  alone would make the explanation unreachable for anyone not using a mouse — Tailwind compiles
+  `group-hover` inside `@media (hover: hover)`, so on a phone it would never fire at all — and a
+  button takes focus in sequence, which covers tabbing to it and tapping it alike. Inside the
+  label, a tap would be forwarded to the select and open its options instead of the hint.
+  `aria-describedby` on the control points at the hint, so a screen reader reads it with the field
+  whether or not it is on screen.
 
 - **done — 2026-11-02.** ~~Priority: a question you got wrong should be likelier to come back~~.
   Asked for, and worth having, because a capped paper was spending its 20 questions on 20

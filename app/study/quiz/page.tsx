@@ -172,9 +172,10 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               control={control}
             />
 
-            <div className="group/field">
+            <div>
               <HintedLabel
                 htmlFor="set"
+                title="Question shape"
                 hint={(
                   <>
                     Per fact asks each field on its own. Per drug puts every selected field in one
@@ -182,9 +183,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
                     this is — fewer questions, more evidence in each.
                   </>
                 )}
-              >
-                Question shape
-              </HintedLabel>
+              />
               <select
                 id="set" name="set" defaultValue={config.mode}
                 aria-describedby="set-hint" className={control}
@@ -194,9 +193,10 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               </select>
             </div>
 
-            <div className="group/field">
+            <div>
               <HintedLabel
                 htmlFor="dir"
+                title="Direction"
                 hint={(
                   <>
                     Shown a drug, pick the fact — or shown a fact, pick the drug. Mixed asks
@@ -204,9 +204,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
                     recalls.
                   </>
                 )}
-              >
-                Direction
-              </HintedLabel>
+              />
               <select
                 id="dir" name="dir" defaultValue={direction}
                 aria-describedby="dir-hint" className={control}
@@ -217,9 +215,10 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               </select>
             </div>
 
-            <div className="group/field">
+            <div>
               <HintedLabel
                 htmlFor="pri"
+                title="Priority"
                 hint={(
                   <>
                     A question you last got wrong is four times as likely to be drawn as one you
@@ -230,9 +229,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
                     than the pool; above that it only changes the order.
                   </>
                 )}
-              >
-                Priority
-              </HintedLabel>
+              />
               <select
                 id="pri" name="pri" defaultValue={priority ? 'on' : 'off'}
                 aria-describedby="pri-hint" className={control}
