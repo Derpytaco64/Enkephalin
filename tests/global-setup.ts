@@ -1,8 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
-import { TEST_DATABASE_URL, TEST_DB_CONTAINER, TEST_DB_PORT } from './test-db.mjs';
+import { TEST_DB_CONTAINER, TEST_DB_PORT } from './test-db.mjs';
 
 /**
  * Surfaces docker's stderr. Without it a failure here reaches you as vitest's
@@ -74,11 +71,16 @@ export async function setup() {
     }
   }
 
-  const sql = postgres(TEST_DATABASE_URL, { max: 1 });
+  // In a child process under tsx, not here: see tests/migrate-test-db.mts.
   try {
-    await migrate(drizzle(sql), { migrationsFolder: './db/migrations' });
-  } finally {
-    await sql.end();
+    execFileSync('npx', ['tsx', 'tests/migrate-test-db.mts'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
+    });
+  } catch (err) {
+    const { stderr, stdout, message } = err as { stderr?: Buffer; stdout?: Buffer; message?: string };
+    throw new Error(`migrating the test database failed: ${
+      stderr?.toString().trim() || stdout?.toString().trim() || message}`);
   }
 }
 

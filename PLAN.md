@@ -858,6 +858,35 @@ Not verified by eye: the painted buttons. They render only after a card is revea
 state, so what was checked is that the container serves the class and all eight token values, that
 the runner asks for all four, and the arithmetic of the step mapping.
 
+### The test runner stopped finding tests (2026-11-02)
+
+`npm test` began reporting **"No test files found"** plus a `code.charCodeAt is not a function`
+TypeError from vitest's own error printer — on a tree whose 422 tests had passed twenty minutes
+earlier. `tests/test-db.mjs` already carried a note about that exact pair of symptoms, which is
+what made it findable: in this project they mean *something in the global-setup graph failed and
+vitest destroyed the message while printing it*.
+
+What it actually was, found by tracing each step of the setup into a file (nothing else survives a
+crashing printer): `migrate()` from `drizzle-orm/postgres-js/migrator` returns a promise that never
+settles when it runs inside vitest's global setup, where Vite's module runner has transformed
+`postgres`. Under tsx the same call has always worked, which is why `scripts/` never hit it. Vitest
+then ran teardown and exited 1 with nothing printed.
+
+Two things worth keeping from the hunt:
+
+- **The decisive experiment was `git stash`.** The failure looked like it arrived with the files I
+  was writing. Running the last commit's tree — 422 tests green less than an hour before — failed
+  identically, which ruled out everything I had touched in one command. It should have been the
+  *first* thing tried, not the tenth.
+- **A trace proved more than a hypothesis.** Three plausible causes (a corrupt transform cache, the
+  `.ts`-via-config loader path that caused the earlier incident, a docker port race) were each
+  tested and each wrong. Writing `entered / removed old / container up / ready / migrated` to a file
+  and seeing it stop after `ready` cost one run and named the line.
+
+The fix: `tests/migrate-test-db.mts` does the migration in its own process under tsx, and
+`tests/global-setup.ts` keeps itself to node builtins and shells out to it. Verified by three
+consecutive full runs.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1302,10 +1331,16 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). Remaining: the admin editor for the site default palette |
 | 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
-| 9 | Content elaboration in batches against the real sheet |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
-wastes the work. Phases 0–2 need nothing external. Phases 3 and 9 need the class sheet.
+wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
+
+**Phase 9 is removed** (2026-11-02, the owner's call). It was "content elaboration in batches
+against the real sheet", and the measurement that killed it had already been made and written down
+below: every defined field is fully populated — dosing 236/236, mechanism 236/236, route 236/236,
+black box 90 warnings and 146 correctly none — so there was nothing to elaborate. Elaboration is
+what *defining a new field* means now, which is phase 2 machinery plus authoring, not a phase of its
+own.
 
 ### Phase 1 — auth, invites, and roles
 
@@ -1435,7 +1470,8 @@ reachable one-handed; browse table degrades to cards.
   users admin are all listed as remaining work and all have nothing to act on — 0 flagged fields,
   0 brands needing pairing review, 1 user, 13 audit rows. Every defined field is fully populated
   (dosing 236/236, mechanism 236/236, route 236/236, black box 90 warnings and 146 correctly
-  none), so phase 9 has nothing to elaborate until a new field is defined. What is genuinely left:
+  none), so there is nothing to elaborate until a new field is defined — which is what later
+  removed the content-elaboration phase outright. What is genuinely left:
   **phase 7** (`/settings`: the theme toggle, the colour axis and the palette editor — nothing
   reads `user_preferences` yet) and **a dosing review bench** (71 of 236 drugs carry a regimen the
   parser could not fully decompose, 36 have no printed sig at all, and no screen lists them).
