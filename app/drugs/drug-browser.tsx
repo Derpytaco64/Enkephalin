@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { BrowseFacets, DrugIndexRow } from '@/lib/drugs/browse';
 import { classLabel, isUncategorized } from '@/lib/drugs/drug-class';
-import { scheduleColor } from '@/lib/drugs/schedule';
+import { colorFor, readableTextOn, type ColorAxis } from '@/lib/theme/palette';
 
 const REVIEW_LABELS = {
   flagged: 'Flagged',
@@ -56,8 +56,27 @@ const TAG_GROUPS = [
 const contains = (haystack: string, needle: string) =>
   haystack.toLowerCase().includes(needle.trim().toLowerCase());
 
-export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: BrowseFacets }) {
+export function DrugBrowser({
+  rows,
+  facets,
+  axis,
+  overrides,
+}: {
+  rows: DrugIndexRow[];
+  facets: BrowseFacets;
+  axis: ColorAxis;
+  overrides: Record<string, string>;
+}) {
   const searchParams = useSearchParams();
+
+  /** This row's colour on the chosen axis, and what that colour stands for. */
+  const colorOf = (row: DrugIndexRow) => colorFor(axis, row, overrides);
+  const colorMeans = (row: DrugIndexRow) => {
+    if (axis === 'class') return row.drugClass;
+    if (axis === 'schedule') return row.schedule ?? 'Not controlled';
+    if (axis === 'tag') return row.tags[0] ?? null;
+    return null;
+  };
 
   const [filters, setFilters] = useState<Filters>(() => ({
     q: searchParams.get('q') ?? '',
@@ -325,14 +344,33 @@ export function DrugBrowser({ rows, facets }: { rows: DrugIndexRow[]; facets: Br
                 className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[14rem_1fr_auto] sm:items-baseline"
               >
                 <div className="flex flex-wrap items-baseline gap-x-2">
+                  {/* The axis owns colour. A dot rather than a fill, because
+                      the thing it stands for -- a class name -- does not fit
+                      in a row, and the badge beside it is text that has to
+                      stay readable on its own. */}
+                  {colorOf(row) !== null && (
+                    <span
+                      aria-hidden="true"
+                      title={colorMeans(row) ?? undefined}
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: colorOf(row)! }}
+                    />
+                  )}
                   <Link href={`/drugs/${row.slug}`} className="font-medium text-[var(--accent)] underline">
                     {row.generic}
                   </Link>
 
                   {row.schedule && (
+                    // Filled only when the schedule *is* the axis; otherwise
+                    // it is information in a neutral badge, and the colour on
+                    // the page means something else.
                     <span
-                      className="rounded px-1.5 py-0.5 text-xs text-[var(--accent-fg)]"
-                      style={{ backgroundColor: scheduleColor(row.schedule) }}
+                      className={axis === 'schedule'
+                        ? 'rounded px-1.5 py-0.5 text-xs'
+                        : 'rounded border border-[var(--border)] px-1.5 py-0.5 text-xs text-[var(--muted)]'}
+                      style={axis === 'schedule' && colorOf(row) !== null
+                        ? { backgroundColor: colorOf(row)!, color: readableTextOn(colorOf(row)!) }
+                        : undefined}
                     >
                       {row.schedule}
                     </span>

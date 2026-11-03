@@ -1,10 +1,19 @@
 @import "tailwindcss";
 
-/* Every colour is a token with a light and a dark value, so the per-user
-   palette editor has exactly one place to override and nothing in a component
-   hardcodes a colour. Light is defined on bare :root; dark is redefined twice —
-   once for the system preference (guarded so an explicit light choice wins) and
-   once for an explicit dark choice — so the toggle works in both directions. */
+/* The chrome: page, surface, text, borders and the states drawn as thin
+   markers. Each is a token with a light and a dark value, because a background
+   has to be one or the other. Light is defined on bare :root; dark is redefined
+   twice — once for the system preference (guarded so an explicit light choice
+   wins) and once for an explicit dark choice — so the toggle works both ways.
+   `data-theme` is stamped on <html> during the render; see
+   lib/theme/preferences.ts.
+
+   The categorical colours a drug wears are NOT here. A class or schedule
+   colour is a single value used in both themes — "what colour is CIV" has one
+   answer — so it is resolved in lib/theme/palette.ts, where the editor and the
+   page read the same function and cannot disagree. --surface below is the
+   ground those colours are checked against, light and dark; keep
+   SURFACE_LIGHT and SURFACE_DARK in step with it. */
 
 :root {
   --bg: #fcfcfd;
@@ -16,26 +25,6 @@
   --accent-fg: #ffffff;
   --danger: #b42318;
   --ok: #067647;
-
-  /* Controlled-substance ramp: ordinal, CII strongest through CV faintest.
-     Every badge carries its text too — colour is never the only signal, which
-     also covers colour-vision deficiency. */
-  --sched-c2: #b42318;
-  --sched-c3: #b54708;
-  --sched-c4: #854a0e;
-  --sched-c5: #7a5b1d;
-  --sched-none: #6b7280;
-
-  /* Categorical palette assigned by stable class id, so a drug class is the
-     same colour on every page and across sessions. */
-  --class-1: #1f6feb;
-  --class-2: #067647;
-  --class-3: #7e22ce;
-  --class-4: #b54708;
-  --class-5: #0e7490;
-  --class-6: #a21caf;
-  --class-7: #4d7c0f;
-  --class-8: #be123c;
 
   /* Verification states, used as thin markers rather than fills. */
   --unverified: #b54708;
@@ -56,20 +45,6 @@
     --danger: #ff8b80;
     --ok: #5ddba4;
 
-    --sched-c2: #ff8b80;
-    --sched-c3: #ffa06a;
-    --sched-c4: #ffc46b;
-    --sched-c5: #e2cc8f;
-    --sched-none: #9aa1ad;
-
-    --class-1: #6ea8fe;
-    --class-2: #5ddba4;
-    --class-3: #c99bff;
-    --class-4: #ffa06a;
-    --class-5: #5fd3e8;
-    --class-6: #f184e0;
-    --class-7: #a9d84f;
-    --class-8: #ff8fab;
 
     --unverified: #ffa06a;
     --verified: #5ddba4;
@@ -89,20 +64,6 @@
   --danger: #ff8b80;
   --ok: #5ddba4;
 
-  --sched-c2: #ff8b80;
-  --sched-c3: #ffa06a;
-  --sched-c4: #ffc46b;
-  --sched-c5: #e2cc8f;
-  --sched-none: #9aa1ad;
-
-  --class-1: #6ea8fe;
-  --class-2: #5ddba4;
-  --class-3: #c99bff;
-  --class-4: #ffa06a;
-  --class-5: #5fd3e8;
-  --class-6: #f184e0;
-  --class-7: #a9d84f;
-  --class-8: #ff8fab;
 
   --unverified: #ffa06a;
   --verified: #5ddba4;

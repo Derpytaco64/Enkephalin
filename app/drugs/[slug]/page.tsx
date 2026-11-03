@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
-import { scheduleColor } from '@/lib/drugs/schedule';
+import { colorFor, readableTextOn } from '@/lib/theme/palette';
+import { getPreferences } from '@/lib/theme/preferences';
 import { requireUser } from '@/lib/session';
 import type { FieldValue } from '@/db/schema';
 import { markFieldAction } from './actions';
@@ -81,6 +82,9 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
   const { drug, brands, indications, tags, defs, siblings } = profile;
   const isAdmin = session.user.role === 'admin';
 
+  const { colorAxis: axis, paletteOverrides } = await getPreferences(session.user.id);
+  const color = colorFor(axis, { ...drug, tags: tags.map((tag) => tag.slug) }, paletteOverrides);
+
   // Core fields read from their own columns; the rest come out of the JSONB.
   const coreValues: Record<string, string | null> = {
     generic: drug.genericName,
@@ -103,18 +107,39 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
 
       <header className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">{drug.genericName}</h1>
+        {/* Filled when the class is the axis, neutral otherwise: the colour
+            on a page should mean one thing, and which thing is the reader's
+            choice in Settings. */}
         {drug.drugClass && (
-          <span className="rounded border border-[var(--border)] px-2 py-0.5 text-sm text-[var(--muted)]">
+          <span
+            className={axis === 'class' && color !== null
+              ? 'rounded px-2 py-0.5 text-sm'
+              : 'rounded border border-[var(--border)] px-2 py-0.5 text-sm text-[var(--muted)]'}
+            style={axis === 'class' && color !== null
+              ? { backgroundColor: color, color: readableTextOn(color) }
+              : undefined}
+          >
             {drug.drugClass}
           </span>
         )}
         {drug.schedule && (
           <span
-            className="rounded px-2 py-0.5 text-sm text-[var(--accent-fg)]"
-            style={{ backgroundColor: scheduleColor(drug.schedule) }}
+            className={axis === 'schedule' && color !== null
+              ? 'rounded px-2 py-0.5 text-sm'
+              : 'rounded border border-[var(--border)] px-2 py-0.5 text-sm text-[var(--muted)]'}
+            style={axis === 'schedule' && color !== null
+              ? { backgroundColor: color, color: readableTextOn(color) }
+              : undefined}
           >
             {drug.schedule}
           </span>
+        )}
+        {axis === 'tag' && color !== null && (
+          <span
+            aria-hidden="true"
+            className="inline-block h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+          />
         )}
         {drug.needsClassReview && (
           <span className="text-xs text-[var(--unverified)]">class needs review</span>

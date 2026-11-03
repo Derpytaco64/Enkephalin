@@ -4,7 +4,6 @@ import { db } from '@/db';
 import { brandIndications, drugBrands, drugIndications, drugTags, drugs, fieldDefs, tags } from '@/db/schema';
 import { syncDrugs, type SeedDrug } from '@/lib/content/sync';
 import { getDrugIndex } from '@/lib/drugs/browse';
-import { scheduleColor } from '@/lib/drugs/schedule';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 
 beforeEach(async () => {
@@ -171,19 +170,4 @@ describe('getDrugIndex', () => {
     expect(rows.find((row) => row.slug === 'lisinopril')!.missing).toEqual([]);
   });
 
-  it('maps every schedule in the data to a colour that exists', async () => {
-    // The palette numbers the ramp in arabic while the data uses roman, so
-    // lower-casing CIV gave --sched-civ: no background, near-black text on a
-    // dark ground, invisible but still occupying width.
-    for (const [schedule, token] of [
-      ['CII', 'var(--sched-c2)'],
-      ['CIII', 'var(--sched-c3)'],
-      ['CIV', 'var(--sched-c4)'],
-      ['CV', 'var(--sched-c5)'],
-    ] as const) {
-      expect(scheduleColor(schedule)).toBe(token);
-    }
-    expect(scheduleColor(null)).toBe('var(--sched-none)');
-    expect(scheduleColor('nonsense')).toBe('var(--sched-none)');
-  });
 });

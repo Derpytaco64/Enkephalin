@@ -685,6 +685,50 @@ Adding a field later = one row in `field_defs` via the admin UI. No migration, n
 
 ---
 
+### One colour per value, and 3:1 not 4.5:1 (2026-11-02)
+
+Phase 7 landed, and two things in the feature description above turned out to be wrong once
+measured.
+
+**A categorical colour is one value, not a light/dark pair.** The chrome tokens in `globals.css`
+are defined twice because a page background has to be. A class or schedule colour is not that: the
+question is "what colour is CIV", and an answer that differed by theme would be two answers to one
+question. So those colours left CSS entirely and live in `lib/theme/palette.ts`, resolved per
+request, which is also what lets the editor show the colour the page will actually draw.
+
+**The 4.5:1 warning in the feature list is unreachable, and was the wrong threshold anyway.**
+Measured against both page surfaces, the best of the eight class colours this replaces managed
+4.6:1 on white and 3.9:1 on the dark surface; three of the eight fell below 3:1 on dark, and every
+dark-mode value failed on white, the worst at 1.6:1. The arithmetic is against it: clearing 4.5 on
+white means being dark, which is exactly what disappears on a dark ground.
+
+4.5:1 is the threshold for *text*, and these are fills. So:
+
+- the **fill** is checked at 3:1 against both surfaces (WCAG 1.4.11, non-text contrast), and the
+  default ramps were rechosen from the band that clears it in both themes — a test asserts every
+  default passes its own check, because a default that failed would make the warning noise;
+- the **text on the fill** is computed, not chosen: `readableTextOn` picks black or white, whichever
+  wins, which lands between 4.6:1 and 13.4:1 for every colour in the ramps. The promise that colour
+  is never the only signal is kept by construction rather than by hoping someone picks well.
+
+The editor **warns and allows**. Nothing becomes unreadable by picking badly — the label on the
+badge stays legible either way — so forbidding a colour would be refusing someone their own
+preference over a taste they are entitled to.
+
+**The axis owns colour, so a page means one thing by it.** The schedule badge is filled only when
+schedule *is* the axis; otherwise it is neutral text and the colour on the page means whatever
+Settings says. Browse grew a dot rather than a fill, because a class name does not fit in a row.
+
+Two things to know about the edges:
+
+- Overrides are keyed by **label** (`class:Angiotensin Converting Enzyme Inhibitor`), because
+  `drugs.drug_class` is a text column with no id. A class renamed by a future RxNorm pass orphans
+  its colour, which then sits in `palette_overrides` doing nothing. Harmless, and *Reset every
+  colour* clears it; pruning unknown keys automatically would throw away a colour for a class that
+  is only temporarily absent, mid-import.
+- The swatch list is read from the drugs rather than stored, so it cannot list a colour for a class
+  nobody carries. That caught a wrong key during verification within a minute.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1127,7 +1171,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
-| 7 | Per-user palette editor, theming pass, responsive polish at both breakpoints |
+| 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Remaining: the admin editor for the site default palette, and the responsive polish pass |
 | 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 | 9 | Content elaboration in batches against the real sheet |
 
