@@ -13,6 +13,7 @@ import {
 } from '@/lib/study/presets';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 import { FieldPicker } from '../_components/field-picker';
+import { SaveSetupButton } from '../_components/save-setup-button';
 import { SetupBar } from '../_components/setup-bar';
 import { HintedLabel } from '../_components/hint';
 import { ScopePicker } from '../_components/scope-picker';
@@ -317,9 +318,14 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
             )}
           </div>
 
-          <button type="submit" className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
-            Start
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="submit" className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
+              Start
+            </button>
+            {/* Saves what the controls say now, which is what lets a setup be
+                kept without starting anything. */}
+            <SaveSetupButton surface="quiz" />
+          </div>
         </form>
       </details>
 

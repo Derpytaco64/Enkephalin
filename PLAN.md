@@ -804,6 +804,21 @@ loading. A restored backup, or an export from an older version, is not a reason 
 key into a URL — and a row that does not say which page it belongs to is not offered at all,
 because a link to nowhere is worse than a missing row.
 
+**A setup can be saved before anything starts**, which the first version could not do: the bar
+reads the URL, and the URL holds the settings only once the form has been submitted. So *Save this
+setup* is a **second submit button on the settings form** (`app/study/_components/save-setup-button.tsx`)
+with `formaction` pointing at the manager — the browser then sends the controls as they are right
+now rather than as the URL last recorded them. Plain HTML, no JavaScript and no client boundary,
+and `formtarget="_blank"` so the form you are filling stays as you left it and a session already
+running is not navigated away from. The surface rides as a hidden field rather than in the
+`formaction` query, because a GET submission replaces the action's query string with the form data;
+the cost is a `surface=quiz` on the Start URL, which that page ignores and `setupParams` never
+stores.
+
+The bar keeps its own link, relabelled *Save what's running*, for the case the button cannot serve
+without a detour: mid-session the panel is collapsed and warns that changing it abandons the quiz,
+so a one-click path that touches none of that is worth keeping.
+
 **The bar sits above the settings panel, not inside it.** It shipped inside, which made it
 invisible at the only moment it mattered: the panel collapses as soon as a session starts, and a
 session starting is what puts the settings in the URL and so makes there be anything to save. The
