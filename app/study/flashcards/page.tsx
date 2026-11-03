@@ -6,9 +6,13 @@ import { indicationOptions } from '@/lib/drugs/indications';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
+import {
+  describeSetup, listSetups, saveSetupHref, setupParams, startsSomething, SURFACES,
+} from '@/lib/study/presets';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 import { loadDeck } from '@/lib/study/session';
 import { FieldPicker } from '../_components/field-picker';
+import { SetupBar } from '../_components/setup-bar';
 import { ScopePicker } from '../_components/scope-picker';
 import { SessionRunner } from './session-runner';
 
@@ -97,6 +101,20 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
   const deckSize = Math.max(deck.available, deck.cards.length);
   const sampled = config.maxCards > 0 && deck.available > config.maxCards;
 
+  const labelFor = (key: string) => key
+    .split('+')
+    .map((part) => defs.find((def) => def.key === part)?.label ?? part)
+    .join(', ');
+  // The setups saved for this page, and where saving this one goes. Both read
+  // off the query, which is where every setting already lives.
+  const saveParams = setupParams('flashcards', search);
+  const setups = (await listSetups(session.user.id, 'flashcards')).map((setup) => ({
+    id: setup.id,
+    name: setup.name,
+    params: setup.params,
+    summary: describeSetup('flashcards', setup.params, labelFor),
+  }));
+
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
 
   return (
@@ -123,6 +141,12 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             </span>
           )}
         </summary>
+
+        <SetupBar
+          path={SURFACES.flashcards.path}
+          setups={setups}
+          saveHref={startsSomething(saveParams) ? saveSetupHref('flashcards', saveParams) : null}
+        />
 
         <form method="get" className="border-t border-[var(--border)] p-4">
         <div className="grid gap-4 sm:grid-cols-2">

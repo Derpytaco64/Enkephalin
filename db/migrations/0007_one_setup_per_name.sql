@@ -1,0 +1,11 @@
+-- A saved study setup is addressed by its name, so a name is unique per person.
+--
+-- Without this, saving over a setup would mean reading first and deciding
+-- whether to insert or update, and two tabs doing that at once would leave two
+-- rows called "P2 drill" differing in their filters -- with the list offering
+-- both and no way to tell which is which. The index lets the save be one
+-- statement that either inserts or overwrites.
+--
+-- Per person, not globally: two students naming a setup "Exam 2" is not a
+-- collision, it is two people.
+CREATE UNIQUE INDEX IF NOT EXISTS "study_presets_name_unique" ON "study_presets" ("user_id","name");

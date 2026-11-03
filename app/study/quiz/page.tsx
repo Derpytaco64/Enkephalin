@@ -8,8 +8,12 @@ import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, fieldsForYear, normalizeConfig, type StudyConfig, type YearLevel } from '@/lib/study/config';
 import type { QuizDirection } from '@/lib/study/quiz';
 import { loadQuiz, recentAttempts } from '@/lib/study/quiz-session';
+import {
+  describeSetup, listSetups, saveSetupHref, setupParams, startsSomething, SURFACES,
+} from '@/lib/study/presets';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 import { FieldPicker } from '../_components/field-picker';
+import { SetupBar } from '../_components/setup-bar';
 import { HintedLabel } from '../_components/hint';
 import { ScopePicker } from '../_components/scope-picker';
 import { finishQuizAction } from './actions';
@@ -108,6 +112,16 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     .map((part) => defs.find((def) => def.key === part)?.label ?? part)
     .join(', ');
 
+  // The setups saved for this page, and where saving this one goes. Both read
+  // off the query, which is where every setting already lives.
+  const saveParams = setupParams('quiz', search);
+  const setups = (await listSetups(session.user.id, 'quiz')).map((setup) => ({
+    id: setup.id,
+    name: setup.name,
+    params: setup.params,
+    summary: describeSetup('quiz', setup.params, labelFor),
+  }));
+
   // What is being asked, in words, so it can be read without opening anything.
   const summary = started
     ? [
@@ -162,6 +176,12 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
             </span>
           )}
         </summary>
+
+        <SetupBar
+          path={SURFACES.quiz.path}
+          setups={setups}
+          saveHref={startsSomething(saveParams) ? saveSetupHref('quiz', saveParams) : null}
+        />
 
         <form method="get" className="border-t border-[var(--border)] p-4">
           <div className="grid gap-4 sm:grid-cols-2">

@@ -786,6 +786,41 @@ real history, a 20-question paper over all 236 mechanisms: **1.9** of the 20 wer
 questions drawing evenly, **5.5** weighted, which is 80/296 of the pool's weight and so exactly
 what the table predicts.
 
+### A study setup is a name you can click (2026-11-02)
+
+`study_presets` had been in the schema since phase 0 and nothing read or wrote it, so every quiz
+and every deck started from a blank form and eight controls. `/study/setups` is the manager, and
+both study pages carry a read-only bar of the setups saved for them.
+
+**What is stored is the page's query, not a `StudyConfig`.** Both forms are GET forms whose state
+*is* the URL, and a config cannot hold all of it: `direction` has no value for "mixed, decided per
+question", and priority is not a config field at all. Keeping the query reproduces the page
+exactly, and a setting added later needs no migration. The cost is that a renamed parameter is now
+a decision about saved setups too, which is why the whitelist in `lib/study/presets.ts` is written
+out by hand rather than inferred.
+
+**The whitelist runs both ways.** Saving keeps only the parameters that surface reads; so does
+loading. A restored backup, or an export from an older version, is not a reason to put an unknown
+key into a URL — and a row that does not say which page it belongs to is not offered at all,
+because a link to nowhere is worse than a missing row.
+
+**Writes live on the manager page, never on a study page.** This is the one real constraint. A save
+button on the quiz page would have to re-render that page to show its result, and re-rendering a
+study page redraws the deck or the paper underneath a session in progress — the exact bug that
+scored a finished quiz 0 of 83. So the study pages only ever *link*: loading a setup is a plain
+navigation, since that is a deliberate "start something else", and *Save this setup* opens the
+manager in a new tab for the same reason the profile links do.
+
+**Saving over a name replaces it**, which is how a setup is edited and how it is renamed. One
+statement against a unique index on `(user_id, name)` (migration 0007), so two tabs cannot both win
+and leave two rows called "P2 drill" with different filters and no way to tell them apart. Per
+person, not globally: two students naming a setup "Exam 2" is two people, not a collision.
+
+A setup with no fields and no year is refused rather than saved: both pages key off the field list,
+so that is a blank form under a name. Each row also carries a summary read off its parameters —
+*Brand names · P2 · per fact · mixed directions* — because a name is what you pick a setup by and a
+summary is how you remember which one it was, three weeks after naming two of them "dosing".
+
 ### Review and cram
 
 Two session modes, after the Obsidian spaced-repetition plugin's:
@@ -1195,6 +1230,24 @@ reachable one-handed; browse table degrades to cards.
 ## Open items
 
 **Queued by the owner, 2026-11-02** — in their words, to be worked after the quiz modes:
+
+- **done — 2026-11-02.** ~~Saved study setups~~, picked off the list of what was left because
+  `study_presets` had been sitting unread since phase 0 while every session started from a blank
+  form. See *A study setup is a name you can click* above. Checked live: each page lists only its
+  own setups, loading one starts the session it describes, saving the same name twice leaves one
+  row, and a setup with nothing in it is refused.
+
+  Also measured while picking: the flagged queue, the brand→indication pairing editor and the
+  users admin are all listed as remaining work and all have nothing to act on — 0 flagged fields,
+  0 brands needing pairing review, 1 user, 13 audit rows. Every defined field is fully populated
+  (dosing 236/236, mechanism 236/236, route 236/236, black box 90 warnings and 146 correctly
+  none), so phase 9 has nothing to elaborate until a new field is defined. What is genuinely left:
+  **phase 7** (`/settings`: the theme toggle, the colour axis and the palette editor — nothing
+  reads `user_preferences` yet) and **a dosing review bench** (71 of 236 drugs carry a regimen the
+  parser could not fully decompose, 36 have no printed sig at all, and no screen lists them).
+
+  Left alone by the owner's decision: Midazolam and Methylprednisolone sodium succinate both have
+  dosing recorded as *Individualized*, which makes a question that teaches nothing. Keeping them.
 
 - **done — 2026-11-02.** ~~The explanations under *Question shape*, *Direction* and *Priority*
   should appear on hover, and the `?` beside the title should be the only thing that opens them~~.

@@ -50,6 +50,13 @@
       "when": 1793641153600,
       "tag": "0006_three_wordings_the_sheet_got_wrong",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793641153601,
+      "tag": "0007_one_setup_per_name",
+      "breakpoints": true
     }
   ]
 }

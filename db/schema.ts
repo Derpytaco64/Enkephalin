@@ -384,13 +384,29 @@ export const userPreferences = pgTable('user_preferences', {
   studyDefaults: jsonb('study_defaults').$type<Record<string, unknown>>().notNull().default({}),
 });
 
+/**
+ * A named study setup: the settings of a quiz or a deck, kept so a session you
+ * sit often is one click rather than eight controls.
+ *
+ * `config` holds `{ surface, params }` -- the page it belongs to and that
+ * page's own query parameters -- rather than a `StudyConfig`. The forms are
+ * GET forms whose state *is* the query, and two of the quiz's settings cannot
+ * survive the round trip through a config: `direction` has no value for
+ * "mixed, decided per question" and priority is not a config field at all.
+ * Storing what the URL says reproduces the page exactly, and survives a new
+ * setting being added without a migration.
+ */
 export const studyPresets = pgTable('study_presets', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   config: jsonb('config').$type<Record<string, unknown>>().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  // The name is how a setup is addressed, so saving over one is a single
+  // statement rather than a read-then-decide two tabs could both win.
+  uniqueIndex('study_presets_name_unique').on(t.userId, t.name),
+]);
 
 /* ------------------------------------------------------------ study ------ */
 
