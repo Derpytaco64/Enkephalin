@@ -845,6 +845,15 @@ Two things the build taught, both now held by `tests/grade-scale.test.ts`:
   whichever half of the users hit the other code path. The test compares the two blocks token for
   token -- all of them, not just the ramp -- and was confirmed to fail on a single changed hex digit.
 
+**And the quiz says which answer was which in colour** (2026-11-02). `--flagged` and `--verified`
+began as thin markers -- a border and a one-word tag -- and are now set as body text: the answer you
+gave, the answer that was right, and both halves of the pair your wrong answer actually belongs to
+(*Mechanism of action of Simvastatin: HMG-CoA reductase inhibition*). The connective words stay
+muted, because what is being pointed at is the drug and the fact, not "is the" or "of". Worst case
+of the four ink-on-ground combinations is 5.55:1, held by a test now that these are text rather than
+markers, and the words "Correct:" and "Your answer:" still carry the meaning on their own -- colour
+is confirmation here, not the message.
+
 Not verified by eye: the painted buttons. They render only after a card is revealed, which is client
 state, so what was checked is that the container serves the class and all eight token values, that
 the runner asks for all four, and the arithmetic of the step mapping.

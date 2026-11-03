@@ -33,14 +33,20 @@ function Mismatch({
   const fact = question.fromFact[chosenIndex];
   if (!owner) return null;
 
+  // Both halves of the pair wear the colour the wrong option was marked in,
+  // so the sentence reads as belonging to the answer that was wrong rather
+  // than as a general note. The connective words stay muted: what is being
+  // pointed at is the drug and the fact, not "is the" or "of".
+  const half = 'text-[var(--flagged)]';
+
   if (fact) {
     // Options were drug names: say what that drug is actually for.
     return (
       <>
-        <span className="text-[var(--muted)]">
-          {question.fieldLabel} of {owner}:{' '}
-        </span>
-        {fact}
+        <span className="text-[var(--muted)]">{question.fieldLabel} of </span>
+        <span className={half}>{owner}</span>
+        <span className="text-[var(--muted)]">: </span>
+        <span className={half}>{fact}</span>
       </>
     );
   }
@@ -48,12 +54,12 @@ function Mismatch({
   // Options were facts: say whose fact it is.
   return (
     <>
-      <span className="text-[var(--muted)]">&ldquo;{chosen}&rdquo; is the </span>
-      {question.fieldLabel.toLowerCase()}
-      <span className="text-[var(--muted)]"> of </span>
+      <span className="text-[var(--muted)]">&ldquo;</span>
+      <span className={half}>{chosen}</span>
+      <span className="text-[var(--muted)]">&rdquo; is the {question.fieldLabel.toLowerCase()} of </span>
       <a
         href={`/drugs/${question.fromSlug[chosenIndex]}`} target="_blank" rel="noreferrer"
-        className="text-[var(--accent)] underline"
+        className={`${half} underline`}
       >
         {owner} &#8599;
       </a>
@@ -197,13 +203,13 @@ export function QuizRunner({
                     <p className="whitespace-pre-line text-sm">{row.prompt}</p>
                     <p className="mt-2 text-sm">
                       <span className="text-[var(--muted)]">Correct: </span>
-                      {row.options[row.correctIndex]}
+                      <span className="text-[var(--verified)]">{row.options[row.correctIndex]}</span>
                     </p>
                     {chosen !== undefined && chosen !== null ? (
                       <>
                         <p className="text-sm">
                           <span className="text-[var(--muted)]">Your answer: </span>
-                          {row.options[chosen]}
+                          <span className="text-[var(--flagged)]">{row.options[chosen]}</span>
                         </p>
                         <p className="mt-2 text-sm text-[var(--muted)]">
                           <Mismatch question={row} chosenIndex={chosen} />

@@ -136,3 +136,34 @@ describe('the grade scale', () => {
     for (const step of STEPS) expect(runner).toContain(step);
   });
 });
+
+/* --flagged and --verified began life as thin markers on a border and a
+   one-word tag. The quiz now sets them as body text: the answer you gave, the
+   answer that was right, and both halves of the pair your wrong answer
+   actually belongs to. Text is the 4.5:1 threshold, and it is checked against
+   both grounds a study surface can sit on -- the card's --surface and the
+   page's --bg. */
+describe('the quiz feedback inks', () => {
+  const INKS = ['--flagged', '--verified'];
+
+  it('reads as text on both grounds, in both themes', () => {
+    const { light, explicitDark } = blocks();
+    for (const [name, block] of [['light', light], ['dark', explicitDark]] as const) {
+      const found = tokens(block);
+      for (const ink of INKS) {
+        for (const ground of ['--surface', '--bg']) {
+          const ratio = contrastRatio(found[ink], found[ground]);
+          expect(ratio, `${ink} on ${ground}, ${name} (${ratio.toFixed(2)}:1)`)
+            .toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
+
+  it('is never the only thing saying which answer was which', () => {
+    const runner = readFileSync('app/study/quiz/quiz-runner.tsx', 'utf8');
+    // The words carry it: colour is confirmation, not the message.
+    expect(runner).toContain('Your answer: ');
+    expect(runner).toContain('Correct: ');
+  });
+});
