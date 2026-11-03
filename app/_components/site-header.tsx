@@ -12,12 +12,15 @@ export async function SiteHeader() {
 
   return (
     <header className="border-b border-[var(--border)]">
-      <nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+      {/* Wraps. Signed in as an admin this holds the wordmark, four links, the
+          email and Sign out, which does not fit on a phone -- and without a
+          wrap it did not shrink, it overflowed the page sideways. */}
+      <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-3">
         <Link href="/" className="font-semibold tracking-tight">
           Enkephalin
         </Link>
 
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           {session ? (
             <>
               <Link href="/drugs" className="text-[var(--accent)] underline">

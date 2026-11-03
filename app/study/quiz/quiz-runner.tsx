@@ -153,7 +153,7 @@ export function QuizRunner({
 
   if (questions.length === 0) {
     return (
-      <div className="mt-10 rounded border border-[var(--border)] p-6">
+      <div className="mt-10 rounded border border-[var(--border)] p-4 sm:p-6">
         <p className="font-medium">No questions.</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Either nothing in scope has a value for the fields you picked, or the scope is down to a
@@ -168,7 +168,7 @@ export function QuizRunner({
 
     return (
       <div className="mt-8">
-        <div className="rounded border border-[var(--border)] p-6">
+        <div className="rounded border border-[var(--border)] p-4 sm:p-6">
           <p className="text-lg font-medium">
             {score} of {questions.length} — {Math.round((score / questions.length) * 100)}%
           </p>
@@ -238,7 +238,7 @@ export function QuizRunner({
         <span>{score} right of {done} answered</span>
       </div>
 
-      <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-6">
+      <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
         <p className="whitespace-pre-line text-lg">{question.prompt}</p>
 
         <ul className="mt-6 space-y-2">
@@ -260,10 +260,13 @@ export function QuizRunner({
                   onClick={() => choose(optionIndex)}
                   disabled={answered}
                   style={{ borderColor: border }}
-                  className="flex w-full items-baseline gap-3 rounded border px-4 py-3 text-left disabled:cursor-default"
+                  className="flex w-full items-baseline gap-3 rounded border px-3 py-3 text-left disabled:cursor-default sm:px-4"
                 >
-                  <span className="text-xs text-[var(--muted)]">{optionIndex + 1}</span>
-                  <span className="whitespace-pre-line">{option}</span>
+                  <span className="shrink-0 text-xs text-[var(--muted)]">{optionIndex + 1}</span>
+                  {/* min-w-0: a flex child will not shrink below its content
+                      without it, so one long option would widen the whole
+                      button past the card. */}
+                  <span className="min-w-0 whitespace-pre-line">{option}</span>
                   {answered && isCorrect && (
                     <span className="ml-auto shrink-0 text-xs text-[var(--verified)]">Correct</span>
                   )}

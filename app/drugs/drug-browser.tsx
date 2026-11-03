@@ -339,11 +339,21 @@ export function DrugBrowser({
               <li
                 key={row.slug}
                 /* Columns rather than a flex run: with everything flowing after
-                   the name, brands started at a different x on every row. On a
-                   phone it collapses back to stacked lines. */
-                className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[14rem_1fr_auto] sm:items-baseline"
+                   the name, brands started at a different x on every row. Below
+                   the breakpoint it collapses back to stacked lines.
+
+                   Three columns from `md` rather than `sm`, and every track
+                   `minmax(0, ...)`. The class column used to be `auto`, which
+                   in a grid means max-content -- so "Herpes Simplex Virus
+                   Nucleoside Analog DNA Polymerase Inhibitor" took the width it
+                   wanted and crushed the brands beside it, right up against the
+                   16px gap. Bounded, it wraps to a second line instead, and the
+                   other two keep their share. */
+                className="grid gap-x-6 gap-y-1.5 py-3 md:grid-cols-[minmax(11rem,1.1fr)_minmax(0,1fr)_minmax(0,13rem)] md:items-baseline"
               >
-                <div className="flex flex-wrap items-baseline gap-x-2">
+                {/* gap-y as well as gap-x: the badges wrap under a long
+                    generic name, and without it the two lines touched. */}
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   {/* The axis owns colour. A dot rather than a fill, because
                       the thing it stands for -- a class name -- does not fit
                       in a row, and the badge beside it is text that has to
@@ -385,7 +395,9 @@ export function DrugBrowser({
                   {row.brands.join(', ') || '—'}
                 </span>
 
-                <span className="text-sm text-[var(--muted)] sm:text-right">{classLabel(row.drugClass)}</span>
+                <span className="text-sm text-[var(--muted)] md:text-right">
+                  {classLabel(row.drugClass)}
+                </span>
               </li>
             ))}
           </ul>

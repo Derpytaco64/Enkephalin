@@ -79,7 +79,7 @@ export function SessionRunner({
 
   if (cards.length === 0) {
     return (
-      <div className="mt-10 rounded border border-[var(--border)] p-6">
+      <div className="mt-10 rounded border border-[var(--border)] p-4 sm:p-6">
         <p className="font-medium">Nothing to study.</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           {inScope === 0
@@ -92,7 +92,7 @@ export function SessionRunner({
 
   if (session.finished || !card) {
     return (
-      <div className="mt-10 rounded border border-[var(--border)] p-6">
+      <div className="mt-10 rounded border border-[var(--border)] p-4 sm:p-6">
         <p className="font-medium">Session complete.</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           {cards.length} card{cards.length === 1 ? '' : 's'}
@@ -119,7 +119,7 @@ export function SessionRunner({
         <span>{rules.reschedules ? 'Review' : 'Cram — schedule untouched'}</span>
       </div>
 
-      <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-6">
+      <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
         <p className="whitespace-pre-line text-lg">{card.prompt}</p>
 
         {revealed ? (
@@ -142,6 +142,10 @@ export function SessionRunner({
         )}
       </article>
 
+      {/* `flex-1` alone never wraps -- it sets a zero basis, so four grade
+          buttons squeezed onto one line and "Again" wrapped inside a 54px
+          button on a phone. A minimum width makes them wrap instead: two rows
+          of two narrow, one row of four from `sm`. */}
       {revealed && (
         <div className="mt-4 flex flex-wrap gap-2">
           {buttons.map((button, index) => (
@@ -149,7 +153,7 @@ export function SessionRunner({
               key={button.grade}
               type="button"
               onClick={() => answer(button.grade)}
-              className="flex-1 rounded border border-[var(--border)] px-4 py-3 text-sm hover:bg-[var(--surface)]"
+              className="min-w-32 flex-1 rounded border border-[var(--border)] px-4 py-3 text-sm hover:bg-[var(--surface)]"
             >
               {button.label} <span className="text-xs text-[var(--muted)]">{index + 1}</span>
             </button>

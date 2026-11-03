@@ -774,6 +774,36 @@ Two things to know about the edges:
 - The swatch list is read from the drugs rather than stored, so it cannot list a colour for a class
   nobody carries. That caught a wrong key during verification within a minute.
 
+### Where it did not fit (2026-11-02)
+
+The responsive pass. Five real faults, none of them a matter of taste:
+
+- **The site header did not wrap at all.** `flex` with no `flex-wrap`, holding the wordmark, four
+  links, the email and Sign out. On a phone that does not shrink, it overflows the page sideways.
+  This had been there since phase 1.
+- **The drug list's class column was `auto`,** which in a grid means max-content — so *Herpes
+  Simplex Virus Nucleoside Analog DNA Polymerase Inhibitor* took the width it wanted and crushed
+  the brands beside it, with 16px between them. Every track is `minmax(0, ...)` now, the class
+  column capped so it wraps to a second line instead, and the three-column layout starts at `md`
+  rather than `sm` — at 640px three columns in 600px was the cramped case.
+- **The flashcard grade buttons never wrapped.** `flex-1` sets a zero basis, so four buttons
+  squeezed onto one line and *Again* wrapped inside a 54px button. `min-w-32` makes them wrap
+  instead: two rows of two on a phone, one row of four from `sm`.
+- **Both runners used `p-6` on a phone**, spending 48 of ~368px on padding inside a card whose job
+  is to hold a question. `p-4 sm:p-6`.
+- **A quiz option's text had no `min-w-0`,** so one long option could widen the whole button past
+  the card — a flex child will not shrink below its content without it.
+
+Two rows that held several things with no wrap were fixed too (the drug editor's action row, the
+admin soft-deleted fields list). Checkbox labels were deliberately left un-wrapped: the box should
+never wrap away from its words, and the words wrap inside the span already.
+
+What is *not* claimed: none of this was measured in a browser. The column widths are reasoned from
+the space actually available — the list gets about 720px at `lg` once the 15rem filter rail and the
+8-gap are taken out of `max-w-5xl` — and the compiled CSS was checked for every new utility, since
+an arbitrary Tailwind value that fails to compile leaves a grid silently one-column. A real check
+at phone width is still worth doing by eye.
+
 ## Study configuration (inclusive vs exclusive)
 
 Flashcards and quiz share one config object, so the two modes are built once:
@@ -1216,7 +1246,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 4 | **done — 2026-10-29** — browse + search + filters + drug profile. Client-side Fuse over a 236-drug payload, filters in the URL, per-field markers, brand→indication pairing shown |
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
-| 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Remaining: the admin editor for the site default palette, and the responsive polish pass |
+| 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). Remaining: the admin editor for the site default palette |
 | 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Remaining: **lookup panel**, drug delete/merge, the brand↔indication pairing editor, bulk field-set, users, flagged queue, settings, audit UI |
 | 9 | Content elaboration in batches against the real sheet |
 

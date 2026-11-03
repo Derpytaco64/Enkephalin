@@ -64,7 +64,7 @@ export default async function FieldsPage() {
           </p>
           <ul className="mt-2 divide-y divide-[var(--border)]">
             {removed.map((field) => (
-              <li key={field.id} className="flex items-baseline gap-3 py-3">
+              <li key={field.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
                 <span>{field.label}</span>
                 <code className="text-xs text-[var(--muted)]">{field.key}</code>
                 <form action={restoreFieldAction} className="ml-auto">
