@@ -10,6 +10,7 @@ import type { QuizDirection } from '@/lib/study/quiz';
 import { loadQuiz, recentAttempts } from '@/lib/study/quiz-session';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 import { FieldPicker } from '../_components/field-picker';
+import { HintedLabel } from '../_components/hint';
 import { ScopePicker } from '../_components/scope-picker';
 import { finishQuizAction } from './actions';
 import { QuizRunner } from './quiz-runner';
@@ -171,46 +172,74 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
               control={control}
             />
 
-            <div>
-              <label htmlFor="set" className="block text-sm font-medium">Question shape</label>
-              <select id="set" name="set" defaultValue={config.mode} className={control}>
+            <div className="group/field">
+              <HintedLabel
+                htmlFor="set"
+                hint={(
+                  <>
+                    Per fact asks each field on its own. Per drug puts every selected field in one
+                    question, so the options are whole profiles and the ask is which of four drugs
+                    this is — fewer questions, more evidence in each.
+                  </>
+                )}
+              >
+                Question shape
+              </HintedLabel>
+              <select
+                id="set" name="set" defaultValue={config.mode}
+                aria-describedby="set-hint" className={control}
+              >
                 <option value="exclusive">One question per fact</option>
                 <option value="inclusive">One question per drug</option>
               </select>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Per fact asks each field on its own. Per drug puts every selected field in one
-                question, so the options are whole profiles and the ask is which of four drugs
-                this is — fewer questions, more evidence in each.
-              </p>
             </div>
 
-            <div>
-              <label htmlFor="dir" className="block text-sm font-medium">Direction</label>
-              <select id="dir" name="dir" defaultValue={direction} className={control}>
+            <div className="group/field">
+              <HintedLabel
+                htmlFor="dir"
+                hint={(
+                  <>
+                    Shown a drug, pick the fact — or shown a fact, pick the drug. Mixed asks
+                    both, since recognising a mechanism and naming its drug are two different
+                    recalls.
+                  </>
+                )}
+              >
+                Direction
+              </HintedLabel>
+              <select
+                id="dir" name="dir" defaultValue={direction}
+                aria-describedby="dir-hint" className={control}
+              >
                 <option value="random">Mixed — decided per question</option>
                 <option value="drug_to_fields">Drug → fact</option>
                 <option value="fields_to_drug">Fact → drug</option>
               </select>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Shown a drug, pick the fact — or shown a fact, pick the drug. Mixed asks both,
-                since recognising a mechanism and naming its drug are two different recalls.
-              </p>
             </div>
 
-            <div>
-              <label htmlFor="pri" className="block text-sm font-medium">Priority</label>
-              <select id="pri" name="pri" defaultValue={priority ? 'on' : 'off'} className={control}>
+            <div className="group/field">
+              <HintedLabel
+                htmlFor="pri"
+                hint={(
+                  <>
+                    A question you last got wrong is four times as likely to be drawn as one you
+                    have never seen, and eight times as likely as one you have answered right
+                    three times running — but nothing drops to zero, so a short quiz still
+                    works through the rest of the material instead of re-sitting the same corner
+                    of it. Only changes which questions you get when the count below is lower
+                    than the pool; above that it only changes the order.
+                  </>
+                )}
+              >
+                Priority
+              </HintedLabel>
+              <select
+                id="pri" name="pri" defaultValue={priority ? 'on' : 'off'}
+                aria-describedby="pri-hint" className={control}
+              >
                 <option value="on">Favour what you’ve missed</option>
                 <option value="off">Every question equally likely</option>
               </select>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                A question you last got wrong is four times as likely to be drawn as one you
-                have never seen, and eight times as likely as one you have answered right three
-                times running — but nothing drops to zero, so a short quiz still works through
-                the rest of the material instead of re-sitting the same corner of it. Only
-                changes which questions you get when the count below is lower than the pool;
-                above that it only changes the order.
-              </p>
             </div>
 
             {listRows.length > 0 && (
