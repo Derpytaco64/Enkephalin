@@ -30,10 +30,15 @@ export async function SiteHeader() {
           {/* Decorative, so alt is empty: the word beside it already says the
               name, and alt="Enkephalin" would have a screen reader read the
               wordmark twice. Width and height are set so the row does not
-              shift as the image arrives. */}
+              shift as the image arrives.
+
+              8 rather than 6: at 24px the box read as a bullet beside the
+              word. 32px is as far as it goes without setting the bar's
+              height -- it matches the avatar at the other end, and the pills
+              between them are 30px tall. */}
           <img
             src="/enkephalin.webp" alt="" width={256} height={256}
-            className="h-6 w-6 shrink-0"
+            className="h-8 w-8 shrink-0"
           />
           Enkephalin
         </Link>
