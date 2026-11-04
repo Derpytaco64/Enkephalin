@@ -25,6 +25,12 @@ export default function AdminHome() {
           <span className="ml-2 text-sm text-[var(--muted)]">rename and merge</span>
         </li>
         <li>
+          <Link href="/admin/dosing" className="text-[var(--accent)] underline">Dosing review</Link>
+          <span className="ml-2 text-sm text-[var(--muted)]">
+            the readings the parser would not stand behind
+          </span>
+        </li>
+        <li>
           <Link href="/admin/look" className="text-[var(--accent)] underline">Look</Link>
           <span className="ml-2 text-sm text-[var(--muted)]">default theme and colours</span>
         </li>

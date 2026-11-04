@@ -1067,6 +1067,55 @@ mostly uncontrolled form and deserves its own pass rather than being swept into 
 the cheap fix there is to stop using `<form action>` and call the action from `onSubmit`, which
 skips the reset entirely and leaves every field uncontrolled.
 
+### The dosing review bench (2026-11-03)
+
+The one queue in this app that has ever had real work in it. **76 of 252 regimens** carry a reading
+the parser would not stand behind, across **72 drugs**, and until this screen existed nothing listed
+them — known and unreachable at the same time, which is the worst state for a to-do to be in.
+
+It is a queue rather than a report, which is the whole design. Every row opens onto the two things
+that settle it:
+
+- **Rewrite the prose**, which re-reads it. The readback is live while you type, because the parser
+  is pure and client-safe, so what is on screen is the reading the save will store rather than an
+  approximation of it. The indication form is explained right there, under the box, since it is the
+  one screen where somebody will want it and an unmentioned syntax is an unusable one.
+- **"The source really is like that."** Seventeen of these drugs are dosed *individualised* or
+  *titrated to effect*, which is the true answer and has no sig. Saying so leaves the wording
+  untouched and takes the row out of the queue — because *nobody has looked at this* and *somebody
+  looked and this is the answer* are different states that otherwise look identical. The page says
+  out loud that emptying the queue is not the goal, since a third of it should end this way.
+
+Both go through `setDrugField` + `rebuildRegimens` and `setDosingUnique` — **the drug editor's own
+writers, in the drug editor's own order**. One parser, one writer, one audit trail whichever screen
+you came from; a bench with an insert of its own would be a second way for dosing to reach the
+database and the two would drift. A test asserts `app/admin/dosing/actions.ts` contains no
+`db.insert` or `db.update` at all, and that `lib/dosing/bench.ts` contains no write of any kind.
+
+**Three kinds, worst first, and "worst" is what it costs to leave:**
+
+1. **Indication not recognised** — a dosing line names a condition the drug is not recorded as being
+   for. The only kind where the *data* is wrong rather than merely unread, and the fastest to fix.
+2. **No sig at all** — nothing machine-readable came out, so multiple choice cannot ask it. 36 rows.
+3. **Read, with a caveat** — components came out and the parser noted something. Often needs nothing
+   but a human saying so. 36 rows.
+
+Within each kind, **the drugs somebody has actually been asked about lead**. That is the rule the
+flagged queue states for fields, one table over: a bad reading that has already reached a person
+costs more than one that has not. Counted off `quiz_answers` by a key match on `dosing`, which also
+catches the branch-keyed questions the indication split introduced. Everything untouched falls back
+to alphabetical, which is where the queue starts life with one user and no history.
+
+Collapsed rows, because 72 prose boxes with live readbacks is a page nobody scrolls and a queue's
+first job is to be countable. Three figures at the top: rows to look at, rows settled, and drugs
+whose dosing is split by indication.
+
+Verified on the running container: 76 / 176 / 1 on the figures, the filters returning 36, 36 and 0,
+a bogus `?kind=` falling back to everything rather than erroring, no form action on the page, and
+the write path exercised end to end on Midazolam — queue 76 → 75 on marking it read, back to 76 on
+undoing it, with the row restored exactly. (Left as it was: Midazolam's *Individualized* dosing
+stays ungated by the owner's standing decision.)
+
 ### A dose can belong to one indication (2026-11-03)
 
 Raised by the owner: *sildenafil being in two brands both on top drugs with different dosing means
@@ -1950,6 +1999,9 @@ entry and for the whole palette.
 - **Tags** — CRUD, kind, default color, merge.
 - **Flagged queue** — every field anyone has flagged, most-quizzed first: the fields where a wrong
   value costs most.
+- **Dosing review** — the regimens the parser could not fully read, worst first, with the prose
+  editable in place and a live readback. **Done 2026-11-03**; see
+  [The dosing review bench](#the-dosing-review-bench-2026-11-03).
 - **Site settings** — name, registration mode, default theme and palette, disclaimer text.
 - **Data** — JSON export/backup and restore.
 - **Audit log** — who changed what, with diffs.
@@ -2384,6 +2436,30 @@ reachable one-handed; browse table degrades to cards.
   whose fill deepens with the run and which blurs nothing — third attempt, written up with the two
   failed ones under *The light and the dark get their own weather* above, since what each got wrong
   is the reason the third is shaped as it is.
+
+**Queued by the owner, 2026-11-03** — the brand dosing, the reset everywhere, and the bench:
+
+- **done — 2026-11-03.** ~~Fix the brand dosing problems, because sildenafil being in two brands
+  both on top drugs with different dosing needs fixing~~. A dose can now belong to one indication,
+  read out of the prose rather than assigned beside it. See
+  [A dose can belong to one indication](#a-dose-can-belong-to-one-indication-2026-11-03) — including
+  the two things that went wrong on the way, one of which (tagging notes into strings and reading
+  them back with a regex) broke on contact with a note that had its own colon in it.
+
+- **done — 2026-11-03.** ~~Fix the reset bug everywhere~~. It was live in seven more forms, the
+  worst being the tag member picker: its 236 membership checkboxes are controlled, and a reset
+  leaves a controlled checkbox unchecked in the DOM with state still holding it, so *saving a list
+  appeared to clear it*. One helper now carries the explanation,
+  `app/_components/submit.ts`, and `tests/form-reset.test.ts` enumerates every
+  `<form action={...}>` left in `app/` and requires each to be one of six with a written reason —
+  all of them create forms or bare buttons, where the reset is the behaviour rather than the bug.
+
+- **begun — 2026-11-03.** ~~Begin the dosing review bench~~ — built and working, at
+  `/admin/dosing`. See [The dosing review bench](#the-dosing-review-bench-2026-11-03). What is
+  deliberately *not* in this first pass: editing a single regimen row rather than the whole prose
+  (the prose is the source, so per-row editing needs the "leave this one alone" flag first), the
+  per-route and per-population axes, and any bulk action. The queue is 76 rows and the work is
+  reading, not clicking.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
