@@ -76,18 +76,22 @@ export default async function Home() {
       <div className="plate flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
         {overview.streak > 0 && (
-          <p className="text-sm text-[var(--muted)]">
-            {/* The chip is the one decoration in the app driven by data, and
-                the data is printed right beside it in words -- which is what
-                keeps it decoration. Capped at six: past that the halo would
-                grow without the number meaning anything more. */}
+          <p className="text-sm">
+            {/* The pill is the one decoration in the app driven by data, and
+                the data is printed inside it in words -- which is what keeps
+                it decoration. The whole phrase goes in, rather than the number
+                alone with "running" trailing outside: a pill around half a
+                sentence reads as a box somebody forgot to close.
+
+                Capped at six. Past that the fill would keep deepening without
+                the number meaning anything more, and a hundred-day run would
+                be a solid orange lozenge. */}
             <span
               className="streak font-medium text-[var(--fg)]"
               style={{ ['--streak' as string]: String(Math.min(overview.streak, 6)) }}
             >
-              {overview.streak} day{overview.streak === 1 ? '' : 's'}
-            </span>{' '}
-            running
+              {overview.streak} day{overview.streak === 1 ? '' : 's'} running
+            </span>
           </p>
         )}
       </div>

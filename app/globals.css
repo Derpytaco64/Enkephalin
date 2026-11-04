@@ -597,7 +597,7 @@ main.open {
 
 /* ===== the three that are not switchable ===================================
 
-   A focus ring, a glow on the study streak, and an idle tilt on the wordmark.
+   A focus ring, a pill on the study streak, and an idle tilt on the wordmark.
    None has a preference, for one reason each: the ring is an accessibility
    improvement and not something anyone should be able to turn off; the other
    two are small enough that a switch would cost more attention than the thing
@@ -613,31 +613,45 @@ main.open {
 }
 
 /* The study streak on the home page. `--streak` is set inline from the run
-   length, so a longer run glows harder. The only decoration in the app driven
-   by data -- and the data is already printed beside it in words, which is what
-   keeps it decoration. */
-/* Static, deliberately. A pulsing glow would be the one animation in the whole
-   decoration that cannot run on the compositor -- box-shadow and text-shadow
-   both repaint -- and the pulse was never the interesting half. The intensity
-   scaling with the run is, and that needs no frames at all.
+   length, capped at six, and it is the only decoration in the app driven by
+   data -- the data being printed inside it in words, which is what keeps it
+   decoration.
 
-   It is a chip rather than a glow on bare words because the first attempt was
-   invisible and was reported as missing: a one-day run is `--streak: 1`, and
-   three pixels of blur behind five small words is nothing at all. The ring is
-   unconditional, so the thing is *there* at one day, and only the halo outside
-   it grows with the run.
+   Third attempt, and the two before it are the argument for this one. A glow
+   on bare words was invisible at a one-day run. A ring plus a growing halo was
+   visible and looked bad: a hard orange outline around five words, with a
+   blurred smear outside it that got muddier the better you were doing.
 
-   Nothing here touches an ink or a ground. The ring and the halo are
-   `--unverified` -- the palette's warm one -- and the text keeps `--fg` on
-   whatever the page ground is, so the contrast argument in
-   tests/study-colour.test.ts still covers it unchanged. */
+   What is left is the thing this app already uses everywhere -- a pill -- with
+   the run in the only property a pill has to spare: how strongly it is filled.
+   5% at one day, 20% at six, which reads as "warmer" rather than as a
+   measurement. No blur anywhere, so nothing to look smeared, and the whole
+   phrase sits inside it so the pill is a label rather than a box around a
+   number.
+
+   The fill is the palette's warm one at an alpha, over whatever ground and
+   wash are behind it, and the words stay `--fg`. Written as `rgb(channels /
+   alpha)` rather than `color-mix` on purpose: `color-mix` makes the minifier
+   emit a solid-colour fallback for older browsers, and a *solid* fill under
+   `--fg` is the one version of this that fails contrast. `tests/seasons.test.ts`
+   composites the deepest fill over every season wash and checks it. */
+:root { --streak-ink: 181 71 8; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --streak-ink: 255 160 106; }
+}
+:root[data-theme="dark"] { --streak-ink: 255 160 106; }
+
 .streak {
   border-radius: 999px;
-  padding: 0.05rem 0.45rem;
-  box-shadow:
-    inset 0 0 0 1px var(--unverified),
-    0 0 calc(3px + var(--streak, 0) * 2.5px) color-mix(in srgb, var(--unverified) 55%, transparent);
-  text-shadow: 0 0 calc(var(--streak, 0) * 2px) var(--unverified);
+  padding: 0.1rem 0.55rem;
+  /* Never broken across two lines: half a pill is worse than no pill. */
+  white-space: nowrap;
+  background-color: rgb(var(--streak-ink) / calc(0.05 + var(--streak, 0) * 0.025));
+  /* A hairline of the same warm, so there is an edge at one day as well as at
+     six. Fixed, not scaled: an edge that faded in would read as a rendering
+     fault at the low end. */
+  box-shadow: inset 0 0 0 1px rgb(var(--streak-ink) / 0.3);
 }
 
 /* The mark beside the wordmark, breathing. Two degrees and eleven seconds:

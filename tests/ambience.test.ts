@@ -7,6 +7,12 @@ import {
 const CSS = readFileSync('app/globals.css', 'utf8');
 const LAYER = readFileSync('app/_components/ambience-layer.tsx', 'utf8');
 
+/** The body of the `.streak` rule, which several checks below pick apart. */
+function streak(): string {
+  const block = CSS.slice(CSS.indexOf('.streak {'));
+  return block.slice(0, block.indexOf('}'));
+}
+
 /**
  * One complete at-rule block, found by a string inside it.
  *
@@ -198,43 +204,75 @@ describe('the three with no switch', () => {
     expect(CSS).not.toContain('\n:focus {');
   });
 
-  it('glows the streak without animating it', () => {
-    // box-shadow and text-shadow both repaint, so animating either would be
-    // the one decoration in the app that cannot run on the compositor. The
-    // intensity was the point.
-    const block = CSS.slice(CSS.indexOf('.streak {'));
-    const body = block.slice(0, block.indexOf('}'));
+  it('scales the streak pill without animating it', () => {
+    // A fill cannot be animated on the compositor any more than a shadow can,
+    // and the pulse was never the interesting half. The run length is.
+    const body = streak();
     expect(body).toContain('var(--streak, 0)');
     expect(body).not.toContain('animation');
     expect(CSS).not.toContain('streak-breathe');
   });
 
-  it('shows at a one-day run, which is what the first attempt did not', () => {
-    // `--streak: 1` and three pixels of blur behind five small words is
-    // nothing at all, and it was reported as the feature being missing. The
-    // ring carries no `var(--streak)` -- it is there at every run length --
-    // and only the halo outside it scales.
-    const block = CSS.slice(CSS.indexOf('.streak {'));
-    const body = block.slice(0, block.indexOf('}'));
-    expect(body).toMatch(/inset 0 0 0 1px var\(--unverified\)/);
-    expect(body).toMatch(/calc\(3px \+ var\(--streak, 0\)/);
+  it('is a pill with no blur in it, after two attempts that had one', () => {
+    // Attempt one was a text-shadow, invisible at a one-day run. Attempt two
+    // added a hard ring and a growing halo, which was visible and looked bad.
+    // What is left fills a pill -- 5% at one day, 20% at six -- and blurs
+    // nothing, so there is nothing to look smeared.
+    const body = streak();
+    expect(body).toMatch(/background-color: rgb\(var\(--streak-ink\) \/ calc\(/);
+    expect(body).toContain('border-radius: 999px');
+    expect(body).not.toContain('text-shadow');
+    // A shadow is still allowed for the hairline edge, but not a blurred one:
+    // every shadow here has a 0 blur radius.
+    for (const [, shadow] of body.matchAll(/box-shadow:([^;]+);/g)) {
+      expect(shadow, 'blur radius').toMatch(/inset 0 0 0 1px/);
+    }
   });
 
-  it('leaves the inks alone, so the contrast guards still hold', () => {
-    // The chip paints a ring and a halo, not a ground: the words keep --fg on
-    // whatever the page ground is.
-    const block = CSS.slice(CSS.indexOf('.streak {'));
-    const body = block.slice(0, block.indexOf('}'));
-    expect(body).not.toContain('background');
-    expect(body).not.toContain('color:');
+  it('has an edge at one day as well as at six', () => {
+    // A fill alone is nearly nothing at 5%, and an edge that faded in with the
+    // run would read as a rendering fault at the low end. So the hairline
+    // carries no `var(--streak)`.
+    const body = streak();
+    const [, edge] = /box-shadow:([^;]+);/.exec(body) ?? [];
+    expect(edge).toBeTruthy();
+    expect(edge).not.toContain('--streak,');
   });
 
-  it('drives the streak glow from the run it already prints in words', () => {
+  it('never breaks the pill across two lines', () => {
+    expect(streak()).toContain('white-space: nowrap');
+  });
+
+  it('writes the fill as rgb(channels / alpha), not color-mix', () => {
+    // `color-mix` makes the minifier emit a solid-colour fallback for older
+    // browsers, and a solid fill under --fg is the one version of this that
+    // fails contrast. Checked on the built stylesheet rather than the source,
+    // because the fallback is something the build adds.
+    expect(streak()).not.toContain('color-mix');
+    expect(CSS).toContain(':root { --streak-ink: 181 71 8; }');
+    expect(CSS).toContain(':root[data-theme="dark"] { --streak-ink: 255 160 106; }');
+  });
+
+  it('states the dark ink twice, as every other decoration does', () => {
+    expect(CSS).toContain(
+      ':root:not([data-theme="light"]) { --streak-ink: 255 160 106; }',
+    );
+  });
+
+  it('leaves the words their own colour', () => {
+    // The pill fills behind them; it does not recolour them. That is what lets
+    // the contrast guards go on measuring --fg.
+    expect(streak()).not.toMatch(/^\s*color:/m);
+  });
+
+  it('drives the streak pill from the run it already prints in words', () => {
     const home = readFileSync('app/page.tsx', 'utf8');
     expect(home).toContain('className="streak');
-    // Capped, or a hundred-day run would be unreadable.
+    // Capped, or a hundred-day run would be a solid orange lozenge.
     expect(home).toContain('Math.min(overview.streak, 6)');
-    expect(home).toMatch(/\{overview\.streak\} day/);
+    // The whole phrase inside the pill: a pill around half a sentence reads as
+    // a box somebody forgot to close.
+    expect(home).toMatch(/\{overview\.streak\} day\{[^}]+\} running\n/);
   });
 
   it('tilts the mark with rotate, which composites', () => {

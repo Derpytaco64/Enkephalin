@@ -543,3 +543,81 @@ describe('nothing drifts behind text', () => {
     }
   });
 });
+
+/* ------------------------------------------------------------------------
+   The streak pill is the one decoration that paints a fill *under text*, so
+   it gets the same treatment the washes do: composited over every ground it
+   can sit on, at the deepest it can go, with the words re-checked against
+   the result. The inline `--streak` is capped at 6 by app/page.tsx, and a
+   test above holds that cap.
+   --------------------------------------------------------------------- */
+
+describe('the streak pill leaves its own words readable', () => {
+  /**
+   * `:root { --streak-ink: 181 71 8; }` -> an opaque Rgba.
+   *
+   * Matched on the whole one-line rule rather than on its selector, because
+   * `:root {` alone finds the chrome block at the top of the file first.
+   */
+  function ink(prefix: string): Rgba {
+    const match = new RegExp(`${prefix.replace(/[[\]()*\-$^|]/g, '\\$&')}`
+      + String.raw` \{ --streak-ink: (\d+) (\d+) (\d+); \}`).exec(CSS);
+    if (match === null) throw new Error(`no --streak-ink rule for ${prefix}`);
+    const [, r, g, b] = match;
+    return { r: Number(r), g: Number(g), b: Number(b), a: 1 };
+  }
+
+  /** The declared ramp, read out of the rule rather than restated here. */
+  function alphaAt(streak: number): number {
+    const body = CSS.slice(CSS.indexOf('.streak {'));
+    const match = /calc\(([\d.]+) \+ var\(--streak, 0\) \* ([\d.]+)\)/
+      .exec(body.slice(0, body.indexOf('}')));
+    if (match === null) throw new Error('no streak alpha ramp');
+    return Number(match[1]) + streak * Number(match[2]);
+  }
+
+  it('matches the warm the palette already declares', () => {
+    // Not `--unverified` itself -- that is a hex and this needs channels --
+    // but it must be the same colour, or the pill is a sixth warm nobody chose.
+    for (const [theme, prefix] of [
+      ['light', ':root'], ['dark', ':root[data-theme="dark"]'],
+    ] as const) {
+      const channels = ink(prefix);
+      const declared = hex(CHROME[theme].inks.unverified);
+      expect([channels.r, channels.g, channels.b], theme)
+        .toEqual([declared.r, declared.g, declared.b]);
+    }
+  });
+
+  it('stays a tint rather than becoming a fill', () => {
+    // Past about a quarter the words are sitting on a block of colour, which
+    // is a badge and not the restrained thing this app is made of.
+    expect(alphaAt(6)).toBeLessThanOrEqual(0.25);
+    // And it has to be worth seeing at one day, which attempt one was not.
+    expect(alphaAt(1)).toBeGreaterThanOrEqual(0.05);
+  });
+
+  for (const [theme, chrome] of Object.entries(CHROME)) {
+    it(`keeps --fg over 4.5:1 on the deepest pill, washed and unwashed — ${theme}`, () => {
+      const fill = { ...ink(theme === 'light' ? ':root' : ':root[data-theme="dark"]'),
+        a: alphaAt(6) };
+
+      // Unwashed, and then under every season -- the pill sits on a plate,
+      // which carries the wash, so the wash is underneath the fill.
+      const grounds = [chrome.bg, chrome.surface];
+      for (const season of [null, ...SEASONS]) {
+        const wash = season === null ? null : rgba(rule(theme === 'light'
+          ? `:root[data-season="${season}"] {`
+          : `:root[data-theme="dark"][data-season="${season}"] {`)['--season-wash']);
+
+        for (const ground of grounds) {
+          const base = wash === null ? ground : over(wash, hex(ground));
+          const pilled = over(fill, hex(base));
+          const ratio = contrastRatio(chrome.inks.fg, pilled);
+          expect(ratio, `${season ?? 'no season'} ${ground} (${ratio.toFixed(2)}:1)`)
+            .toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    });
+  }
+});

@@ -1162,17 +1162,32 @@ and a test.
   should not be something anyone can turn off, and the app had only the browser default — which on a
   light ground is a thin dark outline that is easy to lose. Keyboard-only, so a mouse click does not
   ring the thing it clicked.
-- **A chip on the study streak**, its halo scaled by the run and capped at six. The only decoration
-  in the app driven by data — and the data is printed beside it in words, which is what keeps it
-  decoration. **Static, not pulsing**: `box-shadow` and `text-shadow` both repaint, so animating
-  either would have been the one thing here that cannot run on the compositor, and the intensity
-  was always the interesting half.
+- **A pill on the study streak**, its fill deepening with the run and capped at six. The only
+  decoration in the app driven by data — and the data is printed *inside* it in words, which is what
+  keeps it decoration. **Static, not pulsing**: a fill cannot be animated on the compositor any more
+  than a shadow can, and the intensity scaling with the run was always the interesting half.
 
-  It shipped as a bare text-shadow and was reported as missing, correctly: a one-day run is
-  `--streak: 1`, and three pixels of blur behind five small words is nothing at all. It is now a
-  pill with an unconditional 1px ring -- so the thing is *there* at one day -- and only the halo
-  outside it grows. Still no ground and no ink of its own: the ring and the halo are `--unverified`
-  and the words keep `--fg`, so every contrast figure in the suite covers it unchanged.
+  It took three attempts and the first two are the argument for the third. A bare `text-shadow` glow
+  was invisible and was reported as missing — correctly, because a one-day run is `--streak: 1` and
+  three pixels of blur behind five small words is nothing. A hard ring plus a growing halo was
+  visible and looked bad: an orange outline around five words with a smear outside it that got
+  muddier the better you were doing. What is left is the thing this app is already made of — a pill
+  — carrying the run in the only property a pill has to spare, how strongly it is filled: 7.5% at
+  one day, 20% at six. No blur anywhere, and the whole phrase inside it, because a pill around half
+  a sentence reads as a box somebody forgot to close.
+
+  Two details are load-bearing. The hairline edge carries **no** `var(--streak)`, so there is an
+  edge at one day as well as at six — an edge that faded in would read as a rendering fault at the
+  low end. And the fill is written `rgb(var(--streak-ink) / calc(...))` rather than with
+  `color-mix`, because `color-mix` makes the minifier emit a **solid-colour fallback** for older
+  browsers, and a solid fill under `--fg` is the one version of this that fails contrast.
+
+  The words keep `--fg` throughout, so the pill can warm up without moving any ink. `--fg` on the
+  deepest fill measures **12.93:1** on the light page ground and **11.53:1** on the dark one;
+  11.98:1 with an autumn wash underneath as well. `tests/seasons.test.ts` composites the deepest
+  fill over every season wash on both grounds and checks it, and reads both the ink channels and the
+  alpha ramp out of the stylesheet rather than restating them — so moving either is a failure that
+  says so. Planted a solid fill and a blurred edge; four guards fired and only they.
 - **An idle tilt on the wordmark.** Two degrees, eleven seconds, `rotate` so it composites. Enough
   to notice once, not enough to watch.
 
@@ -2268,6 +2283,11 @@ reachable one-handed; browse table degrades to cards.
 - **done — 2026-11-03.** ~~Let the season show through the middle of the home page, but not behind
   the blocks of text~~. `main.open` and `.plate`, written up under
   [Nothing drifts behind text](#nothing-drifts-behind-text-2026-11-03).
+
+- **done — 2026-11-03.** ~~The streak chip looks bad, redesign it~~. It did. Replaced with a pill
+  whose fill deepens with the run and which blurs nothing — third attempt, written up with the two
+  failed ones under *The light and the dark get their own weather* above, since what each got wrong
+  is the reason the third is shaped as it is.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
