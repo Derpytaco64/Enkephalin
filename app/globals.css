@@ -76,6 +76,15 @@
   --grade-2: #92400e;
   --grade-3: #3f6212;
   --grade-4: #166534;
+
+  /* The filled button: its ground, its words, and its edge. Three tokens
+     rather than two because the fill and the page it sits on can be the same
+     brightness -- see the comment on .btn-primary. A cool slate rather than
+     the plain --fg this used to borrow: light's own ink is neutral black, and
+     the one lozenge on the page that is pure fill should look chosen. */
+  --btn-fill: #262c3b;
+  --btn-ink: #f7f8fb;
+  --btn-edge: #121623;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -100,6 +109,10 @@
     --grade-2: #ffa06a;
     --grade-3: #b2dd62;
     --grade-4: #5ddba4;
+
+    --btn-fill: #dbe4f3;
+    --btn-ink: #0f141c;
+    --btn-edge: #a9bbd8;
   }
 }
 
@@ -124,6 +137,10 @@
   --grade-2: #ffa06a;
   --grade-3: #b2dd62;
   --grade-4: #5ddba4;
+
+  --btn-fill: #dbe4f3;
+  --btn-ink: #0f141c;
+  --btn-edge: #a9bbd8;
 }
 
 /* ===== the scrollbar =======================================================
@@ -227,17 +244,34 @@ body {
    tinted autumn page the whole chrome goes warm and a cold blue lozenge sat in
    the middle of it, which is exactly what the owner reported.
 
-   So a primary button is the page's own ink and ground, inverted. Both tokens
-   are already retinted per season, so the button takes the season with it and
-   there is nothing per-season to keep in step; and because it is the reading
-   pair swapped over, its contrast is whatever the body text's is -- 15:1 or
-   better everywhere, with no new figure to defend. `--accent` goes back to
-   meaning one thing: a link.
+   The answer after that was the page's own ink and ground, inverted -- which
+   fixed the clash by giving the button no colour of its own at all. Near
+   enough black on near enough white, and on an icy winter page the one control
+   you actually press was the only thing on screen with nothing seasonal about
+   it. So it now has its own three tokens, stated per theme and per season:
+   --btn-fill, --btn-ink for its words, and --btn-edge for its boundary.
+
+   Three rather than two, because a pale fill is the point. Winter is an icy
+   blue and summer a sunny yellow, and neither of those can be told from a
+   light page by its fill alone -- 1.1:1, where WCAG 1.4.11 asks 3:1 of a
+   control's boundary. --btn-edge is what carries that: a deeper shade of the
+   same season, 3.65:1 or better against every ground the app can put behind
+   it, washes and tint included. The words clear 10.3:1 on their fill
+   everywhere. `tests/seasons.test.ts` measures all of it.
+
+   This is the second decoration allowed past the wash, and the only one that
+   does not wait for `data-tint`. The tint gate exists to protect grounds that
+   text is read on across every page; a button is one lozenge you aim at, it
+   paints its own opaque fill over whatever the washes left, and its pair is
+   measured together -- the same reason the grade ramp gets to be red and green
+   regardless. `--accent` still means exactly one thing: a link.
 
    Quiet is the same shape with the page's own surface and border, for the
    second action in a row -- "Another quiz" beside "Again". It is a button
    rather than a link because it does what the button beside it does, and two
    controls that do the same kind of thing should not be two different shapes.
+   It stays uncoloured on purpose: two seasonal fills side by side would be two
+   primary actions.
    ========================================================================= */
 
 .btn {
@@ -255,14 +289,16 @@ body {
 .btn:disabled { opacity: 0.6; }
 
 .btn-primary {
-  background-color: var(--fg);
-  color: var(--bg);
+  background-color: var(--btn-fill);
+  color: var(--btn-ink);
+  box-shadow: inset 0 0 0 1px var(--btn-edge);
 }
 
 .btn-primary:hover:not(:disabled) {
   /* Nothing dramatic: the fill is already the strongest thing on the page, so
-     hover lifts the edge rather than changing the colour under the words. */
-  box-shadow: inset 0 0 0 2px var(--surface);
+     hover thickens the edge rather than changing the colour under the words.
+     Inset, so a hovered button is the same size as an unhovered one. */
+  box-shadow: inset 0 0 0 2px var(--btn-edge);
 }
 
 .btn-quiet {
@@ -537,6 +573,93 @@ body {
   --bg: #090d13;
   --surface: #12171f;
   --border: #232c3a;
+}
+
+/* --- the season reaching the buttons --------------------------------------
+
+   The filled button, per season. Icy blue, petal pink, sunny yellow and a
+   burnt autumn orange, each as a pale fill with its own deep ink and a deeper
+   edge -- the argument for the three tokens is on .btn-primary above, and the
+   figures are measured in tests/seasons.test.ts.
+
+   Pale in both themes, which is the one asymmetry worth naming. In dark that
+   is just what the button already was, a light lozenge on a near-black page,
+   so the season only has to pick which light. In light it means the fill
+   cannot be what separates the button from the page, and --btn-edge is doing
+   that work instead: 3.65:1 or better against every tinted, washed ground,
+   where the fill itself manages 1.1.
+
+   No `[data-tint]` in these selectors, deliberately, and it is the only place
+   in this section that is true of. See .btn-primary.
+   ------------------------------------------------------------------------- */
+
+:root[data-season="spring"] {
+  --btn-fill: #fcd6e5;
+  --btn-ink: #46142c;
+  --btn-edge: #b85a83;
+}
+:root[data-season="summer"] {
+  --btn-fill: #fdeba8;
+  --btn-ink: #3d2d05;
+  --btn-edge: #9e7109;
+}
+:root[data-season="autumn"] {
+  --btn-fill: #fbd3b4;
+  --btn-ink: #4a1c08;
+  --btn-edge: #c2592a;
+}
+:root[data-season="winter"] {
+  --btn-fill: #cfe6f8;
+  --btn-ink: #0d2c44;
+  --btn-edge: #45819f;
+}
+
+/* Dark goes a shade further into the hue and a shade further from the ground,
+   because a near-black page gives it the room: the edge here is reading
+   against #0b0d10 and clears 6.3:1 without trying. */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-season="spring"] {
+    --btn-fill: #f8cedf;
+    --btn-ink: #3a0f22;
+    --btn-edge: #dd9bb6;
+  }
+  :root:not([data-theme="light"])[data-season="summer"] {
+    --btn-fill: #fbe39a;
+    --btn-ink: #342502;
+    --btn-edge: #d9b64e;
+  }
+  :root:not([data-theme="light"])[data-season="autumn"] {
+    --btn-fill: #f9c9a2;
+    --btn-ink: #3b1405;
+    --btn-edge: #dd9159;
+  }
+  :root:not([data-theme="light"])[data-season="winter"] {
+    --btn-fill: #c7e4f7;
+    --btn-ink: #08202f;
+    --btn-edge: #8dc0de;
+  }
+}
+
+:root[data-theme="dark"][data-season="spring"] {
+  --btn-fill: #f8cedf;
+  --btn-ink: #3a0f22;
+  --btn-edge: #dd9bb6;
+}
+:root[data-theme="dark"][data-season="summer"] {
+  --btn-fill: #fbe39a;
+  --btn-ink: #342502;
+  --btn-edge: #d9b64e;
+}
+:root[data-theme="dark"][data-season="autumn"] {
+  --btn-fill: #f9c9a2;
+  --btn-ink: #3b1405;
+  --btn-edge: #dd9159;
+}
+:root[data-theme="dark"][data-season="winter"] {
+  --btn-fill: #c7e4f7;
+  --btn-ink: #08202f;
+  --btn-edge: #8dc0de;
 }
 
 /* --- nothing drifts behind text -------------------------------------------

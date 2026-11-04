@@ -480,6 +480,145 @@ describe('the season tint', () => {
   });
 });
 
+/* ------------------------------------------------------------------------
+   The filled button, which is the other decoration allowed past the wash --
+   and the only one that does not wait for `data-tint`.
+
+   It paints an opaque fill over whatever the washes left, so the washes do
+   not touch the words on it; what they do touch is the *ground around it*,
+   which is what the edge has to be told apart from. So two figures, and the
+   second is measured against the worst case the app can produce: a tinted
+   ground, a season wash, and the clock's warmth on top.
+
+   Pale fills in both themes is the whole reason --btn-edge exists. An icy
+   blue reads 1.1:1 against a light page -- WCAG 1.4.11 asks 3:1 of a
+   control's boundary, and the fill is never going to supply it.
+   --------------------------------------------------------------------- */
+
+describe('the filled button stays legible in every season', () => {
+  /**
+   * The button's three tokens for a theme and a season, `null` meaning the
+   * seasonless default stated with the rest of the chrome.
+   *
+   * The seasonal rules sit *after* the wash rules under the same selectors,
+   * and `rule` finds the first match -- so these ask for the rule by the
+   * token it has to contain rather than by position.
+   */
+  function buttonOf(theme: 'light' | 'dark', season: Season | null) {
+    const selector = season === null
+      ? (theme === 'light' ? ':root {' : ':root[data-theme="dark"] {')
+      : (theme === 'light'
+        ? `:root[data-season="${season}"] {`
+        : `:root[data-theme="dark"][data-season="${season}"] {`);
+
+    // Every candidate rule the selector opens, in file order; the button's is
+    // the one declaring --btn-fill.
+    for (let at = CSS.indexOf(selector); at >= 0; at = CSS.indexOf(selector, at + 1)) {
+      const body = CSS.slice(at + selector.length, CSS.indexOf('}', at));
+      if (!body.includes('--btn-fill')) continue;
+
+      const found: Record<string, string> = {};
+      for (const [, name, value] of body.matchAll(/(--btn-[a-z]+):\s*([^;]+);/g)) {
+        found[name] = value.trim();
+      }
+      return found;
+    }
+    throw new Error(`no --btn-fill rule for ${selector}`);
+  }
+
+  /** Every ground a button can sit on in this theme, washes and tint stacked. */
+  function grounds(theme: 'light' | 'dark'): string[] {
+    const out: string[] = [CHROME[theme].bg, CHROME[theme].surface];
+
+    for (const season of SEASONS) {
+      const wash = rgba(rule(theme === 'light'
+        ? `:root[data-season="${season}"] {`
+        : `:root[data-theme="dark"][data-season="${season}"] {`)['--season-wash']);
+      const tint = rule(theme === 'light'
+        ? `:root[data-tint="season"][data-season="${season}"] {`
+        : `:root[data-theme="dark"][data-tint="season"][data-season="${season}"] {`);
+
+      for (const base of [CHROME[theme].bg, CHROME[theme].surface, tint['--bg'], tint['--surface']]) {
+        const washed = over(wash, hex(base));
+        out.push(washed);
+        for (const daypart of DAYPART_WASHES) out.push(over(rgba(daypart), hex(washed)));
+      }
+    }
+    return out;
+  }
+
+  for (const theme of ['light', 'dark'] as const) {
+    for (const season of [null, ...SEASONS]) {
+      const name = season ?? 'no season';
+
+      it(`keeps its words over 4.5:1 on its own fill — ${name}, ${theme}`, () => {
+        // The fill is opaque, so this figure is the whole argument for the
+        // words: nothing composites over it.
+        const button = buttonOf(theme, season);
+        const ratio = contrastRatio(button['--btn-ink'], button['--btn-fill']);
+        expect(ratio, `${button['--btn-ink']} on ${button['--btn-fill']} (${ratio.toFixed(2)}:1)`)
+          .toBeGreaterThanOrEqual(4.5);
+      });
+
+      it(`keeps its edge over 3:1 on every ground — ${name}, ${theme}`, () => {
+        // WCAG 1.4.11. Not the fill: a pale fill on a pale page is ~1.1, which
+        // is exactly why the edge is a token and not an afterthought.
+        const edge = buttonOf(theme, season)['--btn-edge'];
+        for (const ground of grounds(theme)) {
+          const ratio = contrastRatio(edge, ground);
+          expect(ratio, `${edge} on ${ground} (${ratio.toFixed(2)}:1)`)
+            .toBeGreaterThanOrEqual(3);
+        }
+      });
+    }
+  }
+
+  it('gives every season its own three, and all four seasons theirs', () => {
+    for (const theme of ['light', 'dark'] as const) {
+      for (const season of SEASONS) {
+        const button = buttonOf(theme, season);
+        for (const token of ['--btn-fill', '--btn-ink', '--btn-edge']) {
+          expect(button[token], `${token} in ${season} ${theme}`).toMatch(/^#[0-9a-f]{6}$/);
+        }
+        // A season that restated the default would be a season with no button.
+        expect(button, `${season} ${theme} differs from the default`)
+          .not.toEqual(buttonOf(theme, null));
+      }
+    }
+  });
+
+  it('keeps the two dark statements of each season identical', () => {
+    // The system-preference copy is the one that gets forgotten, and forgetting
+    // it means a dark machine with no explicit choice keeps light's fill.
+    for (const season of SEASONS) {
+      const selector = `:root:not([data-theme="light"])[data-season="${season}"] {`;
+      const at = CSS.indexOf(selector, CSS.indexOf('the season reaching the buttons'));
+      expect(at, selector).toBeGreaterThan(0);
+
+      const body = CSS.slice(at + selector.length, CSS.indexOf('}', at));
+      const system: Record<string, string> = {};
+      for (const [, name, value] of body.matchAll(/(--btn-[a-z]+):\s*([^;]+);/g)) {
+        system[name] = value.trim();
+      }
+      expect(system, season).toEqual(buttonOf('dark', season));
+    }
+  });
+
+  it('does not wait for a tint, and says so', () => {
+    // The deliberate exception to the rule above it: the tint gate protects
+    // grounds that text is read on, and a button is a control you aim at with
+    // its own measured pair. Written down here because it is the kind of
+    // asymmetry somebody tidies away.
+    const section = CSS.slice(CSS.indexOf('the season reaching the buttons'));
+    const buttons = section.slice(0, section.indexOf('/* ---', 10) + 1 || undefined);
+
+    for (const [, selector, body] of buttons.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!body.includes('--btn-fill')) continue;
+      expect(selector, selector.trim()).not.toContain('[data-tint=');
+    }
+  });
+});
+
 describe('nothing drifts behind text', () => {
   it('gives the two elements that hold text their own opaque ground', () => {
     // A leaf crossing a paragraph makes the paragraph harder to read, and

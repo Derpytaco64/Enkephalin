@@ -199,9 +199,16 @@ describe('the pill that says where you are', () => {
    the seasons deliberately never touch. Right for a link in a sentence,
    wrong for a filled button -- on a tinted autumn page the whole chrome
    goes warm and a cold blue lozenge sat in the middle of it.
+
+   The fix after that was the reading pair inverted, --fg on --bg, which
+   solved the clash by leaving the button no colour of its own: black on
+   white, the one neutral thing on an icy page. So it has its own three
+   tokens now. Their shape is checked here with the rest of the chrome; what
+   the four seasons do with them, and whether any of it is legible, is
+   measured in tests/seasons.test.ts.
    --------------------------------------------------------------------- */
 
-describe('every button is the page’s own ink', () => {
+describe('the filled button has a colour of its own', () => {
   /** Every .tsx under app/, so a new button cannot slip in uncounted. */
   function screens(): string[] {
     const walk = (path: string): string[] => readdirSync(path).flatMap((entry) => {
@@ -212,18 +219,48 @@ describe('every button is the page’s own ink', () => {
     return walk('app');
   }
 
-  it('fills with the reading pair, inverted', () => {
-    // --fg on --bg, both of which the seasons already retint, so the button
-    // takes the season with it and there is no new contrast figure to defend:
-    // it is the body text's own pair swapped over.
+  it('fills, inks and edges itself from its own tokens', () => {
+    // Three, not two: a pale fill cannot be told from a pale page, so the
+    // boundary is a token rather than an accident of the fill. Not one of
+    // them is a chrome token borrowed -- borrowing --fg is exactly what made
+    // the button the only unseasonal thing on a seasonal page.
     const primary = block('.btn-primary {');
-    expect(primary).toContain('background-color: var(--fg)');
-    expect(primary).toContain('color: var(--bg)');
+    expect(primary).toContain('background-color: var(--btn-fill)');
+    expect(primary).toContain('color: var(--btn-ink)');
+    expect(primary).toContain('box-shadow: inset 0 0 0 1px var(--btn-edge)');
     expect(primary).not.toContain('--accent');
+    expect(primary).not.toContain('var(--fg)');
 
     const quiet = block('.btn-quiet {');
     expect(quiet).toContain('background-color: var(--surface)');
     expect(quiet).not.toContain('--accent');
+    // Quiet stays the page's own surface. Two seasonal fills in a row would
+    // read as two primary actions, which is the opposite of what it is for.
+    expect(quiet).not.toContain('--btn-fill');
+  });
+
+  it('states all three of them in all three theme blocks', () => {
+    // Same drift risk as every other token in this file: the dark values are
+    // written twice, once guarded for the system preference and once for an
+    // explicit choice, and a missing one is a button that keeps light's fill
+    // on a dark page.
+    const light = rule(':root {');
+    const explicit = rule(':root[data-theme="dark"] {');
+    const system = rule(':root:not([data-theme="light"]) {');
+
+    for (const token of ['--btn-fill', '--btn-ink', '--btn-edge']) {
+      expect(light[token], `${token} in light`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(explicit[token], `${token} in dark`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(system[token], `${token} in system dark`).toBe(explicit[token]);
+      expect(light[token], `${token} differs by theme`).not.toBe(explicit[token]);
+    }
+  });
+
+  it('grows its edge on hover rather than moving the ground under the words', () => {
+    // Inset, so the button does not change size, and the edge rather than the
+    // fill, so the figure the words were measured against does not move.
+    const hover = block('.btn-primary:hover:not(:disabled) {');
+    expect(hover).toContain('box-shadow: inset 0 0 0 2px var(--btn-edge)');
   });
 
   it('drops the underline a link brings with it', () => {

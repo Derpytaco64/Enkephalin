@@ -1,7 +1,7 @@
 # Enkephalin — Pharmacy Drug Study Site
 
 > Working plan. This file is the canonical record — update it as decisions change.
-> Last revised: 2026-11-03
+> Last revised: 2026-11-04
 
 ## Context
 
@@ -1250,6 +1250,57 @@ handed back to the OS, the smallest step back at 12px, a tinted border too dark 
 is written, the asked drug left in its own owner list, the setup bar back to full height mid-quiz,
 the disclaimer left-aligned, and the sentence hard-coded on one of the two halves.
 
+### The button gets a colour of its own (2026-11-04)
+
+Third time on the same control, and the first two were both corrections rather than designs.
+
+It started as `bg-[var(--accent)]` — the *link* colour, a fixed blue the seasons deliberately never
+touch, because four seasonal accents would be four more contrast pairs to defend. Right for a link
+in a sentence, wrong for a filled lozenge: in a tinted autumn the whole chrome goes warm and the
+button sat in the middle of it cold. That got replaced with the reading pair inverted, `--fg` on
+`--bg`, which solved the clash by giving the button no colour at all — near-black on near-white,
+with a free contrast argument (it is the body text's own pair swapped over, 15:1) and nothing
+per-season to keep in step. Which is also what was wrong with it: on an icy winter page the one
+control you actually press was the only thing on screen with nothing seasonal about it.
+
+So it now has three tokens of its own, stated per theme and per season: `--btn-fill`, `--btn-ink`
+for its words, `--btn-edge` for its boundary. The seasons are the owner's: **icy blue** for winter,
+**petal pink** for spring, **sunny yellow** for summer, a **burnt orange** for autumn. Light and
+dark with no season were left to me and are a cool slate and a cool near-white — the same inversion
+as before, but chosen rather than borrowed.
+
+**Three tokens, not two, and that is the whole technical content of this.** The seasonal fills are
+pale in both themes, and a pale fill cannot be told from a pale page: icy blue measures **1.1:1**
+against the light ground, where WCAG 1.4.11 asks 3:1 of a control's boundary. In dark that never
+came up — the button was already a light lozenge on a near-black page, so the season only has to
+pick which light, and the edge clears 6.3:1 without trying. In light the edge is the only thing
+doing it: a deeper shade of the same season, held at **3.65:1 or better against every ground the
+app can produce**, which means each tinted ground under a season wash under the clock's warmth.
+The words clear **10.3:1** on their own fill everywhere, which was never the hard part — the fill
+is opaque, so nothing composites over it.
+
+Hover thickens the edge from 1px to 2px rather than deepening the fill. Inset, so the button does
+not change size; the edge rather than the fill, so the figure the words were measured against does
+not move. (The old hover drew a `--surface` ring, which was a light ring on a dark fill and read as
+a gap.)
+
+**It does not wait for `data-tint`, and it is the only thing in that section that does not.** The
+tint gate exists to protect grounds that text is read on across every page; a button is one
+lozenge you aim at, it paints an opaque fill over whatever the washes left, and its pair is
+measured together — the same reason the grade ramp gets to be red and green regardless of the
+season. Picking a season should colour the button you press, not only the snow behind it.
+
+`btn-quiet` stays the page's own surface deliberately. Two seasonal fills side by side would read
+as two primary actions, which is the opposite of what the second one is for.
+
+Guarded in `tests/seasons.test.ts` (23 new) and `tests/chrome.test.ts` (one rewritten, two
+new): the two
+contrast figures measured per theme per season against every stacked ground, all three tokens
+present and theme-dependent in all three theme blocks, the two dark statements of each season
+identical, no season quietly restating the default, and no `[data-tint]` creeping into those
+selectors. Proved to bite by planting a summer edge at 2.6:1 and a winter ink the same lightness as
+its fill; both failed by name.
+
 ### The dosing review bench (2026-11-03)
 
 The one queue in this app that has ever had real work in it. **76 of 252 regimens** carry a reading
@@ -2145,7 +2196,9 @@ password reset — that needs a mailer, so it is the admin screen's job.
 **Seasonal decoration** (`/settings`, `/admin/look`) — spring, summer, autumn or winter, or
 `auto` to follow the date. A wash over the page ground and a handful of drifting motes, layered over
 whichever theme is in force rather than replacing it; `off` by default. A second switch lets the
-season reach the chrome — grounds, surfaces and borders — instead of staying a wash. See
+season reach the chrome — grounds, surfaces and borders — instead of staying a wash. The **filled
+button** takes the season either way, since it paints its own opaque fill: icy blue, petal pink,
+sunny yellow, burnt orange. See
 [A season is not a theme](#a-season-is-not-a-theme-2026-11-03) and
 [The season, let into the chrome](#the-season-let-into-the-chrome-2026-11-03).
 
@@ -2690,6 +2743,15 @@ see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs
 - **done.** ~~In the lookup panel, drop the band and the *Sold as* line for a brands line more
   like the profile's~~ — which also restored the indications the panel had never shown.
 - **done.** ~~The opaque boxes behind the heading text on the home page look weird; remove them~~.
+
+**Queued by the owner, 2026-11-04 (third pass)** — the buttons:
+
+- **done — 2026-11-04.** ~~Make the buttons like *Again* follow the theme more closely: icy blue for
+  winter, petal pink for spring, sunny yellow for summer, an autumn orange or red for autumn, with
+  light and dark left to me~~. Those four, plus a cool slate and a cool near-white for the two
+  seasonless themes. The design is one decision and the rest follows from it: the fills are pale,
+  so the button needs a third token for its boundary or it cannot be told from the page. See
+  [The button gets a colour of its own](#the-button-gets-a-colour-of-its-own-2026-11-04).
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
