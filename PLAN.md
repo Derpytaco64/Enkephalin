@@ -1023,6 +1023,40 @@ ADHD moving, one list moving and two already shared, and its dosing discarded be
 its own. A full round trip on two throwaway drugs merged and deleted cleanly and left the count back
 at 236 — including the vocabulary rows it orphaned, which is how that behaviour got noticed.
 
+### A form action resets the form (2026-11-03)
+
+Reported from the running app: picking a theme, a season or a colour axis in `/settings` and
+saving **worked** -- the page came back wearing it -- and then the selects showed the old answer
+again, so the form read as though the save had been ignored.
+
+The cause is React, not this app's wiring, and it is deterministic rather than a race.
+`startHostTransition` in react-dom calls `requestFormReset` on any `<form action={...}>` before
+running the action, and the commit that follows calls the DOM's own `form.reset()`. For an
+`<input>` React keeps `node.defaultValue` in step on re-render, so a reset lands on the new value
+and nothing is visibly wrong. For a `<select>` it does not: the update path only reapplies
+`defaultValue` when `multiple` has changed, so `reset()` restores whatever was selected **at
+mount** and leaves it there. An uncontrolled select in a form action is therefore guaranteed to
+snap back, which is exactly the three controls the owner was looking at.
+
+Both cosmetic forms -- `app/settings/look-form.tsx` and `app/admin/look/site-theme-form.tsx` --
+now hold all five answers in state. Controlled rather than the alternative escape (handling submit
+by hand so React never schedules the reset) because these forms are small, and because a control
+whose displayed value is state is a control that cannot disagree with itself for any reason, not
+just this one. Editing anything also retires the "Saved." line, which was previously left standing
+over a form that had since been changed.
+
+A source-scanning guard in `tests/theme-preferences.test.ts` holds it: no `defaultValue` or
+`defaultChecked` in either file, and one `value`/`checked` **and** one `onChange` per named
+control, so a sixth switch added without wiring fails in the suite rather than in somebody's
+settings.
+
+**Known, and not fixed here:** the same deterministic bug is in the two editors that keep a
+`<select>` on a page they stay on after saving -- `/admin/fields/[id]` (`dataType`) and the drug
+editor (`schedule`, plus each field's `status` and `source`). The drug editor is 500 lines of
+mostly uncontrolled form and deserves its own pass rather than being swept into a cosmetics fix;
+the cheap fix there is to stop using `<form action>` and call the action from `onSubmit`, which
+skips the reset entirely and leaves every field uncontrolled.
+
 ### Nothing drifts behind text (2026-11-03)
 
 The first season shipped with motes crossing the page, and a leaf drifting through a paragraph makes
@@ -2139,6 +2173,35 @@ reachable one-handed; browse table degrades to cards.
   `email_verified` goes to false (nobody confirmed the new address). Nothing is sent to either
   address, and the page says so rather than leaving someone waiting.
 
+**Queued by the owner, 2026-11-03** — three things found by using it:
+
+- **done — 2026-11-03.** ~~The quiz screen does not need a Flashcards link at the top right~~.
+  Gone. It was a leftover from when the two study pages were new and needed pointing at each other;
+  the top bar now carries both, and a cross-link in the corner of a page you are already on is one
+  more thing between the heading and the form.
+
+- **done — 2026-11-03.** ~~Theme and cosmetic choices do not stay put in the selectors after
+  saving~~, even though the page visibly changes. Not this app's bug, but this app's to fix: React
+  resets a form after its action resolves, and a `<select>`'s `defaultValue` is never reapplied
+  after mount, so an uncontrolled select snaps back to what it was first rendered with. See
+  [A form action resets the form](#a-form-action-resets-the-form-2026-11-03) — including the two
+  editors that have the same bug and were deliberately left for their own pass.
+
+- **answered — 2026-11-03.** *Does a dosing question name the drug in a way that fits the
+  brand↔indication links, and is the question side randomised between brand and generic?* **No to
+  both, and the second is why the first has not bitten.** Every prompt in both study modes is built
+  from `{{generic}}`: *How is Sildenafil dosed?*. A brand is only ever the **answer** (generic →
+  brands) or the **clue** (brands → generic), which is the safe direction down the fan in
+  *Direction decides what counts as correct* — so no question currently crosses from one brand's
+  branch to another's, because no question starts at a brand at all. `drug_brands.dosing_override`
+  reaches the profile screen and nothing else.
+
+  Randomising the stimulus would land straight in the fan rule, and the data is not ready for it.
+  Of 352 brands, 15 are narrowed to a branch, covering 6 drugs, and only 4 are genuinely split
+  (bupropion, fluoxetine, sildenafil, tirzepatide — albuterol and digoxin turned out uniform).
+  `dosing_regimens` has no indication column, so the database cannot yet say which dose belongs to
+  which branch. See item 7 below for the one drug where that already tells a lie.
+
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed
    `fields` as a comma-joined string, but the field picker is a checkbox group: it submits
@@ -2196,5 +2259,18 @@ reachable one-handed; browse table degrades to cards.
 5. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
 6. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
    remaining question is only whether individual courses get their own tags.
+7. **Sildenafil's dosing question teaches one branch as the whole answer** (2026-11-03).
+   Found while answering the question above. The drug-level dosing is *20 mg by mouth three times a
+   day* — Revatio's pulmonary-hypertension dose — and Viagra's *50 mg by mouth 1 hour prior to
+   sexual activity* sits in `drug_brands.dosing_override`, where the profile screen shows it and no
+   card or question ever does. So *How is Sildenafil dosed?* has one keyed answer and it is the
+   less familiar half.
+
+   It is 1 of 236 and the only one of its kind today: the other `dosing_override` row is Revatio's
+   own, and the other three split drugs (bupropion, fluoxetine, tirzepatide) carry one dose across
+   their branches. Fixing it properly means an indication axis on `dosing_regimens` — the same
+   column the per-route and per-population work in *Route is recorded* is already waiting for —
+   rather than anything in the quiz engine. Until then the prose is right about the drug and
+   incomplete about the brand, which is the sheet's own position.
 6. **Not in v1, deliberately:** PWA/offline, pill images, interaction checking, shared classmate
    decks, analytics dashboards. All additive on this schema.

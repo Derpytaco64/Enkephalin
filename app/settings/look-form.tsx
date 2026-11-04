@@ -20,6 +20,14 @@ const AXIS_LABELS: Record<ColorAxis, string> = {
  * every other write in this app behaves. The values come from fixed lists, so
  * a refusal means a hand-made request -- but silently ignoring one of those is
  * how a form starts lying about what it saved.
+ *
+ * **Every control here is controlled, and has to be.** React resets a form
+ * once its action resolves, which for an uncontrolled field means snapping
+ * back to the `defaultValue` the browser still holds. The save works and the
+ * revalidated layout comes back wearing the new theme -- and then the selects
+ * show the old one, so the form reads as though nothing saved while the page
+ * around it plainly did. Holding the five answers in state is what makes the
+ * form agree with the page.
  */
 export function LookForm({
   theme,
@@ -40,6 +48,23 @@ export function LookForm({
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
 
+  // Seeded from the server and then owned here. Nothing re-seeds them: after a
+  // save the two agree, and before one the unsaved answer is the one worth
+  // keeping on screen.
+  const [themeValue, setThemeValue] = useState(theme);
+  const [seasonValue, setSeasonValue] = useState(season);
+  const [axisValue, setAxisValue] = useState(axis);
+  const [tintValue, setTintValue] = useState(seasonTint);
+  const [ambienceValue, setAmbienceValue] = useState(ambience);
+
+  /** Any edit retires the last "Saved." -- it no longer describes this form. */
+  function edited<T>(set: (value: T) => void) {
+    return (value: T) => {
+      setSaved(false);
+      set(value);
+    };
+  }
+
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
 
   return (
@@ -57,7 +82,11 @@ export function LookForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="theme" className="block text-sm font-medium">Theme</label>
-          <select id="theme" name="theme" defaultValue={theme} className={control}>
+          <select
+            id="theme" name="theme" className={control}
+            value={themeValue}
+            onChange={(event) => edited(setThemeValue)(event.target.value as ThemePref)}
+          >
             <option value="system">Follow the system</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
@@ -69,7 +98,11 @@ export function LookForm({
 
         <div>
           <label htmlFor="season" className="block text-sm font-medium">Season</label>
-          <select id="season" name="season" defaultValue={season} className={control}>
+          <select
+            id="season" name="season" className={control}
+            value={seasonValue}
+            onChange={(event) => edited(setSeasonValue)(event.target.value as SeasonPref)}
+          >
             {SEASON_PREFS.map((value) => (
               <option key={value} value={value}>{SEASON_LABELS[value]}</option>
             ))}
@@ -85,7 +118,11 @@ export function LookForm({
 
         <div>
           <label htmlFor="axis" className="block text-sm font-medium">Colour by</label>
-          <select id="axis" name="axis" defaultValue={axis} className={control}>
+          <select
+            id="axis" name="axis" className={control}
+            value={axisValue}
+            onChange={(event) => edited(setAxisValue)(event.target.value as ColorAxis)}
+          >
             {(['class', 'schedule', 'tag', 'none'] as ColorAxis[]).map((value) => (
               <option key={value} value={value}>{AXIS_LABELS[value]}</option>
             ))}
@@ -103,7 +140,9 @@ export function LookForm({
       <div className="mt-4 space-y-3 border-t border-[var(--border)] pt-4">
         <label className="flex items-start gap-2 text-sm">
           <input
-            type="checkbox" name="seasonTint" defaultChecked={seasonTint} className="mt-1"
+            type="checkbox" name="seasonTint" className="mt-1"
+            checked={tintValue}
+            onChange={(event) => edited(setTintValue)(event.target.checked)}
           />
           <span>
             Tint the whole theme to match the season
@@ -116,7 +155,11 @@ export function LookForm({
         </label>
 
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="ambience" defaultChecked={ambience} className="mt-1" />
+          <input
+            type="checkbox" name="ambience" className="mt-1"
+            checked={ambienceValue}
+            onChange={(event) => edited(setAmbienceValue)(event.target.checked)}
+          />
           <span>
             Ambient decoration for light and dark
             <span className="mt-0.5 block text-xs text-[var(--muted)]">

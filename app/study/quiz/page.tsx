@@ -1,5 +1,4 @@
 import { asc, count, eq, ne } from 'drizzle-orm';
-import Link from 'next/link';
 import { db } from '@/db';
 import { drugIndications, drugTags, indications, tags } from '@/db/schema';
 import { indicationOptions } from '@/lib/drugs/indications';
@@ -152,12 +151,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
-        <Link href="/study/flashcards" className="text-sm text-[var(--accent)] underline">
-          Flashcards
-        </Link>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
 
       {/* Once a quiz is running the settings are a read-only line. Changing
           one mid-quiz cannot do what it looks like it does -- it redraws the

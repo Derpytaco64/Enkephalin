@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
@@ -426,5 +427,55 @@ describe('decorAttributes', () => {
   it('resolves auto against the date, as the season attribute does', () => {
     expect(decorAttributes({ ...base, season: 'auto' }, new Date(2026, 6, 4)).season)
       .toBe('summer');
+  });
+});
+
+/**
+ * The bug this guards: React calls `form.reset()` once a form action resolves,
+ * and on update it only reapplies a `<select>`'s `defaultValue` if `multiple`
+ * changed. So an uncontrolled select in one of these forms snaps back to
+ * whatever it was first rendered with and *stays* there -- the save works, the
+ * revalidated layout comes back wearing the new theme, and the form sits there
+ * claiming the old one. A checkbox recovers only if the re-render wins a race,
+ * which is not a thing to rely on either.
+ *
+ * Source-scanned rather than rendered, because what went wrong is the wiring:
+ * `defaultValue` anywhere in these two files is the defect itself.
+ */
+describe('the cosmetic forms hold their own answers', () => {
+  const FORMS = [
+    'app/settings/look-form.tsx',
+    'app/admin/look/site-theme-form.tsx',
+  ];
+
+  it('leaves no control uncontrolled', () => {
+    for (const path of FORMS) {
+      const source = readFileSync(path, 'utf8');
+      expect(source, `${path} defaultValue`).not.toMatch(/defaultValue=/);
+      expect(source, `${path} defaultChecked`).not.toMatch(/defaultChecked=/);
+    }
+  });
+
+  it('gives every named control a value and an onChange', () => {
+    for (const path of FORMS) {
+      const source = readFileSync(path, 'utf8');
+      // One `value=`/`checked=` and one `onChange` per control the form posts,
+      // so adding a sixth switch without wiring it fails here rather than in
+      // somebody's settings.
+      const posted = [...source.matchAll(/\sname="([A-Za-z]+)"/g)].map((match) => match[1]);
+      expect(posted.length, `${path} controls`).toBeGreaterThan(2);
+
+      const bound = (source.match(/\n\s+(?:value|checked)=\{/g) ?? []).length;
+      const changed = (source.match(/onChange=\{/g) ?? []).length;
+      expect(bound, `${path} bound`).toBe(posted.length);
+      expect(changed, `${path} onChange`).toBe(posted.length);
+    }
+  });
+
+  it('retires "Saved." the moment the form is edited again', () => {
+    // Otherwise the form says it saved while showing something it has not.
+    for (const path of FORMS) {
+      expect(readFileSync(path, 'utf8'), path).toContain('setSaved(false)');
+    }
   });
 });

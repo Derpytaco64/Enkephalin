@@ -14,6 +14,11 @@ import { SEASON_LABELS, SEASON_PREFS, type SeasonPref } from '@/lib/theme/season
  * nobody asked -- which is the test the season column had to pass, and did,
  * since "the whole site goes autumn in October" is a thing somebody would
  * actually want.
+ *
+ * Controlled, for the same reason the personal form is: React resets a form
+ * after its action resolves, and an uncontrolled control snaps back to the
+ * value the browser still has -- leaving the admin looking at the old default
+ * immediately after setting a new one. See `app/settings/look-form.tsx`.
  */
 export function SiteThemeForm({
   theme,
@@ -32,6 +37,19 @@ export function SiteThemeForm({
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
 
+  const [themeValue, setThemeValue] = useState(theme);
+  const [seasonValue, setSeasonValue] = useState(season);
+  const [tintValue, setTintValue] = useState(seasonTint);
+  const [ambienceValue, setAmbienceValue] = useState(ambience);
+
+  /** Any edit retires the last "Saved." -- it no longer describes this form. */
+  function edited<T>(set: (value: T) => void) {
+    return (value: T) => {
+      setSaved(false);
+      set(value);
+    };
+  }
+
   return (
     <form
       action={async (formData: FormData) => {
@@ -46,8 +64,10 @@ export function SiteThemeForm({
     >
       <label htmlFor="theme" className="block text-sm font-medium">Default theme</label>
       <select
-        id="theme" name="theme" defaultValue={theme}
+        id="theme" name="theme"
         className="mt-1 h-9 w-full max-w-xs rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
+        value={themeValue}
+        onChange={(event) => edited(setThemeValue)(event.target.value as ThemePref)}
       >
         <option value="system">Follow the system</option>
         <option value="light">Light</option>
@@ -60,8 +80,10 @@ export function SiteThemeForm({
 
       <label htmlFor="season" className="mt-4 block text-sm font-medium">Default season</label>
       <select
-        id="season" name="season" defaultValue={season}
+        id="season" name="season"
         className="mt-1 h-9 w-full max-w-xs rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
+        value={seasonValue}
+        onChange={(event) => edited(setSeasonValue)(event.target.value as SeasonPref)}
       >
         {SEASON_PREFS.map((value) => (
           <option key={value} value={value}>{SEASON_LABELS[value]}</option>
@@ -77,7 +99,9 @@ export function SiteThemeForm({
       <div className="mt-4 space-y-2 border-t border-[var(--border)] pt-4">
         <label className="flex items-start gap-2 text-sm">
           <input
-            type="checkbox" name="seasonTint" defaultChecked={seasonTint} className="mt-1"
+            type="checkbox" name="seasonTint" className="mt-1"
+            checked={tintValue}
+            onChange={(event) => edited(setTintValue)(event.target.checked)}
           />
           <span>
             Tint the whole theme to match the season
@@ -88,7 +112,11 @@ export function SiteThemeForm({
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="ambience" defaultChecked={ambience} className="mt-1" />
+          <input
+            type="checkbox" name="ambience" className="mt-1"
+            checked={ambienceValue}
+            onChange={(event) => edited(setAmbienceValue)(event.target.checked)}
+          />
           <span>
             Ambient decoration for light and dark
             <span className="mt-0.5 block text-xs text-[var(--muted)]">
