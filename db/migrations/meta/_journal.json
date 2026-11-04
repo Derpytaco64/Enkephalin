@@ -71,6 +71,13 @@
       "when": 1793641153603,
       "tag": "0009_decoration_has_two_more_switches",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793641153604,
+      "tag": "0010_a_dose_can_belong_to_one_indication",
+      "breakpoints": true
     }
   ]
 }

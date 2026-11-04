@@ -1067,6 +1067,95 @@ mostly uncontrolled form and deserves its own pass rather than being swept into 
 the cheap fix there is to stop using `<form action>` and call the action from `onSubmit`, which
 skips the reset entirely and leaves every field uncontrolled.
 
+### A dose can belong to one indication (2026-11-03)
+
+Raised by the owner: *sildenafil being in two brands both on top drugs with different dosing means
+that needs to be fixed*. It did. The sheet gives sildenafil one dosing line — *20 mg by mouth three
+times a day* — which is **Revatio's** pulmonary-hypertension dose. **Viagra's** *50 mg an hour
+beforehand* was recorded only on the brand row, where the profile shows it and no card or question
+ever could. So the app drilled the less familiar half of a drug whose two brands are both on the
+list, and never mentioned the other.
+
+**The branch lives in the prose, not in a column somebody ticks.** Dosing prose is the source and
+`dosing_regimens` is a *reading* of it, replaced wholesale every time the prose is edited — so an
+indication assigned beside those rows would be lost on the next re-read, which is the "leave this
+one alone" flag the old comment in `rebuildRegimens` anticipated needing. Putting it in the sentence
+instead means there is still one source of truth, and the branch is where the person editing the
+dose is already looking:
+
+```
+Pulmonary hypertension: 20 mg by mouth three times a day
+
+Erectile dysfunction: 50 mg by mouth 1 hour prior to sexual activity
+```
+
+`parseDosing` recognises that form **only** when every non-blank line is `<words>: <dose>` and no
+heading is one of the phase words the step segmenter already owns (*Initial*, *IV bolus*,
+*Continuous infusion*, *Extended release*). All-or-nothing is what makes it safe to add to a parser
+with 236 live inputs: the five colon-bearing dosings the sheet ships are all phases or product forms
+on a **single line**, so nothing that already exists can be misread, and nothing half-written is
+half-read. Each branch is then parsed by the same function — one level of recursion, which cannot be
+more, since a branch has no newline and the form needs two lines to be recognised — so alternatives
+and sequences go on working inside a branch with no second implementation.
+
+**A branch that cannot be read keeps its place.** This is the whole-prose rule applied one level
+down, and sildenafil is why it has to be: the pulmonary branch reads cleanly, and *50 mg by mouth 1
+hour prior to sexual activity* does not, because "1 hour prior to sexual activity" is a timing the
+model has no shape for. Weakening the parser to fit one drug is exactly what it refuses to do — but
+failing the pair would have thrown away the good branch *and* the split, which was the thing being
+fixed. So a refused branch stores as one row with no components carrying its own wording, and the
+whole dosing is `refused` only when every branch was.
+
+`dosing_regimens.indication_id` points at **`drug_indications`**, not at the shared vocabulary, so a
+dose can only be filed under an indication *this drug has* — the same choice `brand_indications`
+made, for the same reason. The heading is matched through the alias table, so a line written
+*Seizure* reaches the row stored as *Seizures*. A heading that matches nothing is **not** dropped and
+not guessed at: the row stores with no indication and says so in its review notes, which is how it
+reaches the dosing bench rather than quietly becoming a dose for the whole drug.
+
+Migration 0010 also had to rewrite the unique index. In Postgres nulls are distinct, so simply
+adding the nullable column would have stopped the index constraining the *unscoped* case — which is
+235 of 236 drugs and the case the index was added for. It is now over
+`coalesce(indication_id, zero-uuid)`; Drizzle cannot express that, so the schema states the columns
+and a test reads `pg_indexes` to check the database has what the comment claims.
+
+**What the quiz does with it.** `atomsOf` gives a split drug one atom per branch, and the option is
+the **bare dose** — prefixing it with the condition would put a `Something: ` on exactly one of four
+options, which is a tell. The branch goes in the *prompt* instead: *How is Sildenafil dosed for
+erectile dysfunction?* with four plain doses under it. Asked the other way round the prompt
+deliberately does **not** say which branch, because there the clue is already a dose and naming the
+condition would all but answer it; the question *key* carries the branch either way, or history
+would file two different questions under one name and report a single thing getting better and
+worse.
+
+The other branch is always in `acceptable` and can never be drawn as a distractor. That is the
+tirzepatide rule one field over — a dose that is true of the drug must not be marked wrong, whichever
+branch was asked — and it comes free from the mechanism already built for a drug with several
+indications.
+
+Two things went wrong on the way and are worth keeping:
+
+- **Notes are per row, by structure.** `ParseResult.notes` is one flat list and a split dosing stores
+  one row per branch, so handing every row the whole list marked the branch that read *perfectly* as
+  review work — phantom work in the one queue meant to hold real work. The first fix tagged the note
+  strings `"<Indication>: <note>"` and read them back with a regex, which broke on contact: notes
+  carry colons of their own, so `Left unread: kg.` parsed as a branch called *Left unread* and a
+  genuinely refused dosing came out looking settled. `ParseResult.branches` now carries the per-branch
+  notes as structure, and `notes` keeps the prefixed strings for the reader alone.
+- **The data edit is attributed to a person.** `audit_log.actor_id` is a foreign key to `users`, so
+  `scripts/split-dosing-by-indication.ts` resolves the env-seeded admin rather than inventing a
+  name — and it is idempotent on the *result*, not just on the prose, because the first run left
+  matching prose with no branched rows behind it when the audit write failed after the field had
+  saved. A script that called that state done would have left it broken for good.
+
+The prose edit lands with `updatedBy` set, which is what stops the next `npm run seed` putting the
+sheet's single line back: the importer keeps a human's value over the sheet's unless forced.
+
+Verified on the running container: two rows, each under its own indication, the pulmonary one clean
+and the erectile one carrying its own note; and the quiz drawing
+*How is Sildenafil dosed for erectile dysfunction?* with tadalafil's *10 mg one hour prior to sexual
+activity* as a distractor and the pulmonary dose held in `acceptable`.
+
 ### Nothing drifts behind text (2026-11-03)
 
 The first season shipped with motes crossing the page, and a leaf drifting through a paragraph makes
@@ -1760,7 +1849,9 @@ multiplicity four ways, and only rows give it: alternative regimens (9 drugs —
 once weekly*), sequenced regimens (5 — azithromycin's day 1 then days 2–5), and later the
 per-route and per-population variants [already recorded as unbuilt](#route-is-recorded-per-route-and-per-population-detail-is-not-yet).
 Keying rows by `(drug_id, route, population, step)` means that subsystem is already shaped: today
-every drug has one adult row at its standard route.
+every drug has one adult row at its standard route. **A fifth axis landed on 2026-11-03** —
+the indication — for the one drug whose dose depends on which condition it is being given for; see
+[A dose can belong to one indication](#a-dose-can-belong-to-one-indication-2026-11-03).
 
 **What the 237 look like**, from the survey that informed this:
 
@@ -2242,11 +2333,16 @@ reachable one-handed; browse table degrades to cards.
   branch to another's, because no question starts at a brand at all. `drug_brands.dosing_override`
   reaches the profile screen and nothing else.
 
-  Randomising the stimulus would land straight in the fan rule, and the data is not ready for it.
+  Randomising the stimulus would land straight in the fan rule, and the data was not ready for it.
   Of 352 brands, 15 are narrowed to a branch, covering 6 drugs, and only 4 are genuinely split
   (bupropion, fluoxetine, sildenafil, tirzepatide — albuterol and digoxin turned out uniform).
-  `dosing_regimens` has no indication column, so the database cannot yet say which dose belongs to
-  which branch. See item 7 below for the one drug where that already tells a lie.
+
+  **The dose half of that is now built**, on the owner's call the same day: see
+  [A dose can belong to one indication](#a-dose-can-belong-to-one-indication-2026-11-03).
+  `dosing_regimens` carries an indication, sildenafil's two doses are two rows, and the quiz asks
+  *How is Sildenafil dosed for erectile dysfunction?* rather than keying one branch as the answer.
+  Randomising brand-for-generic on the *stimulus* is still not built and still wants the fan rule
+  thought through properly.
 
 **Queued by the owner, 2026-11-03** — a second pass over the same two screens:
 
@@ -2346,18 +2442,8 @@ reachable one-handed; browse table degrades to cards.
 5. **Librarian email** re: Micromedex API entitlement. If yes, another `lib/lookup/` adapter.
 6. **Tag labels** — the sheet supplies the 2026 list edition and the P1/P2/P3 year levels, so the
    remaining question is only whether individual courses get their own tags.
-7. **Sildenafil's dosing question teaches one branch as the whole answer** (2026-11-03).
-   Found while answering the question above. The drug-level dosing is *20 mg by mouth three times a
-   day* — Revatio's pulmonary-hypertension dose — and Viagra's *50 mg by mouth 1 hour prior to
-   sexual activity* sits in `drug_brands.dosing_override`, where the profile screen shows it and no
-   card or question ever does. So *How is Sildenafil dosed?* has one keyed answer and it is the
-   less familiar half.
-
-   It is 1 of 236 and the only one of its kind today: the other `dosing_override` row is Revatio's
-   own, and the other three split drugs (bupropion, fluoxetine, tirzepatide) carry one dose across
-   their branches. Fixing it properly means an indication axis on `dosing_regimens` — the same
-   column the per-route and per-population work in *Route is recorded* is already waiting for —
-   rather than anything in the quiz engine. Until then the prose is right about the drug and
-   incomplete about the brand, which is the sheet's own position.
+7. **done — 2026-11-03.** ~~Sildenafil's dosing question teaches one branch as the whole
+   answer~~. Fixed properly rather than patched: a dose can now belong to one indication. See
+   [A dose can belong to one indication](#a-dose-can-belong-to-one-indication-2026-11-03).
 6. **Not in v1, deliberately:** PWA/offline, pill images, interaction checking, shared classmate
    decks, analytics dashboards. All additive on this schema.

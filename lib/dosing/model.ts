@@ -199,6 +199,20 @@ export type Regimen = {
   step: number;
   /** "Load", "Maintenance", "Day 1" -- the sheet's word for this step. */
   label: string | null;
+  /**
+   * The indication this dose belongs to, **as the prose wrote it**, or null
+   * for "this is the drug's dose".
+   *
+   * The written wording rather than a slug or an id, because this type is the
+   * parser's output and the parser has no database. Resolving it to one of the
+   * drug's own indication rows happens where the row is stored; an indication
+   * that does not resolve becomes review work rather than a silent drop.
+   *
+   * Sildenafil is why it exists: 20 mg three times a day for pulmonary
+   * hypertension, 50 mg an hour before sex for erectile dysfunction, and the
+   * two sold as Revatio and Viagra.
+   */
+  indication: string | null;
   /** More than one only for combination products: carbidopa/levodopa 25/100 mg. */
   amounts: Amount[];
   /** More than one where the sheet offers a choice: naloxone IV/IM/subQ. */
@@ -223,6 +237,7 @@ export function emptyRegimen(): Regimen {
     alternative: 0,
     step: 0,
     label: null,
+    indication: null,
     amounts: [],
     routes: [],
     site: null,

@@ -143,7 +143,18 @@ function renderDuration(duration: Duration, sig: boolean): string {
 }
 
 /** The prescription shorthand: `0.25-0.5 mg PO TID PRN`. */
-export function toSig(regimen: Regimen): string {
+/**
+ * Enough of a regimen to print one.
+ *
+ * Not `Regimen`, because the two things that print are the parser's output and
+ * a stored row, and they differ in exactly the parts a sig does not use: the
+ * row has an `indication_id`, the parser has the wording it read. Neither
+ * belongs in a sig -- "20 mg by mouth three times a day" is the dose, and
+ * which indication it is for is said beside it, not inside it.
+ */
+export type Printable = Omit<Regimen, 'indication' | 'sourceText'>;
+
+export function toSig(regimen: Printable): string {
   const parts: string[] = [];
 
   if (regimen.label) parts.push(`${regimen.label}:`);
@@ -165,7 +176,7 @@ export function toSig(regimen: Regimen): string {
 }
 
 /** The readback: `0.25 to 0.5 mg by mouth three times a day as needed`. */
-export function toEnglish(regimen: Regimen): string {
+export function toEnglish(regimen: Printable): string {
   const parts: string[] = [];
 
   const amounts = renderAmounts(regimen.amounts, false);

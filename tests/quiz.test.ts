@@ -30,6 +30,7 @@ function source(partial: Partial<CardSource> & { slug: string; generic: string }
     tags: [],
     indications: [],
     dosingSig: null,
+    dosingBranches: [],
     needsPairingReview: false,
     values: {},
     ...partial,
@@ -613,5 +614,126 @@ describe('reading the config out of a URL', () => {
     expect(manyParam(['statins', 'beta-blockers'])).toEqual(['statins', 'beta-blockers']);
     expect(manyParam('statins')).toEqual(['statins']);
     expect(manyParam(undefined)).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------------------
+   Dosing that splits by indication.
+
+   Sildenafil: 20 mg three times a day for pulmonary hypertension as Revatio,
+   50 mg an hour beforehand for erectile dysfunction as Viagra. One of the two
+   used to be the keyed answer to "how is sildenafil dosed", which taught the
+   less familiar half and never mentioned the other.
+   --------------------------------------------------------------------- */
+
+describe('a dosing split by indication', () => {
+  const BRANCHES = [
+    { label: 'Pulmonary hypertension', text: '20 mg by mouth three times a day', sig: '20 mg PO TID' },
+    { label: 'Erectile dysfunction', text: '50 mg by mouth 1 hour prior to sexual activity', sig: null },
+  ];
+
+  const sildenafil = () => source({
+    slug: 'sildenafil',
+    generic: 'Sildenafil',
+    drugClass: 'Phosphodiesterase 5 Inhibitor',
+    dosingSig: null,
+    dosingBranches: BRANCHES,
+    // The field still carries the prose, which is what a flashcard shows.
+    values: { dosing: value({ value: BRANCHES.map((b) => `${b.label}: ${b.text}`).join('\n\n') }) },
+  });
+
+  /** Enough other drugs to fill four options. */
+  const others = () => [
+    source({ slug: 'tadalafil', generic: 'Tadalafil', drugClass: 'Phosphodiesterase 5 Inhibitor', dosingSig: '10 mg PO PRN', values: { dosing: value({ value: '10 mg by mouth one hour prior to sexual activity' }) } }),
+    source({ slug: 'metformin', generic: 'Metformin', dosingSig: '500 mg PO BID', values: { dosing: value({ value: '500 mg by mouth two times a day' }) } }),
+    source({ slug: 'lisinopril', generic: 'Lisinopril', dosingSig: '10 mg PO daily', values: { dosing: value({ value: '10 mg by mouth once a day' }) } }),
+    source({ slug: 'atorvastatin', generic: 'Atorvastatin', dosingSig: '20 mg PO daily', values: { dosing: value({ value: '20 mg by mouth once a day' }) } }),
+  ];
+
+  const ask = (seed: number) => {
+    let at = seed;
+    const rng = () => { at = (at * 9301 + 49297) % 233280; return at / 233280; };
+    return buildQuiz(
+      [sildenafil(), ...others()],
+      defs,
+      { ...DEFAULT_CONFIG, fields: ['dosing'], mode: 'exclusive', direction: 'drug_to_fields' },
+      { rng },
+    ).filter((question) => question.slug === 'sildenafil');
+  };
+
+  it('names the branch in the prompt', () => {
+    // Over several draws, since one quiz asks one branch per drug.
+    const prompts = new Set(
+      [1, 7, 13, 29, 51, 97, 211, 307].flatMap((seed) => ask(seed).map((q) => q.prompt)),
+    );
+    expect([...prompts].sort()).toEqual([
+      'How is Sildenafil dosed for erectile dysfunction?',
+      'How is Sildenafil dosed for pulmonary hypertension?',
+    ]);
+  });
+
+  it('leaves the options bare, because a label on one of four is a tell', () => {
+    for (const question of ask(1)) {
+      for (const option of question.options) {
+        expect(option, option).not.toMatch(/^(Pulmonary hypertension|Erectile dysfunction):/);
+      }
+    }
+  });
+
+  it('never offers the other branch as a wrong answer', () => {
+    // The tirzepatide rule, one field over: a dose that is true of the drug
+    // cannot be marked wrong, whichever branch was asked.
+    for (const seed of [1, 7, 13, 29, 51, 97, 211, 307]) {
+      for (const question of ask(seed)) {
+        const wrong = question.options.filter((_, at) => at !== question.correctIndex);
+        for (const branch of BRANCHES) {
+          expect(wrong, `${question.prompt} offered ${branch.text}`).not.toContain(branch.text);
+        }
+        expect(question.acceptable.sort()).toEqual(BRANCHES.map((b) => b.text).sort());
+      }
+    }
+  });
+
+  it('keys the two branches apart, so history can tell them apart', () => {
+    const keys = new Set(
+      [1, 7, 13, 29, 51, 97, 211, 307].flatMap((seed) => ask(seed).map((q) => q.questionKey)),
+    );
+    expect([...keys].sort()).toEqual([
+      'drug_to_fields:dosing:erectile-dysfunction',
+      'drug_to_fields:dosing:pulmonary-hypertension',
+    ]);
+  });
+
+  it('keys them apart asked the other way too, without saying which in the prompt', () => {
+    // Naming the condition there would all but answer it: the clue is already
+    // a dose, and the only ED drug among the options is the one being asked.
+    let at = 3;
+    const rng = () => { at = (at * 9301 + 49297) % 233280; return at / 233280; };
+    const questions = buildQuiz(
+      [sildenafil(), ...others()],
+      defs,
+      { ...DEFAULT_CONFIG, fields: ['dosing'], mode: 'exclusive', direction: 'fields_to_drug' },
+      { rng },
+    ).filter((question) => question.slug === 'sildenafil');
+
+    for (const question of questions) {
+      expect(question.questionKey).toMatch(/^fields_to_drug:dosing:(erectile-dysfunction|pulmonary-hypertension)$/);
+      expect(question.prompt).not.toMatch(/for (erectile|pulmonary)/i);
+    }
+  });
+
+  it('leaves an unsplit drug exactly as it was', () => {
+    let at = 5;
+    const rng = () => { at = (at * 9301 + 49297) % 233280; return at / 233280; };
+    const questions = buildQuiz(
+      [sildenafil(), ...others()],
+      defs,
+      { ...DEFAULT_CONFIG, fields: ['dosing'], mode: 'exclusive', direction: 'drug_to_fields' },
+      { rng },
+    ).filter((question) => question.slug === 'metformin');
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0].prompt).toBe('How is Metformin dosed?');
+    expect(questions[0].questionKey).toBe('drug_to_fields:dosing');
   });
 });

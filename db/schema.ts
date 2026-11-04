@@ -261,6 +261,19 @@ export const dosingRegimens = pgTable('dosing_regimens', {
   drugId: uuid('drug_id').notNull().references(() => drugs.id, { onDelete: 'cascade' }),
 
   /**
+   * The one indication this dose belongs to, or null for "this is the drug's
+   * dose" -- which is 235 of 236 and is why it is nullable rather than
+   * sentinelled.
+   *
+   * Points at `drug_indications` rather than at `indications`, so a dose can
+   * only be filed under an indication *this drug has*. Written by the parser
+   * from a prose line that names it ("Pulmonary hypertension: 20 mg ...") and
+   * never assigned by hand, so a prose re-read cannot lose it -- see
+   * `rebuildRegimens`.
+   */
+  indicationId: uuid('indication_id').references(() => drugIndications.id, { onDelete: 'cascade' }),
+
+  /**
    * The variant axes for per-route and per-population dosing. Both carry a
    * value rather than a null so the unique index below actually constrains:
    * in Postgres nulls are distinct, so a nullable key would let the backfill
@@ -297,8 +310,15 @@ export const dosingRegimens = pgTable('dosing_regimens', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index('dosing_regimens_drug_idx').on(t.drugId),
+  index('dosing_regimens_indication_idx').on(t.indicationId),
+  // Declared over `coalesce(indication_id, zero-uuid)` in migration 0010, not
+  // over the bare column: nulls are distinct in Postgres, so a plain index
+  // would stop constraining the unscoped case -- which is nearly every drug,
+  // and is the case the index was added for. Drizzle cannot express the
+  // expression, so this states the columns and `tests/dosing-indication.test.ts`
+  // checks the index the database actually has.
   uniqueIndex('dosing_regimens_unique')
-    .on(t.drugId, t.variantRoute, t.population, t.alternative, t.step),
+    .on(t.drugId, t.indicationId, t.variantRoute, t.population, t.alternative, t.step),
 ]);
 
 /* -------------------------------------------------------------- tags ----- */

@@ -37,6 +37,7 @@ function source(partial: Partial<CardSource> = {}): CardSource {
     tags: ['top-drugs-2026'],
     indications: ['anxiety'],
     dosingSig: '0.25 mg PO TID',
+    dosingBranches: [],
     needsPairingReview: false,
     values: {
       generic: value({ value: 'Alprazolam' }),

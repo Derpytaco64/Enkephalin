@@ -4,14 +4,17 @@ import {
   auditLog,
   dosingRegimens,
   drugBrands,
+  drugIndications,
   drugTags,
   drugs,
+  indications,
   tags,
   type FieldValue,
 } from '@/db/schema';
 import { isUniqueViolation } from '@/lib/db-errors';
 import { setDrugIndicationLinks } from '@/lib/drugs/indication-store';
-import { activesOf, parseDosing } from '@/lib/dosing/parse';
+import { indicationSlug } from '@/lib/drugs/indications';
+import { activesOf, notesFor, parseDosing } from '@/lib/dosing/parse';
 import type { FieldDef } from '@/lib/fields/registry';
 
 /** Same shape the field editor returns, with room for what was written. */
@@ -373,6 +376,15 @@ export async function setDrugField(
  * the same way either way -- what changes is whether it counts as review work,
  * because "nobody has looked at this" and "somebody looked and this is the
  * answer" are different states that otherwise look identical.
+ *
+ * Where the prose splits by indication -- one line each, `Pulmonary
+ * hypertension: 20 mg ...` -- each row is filed under that indication. The
+ * wording is matched to one of *this drug's* indications through the same
+ * alias table the vocabulary uses, so *Seizure* and *Seizures* land on the same
+ * row. A heading that matches nothing is **not** dropped and not guessed at:
+ * the row stores with no indication and says so in the review notes, which is
+ * how it reaches the dosing bench instead of quietly becoming a dose for the
+ * whole drug.
  */
 export async function rebuildRegimens(
   drugId: string,
@@ -390,14 +402,37 @@ export async function rebuildRegimens(
 
   const result = parseDosing(prose, activesOf(genericName));
   const regimens = result.regimens.length > 0 ? result.regimens : [{
-    sourceText: prose, alternative: 0, step: 0, label: null,
+    sourceText: prose, alternative: 0, step: 0, label: null, indication: null,
     amounts: [], routes: [], site: null,
     frequency: { kind: 'unspecified' as const },
     modifiers: [], duration: null, ceiling: null, qualifiers: [],
   }];
 
+  const branches = await resolveBranches(drugId, regimens);
+
+  /**
+   * One row's own notes, not the whole drug's.
+   *
+   * A split dosing stores one row per branch, and `result.notes` is a flat
+   * list -- so handing every row all of them marks a branch that read
+   * perfectly as review work because another branch did not. `notesFor` reads
+   * the per-branch structure instead; for a dosing that never split it hands
+   * back the whole list, which is every other drug.
+   */
+  const notesOn = (regimen: { indication: string | null }) => [
+    ...(options.unique
+      ? ['Marked a unique sig: stored as written, and asked as free recall rather than multiple choice.']
+      : notesFor(result, regimen.indication)),
+    ...(unmatched(regimen, branches)
+      ? [`"${regimen.indication}" is not one of this drug's indications, so this dose is stored without one. Add the indication, or correct the heading.`]
+      : []),
+  ];
+
   await db.insert(dosingRegimens).values(regimens.map((regimen) => ({
     drugId,
+    indicationId: regimen.indication === null
+      ? null
+      : branches.get(regimen.indication.toLowerCase()) ?? null,
     alternative: regimen.alternative,
     step: regimen.step,
     label: regimen.label,
@@ -410,19 +445,70 @@ export async function rebuildRegimens(
     duration: regimen.duration,
     ceiling: regimen.ceiling,
     qualifiers: regimen.qualifiers,
-    // Marked unique means settled: it is not waiting on anyone.
-    needsReview: options.unique ? false : result.status !== 'parsed',
-    reviewNotes: options.unique
-      ? ['Marked a unique sig: stored as written, and asked as free recall rather than multiple choice.']
-      : result.notes,
+    // Marked unique means settled: it is not waiting on anyone -- but an
+    // unmatched indication heading is not about the sig, so it still asks.
+    needsReview: unmatched(regimen, branches)
+      || (options.unique ? false : notesOn(regimen).length > 0),
+    reviewNotes: notesOn(regimen),
     source: 'drug editor',
   })));
 
   await audit({
     actorId, action: 'dosing.reparsed', drugId,
-    diff: { status: result.status, rows: regimens.length, unique: options.unique ?? false, notes: result.notes },
+    diff: {
+      status: result.status,
+      rows: regimens.length,
+      unique: options.unique ?? false,
+      notes: result.notes,
+      branches: [...new Set(regimens.map((regimen) => regimen.indication).filter(Boolean))],
+    },
   });
   return { status: 'replaced', rows: regimens.length };
+}
+
+/** True where the prose named an indication and this drug does not have it. */
+function unmatched(
+  regimen: { indication: string | null },
+  branches: Map<string, string>,
+): boolean {
+  return regimen.indication !== null && !branches.has(regimen.indication.toLowerCase());
+}
+
+/**
+ * The drug's own indication rows, keyed by every wording the prose might have
+ * used for them: the label as stored, and the slug the alias table folds it to.
+ *
+ * Read per rebuild rather than cached. A dosing edit is rare and a stale map
+ * would file a dose under the wrong condition, which is the one outcome worth
+ * more than a query.
+ */
+async function resolveBranches(
+  drugId: string,
+  regimens: { indication: string | null }[],
+): Promise<Map<string, string>> {
+  if (!regimens.some((regimen) => regimen.indication !== null)) return new Map();
+
+  const rows = await db
+    .select({ linkId: drugIndications.id, label: indications.label, slug: indications.slug })
+    .from(drugIndications)
+    .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+    .where(eq(drugIndications.drugId, drugId));
+
+  const bySlug = new Map(rows.map((row) => [row.slug, row.linkId]));
+  const found = new Map<string, string>();
+  for (const row of rows) found.set(row.label.toLowerCase(), row.linkId);
+
+  // Then the written wording, through the alias table, so "Seizures" reaches
+  // the row stored as "Seizure".
+  for (const regimen of regimens) {
+    if (regimen.indication === null) continue;
+    const written = regimen.indication.toLowerCase();
+    if (found.has(written)) continue;
+    const linkId = bySlug.get(indicationSlug(regimen.indication));
+    if (linkId !== undefined) found.set(written, linkId);
+  }
+
+  return found;
 }
 
 /* -------------------------------------------------------------- create --- */

@@ -38,6 +38,10 @@ export async function loadCardSources(): Promise<CardSource[]> {
       .orderBy(asc(drugBrands.sortOrder)),
     db
       .select({
+        // The link row's own id, because a dosing row points at the link and
+        // not at the shared vocabulary -- a dose belongs to "this drug, for
+        // this condition", which is what a link row is.
+        linkId: drugIndications.id,
         drugId: drugIndications.drugId,
         slug: indications.slug,
         label: indications.label,
@@ -54,12 +58,19 @@ export async function loadCardSources(): Promise<CardSource[]> {
       .orderBy(asc(dosingRegimens.alternative), asc(dosingRegimens.step)),
   ]);
 
+  const indicationLabelByLink = new Map(indicationRows.map((row) => [row.linkId, row.label]));
+
   // One comparable key per drug: every regimen printed as sig and joined. Null
   // the moment a row has no components, because half a reading compares to
   // nothing -- such a drug falls back to being compared by its wording, which
   // is all it ever had.
+  //
+  // Rows carrying an indication are held out of it and gathered per branch
+  // below. Folding them in would be the original bug in a new place: one
+  // string holding two different doses, with nothing saying which is which.
   const sigByDrug = new Map<string, string | null>();
   for (const regimen of regimenRows) {
+    if (regimen.indicationId !== null) continue;
     if (sigByDrug.get(regimen.drugId) === null) continue;
     const sig = regimen.amounts.length > 0 ? toSig(regimen) : '';
     if (!sig) {
@@ -68,6 +79,38 @@ export async function loadCardSources(): Promise<CardSource[]> {
     }
     const current = sigByDrug.get(regimen.drugId);
     sigByDrug.set(regimen.drugId, current ? `${current} | ${sig}` : sig);
+  }
+
+  /**
+   * The indication-scoped rows, gathered per drug and per branch.
+   *
+   * A branch's sig goes null on the same rule as a drug's -- one unreadable
+   * row and the branch is compared by its wording -- and the text is the slice
+   * of prose the branch was read from, which is what the editor typed and what
+   * a reader should see.
+   */
+  const branchesByDrug = new Map<string, Map<string, { label: string; text: string; sig: string | null }>>();
+  for (const regimen of regimenRows) {
+    if (regimen.indicationId === null) continue;
+    const label = indicationLabelByLink.get(regimen.indicationId);
+    // A link row deleted under us: the dose is still the drug's, it just has
+    // no branch to hang off any more.
+    if (label === undefined) continue;
+
+    const branches = branchesByDrug.get(regimen.drugId) ?? new Map();
+    branchesByDrug.set(regimen.drugId, branches);
+
+    const sig = regimen.amounts.length > 0 ? toSig(regimen) : null;
+    const held = branches.get(regimen.indicationId);
+    if (held === undefined) {
+      branches.set(regimen.indicationId, { label, text: regimen.sourceText, sig });
+      continue;
+    }
+    branches.set(regimen.indicationId, {
+      label,
+      text: `${held.text} | ${regimen.sourceText}`,
+      sig: held.sig === null || sig === null ? null : `${held.sig} | ${sig}`,
+    });
   }
 
   const group = <T, K extends keyof T>(rows: T[], pick: K) => {
@@ -103,6 +146,7 @@ export async function loadCardSources(): Promise<CardSource[]> {
       // scope a link carries and the drugs it selects cannot drift apart.
       indications: [...new Set(indicationSlugsByDrug.get(drug.id) ?? [])],
       dosingSig: sigByDrug.get(drug.id) ?? null,
+      dosingBranches: [...(branchesByDrug.get(drug.id)?.values() ?? [])],
       needsPairingReview: drug.needsPairingReview,
       values: {
         ...drug.fields,

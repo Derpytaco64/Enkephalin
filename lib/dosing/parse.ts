@@ -40,6 +40,19 @@ export type ParseResult = {
   quizzable: boolean;
   /** Why it needs review, or why it was refused. Shown in the queue. */
   notes: string[];
+  /**
+   * The same notes, filed by the branch they came from, where the prose split
+   * by indication -- empty for every other dosing, which is nearly all of them.
+   *
+   * It exists because a split dosing stores one row per branch, and handing
+   * every row the flat `notes` list would mark a branch that read perfectly as
+   * review work because a *different* branch did not. The first attempt at
+   * this tagged the strings instead and read them back with a regex, which
+   * broke immediately: notes contain colons of their own, so
+   * `Left unread: kg.` parsed as a branch called "Left unread". Structure,
+   * not spelling.
+   */
+  branches: { indication: string; notes: string[] }[];
   /** The tokens the parse could not account for. */
   unconsumed: string[];
 };
@@ -687,6 +700,78 @@ export function activesOf(generic: string): string[] {
   return parts.length > 1 ? parts : [];
 }
 
+
+/**
+ * The words the step segmenter already owns. A line beginning with one of
+ * these is a phase of one regimen, not an indication, and two of them on
+ * separate lines must not be read as two branches.
+ */
+const PHASE_HEAD =
+  /^(?:Load(?:ing dose)?|Initial(?: dose)?|Maintenance|IV bolus|Continuous infusion|(?:Immediate|Extended|Delayed) release(?: product)?)$/i;
+
+/**
+ * Splits prose into one block per indication, or null where it is not written
+ * that way -- which is nearly always.
+ *
+ * The form is one line per indication, `Pulmonary hypertension: 20 mg by mouth
+ * three times a day`. Recognised only when **every** non-blank line reads that
+ * way and no heading is a phase word, because all-or-nothing is what makes it
+ * safe: the five colon-bearing dosings the sheet ships today are phases and
+ * product forms on a *single* line, so nothing that already exists can be
+ * mistaken for this, and nothing that is half-written is half-read.
+ *
+ * Why the prose and not a column somebody ticks: these rows are a *reading* of
+ * the prose and are replaced wholesale whenever it is edited, so an indication
+ * assigned beside them would be lost on the next re-read. Putting it in the
+ * sentence keeps one source of truth and puts the branch where the person
+ * editing the dose is already looking.
+ */
+function indicationBlocks(prose: string): { indication: string; text: string }[] | null {
+  const lines = prose.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (lines.length < 2) return null;
+
+  const blocks: { indication: string; text: string }[] = [];
+  for (const line of lines) {
+    // A heading is words, not numbers: "20 mg: ..." is not an indication, and
+    // the dose after the colon has to be non-empty or there is no branch.
+    const match = /^([A-Za-z][A-Za-z0-9 ,'()/-]{2,60}?):\s*(\S.*)$/.exec(line);
+    if (match === null) return null;
+
+    const indication = match[1].trim();
+    if (PHASE_HEAD.test(indication)) return null;
+    blocks.push({ indication, text: match[2].trim() });
+  }
+
+  // Two lines naming the same indication are a mistake, not a branch, and
+  // would collide on the unique index.
+  const seen = new Set(blocks.map((block) => block.indication.toLowerCase()));
+  if (seen.size !== blocks.length) return null;
+
+  return blocks;
+}
+
+/**
+ * The notes belonging to one branch, or -- for `null`, or for a dosing that
+ * never split -- the ones belonging to the dosing as a whole.
+ *
+ * Read off `branches` rather than out of the note text. See the field's own
+ * note for what the string-tagging version got wrong.
+ */
+export function notesFor(result: ParseResult, indication: string | null): string[] {
+  if (result.branches.length === 0) return result.notes;
+  if (indication === null) return [];
+  return result.branches.find(
+    (branch) => branch.indication.toLowerCase() === indication.toLowerCase(),
+  )?.notes ?? [];
+}
+
+/** The worst of several readings, since one bad branch is a bad dosing. */
+function worst(statuses: ParseStatus[]): ParseStatus {
+  if (statuses.includes('refused')) return 'refused';
+  if (statuses.includes('needs_review')) return 'needs_review';
+  return 'parsed';
+}
+
 /**
  * Parses a dosing string into the regimens it describes.
  *
@@ -698,7 +783,60 @@ export function activesOf(generic: string): string[] {
 export function parseDosing(prose: string, actives: string[] = []): ParseResult {
   const text = (prose ?? '').trim();
   if (!text) {
-    return { status: 'refused', regimens: [], quizzable: false, notes: ['No dosing text.'], unconsumed: [] };
+    return {
+      status: 'refused', regimens: [], quizzable: false,
+      notes: ['No dosing text.'], branches: [], unconsumed: [],
+    };
+  }
+
+  // Indication-split dosing is read one branch at a time, by this same
+  // function: a branch is an ordinary dosing string, so alternatives and
+  // sequences inside one go on working with no second implementation. The
+  // recursion is one level deep and cannot be more -- a branch has no newline,
+  // and `indicationBlocks` needs two lines to say yes.
+  const blocks = indicationBlocks(text);
+  if (blocks !== null) {
+    const parts = blocks.map((block) => ({ block, read: parseDosing(block.text, actives) }));
+
+    /**
+     * A refused branch keeps its place, as one row with no components carrying
+     * its own wording.
+     *
+     * This is the whole-prose rule applied one level down -- refused dosing is
+     * stored anyway so it is present and askable as free recall -- and
+     * sildenafil is why it has to be. Its pulmonary branch reads cleanly;
+     * *50 mg by mouth 1 hour prior to sexual activity* does not, because "1
+     * hour prior to sexual activity" is a timing this model has no shape for,
+     * and inventing one to fit one drug is exactly what the parser refuses to
+     * do. Failing the pair would have thrown away the good branch *and* the
+     * split, which was the thing being fixed.
+     */
+    const regimens = parts.flatMap(({ block, read }) => (
+      read.regimens.length > 0
+        ? read.regimens.map((regimen) => ({ ...regimen, indication: block.indication }))
+        : [{ ...emptyRegimen(), sourceText: block.text, indication: block.indication }]
+    ));
+
+    // Prefixed for a reader -- `notes` is what the editor and the bench print
+    // -- while `branches` below is what anything deciding per row uses.
+    const notes = parts.flatMap(({ block, read }) =>
+      read.notes.map((note) => `${block.indication}: ${note}`));
+
+    return {
+      // Refused only where *every* branch was: one unreadable branch beside a
+      // readable one is review work, not a dead dosing.
+      status: parts.every(({ read }) => read.status === 'refused')
+        ? 'refused'
+        : worst(parts.map(({ read }) => read.status)) === 'parsed' ? 'parsed' : 'needs_review',
+      regimens: parts.every(({ read }) => read.status === 'refused') ? [] : regimens,
+      quizzable: parts.every(({ read }) => read.quizzable),
+      notes: [...new Set(notes)],
+      branches: parts.map(({ block, read }) => ({
+        indication: block.indication,
+        notes: read.notes,
+      })),
+      unconsumed: parts.flatMap(({ read }) => read.unconsumed),
+    };
   }
 
   const notes: string[] = [];
@@ -758,6 +896,7 @@ export function parseDosing(prose: string, actives: string[] = []): ParseResult 
       regimens: [],
       quizzable: false,
       notes: [...notes, 'Nothing could be read from this dosing.'],
+      branches: [],
       unconsumed,
     };
   }
@@ -775,6 +914,7 @@ export function parseDosing(prose: string, actives: string[] = []): ParseResult 
       regimens: [],
       quizzable: false,
       notes: [...notes, `Left unread: ${unconsumed.join(' ')}. Parsing it would drop part of the meaning.`],
+      branches: [],
       unconsumed,
     };
   }
@@ -794,6 +934,7 @@ export function parseDosing(prose: string, actives: string[] = []): ParseResult 
     regimens,
     quizzable: !unquizzable,
     notes: [...new Set(notes)],
+    branches: [],
     unconsumed: [],
   };
 }

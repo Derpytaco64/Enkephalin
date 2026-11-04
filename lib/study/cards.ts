@@ -24,6 +24,21 @@ export type CardSource = {
    * dose, and only the sig knows that.
    */
   dosingSig: string | null;
+  /**
+   * Dosing split by indication, where the source splits it -- empty for the
+   * 235 drugs whose dose is simply the drug's dose.
+   *
+   * Sildenafil is the one that forced it: 20 mg three times a day for
+   * pulmonary hypertension as Revatio, 50 mg an hour beforehand for erectile
+   * dysfunction as Viagra, and both brands on the top-drugs list. One of those
+   * used to be stored as *the* answer.
+   *
+   * `sig` is the comparable form, null where the branch's components could not
+   * be read; `text` is what a reader sees. Which is asked is the quiz's
+   * business -- see `atomsOf` -- and a flashcard goes on showing the whole
+   * prose, which names both.
+   */
+  dosingBranches: { label: string; text: string; sig: string | null }[];
   /** Shown as a to-do on the profile; it does not hold cards back. */
   needsPairingReview: boolean;
   values: Record<string, FieldValue | undefined>;

@@ -74,13 +74,47 @@ const NEWLINE = String.fromCharCode(10);
  * whole. Read from the formatted value rather than from the joined answer
  * text, because splitting that back apart is how the items got lost once.
  */
-function atomsOf(def: FieldDef, value: FieldValue | undefined): string[] | null {
+function atomsOf(def: FieldDef, source: CardSource): string[] | null {
+  // Dosing the source splits by indication is asked one branch at a time, and
+  // the option is the **bare dose**: prefixing it with the condition would put
+  // a `Something: ` on exactly one of the four options, which is a tell. Which
+  // branch is being asked goes in the prompt instead -- see `qualify`.
+  if (def.key === 'dosing' && source.dosingBranches.length > 0) {
+    return source.dosingBranches.map((branch) => branch.text);
+  }
+
+  const value = source.values[def.key];
   const formatted = formatFieldValue(def, value);
   if (formatted.kind === 'missing') return null;
   if (formatted.kind === 'list') return formatted.items.length > 0 ? formatted.items : null;
 
   const text = answerText(def, value);
   return text === null ? null : [text];
+}
+
+/**
+ * What a branch of a split dosing is for, per atom, or null everywhere else.
+ *
+ * Parallel to `atoms` rather than folded into them because it belongs to the
+ * *question* and not to the answer: "How is sildenafil dosed **for erectile
+ * dysfunction**?" with four bare doses under it.
+ */
+function qualifiersOf(def: FieldDef, source: CardSource, atoms: string[]): (string | null)[] {
+  if (def.key !== 'dosing' || source.dosingBranches.length === 0) return atoms.map(() => null);
+  return atoms.map((text) =>
+    source.dosingBranches.find((branch) => branch.text === text)?.label ?? null);
+}
+
+/**
+ * Narrows a prompt to the branch being asked.
+ *
+ * Reads the question's own punctuation rather than rewriting the template: the
+ * templates are admin-editable, so the only safe assumption is that a question
+ * ends in a question mark.
+ */
+function qualify(prompt: string, qualifier: string | null): string {
+  if (qualifier === null) return prompt;
+  return `${prompt.replace(/\s*\?\s*$/, '')} for ${qualifier.toLowerCase()}?`;
 }
 
 /**
@@ -101,11 +135,23 @@ function atomsOf(def: FieldDef, value: FieldValue | undefined): string[] | null 
  */
 function answerKey(def: FieldDef, source: CardSource, text: string): string {
   if (def.key === 'indication') return indicationSlug(text) || text.trim().toLowerCase();
-  if (def.key === 'dosing' && source.dosingSig) return `sig:${source.dosingSig.toLowerCase()}`;
+  if (def.key === 'dosing') {
+    // A branch is compared by *its own* sig, not by the drug's: the whole
+    // point of splitting sildenafil is that its two doses are two answers.
+    const branch = source.dosingBranches.find((row) => row.text === text);
+    if (branch) return branch.sig ? `sig:${branch.sig.toLowerCase()}` : text.trim().toLowerCase();
+    if (source.dosingSig) return `sig:${source.dosingSig.toLowerCase()}`;
+  }
   return text.trim().toLowerCase();
 }
 
-type Candidate = { source: CardSource; atoms: string[]; keys: string[] };
+type Candidate = {
+  source: CardSource;
+  atoms: string[];
+  keys: string[];
+  /** Per atom, and almost always all null. See `qualifiersOf`. */
+  qualifiers: (string | null)[];
+};
 
 /**
  * What a question is *about*: one field, or -- in per-drug mode -- the whole
@@ -193,7 +239,11 @@ function bundleOf(
   const keys: string[] = [];
 
   for (const def of defs) {
-    const atoms = atomsOf(def, source.values[def.key]);
+    // A bundle line is unqualified even for a split dosing. The question here
+    // is which drug this profile belongs to, and one of its doses is a true
+    // line of it -- where a "Dosing (erectile dysfunction)" label on one
+    // option out of four would be the tell this builder exists to avoid.
+    const atoms = atomsOf(def, source);
     if (atoms === null) return null;
 
     // One of them, as the per-fact question does: a drug with six indications
@@ -259,7 +309,9 @@ export function buildQuiz(
 
     const candidates: Candidate[] = sources.flatMap((source) => {
       const bundle = bundleOf(selected, source, rng);
-      return bundle === null ? [] : [{ source, atoms: [bundle.text], keys: [bundle.key] }];
+      return bundle === null
+        ? []
+        : [{ source, atoms: [bundle.text], keys: [bundle.key], qualifiers: [null] }];
     });
 
     ask(about, candidates);
@@ -271,9 +323,14 @@ export function buildQuiz(
     // the distractor pool, and it is deliberately the whole database.
     const candidates: Candidate[] = sources.flatMap((source) => {
       if (!askable(def, source)) return [];
-      const atoms = atomsOf(def, source.values[def.key]);
+      const atoms = atomsOf(def, source);
       if (atoms === null) return [];
-      return [{ source, atoms, keys: atoms.map((text) => answerKey(def, source, text)) }];
+      return [{
+        source,
+        atoms,
+        keys: atoms.map((text) => answerKey(def, source, text)),
+        qualifiers: qualifiersOf(def, source, atoms),
+      }];
     });
     if (candidates.length === 0) continue;
 
@@ -362,7 +419,12 @@ function factQuestion(
   const index = Math.floor(rng() * candidate.atoms.length);
   const correct = candidate.atoms[index];
   if (correct === undefined) return null;
+  const qualifier = candidate.qualifiers[index] ?? null;
 
+  // Every atom, still: asked "how is sildenafil dosed for erectile
+  // dysfunction", the pulmonary dose is not a *wrong* answer about the drug,
+  // so it must never be offered as one. Same rule as tirzepatide's two
+  // indications, and the same reason.
   const acceptable = candidate.atoms;
   const exclude = new Set(candidate.keys);
 
@@ -387,18 +449,26 @@ function factQuestion(
     rng,
   );
 
+  // The branch is part of the identity of the question, not decoration on it:
+  // without it, history would file two different questions about sildenafil
+  // under one key and report the pair as one thing getting better and worse.
+  const branch = qualifier === null ? '' : `:${indicationSlug(qualifier) || qualifier}`;
+
   return {
-    id: `${asked.slug}:${def.key}:drug_to_fields`,
+    id: `${asked.slug}:${def.key}${branch}:drug_to_fields`,
     drugId: asked.drugId,
     slug: asked.slug,
     generic: asked.generic,
-    questionKey: `drug_to_fields:${def.key}`,
+    questionKey: `drug_to_fields:${def.key}${branch}`,
     fieldKey: def.key,
     fieldLabel: def.label,
     direction: 'drug_to_fields',
-    prompt: def.promptTemplate
-      ? def.promptTemplate.replaceAll('{{generic}}', asked.generic)
-      : `${asked.generic} — ${def.label}?`,
+    prompt: qualify(
+      def.promptTemplate
+        ? def.promptTemplate.replaceAll('{{generic}}', asked.generic)
+        : `${asked.generic} — ${def.label}?`,
+      qualifier,
+    ),
     options: laid.map((option) => option.text),
     correctIndex: laid.findIndex((option) => option.text === correct),
     acceptable,
@@ -451,12 +521,23 @@ function nameQuestion(
 
   const asking = def.key === 'brand' ? 'Which generic is this a brand of?' : 'Which drug?';
 
+  // Two branches of a split dosing are two different questions with the same
+  // answer, so they are keyed apart -- otherwise history files them as one and
+  // reports a single thing getting better and worse.
+  //
+  // The *prompt* deliberately does not say which branch, though the other
+  // direction's does. There, naming the condition narrows the question; here it
+  // would all but answer it, since the clue is already a dose and the only ED
+  // drug in the list is the one being asked about.
+  const qualifier = candidate.qualifiers[at] ?? null;
+  const branch = qualifier === null ? '' : `:${indicationSlug(qualifier) || qualifier}`;
+
   return {
-    id: `${asked.slug}:${def.key}:fields_to_drug`,
+    id: `${asked.slug}:${def.key}${branch}:fields_to_drug`,
     drugId: asked.drugId,
     slug: asked.slug,
     generic: asked.generic,
-    questionKey: `fields_to_drug:${def.key}`,
+    questionKey: `fields_to_drug:${def.key}${branch}`,
     fieldKey: def.key,
     fieldLabel: def.label,
     direction: 'fields_to_drug',
