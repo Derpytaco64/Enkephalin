@@ -143,7 +143,7 @@ export function SessionRunner({
   const progress = blockProgress(session);
 
   return (
-    <div className="mt-8">
+    <div className="mt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm text-[var(--muted)]">
         <span>
           {config.blockSize > 0

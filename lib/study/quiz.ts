@@ -57,6 +57,23 @@ export type QuizQuestion = {
    * text is itself the fact.
    */
   fromFact: (string | null)[];
+  /**
+   * **Everyone** the option is true of, per option, and the reason
+   * `fromGeneric` is not enough.
+   *
+   * An option is drawn from one drug, and for most fields that drug is the
+   * only one it belongs to: one mechanism, one dose, one brand. The schedule
+   * is not like that. Nine drugs in the sheet are CII, so "CII is the
+   * controlled schedule of Methylphenidate" is true, arbitrary, and reads as
+   * if the other eight were not -- the drug named is simply whichever one the
+   * draw happened to reach for. Same shape wherever a value is shared: a
+   * common indication, a dose two drugs are written up with identically.
+   *
+   * So the review names all of them. Matched on the answer *key*, which is
+   * the same comparison that keeps a shared value from being offered as a
+   * wrong answer -- see `answerKey`.
+   */
+  fromOwners: { slug: string; generic: string }[][];
 };
 
 /** The drug's own name is the stimulus or the answer, never a thing asked about. */
@@ -340,8 +357,15 @@ export function buildQuiz(
   return questions;
 }
 
-/** An option, with enough about where it came from to explain itself. */
-type Distractor = { text: string; slug: string; generic: string; atoms: string[] };
+/**
+ * An option, with enough about where it came from to explain itself.
+ *
+ * `key` is carried rather than recomputed because it is what the pool is
+ * searched by afterwards: everyone this option is also true of (`fromOwners`)
+ * is found by matching keys, and recomputing one here would be a second
+ * opinion about what counts as the same answer.
+ */
+type Distractor = { text: string; key: string; slug: string; generic: string; atoms: string[] };
 
 /**
  * Takes distractors one class-mate first, then anyone -- which is the whole
@@ -387,6 +411,7 @@ function drawDistractors(input: {
       taken.add(choice.key);
       drawn.push({
         text: choice.text,
+        key: choice.key,
         slug: candidate.source.slug,
         generic: candidate.source.generic,
         atoms: candidate.atoms,
@@ -443,11 +468,24 @@ function factQuestion(
 
   const laid = shuffled(
     [
-      { text: correct, slug: asked.slug, generic: asked.generic, atoms: candidate.atoms },
+      {
+        text: correct,
+        key: candidate.keys[index],
+        slug: asked.slug,
+        generic: asked.generic,
+        atoms: candidate.atoms,
+      },
       ...distractors,
     ],
     rng,
   );
+
+  // Everyone each option is true of, the right one included. The pool is the
+  // whole database, which is what makes this worth printing: a question narrowed
+  // to one class still tells you that nine drugs share the schedule.
+  const ownersOf = (key: string) => candidates
+    .filter((other) => other.keys.includes(key))
+    .map((other) => ({ slug: other.source.slug, generic: other.source.generic }));
 
   // The branch is part of the identity of the question, not decoration on it:
   // without it, history would file two different questions about sildenafil
@@ -476,6 +514,7 @@ function factQuestion(
     fromGeneric: laid.map((option) => option.generic),
     // The option already reads as the fact, so there is nothing to add.
     fromFact: laid.map(() => null),
+    fromOwners: laid.map((option) => ownersOf(option.key)),
   };
 }
 
@@ -513,7 +552,13 @@ function nameQuestion(
 
   const laid = shuffled(
     [
-      { text: asked.generic, slug: asked.slug, generic: asked.generic, atoms: candidate.atoms },
+      {
+        text: asked.generic,
+        key: asked.generic.toLowerCase(),
+        slug: asked.slug,
+        generic: asked.generic,
+        atoms: candidate.atoms,
+      },
       ...distractors,
     ],
     rng,
@@ -550,6 +595,10 @@ function nameQuestion(
     // Pick the wrong drug and this is the answer you were actually describing,
     // which is the thing worth being told.
     fromFact: laid.map((option) => option.atoms.join(', ') || null),
+    // An option here *is* a drug, so it is true of exactly that drug. The
+    // sharing in this direction is on the clue instead, and `acceptable`
+    // already carries every drug the clue is equally true of.
+    fromOwners: laid.map((option) => [{ slug: option.slug, generic: option.generic }]),
   };
 }
 

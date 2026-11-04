@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+/* The two smallest steps, each up one notch.
+
+   Nearly all the explanatory prose in this app is `text-sm` and nearly all the
+   provenance and status marks are `text-xs`, so Tailwind's 14px and 12px were
+   the sizes most of the words were actually set in -- 12px in particular is
+   below what anyone should have to read a sentence at. 15 and 13, with the
+   line heights moved to match, which is enough to feel calmer without
+   reflowing a single layout: nothing here is sized in a way that depends on
+   the text being exactly 14px.
+
+   `text-base` is left alone deliberately. It is the question on a quiz card
+   and the body of a drug profile, it is already 16px, and moving it would move
+   every heading scaled off it. */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+}
+
 /* The chrome: page, surface, text, borders and the states drawn as thin
    markers. Each is a token with a light and a dark value, because a background
    has to be one or the other. Light is defined on bare :root; dark is redefined
@@ -106,7 +126,62 @@
   --grade-4: #5ddba4;
 }
 
+/* ===== the scrollbar =======================================================
+
+   The one piece of chrome the app was not drawing.
+
+   Left to the browser it is a bar in the operating system's taste, and that
+   went wrong twice. On a tinted season it was the only neutral rectangle on
+   the page. And with an explicit dark theme chosen on a light machine it was a
+   *light* bar beside dark text -- because `color-scheme: light dark` hands the
+   choice to the OS, which does not know what was picked in Settings.
+
+   So two parts. `color-scheme` is narrowed to whichever theme is actually in
+   force, which also settles the form controls and the overscroll gutter. Then
+   the bar is drawn from a token: an alpha of the foreground over a
+   *transparent* track, so what shows through behind it is the page's own
+   ground -- season tint, washes and all -- and there is nothing per-season to
+   keep in step here.
+
+   `scrollbar-color` is an inherited property, so stating it on :root reaches
+   every scrolling element in the app; the WebKit pseudo-elements are not
+   inherited, hence the `*`. Both syntaxes are stated because no browser takes
+   both.
+   ========================================================================= */
+
+:root { --scroll-ink: 24 24 27; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --scroll-ink: 236 236 241; }
+}
+:root[data-theme="dark"] { --scroll-ink: 236 236 241; }
+
 html { color-scheme: light dark; }
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--scroll-ink) / 0.3) transparent;
+}
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* The transparent border plus `background-clip` is what makes the thumb a
+   lozenge with air around it rather than a bar wall-to-wall: WebKit has no
+   margin on this pseudo-element. */
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--scroll-ink) / 0.3);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--scroll-ink) / 0.45);
+}
 
 body {
   background: var(--bg);

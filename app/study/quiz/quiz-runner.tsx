@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, useTransition } from 'react';
 import type { StudyConfig } from '@/lib/study/config';
 import type { QuizQuestion } from '@/lib/study/quiz';
 import { LookupPanel, LookupTrigger, type LookupTarget } from '../_components/lookup-panel';
@@ -22,6 +23,58 @@ function typingSomewhere(event: KeyboardEvent): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
+
+/**
+ * The drugs a shared answer belongs to, named rather than summarised.
+ *
+ * `fromOwners` carries every drug an option is true of, which for most fields
+ * is one. The controlled schedule is the case that made this necessary: nine
+ * drugs in the sheet are CII, and naming only the one the option happened to
+ * be drawn from reads as if the other eight were not -- the answer to "whose
+ * schedule is this" is a list.
+ *
+ * Capped at four with a count after it. Nine names in a sentence is a list
+ * nobody reads, and the number is the fact worth taking away: *this is not a
+ * distinguishing answer*.
+ */
+function Owners({
+  owners,
+  tone,
+  onLookup,
+}: {
+  owners: { slug: string; generic: string }[];
+  tone: string;
+  onLookup: (drug: LookupTarget) => void;
+}) {
+  const shown = owners.slice(0, 4);
+  const rest = owners.length - shown.length;
+
+  return (
+    <>
+      {shown.map((owner, at) => (
+        <span key={owner.slug}>
+          {at > 0 && (
+            <span className="text-[var(--muted)]">
+              {at === shown.length - 1 && rest === 0 ? ' and ' : ', '}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => onLookup(owner)}
+            className={`${tone} underline`}
+          >
+            {owner.generic}
+          </button>
+        </span>
+      ))}
+      {rest > 0 && (
+        <span className="text-[var(--muted)]">
+          {' '}and {rest} other{rest === 1 ? '' : 's'}
+        </span>
+      )}
+    </>
+  );
+}
 
 /**
  * What the answer you gave was actually right about.
@@ -49,6 +102,14 @@ function Mismatch({
   const owner = question.fromGeneric[chosenIndex];
   const fact = question.fromFact[chosenIndex];
   const slug = question.fromSlug[chosenIndex];
+  // Everyone it is true of, not just the drug it was drawn from. Falls back to
+  // that drug for a question built before the field existed -- a paper is held
+  // in memory across a deploy.
+  const owners = question.fromOwners?.[chosenIndex]?.length
+    ? question.fromOwners[chosenIndex]
+    : slug !== null && owner !== null
+      ? [{ slug, generic: owner }]
+      : [];
   if (!owner) return null;
 
   // Both halves of the pair wear the colour the wrong option was marked in,
@@ -69,25 +130,73 @@ function Mismatch({
     );
   }
 
-  // Options were facts: say whose fact it is.
+  // Options were facts: say whose fact it is -- all of whose, where more than
+  // one drug shares it.
   return (
     <>
       <span className="text-[var(--muted)]">&ldquo;</span>
       <span className={half}>{chosen}</span>
-      <span className="text-[var(--muted)]">&rdquo; is the {question.fieldLabel.toLowerCase()} of </span>
-      {slug === null ? (
+      <span className="text-[var(--muted)]">
+        &rdquo; is the {question.fieldLabel.toLowerCase()} of{' '}
+      </span>
+      {owners.length === 0 ? (
         <span className={half}>{owner}</span>
       ) : (
-        <button
-          type="button"
-          onClick={() => onLookup({ slug, generic: owner })}
-          className={`${half} underline`}
-        >
-          {owner}
-        </button>
+        <Owners owners={owners} tone={half} onLookup={onLookup} />
       )}
       <span className="text-[var(--muted)]">.</span>
     </>
+  );
+}
+
+/**
+ * Who else the right answer is right about.
+ *
+ * The complaint this answers: a schedule question marked wrong names the
+ * correct answer and one drug, when nine drugs in the sheet are CII. The
+ * right answer to "what is methylphenidate's schedule" is CII, and the thing
+ * worth learning alongside it is that CII is not a fact *about
+ * methylphenidate* -- it is a fact about a group, and here is the group.
+ *
+ * Only ever rendered where the answer is genuinely shared, so it is silent on
+ * a mechanism or a dose, which is nearly everything. The asked drug is left
+ * out: it is already named in the prompt.
+ */
+function SharedAnswer({
+  question,
+  onLookup,
+}: {
+  question: QuizQuestion;
+  onLookup: (drug: LookupTarget) => void;
+}) {
+  const owners = (question.fromOwners?.[question.correctIndex] ?? [])
+    .filter((owner) => owner.slug !== question.slug);
+  if (owners.length === 0) return null;
+
+  return (
+    <p className="mt-2 text-sm text-[var(--muted)]">
+      Also the {question.fieldLabel.toLowerCase()} of{' '}
+      <Owners owners={owners} tone="text-[var(--verified)]" onLookup={onLookup} />
+      <span>.</span>
+    </p>
+  );
+}
+
+/**
+ * Every other answer this question would have taken.
+ *
+ * Shown on the card and again in the review, because the review is where a
+ * wrong answer is actually read back -- it was missing there, which made a
+ * fact-to-drug question look as though one drug was the answer when the clue
+ * was true of nine.
+ */
+function AlsoRight({ question }: { question: QuizQuestion }) {
+  const others = question.acceptable
+    .filter((text) => text !== question.options[question.correctIndex]);
+  if (others.length === 0) return null;
+
+  return (
+    <span className="text-xs text-[var(--muted)]">Also right: {others.join(', ')}</span>
   );
 }
 
@@ -127,6 +236,23 @@ export function QuizRunner({
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [finished, setFinished] = useState(false);
   const [saved, setSaved] = useState<FinishState | null>(null);
+
+  /**
+   * *Again* -- the same settings, a new paper, started.
+   *
+   * `router.refresh()` rather than a link, because the settings are already
+   * what this page was rendered with: re-running the server render draws a
+   * fresh paper from the same filters, and the page keys this component on
+   * that paper's id, so a new draw remounts the runner with the new questions.
+   * A link would have to rebuild the query out of the config, which is a
+   * second opinion about what the settings were.
+   *
+   * Deliberately not offered until the attempt has been recorded. The write
+   * happens in an effect on this component, and remounting mid-write would
+   * throw away the quiz just sat.
+   */
+  const router = useRouter();
+  const [starting, startAgain] = useTransition();
 
   const question = questions[index];
   const answer = question ? answers[question.id] : undefined;
@@ -212,9 +338,25 @@ export function QuizRunner({
                 ? 'Recorded, with which fields let you down.'
                 : saved.message}
           </p>
-          <Link href="/study/quiz" className="mt-4 inline-block text-sm text-[var(--accent)] underline">
-            Another quiz
-          </Link>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={saved === null || starting}
+              onClick={() => startAgain(() => router.refresh())}
+              title="A new paper from the same settings"
+              className="rounded bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-fg)]
+                disabled:opacity-60"
+            >
+              {starting ? 'Drawing…' : 'Again'}
+            </button>
+            <Link href="/study/quiz" className="text-sm text-[var(--accent)] underline">
+              Another quiz
+            </Link>
+            <span className="text-xs text-[var(--muted)]">
+              Again redraws these {questions.length} question
+              {questions.length === 1 ? '' : 's'}&rsquo; worth from the same filters.
+            </span>
+          </div>
         </div>
 
         <LookupPanel drug={lookup} available onClose={() => setLookup(null)} />
@@ -247,6 +389,10 @@ export function QuizRunner({
                     ) : (
                       <p className="text-sm text-[var(--muted)]">Not answered.</p>
                     )}
+                    <SharedAnswer question={row} onLookup={setLookup} />
+                    <div className="mt-1">
+                      <AlsoRight question={row} />
+                    </div>
                     {/* Nothing left to answer by the summary, so nothing
                         left to protect. */}
                     <div className="mt-2">
@@ -269,7 +415,7 @@ export function QuizRunner({
   }
 
   return (
-    <div className="mt-8">
+    <div className="mt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm text-[var(--muted)]">
         <span>
           Question {index + 1} of {questions.length}
@@ -330,6 +476,8 @@ export function QuizRunner({
           </p>
         )}
 
+        {answered && <SharedAnswer question={question} onLookup={setLookup} />}
+
         {answered && (
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <button
@@ -354,11 +502,7 @@ export function QuizRunner({
               unavailableReason="Answer first, then look it up"
               onOpen={setLookup}
             />
-            {question.acceptable.length > 1 && (
-              <span className="text-xs text-[var(--muted)]">
-                Also right: {question.acceptable.filter((text) => text !== question.options[question.correctIndex]).join(', ')}
-              </span>
-            )}
+            <AlsoRight question={question} />
           </div>
         )}
       </article>

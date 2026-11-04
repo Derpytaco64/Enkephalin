@@ -49,9 +49,7 @@ export default async function Home() {
         >
           Sign in
         </Link>
-        {disclaimer !== undefined && (
-          <p className="mt-10 text-sm text-[var(--muted)]">{disclaimer}</p>
-        )}
+        <Disclaimer text={disclaimer} />
       </main>
     );
   }
@@ -102,15 +100,43 @@ export default async function Home() {
 
       <Areas drugs={overview.catalogue.drugs} />
 
-      {/* The admin's own wording out of site settings, not a sentence
-          hard-coded on two pages. Absent only before bootstrap has written
-          the singleton, which is a state nobody signed in can be in. */}
-      {disclaimer !== undefined && (
-        <p className="plate mt-12 border-t border-[var(--border)] pt-6 text-sm text-[var(--muted)]">
-          {disclaimer}
-        </p>
-      )}
+      <Disclaimer text={disclaimer} />
     </main>
+  );
+}
+
+/* -------------------------------------------------------- disclaimer ------ */
+
+/**
+ * The legal line, at the foot of the page and as quiet as it can be while
+ * still being read.
+ *
+ * It used to be a full-width paragraph under a full-width rule, which gave the
+ * least interesting sentence on the page the same weight as a section heading.
+ * What it needs is to be *present*: findable by anyone looking for it, ignored
+ * by everyone who has read it once. So: centred, narrow, small, and marked off
+ * by a short hairline rather than a rule across the column.
+ *
+ * The admin's own wording out of site settings, not a sentence hard-coded on
+ * two pages. Absent only before bootstrap has written the singleton, which is
+ * a state nobody signed in can be in.
+ *
+ * `plate` because the home page's column is open to the weather -- see the
+ * note on `<main className="open">` above. The plate is only as wide as the
+ * text, so a leaf still drifts past either side of it.
+ */
+function Disclaimer({ text }: { text: string | undefined }) {
+  if (text === undefined) return null;
+
+  return (
+    <footer className="mt-16 flex flex-col items-center gap-3">
+      {/* A mark, not a divider: eight pixels of hairline says "the page ends
+          here" without drawing a line under the content above it. */}
+      <span aria-hidden="true" className="block h-px w-8 bg-[var(--border)]" />
+      <p className="plate max-w-md text-center text-xs leading-relaxed text-[var(--muted)]">
+        {text}
+      </p>
+    </footer>
   );
 }
 

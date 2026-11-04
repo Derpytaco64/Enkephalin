@@ -118,26 +118,52 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
   }));
 
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
+  // Cards on screen, which is a different thing from a config having been
+  // picked: a deck can be started and have nothing due.
+  const running = deck.cards.length > 0;
+
+  // Everything above the card, on one line, once there is a card. Same
+  // argument as the quiz page -- see the note there. A flashcard is taller
+  // than a question, so the saving matters more here, not less.
+  const setupBar = (
+    <SetupBar
+      path={SURFACES.flashcards.path}
+      setups={setups}
+      saveHref={startsSomething(saveParams) ? saveSetupHref('flashcards', saveParams) : null}
+      compact={running}
+    />
+  );
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Flashcards</h1>
+    <main className={`mx-auto max-w-2xl px-4 ${running ? 'py-5' : 'py-10'}`}>
+      {/* The settings panel is open whenever there is nothing to study -- no
+          fields picked, nothing matched, or everything scheduled for later --
+          since those are exactly the moments you need the controls. Collapsed
+          once cards are running, because then the card is the page.
 
-      {/* Open whenever there is nothing to study -- no fields picked, nothing
-          matched, or everything scheduled for later -- since those are exactly
-          the moments you need the controls. Collapsed once cards are running,
-          because then the card is the page. */}
-      {/* Outside the panel below, and above it. The panel collapses once cards
-          are running -- which is exactly when there is a setup worth saving,
-          so a save link inside it would be hidden at the only time it applies. */}
-      <SetupBar
-        path={SURFACES.flashcards.path}
-        setups={setups}
-        saveHref={startsSomething(saveParams) ? saveSetupHref('flashcards', saveParams) : null}
-      />
+          The setup bar sits outside it either way: the panel collapses once
+          cards are running, which is exactly when there is a setup worth
+          saving, so a save link inside it would be hidden at the only time it
+          applies. */}
+      {running ? (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-base font-semibold tracking-tight">Flashcards</h1>
+          {setupBar}
+        </div>
+      ) : (
+        <>
+          <h1 className="text-2xl font-semibold tracking-tight">Flashcards</h1>
+          {setupBar}
+        </>
+      )}
 
-      <details open={deck.cards.length === 0} className="mt-3 rounded border border-[var(--border)]">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+      <details
+        open={!running}
+        className={`rounded border border-[var(--border)] ${running ? 'mt-2' : 'mt-3'}`}
+      >
+        <summary
+          className={`cursor-pointer font-medium ${running ? 'px-3 py-1.5 text-xs' : 'px-4 py-3 text-sm'}`}
+        >
           Session settings
           {started && (
             <span className="ml-2 font-normal text-[var(--muted)]">

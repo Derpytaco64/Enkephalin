@@ -9,6 +9,15 @@ import { requireUser } from '@/lib/session';
 import type { FieldValue } from '@/db/schema';
 import { markFieldAction } from './actions';
 
+/**
+ * One card, used eight or nine times down the page.
+ *
+ * Stated once rather than repeated per section so the sections cannot drift
+ * apart -- the whole gain here is that they read as one stack of the same
+ * thing.
+ */
+const CARD = 'rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5';
+
 const STATUS_TOKENS = {
   ok: 'var(--verified)',
   flagged: 'var(--flagged)',
@@ -43,6 +52,27 @@ function StatusMarker({ status }: { status: FieldValue['status'] }) {
   );
 }
 
+/**
+ * A section heading, with a hairline running out of it to the edge of the
+ * card.
+ *
+ * The profile is eight or nine sections of label-and-value, and with nothing
+ * but a small caps line between them they ran together into one list. The rule
+ * is what makes each one a block; it is drawn from the heading rather than
+ * above it so the words and the line are the same object.
+ */
+function SectionHead({ children }: { children: React.ReactNode }) {
+  return (
+    <h2
+      className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide
+        text-[var(--muted)]"
+    >
+      {children}
+      <span aria-hidden="true" className="h-px flex-1 bg-[var(--border)]" />
+    </h2>
+  );
+}
+
 function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefined }) {
   const formatted = formatFieldValue(def, value);
 
@@ -51,14 +81,16 @@ function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefine
     case 'missing':
       return <p className="text-[var(--muted)]">{emptyLabel(formatted.kind, def)}</p>;
     case 'list':
+      // A marker outside the text rather than inside it, so a wrapped item
+      // lines up under its own first word instead of under the bullet.
       return (
-        <ul className="list-inside list-disc">
+        <ul className="list-outside list-disc space-y-0.5 pl-5">
           {formatted.items.map((item) => <li key={item}>{item}</li>)}
         </ul>
       );
     case 'markdown':
       return (
-        <div className="space-y-2">
+        <div className="space-y-2 leading-relaxed">
           {formatted.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
         </div>
       );
@@ -105,8 +137,21 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
         )}
       </div>
 
-      <header className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{drug.genericName}</h1>
+      {/* The identity, in its own card.
+
+          It was a bare row of text at the top of a long column of other rows
+          of text, which gave the name of the drug no more weight than the
+          heading of its eighth section. The card is what says *this is the
+          thing, and everything below is about it*.
+
+          The brands come up here with it. They were ten sections down, under a
+          heading, which is a strange place to keep the name a patient would
+          actually use -- and on half the drugs in the sheet the brand is the
+          name anyone would recognise. The section below keeps the detail: which
+          route each one is, what it is licensed for, whose dosing differs. */}
+      <header className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight">{drug.genericName}</h1>
         {/* Filled when the class is the axis, neutral otherwise: the colour
             on a page should mean one thing, and which thing is the reader's
             choice in Settings. */}
@@ -139,25 +184,39 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
         {drug.needsClassReview && (
           <span className="text-xs text-[var(--unverified)]">class needs review</span>
         )}
+      </div>
+
+        {brands.length > 0 && (
+          <p className="mt-3 text-lg">
+            <span className="text-sm text-[var(--muted)]">Sold as </span>
+            <span className="font-semibold tracking-tight">
+              {brands.map((brand) => brand.name).join(', ')}
+            </span>
+          </p>
+        )}
       </header>
 
       {drug.needsPairingReview && (
-        <p className="mt-4 rounded border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+        <p className="mt-4 rounded-xl border border-[var(--unverified)] bg-[var(--surface)] p-4 text-sm">
           This drug has competing brands across several indications, and which brand carries which
           has not been settled. Worth fixing in the editor — the cards are built either way.
         </p>
       )}
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_14rem] lg:items-start">
-        <div className="space-y-10">
+      {/* Tighter than it was, because the sections draw their own edges now:
+          40px of air between two bordered cards is a gap, where between two
+          unbordered lists it was the only thing separating them. */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_15rem] lg:items-start">
+        <div className="space-y-4">
           {brands.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">Brands</h2>
-              <ul className="mt-2 divide-y divide-[var(--border)]">
+            <section className={CARD}>
+              <SectionHead>Brands</SectionHead>
+              <ul className="mt-3 divide-y divide-[var(--border)]">
                 {brands.map((brand) => (
-                  <li key={brand.id} className="py-2">
-                    <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-medium">{brand.name}</span>
+                  <li key={brand.id} className="py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      {/* The name a box in a pharmacy says, set like one. */}
+                      <span className="text-base font-semibold tracking-tight">{brand.name}</span>
                       {brand.route && <span className="text-sm text-[var(--muted)]">{brand.route}</span>}
                       <span className="text-sm text-[var(--muted)]">
                         {brand.indications.length > 0
@@ -180,9 +239,9 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
           )}
 
           {groupFieldDefs(defs).map(([group, groupDefs]) => (
-            <section key={group}>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">{group}</h2>
-              <dl className="mt-2 divide-y divide-[var(--border)]">
+            <section key={group} className={CARD}>
+              <SectionHead>{group}</SectionHead>
+              <dl className="mt-3 divide-y divide-[var(--border)]">
                 {groupDefs.map((def) => {
                   const value: FieldValue | undefined = def.isCore
                     ? {
@@ -195,9 +254,15 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                     : drug.fields[def.key];
 
                   return (
-                    <div key={def.key} className="py-3">
-                      <dt className="flex flex-wrap items-baseline gap-x-3">
-                        <span className="text-sm font-medium">{def.label}</span>
+                    <div key={def.key} className="py-3.5 first:pt-0 last:pb-0">
+                      {/* The label is the quiet half. It used to be set in the
+                          same weight and size as the value beside it, which on
+                          a page that is nothing but labels and values left no
+                          way to tell at a glance which was the answer. */}
+                      <dt className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                          {def.label}
+                        </span>
                         {value && !def.isCore && <StatusMarker status={value.status} />}
                         {value?.source && (
                           <span className="text-xs text-[var(--muted)]">from {value.source}</span>
@@ -220,7 +285,7 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                           </form>
                         )}
                       </dt>
-                      <dd className="mt-1">
+                      <dd className="mt-1.5 leading-relaxed">
                         <FieldBody def={def} value={value} />
                       </dd>
                     </div>
@@ -231,11 +296,15 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
           ))}
         </div>
 
-        <aside className="space-y-8">
+        {/* Sticky from `lg` up, where it is a column beside the fields rather
+            than a block under them: the tags and the class-mates are what you
+            reach for *while* reading a field, and scrolling back up for them
+            loses your place. */}
+        <aside className="space-y-4 lg:sticky lg:top-6">
           {tags.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">Tags</h2>
-              <ul className="mt-2 space-y-1 text-sm">
+            <section className={CARD}>
+              <SectionHead>Tags</SectionHead>
+              <ul className="mt-3 space-y-1 text-sm">
                 {tags.map((tag) => (
                   <li key={tag.slug}>
                     <Link href={`/drugs?tag=${tag.slug}`} className="text-[var(--accent)] underline">
@@ -248,11 +317,9 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
           )}
 
           {siblings.length > 0 && (
-            <section>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
-                Same class
-              </h2>
-              <p className="mt-1 text-xs text-[var(--muted)]">
+            <section className={CARD}>
+              <SectionHead>Same class</SectionHead>
+              <p className="mt-2 text-xs text-[var(--muted)]">
                 Where distractors come from, so compare them here.
               </p>
               <ul className="mt-2 space-y-1 text-sm">

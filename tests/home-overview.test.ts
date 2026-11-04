@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import {
@@ -250,5 +251,47 @@ describe('streakFrom', () => {
   it('crosses a month boundary', () => {
     const first = new Date(2026, 11, 1, 9);
     expect(streakFrom(['2026-12-01', '2026-11-30', '2026-11-29'], first)).toBe(3);
+  });
+});
+
+/* ------------------------------------------------------------------------
+   The disclaimer.
+
+   The least interesting sentence on the page, and it used to carry the
+   weight of a section heading: a full-width paragraph under a full-width
+   rule. What it needs is to be present -- findable by anyone looking for it,
+   ignorable by everyone who has read it once.
+   --------------------------------------------------------------------- */
+
+describe('the disclaimer at the foot of the home page', () => {
+  const HOME = readFileSync('app/page.tsx', 'utf8');
+
+  it('is one component, used by both halves of the page', () => {
+    // Signed in and signed out are two different layouts and one sentence.
+    // Written twice, the two would drift -- which is the same argument as
+    // reading it from site settings rather than hard-coding it at all.
+    expect((HOME.match(/<Disclaimer /g) ?? [])).toHaveLength(2);
+    expect(HOME).toContain('getSiteSettings()');
+    expect(HOME).not.toMatch(/not a clinical reference/);
+  });
+
+  it('is centred, narrow and small', () => {
+    const block = HOME.slice(HOME.indexOf('function Disclaimer'));
+    const body = block.slice(0, block.indexOf('\n}'));
+    expect(body).toContain('items-center');
+    expect(body).toContain('text-center');
+    expect(body).toContain('max-w-md');
+    expect(body).toContain('text-xs');
+    // A mark rather than a rule across the column: a line under the content
+    // above it would be a divider belonging to that content.
+    expect(body).not.toContain('border-t');
+  });
+
+  it('paints its own ground, because this column is open to the weather', () => {
+    // `main.open` on the home page lets a season drift between the cards --
+    // safe only while every block holding text carries `.plate`. See the note
+    // on <main> in app/page.tsx.
+    const block = HOME.slice(HOME.indexOf('function Disclaimer'));
+    expect(block.slice(0, block.indexOf('\n}'))).toContain('className="plate ');
   });
 });

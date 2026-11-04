@@ -26,44 +26,63 @@ import type { SetupParams } from '@/lib/study/presets';
  * in-memory, so leaving and coming back would lose it.
  * Loading a setup is a plain navigation, since that is a deliberate "start
  * something else" -- which is what the panel around this already says it does.
+ *
+ * `compact` is the form it takes once a session is actually running, where it
+ * shares one line with the page's title and the settings it was started with.
+ * It drops the two things that are only worth space before you start: the
+ * "Saved setups" caption, which the links beside it make obvious, and the
+ * empty-state sentence pointing at a button in a panel that is now collapsed.
  */
 export function SetupBar({
   path,
   setups,
   saveHref,
+  compact = false,
 }: {
   path: string;
   setups: { id: string; name: string; summary: string; params: SetupParams }[];
   /** Null until a session is running, since until then the URL holds nothing. */
   saveHref: string | null;
+  /** The one-line form, for a page with a session already on it. */
+  compact?: boolean;
 }) {
   return (
-    <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-        Saved setups
-      </span>
+    <div
+      className={compact
+        ? 'flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs sm:ml-auto'
+        : 'mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1'}
+    >
+      {!compact && (
+        <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+          Saved setups
+        </span>
+      )}
 
       {setups.length === 0 ? (
-        <span className="text-xs text-[var(--muted)]">
-          {/* Points at the button that exists right now, in the settings below,
-              rather than at one that appears later. */}
-          none yet — pick your settings below and use{' '}
-          <span className="font-medium">Save this setup</span>
-        </span>
+        !compact && (
+          <span className="text-xs text-[var(--muted)]">
+            {/* Points at the button that exists right now, in the settings
+                below, rather than at one that appears later. */}
+            none yet — pick your settings below and use{' '}
+            <span className="font-medium">Save this setup</span>
+          </span>
+        )
       ) : (
         setups.map((setup) => (
           <Link
             key={setup.id}
             href={{ pathname: path, query: setup.params }}
             title={setup.summary}
-            className="text-sm text-[var(--accent)] underline"
+            className={compact
+              ? 'text-[var(--accent)] underline'
+              : 'text-sm text-[var(--accent)] underline'}
           >
             {setup.name}
           </Link>
         ))
       )}
 
-      <span className="ml-auto flex gap-3 text-xs">
+      <span className={compact ? 'flex gap-3' : 'ml-auto flex gap-3 text-xs'}>
         {saveHref !== null && (
           <a href={saveHref} target="_blank" rel="noreferrer" className="text-[var(--accent)] underline">
             Save what’s running ↗

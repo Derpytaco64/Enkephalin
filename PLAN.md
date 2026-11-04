@@ -1067,6 +1067,123 @@ mostly uncontrolled form and deserves its own pass rather than being swept into 
 the cheap fix there is to stop using `<form action>` and call the action from `onSubmit`, which
 skips the reset entirely and leaves every field uncontrolled.
 
+### An answer that belongs to nine drugs (2026-11-04)
+
+Reported by the owner: get a schedule question wrong and the review said *"CII" is the controlled
+schedule of Methylphenidate* — one drug, when nine drugs in the sheet are CII.
+
+It was not a display bug so much as a wrong idea about what an option *is*. Every option carries
+the drug it was drawn from (`fromGeneric`), and for nearly every field that drug is the whole
+answer: one mechanism, one dose, one class. The schedule is not like that. Which of the nine the
+sentence named was whichever one the draw happened to reach for first — true, arbitrary, and
+reading as though the other eight were not controlled at all.
+
+So a question now carries **`fromOwners`: every drug each option is true of**, matched on the
+answer *key* rather than on the text. That key is already the app's definition of "the same
+answer" — it folds *Seizure* into *Seizures* through the alias table and compares a dose by its
+printed sig — and it is the same comparison that keeps a shared value from ever being offered as a
+wrong answer. Using it here means the list of owners and the list of answers that cannot be
+distractors are the same list, derived once.
+
+Measured on the running database:
+
+| Field | Shape of the answer |
+|---|---|
+| Controlled schedule | **9 drugs** share CII, **11** share CIV, 3 share CV, 1 is CIII |
+| Indication | *Bacterial infections* is the answer for **19** drugs |
+| Dosing | 178 of 236 answers belong to one drug; **58** are shared |
+
+Two places say it, because they are read at two different moments:
+
+- **On the card, under the options**, the moment it is answered: *Also the controlled schedule of
+  Oxycodone, Morphine, Methadone, Fentanyl Transdermal Patch and 4 others.* The asked drug is left
+  out — it is named in the prompt — and the list caps at four, because nine names in a sentence is
+  a list nobody reads and the *number* is the thing worth taking away: this answer does not
+  distinguish.
+- **In the review**, where a wrong answer is actually read back. The *Also right* line, which the
+  card has always had, was missing there entirely: a fact-to-drug question whose clue was true of
+  nine drugs looked in the summary as though one drug were the answer. Both lines are there now.
+
+Every name in those lists is a button into the lookup panel, which is the point of naming them: the
+distinction is learned by looking at the two drugs, not by reading that they differ.
+
+Related: [Direction decides what counts as correct](#direction-decides-what-counts-as-correct),
+whose fan rule is where "the same answer" comes from in the first place.
+
+### The chrome the browser was drawing (2026-11-04)
+
+A round of the owner's own notes, all of them about the parts of the interface that had been left at
+their defaults — and which were therefore the only parts not taking part in the theme.
+
+**The scrollbar.** Left to the browser it is a bar in the operating system's taste, which went
+wrong twice: on a tinted season it was the only neutral rectangle on the page, and with dark chosen
+in Settings on a light machine it was a *light* bar beside dark text — because `color-scheme: light
+dark` hands that choice to the OS, which does not know what was picked. So `color-scheme` is now
+narrowed to whichever theme is actually in force (which settles the form controls and the
+overscroll gutter too), and the bar is drawn from a token: `--scroll-ink`, the chrome's own `--fg`
+channels, at an alpha over a **transparent** track. Transparent is what makes it follow the
+decorations with nothing per-season to keep in step — what shows through behind the thumb is the
+page's own washed, tinted ground. `scrollbar-color` is inherited, so :root reaches every scrolling
+element; the WebKit pseudo-elements are not, so they are on `*`. Written as `rgb(channels / alpha)`
+rather than `color-mix`, for the reason the streak pill is: the minifier emits a solid-colour
+fallback, and a solid thumb is a black bar on a white page.
+
+**The current-page pill** was filled in `--accent`, which is the colour of a link in a sentence. As
+a lozenge it was the one piece of the bar that ignored the rest of it — in a tinted autumn
+everything goes warm and the pill saying where you are stayed cold blue. It is filled in `--border`
+now, which is the token the seasons move *most*, and `--fg` on it measures 11:1 at worst across
+both themes and all four tints. `aria-current` and the weight still carry it, so the colour is
+confirmation rather than the message.
+
+**The two smallest type steps, up one notch each** — 12px → 13px and 14px → 15px, line heights
+moved to match. Nearly every sentence in this app is `text-sm` and nearly every provenance mark is
+`text-xs`, so those two *were* the sizes most of the words were set in, and 12px is below what
+anyone should have to read prose at. `text-base` is deliberately untouched: it is the question on a
+quiz card and the body of a profile, it is already 16px, and every heading is scaled off it.
+
+**The room above the question.** Title, settings summary, saved-setup bar and settings panel came
+to about 140px before the first question — enough to push the fourth option of a four-option
+question below the fold on a laptop. Before a session starts those each deserve a row; the moment a
+paper is on screen they are reference material about something already decided. So while a session
+runs the title shrinks to a label, the summary and the setups join it on that one line (the setup
+bar grew a `compact` form), the panel keeps only its one-line summary, and the page padding halves.
+Both study pages, same treatment.
+
+**The disclaimer** was a full-width paragraph under a full-width rule, which gave the least
+interesting sentence on the page the weight of a section heading. It needs to be *present* —
+findable by anyone looking for it, ignorable by everyone who has read it once — so it is centred,
+narrow and small at the foot of the page, marked off by eight pixels of hairline rather than a rule
+drawn under the content above it. One component serving both the signed-in and signed-out halves,
+still reading the admin's own wording out of site settings.
+
+**The lookup panel and the drug profile**, restyled. Both were correct and flat: a column of
+label-and-value rows with nothing saying which half was the answer. Now the label is the quiet half
+(small caps, muted) and the value is set normally; sections draw their own card with a hairline
+running out of the heading; and the panel holds its search row at the top and scrolls its body
+instead of growing, because a drug with every field filled is taller than a laptop screen and a
+dialog that pushes its own close button off the bottom is a trap.
+
+**The brand name.** The owner asked for it to be more visible on a profile, and the honest fix was
+that it was in the wrong place: ten sections down, under a heading, when on half the drugs in the
+sheet the brand is the name anyone would recognise. It is in the identity card at the top now —
+*Sold as Ritalin, Methylin, Metadate, Concerta* — with the Brands section below keeping the detail
+that only belongs there: which route each one is, what it is licensed for, whose dosing differs.
+
+**Again**, on the results screen, beside *Another quiz*: the same settings, a new paper, started.
+Implemented as `router.refresh()` rather than as a link, because the settings are what the page was
+already rendered with — rebuilding them as a query string would be a second opinion about what they
+were — and the page keys the runner on the paper's id, so a fresh draw remounts it. Disabled until
+the attempt has been recorded: the write happens in an effect on that component, and remounting
+mid-write would throw away the quiz just sat, which is the same class of bug as the re-render that
+once scored a finished paper 0 of 83.
+
+Guarded in `tests/chrome.test.ts` (12) and `tests/study-screen.test.ts` (10), each proved to bite
+by planting its violation: the pill back in link blue, an opaque scrollbar track, `color-scheme`
+handed back to the OS, the smallest step back at 12px, a tinted border too dark for its text, a
+`color-mix` thumb, the review dropping its shared-answer line, *Again* offered before the attempt
+is written, the asked drug left in its own owner list, the setup bar back to full height mid-quiz,
+the disclaimer left-aligned, and the sentence hard-coded on one of the two halves.
+
 ### The dosing review bench (2026-11-03)
 
 The one queue in this app that has ever had real work in it. **76 of 252 regimens** carry a reading
@@ -2002,6 +2119,11 @@ entry and for the whole palette.
 - **Dosing review** — the regimens the parser could not fully read, worst first, with the prose
   editable in place and a live readback. **Done 2026-11-03**; see
   [The dosing review bench](#the-dosing-review-bench-2026-11-03).
+- **Who else the answer is right about** — a wrong *and* a right answer name every drug they belong
+  to, which for the controlled schedule is nine. **Done 2026-11-04**; see
+  [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs-2026-11-04).
+- **Again** — a new paper from the settings the last one was drawn with, from the results screen.
+  **Done 2026-11-04.**
 - **Site settings** — name, registration mode, default theme and palette, disclaimer text.
 - **Data** — JSON export/backup and restore.
 - **Audit log** — who changed what, with diffs.
@@ -2460,6 +2582,30 @@ reachable one-handed; browse table degrades to cards.
   (the prose is the source, so per-row editing needs the "leave this one alone" flag first), the
   per-route and per-population axes, and any bulk action. The queue is 76 rows and the work is
   reading, not clicking.
+
+**Queued by the owner, 2026-11-04** — one correctness report and six rounds of polish. All done;
+see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs-2026-11-04) and
+[The chrome the browser was drawing](#the-chrome-the-browser-was-drawing-2026-11-04).
+
+- **done — 2026-11-04.** ~~The disclaimer box on the home page looks gross; minimalist, bottom
+  centre~~.
+- **answered — 2026-11-04.** *"So a confirm box will be in the check queue for doses that don't
+  have a sig translation, like individualized and titrations?"* — yes, and it was already there:
+  **The source really is like that** on each row of `/admin/dosing`. It leaves the wording exactly
+  as written and takes the row out of the queue, which is the difference between *nobody has looked
+  at this* and *somebody looked and this is the answer*. Seventeen drugs want it, and the page says
+  out loud that emptying the queue is not the goal.
+- **done — 2026-11-04.** ~~A schedule question marked wrong shows only methylphenidate, not all
+  the CII meds~~. Fixed at the question rather than at the sentence: an option now carries every
+  drug it is true of.
+- **done — 2026-11-04.** ~~Shrink the area above the question in quiz and flashcard mode; bump the
+  smallest text site-wide; make the brand name on a profile more visible~~.
+- **done — 2026-11-04.** ~~Theme the scrollbar everywhere including the decorations, and make the
+  top-bar selected indicator match rather than being blue~~.
+- **done — 2026-11-04.** ~~Restyle the drug info panel after a question or card, and the drug
+  profile view, without compromising readability~~.
+- **done — 2026-11-04.** ~~Add an *Again* button on the quiz results screen, beside *Another
+  quiz*, that starts a new quiz with the same parameters~~.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

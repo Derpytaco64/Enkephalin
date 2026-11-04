@@ -489,7 +489,128 @@ describe('what a wrong answer was right about', () => {
       expect(question.fromGeneric).toHaveLength(question.options.length);
       expect(question.fromFact).toHaveLength(question.options.length);
       expect(question.fromSlug).toHaveLength(question.options.length);
+      expect(question.fromOwners).toHaveLength(question.options.length);
     }
+  });
+});
+
+/* ------------------------------------------------------------------------
+   A fact can belong to more than one drug, and the schedule nearly always
+   does. Naming the one drug the option happened to be drawn from reads as
+   if the others were not CII -- so the review names all of them, matched on
+   the same answer key that keeps a shared value from being offered as a
+   wrong answer.
+   --------------------------------------------------------------------- */
+
+describe('who else an answer is right about', () => {
+  /** Four CII drugs and two others, which is the shape that forced this. */
+  function ward(): CardSource[] {
+    const at = (slug: string, generic: string, schedule: string) =>
+      source({
+        slug, generic, schedule,
+        values: { controlled: value({ value: schedule }) },
+      });
+
+    return [
+      at('methylphenidate', 'Methylphenidate', 'CII'),
+      at('oxycodone', 'Oxycodone', 'CII'),
+      at('fentanyl', 'Fentanyl', 'CII'),
+      at('dextroamphetamine', 'Dextroamphetamine', 'CII'),
+      at('alprazolam', 'Alprazolam', 'CIV'),
+      at('pregabalin', 'Pregabalin', 'CV'),
+    ];
+  }
+
+  it('names every drug the right answer belongs to', () => {
+    const questions = buildQuiz(ward(), defs, config({ fields: ['controlled'] }), {
+      direction: 'drug_to_fields',
+    });
+    const asked = questions.find((question) => question.slug === 'methylphenidate');
+    expect(asked).toBeDefined();
+
+    const owners = asked!.fromOwners[asked!.correctIndex].map((owner) => owner.slug).sort();
+    expect(owners).toEqual(
+      ['dextroamphetamine', 'fentanyl', 'methylphenidate', 'oxycodone'],
+    );
+  });
+
+  it('names every drug a wrong answer belongs to', () => {
+    // The complaint this answers: picking CII on an alprazolam question was
+    // told "CII is the controlled schedule of Methylphenidate", when it is
+    // equally the schedule of three others in the same pool.
+    const questions = buildQuiz(ward(), defs, config({ fields: ['controlled'] }), {
+      direction: 'drug_to_fields',
+    });
+    const asked = questions.find((question) => question.slug === 'alprazolam');
+    const at = asked!.options.indexOf('CII');
+    expect(at).toBeGreaterThanOrEqual(0);
+
+    expect(asked!.fromOwners[at].map((owner) => owner.generic).sort()).toEqual(
+      ['Dextroamphetamine', 'Fentanyl', 'Methylphenidate', 'Oxycodone'],
+    );
+  });
+
+  it('names one drug where one drug is the whole answer', () => {
+    // Which is nearly every field: one mechanism, one dose, one class. The
+    // review says "is the mechanism of Atorvastatin" and is right to.
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }), {
+      direction: 'drug_to_fields',
+    });
+
+    for (const question of questions) {
+      for (const owners of question.fromOwners) {
+        expect(owners).toHaveLength(1);
+      }
+    }
+  });
+
+  it('is the option\u2019s own drug when the options are drug names', () => {
+    // Asked the other way the sharing is on the *clue*, and `acceptable`
+    // already carries every drug the clue is equally true of -- so an option
+    // here is true of exactly the drug it names.
+    const questions = buildQuiz(ward(), defs, config({ fields: ['controlled'] }), {
+      direction: 'fields_to_drug',
+    });
+
+    for (const question of questions) {
+      question.fromOwners.forEach((owners, at) => {
+        expect(owners.map((owner) => owner.generic)).toEqual([question.options[at]]);
+      });
+      // And the clue being shared is said there instead -- for the four that
+      // share one. Alprazolam and pregabalin are alone in their schedules.
+      expect(question.acceptable.length).toBe(question.slug === 'alprazolam' || question.slug === 'pregabalin' ? 1 : 4);
+    }
+  });
+
+  it('matches on meaning, not spelling, as every other answer does', () => {
+    // Seizure and Seizures are one indication, so a drug written up with one
+    // is named beside a drug written up with the other.
+    const drugs = [
+      source({
+        slug: 'levetiracetam', generic: 'Levetiracetam',
+        values: { indication: value({ value: 'Seizure' }) },
+      }),
+      source({
+        slug: 'phenytoin', generic: 'Phenytoin',
+        values: { indication: value({ value: 'Seizures' }) },
+      }),
+      source({
+        slug: 'lisinopril', generic: 'Lisinopril',
+        values: { indication: value({ value: 'Hypertension' }) },
+      }),
+      source({
+        slug: 'metformin', generic: 'Metformin',
+        values: { indication: value({ value: 'Type 2 diabetes' }) },
+      }),
+    ];
+
+    const questions = buildQuiz(drugs, defs, config({ fields: ['indication'] }), {
+      direction: 'drug_to_fields',
+    });
+    const asked = questions.find((question) => question.slug === 'levetiracetam');
+
+    expect(asked!.fromOwners[asked!.correctIndex].map((owner) => owner.slug).sort())
+      .toEqual(['levetiracetam', 'phenytoin']);
   });
 });
 

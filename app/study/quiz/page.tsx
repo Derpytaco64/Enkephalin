@@ -149,31 +149,56 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
     : [];
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
 
-  return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
+  // Everything above the question, on one line, once there is a question.
+  //
+  // Before a quiz starts this page is a form and the title, the saved setups
+  // and the settings each deserve their own row. The moment a paper is on
+  // screen they are reference material about something you have already
+  // decided, and they were taking about 140px of the first screenful -- enough
+  // to push the options of a four-option question below the fold on a laptop.
+  // So while a quiz is running the title shrinks to a label, the summary and
+  // the setups join it on that line, and the settings panel keeps only its
+  // one-line summary.
+  const setupBar = (
+    <SetupBar
+      path={SURFACES.quiz.path}
+      setups={setups}
+      saveHref={startsSomething(saveParams) ? saveSetupHref('quiz', saveParams) : null}
+      compact={started}
+    />
+  );
 
+  return (
+    <main className={`mx-auto max-w-2xl px-4 ${started ? 'py-5' : 'py-10'}`}>
       {/* Once a quiz is running the settings are a read-only line. Changing
           one mid-quiz cannot do what it looks like it does -- it redraws the
           questions, so it would throw away the quiz in hand -- and opening the
-          form says so rather than leaving the controls sitting there live. */}
-      {started && (
-        <p className="mt-6 text-sm text-[var(--muted)]">
-          {summary.join(' · ')}
-        </p>
+          form says so rather than leaving the controls sitting there live.
+
+          The setup bar is outside the panel below either way: the panel
+          collapses the moment a quiz starts, which is exactly when there is a
+          setup worth saving, so a save link inside it would be hidden at the
+          only time it applies. */}
+      {started ? (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-base font-semibold tracking-tight">Quiz</h1>
+          <p className="text-xs text-[var(--muted)]">{summary.join(' · ')}</p>
+          {setupBar}
+        </div>
+      ) : (
+        <>
+          <h1 className="text-2xl font-semibold tracking-tight">Quiz</h1>
+          {setupBar}
+        </>
       )}
 
-      {/* Outside the panel below, and above it. The panel collapses the moment
-          a quiz starts -- which is exactly when there is a setup worth saving,
-          so a save link inside it would be hidden at the only time it applies. */}
-      <SetupBar
-        path={SURFACES.quiz.path}
-        setups={setups}
-        saveHref={startsSomething(saveParams) ? saveSetupHref('quiz', saveParams) : null}
-      />
-
-      <details open={!started} className="mt-3 rounded border border-[var(--border)]">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+      <details
+        open={!started}
+        className={`rounded border border-[var(--border)] ${started ? 'mt-2' : 'mt-3'}`}
+      >
+        <summary
+          className={`cursor-pointer font-medium ${started ? 'px-3 py-1.5 text-xs' : 'px-4 py-3 text-sm'}`}
+        >
           {started ? 'Change these and start a new quiz' : 'Quiz settings'}
           {started && (
             <span className="ml-2 font-normal text-[var(--muted)]">
