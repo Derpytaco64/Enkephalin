@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { Result } from '@/lib/drugs/mutations';
 import type { ColorAxis } from '@/lib/theme/palette';
 import type { ThemePref } from '@/lib/theme/preferences';
@@ -73,16 +74,14 @@ export function LookForm({
 
   return (
     <form
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
+      onSubmit={submitTo(async (formData: FormData) => {
         setPending(true);
         setError(null);
         const result = await save(formData);
         setPending(false);
         if (result.ok) setSaved(true);
         else setError(result.message);
-      }}
+      })}
       className="mt-6 rounded border border-[var(--border)] p-4"
     >
       <div className="grid gap-4 sm:grid-cols-2">

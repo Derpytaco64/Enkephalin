@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { Result } from '@/lib/drugs/indication-store';
 
 export type IndicationItem = { slug: string; label: string; drugs: number };
@@ -101,7 +102,7 @@ export function IndicationList({
 
               {expanded && (
                 <div className="mt-3 grid gap-4 rounded border border-[var(--border)] p-3 sm:grid-cols-2">
-                  <form action={run(rename)}>
+                  <form onSubmit={submitTo(run(rename))}>
                     <input type="hidden" name="slug" value={item.slug} />
                     <label className="block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
                       Rename
@@ -123,7 +124,7 @@ export function IndicationList({
                     </button>
                   </form>
 
-                  <form action={run(merge)}>
+                  <form onSubmit={submitTo(run(merge))}>
                     <input type="hidden" name="from" value={item.slug} />
                     <label className="block text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
                       Merge into
@@ -152,7 +153,7 @@ export function IndicationList({
                   </form>
 
                   {item.drugs === 0 && (
-                    <form action={run(remove)} className="sm:col-span-2">
+                    <form onSubmit={submitTo(run(remove))} className="sm:col-span-2">
                       <input type="hidden" name="slug" value={item.slug} />
                       <p className="text-xs text-[var(--muted)]">
                         No drug carries this, so there is nothing to lose by removing it.

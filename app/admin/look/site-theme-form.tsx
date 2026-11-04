@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { Result } from '@/lib/drugs/mutations';
 import type { ThemePref } from '@/lib/theme/preferences';
 import { SEASON_LABELS, SEASON_PREFS, type SeasonPref } from '@/lib/theme/seasons';
@@ -52,16 +53,14 @@ export function SiteThemeForm({
 
   return (
     <form
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
+      onSubmit={submitTo(async (formData: FormData) => {
         setPending(true);
         setError(null);
         const result = await save(formData);
         setPending(false);
         if (result.ok) setSaved(true);
         else setError(result.message);
-      }}
+      })}
       className="mt-4 rounded border border-[var(--border)] p-4"
     >
       <label htmlFor="theme" className="block text-sm font-medium">Default theme</label>

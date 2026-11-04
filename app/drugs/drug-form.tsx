@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { FieldValue } from '@/db/schema';
 import { activesOf, parseDosing } from '@/lib/dosing/parse';
 import { indicationSlug, nearestIndication } from '@/lib/drugs/indications';
@@ -291,7 +292,7 @@ export function DrugForm({
   }
 
   return (
-    <form action={formAction} className="mt-8 space-y-8">
+    <form onSubmit={submitTo(formAction)} className="mt-8 space-y-8">
       {drug && <input type="hidden" name="slug" value={drug.slug} />}
 
       <section className="space-y-4">

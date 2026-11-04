@@ -18,6 +18,10 @@ export default async function InvitesPage() {
     <main className="mx-auto max-w-3xl px-4 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Invites</h1>
 
+      {/* A form action, deliberately: the reset React performs afterwards is
+          what clears the note and puts the counts back to 1 and 14 for the
+          next invite. See app/_components/submit.ts for the forms where that
+          same reset is a bug. */}
       <form action={createInviteAction} className="mt-8 grid gap-4 sm:grid-cols-[6rem_8rem_1fr_auto] sm:items-end">
         <div>
           <label htmlFor="maxUses" className="block text-sm">Max uses</label>

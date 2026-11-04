@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { Result } from '@/lib/drugs/mutations';
 import type { Setup, Surface } from '@/lib/study/presets';
 
@@ -61,7 +62,7 @@ export function SetupManager({
     <div className="mt-6">
       {incoming !== null && (
         <form
-          action={run(save, name.trim())}
+          onSubmit={submitTo(run(save, name.trim()))}
           className="rounded border border-[var(--border)] p-4"
         >
           <h2 className="text-sm font-medium">Save this setup</h2>
@@ -132,7 +133,7 @@ export function SetupManager({
               <span className="w-full text-xs text-[var(--muted)] sm:w-auto sm:flex-1">
                 {row.summary}
               </span>
-              <form action={run(remove, '')}>
+              <form onSubmit={submitTo(run(remove, ''))}>
                 <input type="hidden" name="id" value={row.id} />
                 <button
                   type="submit"

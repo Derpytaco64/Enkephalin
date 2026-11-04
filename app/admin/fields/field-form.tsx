@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import { FIELD_DATA_TYPES, YEAR_LEVELS, type Result } from '@/lib/fields/constants';
 import type { FieldDef } from '@/lib/fields/registry';
 
@@ -22,7 +23,7 @@ export function FieldForm({
   );
 
   return (
-    <form action={formAction} className="mt-8 space-y-6">
+    <form onSubmit={submitTo(formAction)} className="mt-8 space-y-6">
       {field && <input type="hidden" name="id" value={field.id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">

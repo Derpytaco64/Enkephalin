@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useMemo, useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { Result } from '@/lib/drugs/mutations';
 
 export type MemberDrug = {
@@ -78,7 +79,7 @@ export function MemberPicker({
   }
 
   return (
-    <form action={formAction} className="mt-6">
+    <form onSubmit={submitTo(formAction)} className="mt-6">
       <input type="hidden" name="slug" value={tag.slug} />
 
       <div className="flex flex-wrap items-end gap-4">

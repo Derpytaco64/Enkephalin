@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import { submitTo } from '@/app/_components/submit';
 import type { RestoreState } from './actions';
 
 const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm';
@@ -13,7 +14,7 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
   const [mode, setMode] = useState<'merge' | 'replace'>('merge');
 
   return (
-    <form action={formAction} className="mt-4 space-y-4">
+    <form onSubmit={submitTo(formAction)} className="mt-4 space-y-4">
       <div>
         <label htmlFor="backup" className="block text-sm font-medium">Backup file</label>
         <input

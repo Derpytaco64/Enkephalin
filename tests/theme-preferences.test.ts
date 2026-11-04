@@ -443,13 +443,13 @@ describe('decorAttributes', () => {
  * Making the controls *controlled* does not fix that, which is what the first
  * attempt assumed and the owner reported back as still broken: `reset()`
  * dispatches no change event, so React never restores the controlled value,
- * and nothing in state changed to re-render from. **The fix is not using
- * `action` at all** -- `onSubmit` with `preventDefault` never schedules the
- * reset. The controls stay controlled on top of that, because a displayed
- * value held in state cannot disagree with what was posted.
+ * and nothing in state changed to re-render from. **The fix was not using
+ * `action` at all**, and that rule is now asked of every form in the app by
+ * `tests/form-reset.test.ts`.
  *
- * Source-scanned rather than rendered, because what went wrong is the wiring
- * both times.
+ * What stays here is the second half, which is specific to these two: five
+ * answers held in state, each with a value and an onChange, so the form cannot
+ * disagree with itself for any other reason either.
  */
 describe('the cosmetic forms hold their own answers', () => {
   const FORMS = [
@@ -457,20 +457,10 @@ describe('the cosmetic forms hold their own answers', () => {
     'app/admin/look/site-theme-form.tsx',
   ];
 
-  /** Comments stripped, because both files *discuss* `<form action>` at length. */
-  const code = (path: string) => readFileSync(path, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
-
-  it('never hands the form to a form action', () => {
-    // The whole bug in one assertion: `<form action={...}>` is what makes
-    // React reset the form, and nothing else here does.
-    for (const path of FORMS) {
-      expect(code(path), `${path} action=`).not.toMatch(/action=\{/);
-      expect(code(path), `${path} onSubmit`).toContain('onSubmit={async (event) => {');
-      expect(code(path), `${path} preventDefault`).toContain('event.preventDefault();');
-    }
-  });
+  // Whether these two use a form action is `tests/form-reset.test.ts`'s
+  // business now, and it asks the question of the whole app. What is left here
+  // is the other half: these particular controls are held in state, which is
+  // what stops the form disagreeing with itself for any *other* reason.
 
   it('leaves no control uncontrolled', () => {
     for (const path of FORMS) {

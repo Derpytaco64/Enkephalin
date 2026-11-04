@@ -20,6 +20,10 @@ export function NewTagForm({ action }: { action: (formData: FormData) => Promise
     null,
   );
 
+  // A form action, deliberately: React resets the form once the action
+  // resolves, and for a create form that is the wanted behaviour -- the boxes
+  // come back empty for the next list. Every form whose fields are seeded from
+  // something stored uses `submitTo` instead; see app/_components/submit.ts.
   return (
     <form action={formAction} className="mt-8 border-t border-[var(--border)] pt-6">
       <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">New list</h2>
