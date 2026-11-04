@@ -18,6 +18,21 @@ import { markFieldAction } from './actions';
  */
 const CARD = 'rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5';
 
+/**
+ * The fields this page already says in its own chrome, and so does not repeat
+ * as rows.
+ *
+ * All three were the *Identity* group, which on every drug restated the
+ * heading, the Brands section and the class badge directly underneath them --
+ * a card whose every line the reader had already passed. Removing them empties
+ * that group, and an empty group renders nothing rather than a heading with a
+ * gap under it.
+ *
+ * Keyed by field rather than by group name, so a custom field somebody files
+ * under Identity later still appears.
+ */
+const SHOWN_ABOVE = new Set(['generic', 'brand', 'drug_class']);
+
 const STATUS_TOKENS = {
   ok: 'var(--verified)',
   flagged: 'var(--flagged)',
@@ -144,56 +159,47 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
           heading of its eighth section. The card is what says *this is the
           thing, and everything below is about it*.
 
-          The brands come up here with it. They were ten sections down, under a
-          heading, which is a strange place to keep the name a patient would
-          actually use -- and on half the drugs in the sheet the brand is the
-          name anyone would recognise. The section below keeps the detail: which
-          route each one is, what it is licensed for, whose dosing differs. */}
+          The name, the class and the schedule, and nothing else. A "Sold as"
+          line lived here briefly and came straight back out by the owner's
+          call: the Brands section below is three inches away and says the same
+          names with the detail attached, so repeating them here was two
+          answers to one question with the shorter one first. */}
       <header className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">{drug.genericName}</h1>
-        {/* Filled when the class is the axis, neutral otherwise: the colour
-            on a page should mean one thing, and which thing is the reader's
-            choice in Settings. */}
-        {drug.drugClass && (
-          <span
-            className={axis === 'class' && color !== null
-              ? 'rounded px-2 py-0.5 text-sm'
-              : 'rounded border border-[var(--border)] px-2 py-0.5 text-sm text-[var(--muted)]'}
-            style={axis === 'class' && color !== null
-              ? { backgroundColor: color, color: readableTextOn(color) }
-              : undefined}
-          >
-            {drug.drugClass}
-          </span>
-        )}
-        {/* Always filled, on every axis: see scheduleBadge. */}
-        {drug.schedule && (
-          <span className="rounded px-2 py-0.5 text-sm"
-            style={scheduleBadge(drug.schedule, paletteOverrides) ?? undefined}>
-            {drug.schedule}
-          </span>
-        )}
-        {axis === 'tag' && color !== null && (
-          <span
-            aria-hidden="true"
-            className="inline-block h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-        )}
-        {drug.needsClassReview && (
-          <span className="text-xs text-[var(--unverified)]">class needs review</span>
-        )}
-      </div>
-
-        {brands.length > 0 && (
-          <p className="mt-3 text-lg">
-            <span className="text-sm text-[var(--muted)]">Sold as </span>
-            <span className="font-semibold tracking-tight">
-              {brands.map((brand) => brand.name).join(', ')}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">{drug.genericName}</h1>
+          {/* Filled when the class is the axis, neutral otherwise: the colour
+              on a page should mean one thing, and which thing is the reader's
+              choice in Settings. */}
+          {drug.drugClass && (
+            <span
+              className={axis === 'class' && color !== null
+                ? 'rounded px-2 py-0.5 text-sm'
+                : 'rounded border border-[var(--border)] px-2 py-0.5 text-sm text-[var(--muted)]'}
+              style={axis === 'class' && color !== null
+                ? { backgroundColor: color, color: readableTextOn(color) }
+                : undefined}
+            >
+              {drug.drugClass}
             </span>
-          </p>
-        )}
+          )}
+          {/* Always filled, on every axis: see scheduleBadge. */}
+          {drug.schedule && (
+            <span className="rounded px-2 py-0.5 text-sm"
+              style={scheduleBadge(drug.schedule, paletteOverrides) ?? undefined}>
+              {drug.schedule}
+            </span>
+          )}
+          {axis === 'tag' && color !== null && (
+            <span
+              aria-hidden="true"
+              className="inline-block h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+          )}
+          {drug.needsClassReview && (
+            <span className="text-xs text-[var(--unverified)]">class needs review</span>
+          )}
+        </div>
       </header>
 
       {drug.needsPairingReview && (
@@ -238,7 +244,47 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
             </section>
           )}
 
-          {groupFieldDefs(defs).map(([group, groupDefs]) => (
+          {/* The class, where the Identity group used to be.
+
+              Dropping Identity took the only *labelled* statement of the class
+              with it -- the badge in the header is a colour with a word in it,
+              and on the `tag` or `none` axis it is not even that. So the class
+              says itself here, with the drugs that share it: the two belong
+              together, and "Same class" was a sidebar list of names with no
+              heading saying what the class actually was. */}
+          <section className={`${CARD}`}>
+            <SectionHead>Drug class</SectionHead>
+            <p className="mt-3 text-lg font-medium tracking-tight">
+              {drug.drugClass ?? 'Uncategorized'}
+            </p>
+            {drug.drugClass === null && (
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Resolved from RxNorm, which has no FDA class for this one. It is still browsable and
+                still quizzed; only the class axis is blank.
+              </p>
+            )}
+            {siblings.length > 0 && (
+              <>
+                <p className="mt-4 text-xs text-[var(--muted)]">
+                  {siblings.length} other{siblings.length === 1 ? '' : 's'} in it — where a quiz draws
+                  its near-miss from, so compare them here.
+                </p>
+                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  {siblings.map((sibling) => (
+                    <li key={sibling.slug}>
+                      <Link href={`/drugs/${sibling.slug}`} className="text-[var(--accent)] underline">
+                        {sibling.generic}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+
+          {groupFieldDefs(defs.filter((def) => !SHOWN_ABOVE.has(def.key)))
+            .filter(([, groupDefs]) => groupDefs.length > 0)
+            .map(([group, groupDefs]) => (
             <section key={group} className={CARD}>
               <SectionHead>{group}</SectionHead>
               <dl className="mt-3 divide-y divide-[var(--border)]">
@@ -316,23 +362,6 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
             </section>
           )}
 
-          {siblings.length > 0 && (
-            <section className={CARD}>
-              <SectionHead>Same class</SectionHead>
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                Where distractors come from, so compare them here.
-              </p>
-              <ul className="mt-2 space-y-1 text-sm">
-                {siblings.map((sibling) => (
-                  <li key={sibling.slug}>
-                    <Link href={`/drugs/${sibling.slug}`} className="text-[var(--accent)] underline">
-                      {sibling.generic}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </aside>
       </div>
     </main>

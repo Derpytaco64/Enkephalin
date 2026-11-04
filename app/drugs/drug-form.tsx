@@ -425,7 +425,7 @@ export function DrugForm({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <button
           type="submit" disabled={pending}
-          className="rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)] disabled:opacity-60"
+          className="btn btn-primary"
         >
           {pending ? 'Saving…' : submitLabel}
         </button>

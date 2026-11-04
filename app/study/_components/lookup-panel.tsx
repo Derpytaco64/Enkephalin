@@ -236,25 +236,31 @@ export function LookupPanel({
             <p className="text-sm text-[var(--muted)]">Fetching {drug.generic}…</p>
           ) : (
             <article>
-              {/* The identity band. The class and the schedule were a run-on
-                  muted sentence beside the name; as chips they read as the two
-                  categories they are, in the shape the rest of the app already
-                  uses for a category. */}
+              {/* The name, and then everything else as a labelled row.
+
+                  It had a band of chips for the class and the schedule and a
+                  "Sold as" sentence for the brands -- three shapes for three
+                  facts, above a field list that states facts one way. The
+                  owner's call, and the right one: the panel is a reference
+                  card, so the brands read the way the profile's Brands section
+                  reads rather than as an ornament.
+
+                  Indications join them here, which they never did: the card
+                  has carried them all along and the panel never printed them,
+                  because they are held out of the field groups (the profile
+                  shows them per brand) and nothing picked them up again. */}
               <h2 className="text-xl font-semibold tracking-tight">{card.generic}</h2>
 
-              {(card.schedule !== null || card.drugClass !== null) && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {card.schedule !== null && <Chip>{card.schedule}</Chip>}
-                  {card.drugClass !== null && <Chip>{card.drugClass}</Chip>}
-                </div>
-              )}
-
-              {card.brands.length > 0 && (
-                <p className="mt-2 text-sm">
-                  <span className="text-[var(--muted)]">Sold as </span>
-                  {card.brands.join(', ')}
-                </p>
-              )}
+              <dl className="mt-3 space-y-2.5">
+                {card.schedule !== null && <Row label="Controlled schedule">{card.schedule}</Row>}
+                {card.drugClass !== null && <Row label="Drug class">{card.drugClass}</Row>}
+                {card.brands.length > 0 && (
+                  <Row label="Brands">{card.brands.join(', ')}</Row>
+                )}
+                {card.indications.length > 0 && (
+                  <Row label="Indications">{card.indications.join(', ')}</Row>
+                )}
+              </dl>
 
               {card.groups.map((group) => (
                 <section key={group.group} className="mt-5">
@@ -271,14 +277,11 @@ export function LookupPanel({
                       a dose wrapping to four lines. */}
                   <dl className="mt-2 space-y-2.5">
                     {group.fields.map((field) => (
-                      <div key={field.key} className="sm:grid sm:grid-cols-[9rem_1fr] sm:gap-3">
-                        <dt className="text-xs text-[var(--muted)] sm:pt-0.5">{field.label}</dt>
-                        <div>
-                          {field.lines.map((line, index) => (
-                            <dd key={index} className="whitespace-pre-line text-sm">{line}</dd>
-                          ))}
-                        </div>
-                      </div>
+                      <Row key={field.key} label={field.label}>
+                        {field.lines.map((line, index) => (
+                          <span key={index} className="block whitespace-pre-line">{line}</span>
+                        ))}
+                      </Row>
                     ))}
                   </dl>
                 </section>
@@ -301,21 +304,24 @@ export function LookupPanel({
 }
 
 /**
- * A fact about what kind of drug this is, in the shape the app uses for a
- * category everywhere else.
+ * One labelled fact: label beside value from `sm` up, stacked below it.
  *
- * Deliberately uncoloured here, where the browser and the profile tint theirs
- * from the palette: the study side may not read it. A coloured chip beside a
- * question is a cue that can be matched without reading either side of the
- * question -- which is what `tests/colour-is-cosmetic.test.ts` exists to stop.
+ * Every line in the panel is one of these, the drug's own identity included.
+ * The eye then runs down a single column of labels and stops at the one it
+ * wants, which is what a thing read mid-question has to support -- where three
+ * different shapes for three kinds of fact made it a page to read through.
+ *
+ * Deliberately uncoloured, where the browser and the profile tint their class
+ * and schedule from the palette: the study side may not read it. A coloured
+ * chip beside a question is a cue that can be matched without reading either
+ * side of it -- which is what `tests/colour-is-cosmetic.test.ts` exists to
+ * stop.
  */
-function Chip({ children }: { children: React.ReactNode }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span
-      className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-2.5 py-0.5
-        text-xs text-[var(--muted)]"
-    >
-      {children}
-    </span>
+    <div className="sm:grid sm:grid-cols-[9rem_1fr] sm:gap-3">
+      <dt className="text-xs text-[var(--muted)] sm:pt-0.5">{label}</dt>
+      <dd className="text-sm">{children}</dd>
+    </div>
   );
 }

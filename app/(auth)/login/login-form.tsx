@@ -59,7 +59,7 @@ export function LoginForm({ next }: { next?: string }) {
 
       <button
         type="submit" disabled={busy}
-        className="rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)] disabled:opacity-60"
+        className="btn btn-primary"
       >
         {busy ? 'Signing in…' : 'Sign in'}
       </button>

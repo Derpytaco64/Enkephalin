@@ -56,7 +56,7 @@ export default async function DataPage() {
         {/* A plain link, not a fetch: the browser saves the response itself. */}
         <a
           href="/api/admin/export"
-          className="mt-4 inline-block rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]"
+          className="btn btn-primary mt-4"
         >
           Download backup
         </a>

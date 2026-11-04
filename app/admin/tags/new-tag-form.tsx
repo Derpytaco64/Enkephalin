@@ -54,7 +54,7 @@ export function NewTagForm({ action }: { action: (formData: FormData) => Promise
 
       <button
         type="submit" disabled={pending}
-        className="mt-3 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)] disabled:opacity-60"
+        className="btn btn-primary mt-3"
       >
         {pending ? 'Creating…' : 'Create and pick drugs'}
       </button>

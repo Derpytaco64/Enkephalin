@@ -265,6 +265,8 @@ describe('streakFrom', () => {
 
 describe('the disclaimer at the foot of the home page', () => {
   const HOME = readFileSync('app/page.tsx', 'utf8');
+  /** Where a top-level function declaration ends, spelled so no tool eats it. */
+  const END = `${String.fromCharCode(10)}}`;
 
   it('is one component, used by both halves of the page', () => {
     // Signed in and signed out are two different layouts and one sentence.
@@ -277,7 +279,7 @@ describe('the disclaimer at the foot of the home page', () => {
 
   it('is centred, narrow and small', () => {
     const block = HOME.slice(HOME.indexOf('function Disclaimer'));
-    const body = block.slice(0, block.indexOf('\n}'));
+    const body = block.slice(0, block.indexOf(END));
     expect(body).toContain('items-center');
     expect(body).toContain('text-center');
     expect(body).toContain('max-w-md');
@@ -287,11 +289,11 @@ describe('the disclaimer at the foot of the home page', () => {
     expect(body).not.toContain('border-t');
   });
 
-  it('paints its own ground, because this column is open to the weather', () => {
-    // `main.open` on the home page lets a season drift between the cards --
-    // safe only while every block holding text carries `.plate`. See the note
-    // on <main> in app/page.tsx.
+  it('is last, and ends the page rather than dividing it', () => {
+    // Nothing follows it in the column, and the hairline above it is a mark
+    // eight pixels wide -- a rule across the column would be a divider
+    // belonging to the content above, which is what it looked like before.
     const block = HOME.slice(HOME.indexOf('function Disclaimer'));
-    expect(block.slice(0, block.indexOf('\n}'))).toContain('className="plate ');
+    expect(block.slice(0, block.indexOf(END))).toContain('h-px w-8');
   });
 });

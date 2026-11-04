@@ -118,7 +118,7 @@ export function IndicationList({
                     </p>
                     <button
                       type="submit" disabled={pending}
-                      className="mt-2 rounded bg-[var(--accent)] px-3 py-1.5 text-sm text-[var(--accent-fg)] disabled:opacity-60"
+                      className="btn btn-primary btn-sm mt-2"
                     >
                       Rename
                     </button>
@@ -146,7 +146,7 @@ export function IndicationList({
                     </p>
                     <button
                       type="submit" disabled={pending}
-                      className="mt-2 rounded border border-[var(--border)] px-3 py-1.5 text-sm disabled:opacity-60"
+                      className="btn btn-quiet btn-sm mt-2"
                     >
                       Merge
                     </button>

@@ -1067,6 +1067,72 @@ mostly uncontrolled form and deserves its own pass rather than being swept into 
 the cheap fix there is to stop using `<form action>` and call the action from `onSubmit`, which
 skips the reset entirely and leaves every field uncontrolled.
 
+### Four screenshots and what they cost (2026-11-04)
+
+The owner sent four screenshots. Every item below is something that looked fine in the markup and
+wrong on the screen, which is the argument for sending screenshots.
+
+**A button is the page's ink, not the link colour.** Every filled button in the app was
+`bg-[var(--accent)]`, and `--accent` is deliberately the one chrome token the seasons never move —
+see *A season is not a theme*. That is right for a link inside a sentence and wrong for a lozenge:
+on a tinted autumn page the whole interface goes warm and a cold blue *Again* sat in the middle of
+it. A primary button is now `--fg` on `--bg`, **the reading pair inverted**. Both tokens are
+already retinted per season, so the button takes the season with it with nothing per-season to keep
+in step; and because it is the body text's own pair swapped over, its contrast is whatever the body
+text's is, with no new figure to defend. `--accent` goes back to meaning exactly one thing: a link.
+Two weights — `.btn-primary` and `.btn-quiet` — stated once in `globals.css` rather than as a
+repeated string of utilities, so there is one place to argue with. 24 call sites swept; the only
+accent fill left in `app/` is the avatar, which is an identity chip rather than a button.
+
+**A link that reads as a button is a button.** *Another quiz* sat beside *Again* as underlined blue
+text — same job, two shapes. It, and the deck's *Start another*, are `.btn-quiet` now.
+
+**The plate is gone.** `main.open` gave the home page's column to the weather, and `.plate` was its
+companion: a local repaint of the page ground behind the bare text, so no mote could cross a word.
+The screenshot killed it. A plate repainted the *season* wash but not the ambience wash or the
+starfield beneath it, so instead of being invisible it rendered as an opaque band behind the
+greeting, behind *START ANOTHER*, and behind the disclaimer. **A rectangle you can see is worse
+than a leaf you can.** The trade is now stated rather than engineered around: on that one page a
+mote may pass behind a greeting, a two-word heading and a disclaimer, and every block there
+carrying real reading is a card, which still paints `--surface`.
+
+**Three statements of the brand name, down to one.** A profile said the brands in its header
+(*Sold as Androgel*), again as a *Brands* section, and a third time as a *Brand names* row inside
+an *Identity* group — a group whose every line the reader had already passed, since its other two
+rows were the page's own `<h1>` and the class badge beside it. The header line went, and so did the
+group: the page now skips `generic`, `brand` and `drug_class` as rows, and a group left with no
+fields renders nothing rather than a heading over a gap. Keyed by field rather than by group name,
+so a custom field filed under Identity later still appears.
+
+**And the class got a section instead.** Dropping Identity took the only *labelled* statement of
+the drug class with it — the badge in the header is a colour with a word in it, and on the `tag` or
+`none` axis it is not even that. So the class says itself where Identity used to be, with the drugs
+that share it: *Same class* had been a sidebar list of names under a heading that never said what
+the class was. The two belong together.
+
+**The lookup panel, the same argument.** It had a band of chips for the class and the schedule and
+a *Sold as* sentence for the brands — three shapes for three facts, above a field list that states
+facts one way. All of it is labelled rows now, the drug's own identity included. One thing came
+back with it: **indications**, which the card has carried all along and the panel never printed.
+They are held out of the field groups (a profile shows them per brand) and nothing picked them up
+again, so the panel had been silently missing a quizzed field.
+
+**The categories are gone.** 65 therapeutic category tags, written by `scripts/seed-categories.ts`
+— a curated FDA-class → category map. The owner's verdict: not asked for, and diluting the thing
+they meant to help. `scripts/prune-tags.ts` removed all 66 tags but *Top Drugs 2026*, writing what
+it removed to `backups/` first, one audit row per tag. Nothing about a drug is harmed: `drug_tags`
+cascades, and the 236 links to the one remaining list are untouched. Two consequences worth
+knowing — a saved study setup scoped to a category stops matching, which is honest rather than
+silently reinterpreted; and the quiz's near-miss distractor loses its *same category* fallback for
+a drug whose class has no other member, which it already handles by reaching further afield. The
+map stays in the repo, because one run brings all 65 and their links straight back, and arguing
+with a table is easier than rebuilding one.
+
+Guarded in `tests/chrome.test.ts` (16) and the plate's absence in `tests/seasons.test.ts`, each
+proved to bite: the primary button back in link blue, a link-as-button keeping its underline,
+*Another quiz* back to an underlined link, one new accent-filled button, the plate rule back in the
+stylesheet, and a plated heading back on the home page.
+
 ### An answer that belongs to nine drugs (2026-11-04)
 
 Reported by the owner: get a schedule question wrong and the review said *"CII" is the controlled
@@ -2122,6 +2188,10 @@ entry and for the whole palette.
 - **Who else the answer is right about** — a wrong *and* a right answer name every drug they belong
   to, which for the controlled schedule is nine. **Done 2026-11-04**; see
   [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs-2026-11-04).
+- **Therapeutic categories — removed 2026-11-04.** The 65 category tags were pruned at the owner's
+  request; `Top Drugs 2026` is the only tag left. The category *scope axis* still works and the
+  pickers still render when there is anything to render — there is simply nothing in it. See
+  [Four screenshots and what they cost](#four-screenshots-and-what-they-cost-2026-11-04).
 - **Again** — a new paper from the settings the last one was drawn with, from the results screen.
   **Done 2026-11-04.**
 - **Site settings** — name, registration mode, default theme and palette, disclaimer text.
@@ -2606,6 +2676,20 @@ see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs
   profile view, without compromising readability~~.
 - **done — 2026-11-04.** ~~Add an *Again* button on the quiz results screen, beside *Another
   quiz*, that starts a new quiz with the same parameters~~.
+
+**Queued by the owner, 2026-11-04 (second pass)** — four screenshots and six notes. All done; see
+[Four screenshots and what they cost](#four-screenshots-and-what-they-cost-2026-11-04).
+
+- **done.** ~~Every link that looks like the *Another quiz* button should be a button like
+  *Again*~~, and ~~every button should match the current theme — *Again* is the wrong colour~~.
+- **done.** ~~The brand-name redundancy on the profile is unnecessary; remove the *Sold as* line
+  and the Identity section, and replace it with a drug class section~~.
+- **done.** ~~Remove all but the Top Drugs 2026 tag~~ — the 65 therapeutic categories were a
+  judgement nobody asked for. Reversible: `scripts/seed-categories.ts`, or the file
+  `scripts/prune-tags.ts` wrote to `backups/`.
+- **done.** ~~In the lookup panel, drop the band and the *Sold as* line for a brands line more
+  like the profile's~~ — which also restored the indications the panel had never shown.
+- **done.** ~~The opaque boxes behind the heading text on the home page look weird; remove them~~.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

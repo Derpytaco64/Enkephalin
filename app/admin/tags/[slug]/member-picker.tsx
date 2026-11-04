@@ -157,7 +157,7 @@ export function MemberPicker({
 
       <button
         type="submit" disabled={pending}
-        className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)] disabled:opacity-60"
+        className="btn btn-primary mt-4"
       >
         {pending ? 'Saving…' : 'Save list'}
       </button>

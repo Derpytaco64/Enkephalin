@@ -133,7 +133,7 @@ export function SessionRunner({
           {cards.length} card{cards.length === 1 ? '' : 's'}
           {rules.reschedules ? ', scheduled for their next review.' : '. Cramming left your schedule untouched.'}
         </p>
-        <Link href="/study/flashcards" className="mt-4 inline-block text-sm text-[var(--accent)] underline">
+        <Link href="/study/flashcards" className="btn btn-quiet mt-4">
           Start another
         </Link>
       </div>
@@ -170,7 +170,7 @@ export function SessionRunner({
           <button
             type="button"
             onClick={() => setRevealed(true)}
-            className="mt-6 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]"
+            className="btn btn-primary mt-6"
           >
             Show answer <span className="text-xs opacity-80">space</span>
           </button>

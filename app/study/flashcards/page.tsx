@@ -278,7 +278,7 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button type="submit" className="mt-4 rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
+          <button type="submit" className="btn btn-primary mt-4">
             Start
           </button>
           {/* Saves what the controls say now, which is what lets a setup be

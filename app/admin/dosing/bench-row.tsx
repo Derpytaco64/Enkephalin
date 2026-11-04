@@ -162,14 +162,11 @@ export function BenchRowPanel({
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded bg-[var(--accent)] px-3 py-1.5 text-sm text-[var(--accent-fg)] disabled:opacity-60"
+                className="btn btn-primary btn-sm"
               >
                 Save and re-read
               </button>
-              <Link
-                href={`/drugs/${row.slug}/edit`}
-                className="text-xs text-[var(--muted)] underline"
-              >
+              <Link href={`/drugs/${row.slug}/edit`} className="btn btn-quiet btn-sm">
                 Full editor
               </Link>
             </div>
@@ -190,7 +187,7 @@ export function BenchRowPanel({
             <button
               type="submit"
               disabled={pending}
-              className="mt-2 rounded border border-[var(--border)] px-3 py-1.5 text-sm disabled:opacity-60"
+              className="btn btn-quiet btn-sm mt-2"
             >
               {row.dosingUnique ? 'Put it back in the queue' : 'The source really is like that'}
             </button>

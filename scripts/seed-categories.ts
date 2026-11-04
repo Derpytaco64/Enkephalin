@@ -17,6 +17,13 @@
  * argue with. Re-running replaces only the `system` tags: drug lists and any
  * other tag kind are left alone.
  *
+ * **Not in use. Do not run this without asking.** On 2026-11-04 the owner had
+ * all 65 of these removed -- `scripts/prune-tags.ts` -- on the grounds that
+ * they were a judgement nobody asked for and were diluting the thing they meant
+ * to help. The map is kept because it is the one way back if that is ever
+ * reconsidered, and because arguing with it is easier than rebuilding it. One
+ * run brings every category and every link straight back.
+ *
  *   node --experimental-strip-types scripts/seed-categories.ts
  */
 import './env.ts';

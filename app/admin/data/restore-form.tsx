@@ -80,7 +80,7 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
 
       <button
         type="submit" disabled={pending}
-        className="rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)] disabled:opacity-60"
+        className="btn btn-primary"
       >
         {pending ? 'Restoring…' : 'Restore from this file'}
       </button>

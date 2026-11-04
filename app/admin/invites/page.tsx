@@ -35,7 +35,7 @@ export default async function InvitesPage() {
           <label htmlFor="note" className="block text-sm">Note</label>
           <input id="note" name="note" placeholder="who it is for" className={field} />
         </div>
-        <button type="submit" className="rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]">
+        <button type="submit" className="btn btn-primary">
           Generate
         </button>
       </form>

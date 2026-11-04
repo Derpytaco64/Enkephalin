@@ -130,7 +130,7 @@ export function SiteThemeForm({
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="submit" disabled={pending}
-          className="rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)] disabled:opacity-60"
+          className="btn btn-primary"
         >
           Save
         </button>

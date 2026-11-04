@@ -344,12 +344,14 @@ export function QuizRunner({
               disabled={saved === null || starting}
               onClick={() => startAgain(() => router.refresh())}
               title="A new paper from the same settings"
-              className="rounded bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-fg)]
-                disabled:opacity-60"
+              className="btn btn-primary"
             >
               {starting ? 'Drawing…' : 'Again'}
             </button>
-            <Link href="/study/quiz" className="text-sm text-[var(--accent)] underline">
+            {/* A button, not a link. It does the same kind of thing the
+                button beside it does -- start a quiz -- and two controls with
+                one job should not be two different shapes. */}
+            <Link href="/study/quiz" className="btn btn-quiet">
               Another quiz
             </Link>
             <span className="text-xs text-[var(--muted)]">
@@ -483,7 +485,7 @@ export function QuizRunner({
             <button
               type="button"
               onClick={next}
-              className="rounded bg-[var(--accent)] px-4 py-2 text-[var(--accent-fg)]"
+              className="btn btn-primary"
             >
               {index + 1 < questions.length ? 'Next' : 'Finish'}
             </button>

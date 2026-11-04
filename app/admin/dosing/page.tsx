@@ -87,7 +87,7 @@ export default async function DosingBenchPage({
           href="/admin/dosing"
           aria-current={kind === undefined ? 'page' : undefined}
           className={`${pill} ${kind === undefined
-            ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)]'
+            ? 'border-[var(--fg)] bg-[var(--border)] font-medium text-[var(--fg)]'
             : 'border-[var(--border)]'}`}
         >
           Everything ({counts.byKind['unresolved-indication'] + counts.byKind['no-sig'] + counts.byKind['needs-look']})
@@ -98,7 +98,7 @@ export default async function DosingBenchPage({
             href={{ pathname: '/admin/dosing' as Route, query: { kind: each } }}
             aria-current={kind === each ? 'page' : undefined}
             className={`${pill} ${kind === each
-              ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)]'
+              ? 'border-[var(--fg)] bg-[var(--border)] font-medium text-[var(--fg)]'
               : 'border-[var(--border)]'}`}
           >
             {BENCH_LABELS[each].title} ({counts.byKind[each]})

@@ -24,11 +24,19 @@ export const dynamic = 'force-dynamic';
  *
  * **This is the one page whose column the weather passes through.** `open` on
  * the `<main>` drops the opaque ground that every other page keeps, so a
- * season's motes drift between the cards instead of only in the gutters -- and
- * that is only safe because every block below paints its own: a card with
- * `--surface`, bare text with `.plate`. Adding an unplated paragraph here puts
- * a leaf back in a paragraph, which is the thing the whole arrangement exists
- * to prevent.
+ * season's motes drift between the cards instead of only in the gutters.
+ *
+ * The bare text here used to carry a `.plate` -- a local repaint of the page
+ * ground, so a mote could not cross a word. It is gone by the owner's call,
+ * and the screenshot was the argument: a plate repainted the season wash but
+ * not the ambience wash or the starfield under it, so rather than being
+ * invisible it read as an opaque band behind the greeting, the heading and
+ * the disclaimer. A rectangle you can see is worse than a leaf you can.
+ *
+ * The trade, stated: a mote may now pass behind those few lines. They are a
+ * greeting, a two-word heading and a disclaimer -- nothing anyone reads twice
+ * -- and every block on this page that carries real reading is a card, which
+ * still paints `--surface`.
  */
 export default async function Home() {
   const session = await getSession();
@@ -44,8 +52,7 @@ export default async function Home() {
         </p>
         <Link
           href="/login"
-          className="mt-8 inline-block rounded-full bg-[var(--accent)] px-4 py-2 text-sm
-            font-medium text-[var(--accent-fg)]"
+          className="btn btn-primary mt-8 font-medium"
         >
           Sign in
         </Link>
@@ -71,7 +78,7 @@ export default async function Home() {
 
   return (
     <main className="open mx-auto max-w-5xl px-4 py-10">
-      <div className="plate flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
         {overview.streak > 0 && (
           <p className="text-sm">
@@ -121,9 +128,6 @@ export default async function Home() {
  * two pages. Absent only before bootstrap has written the singleton, which is
  * a state nobody signed in can be in.
  *
- * `plate` because the home page's column is open to the weather -- see the
- * note on `<main className="open">` above. The plate is only as wide as the
- * text, so a leaf still drifts past either side of it.
  */
 function Disclaimer({ text }: { text: string | undefined }) {
   if (text === undefined) return null;
@@ -133,7 +137,7 @@ function Disclaimer({ text }: { text: string | undefined }) {
       {/* A mark, not a divider: eight pixels of hairline says "the page ends
           here" without drawing a line under the content above it. */}
       <span aria-hidden="true" className="block h-px w-8 bg-[var(--border)]" />
-      <p className="plate max-w-md text-center text-xs leading-relaxed text-[var(--muted)]">
+      <p className="max-w-md text-center text-xs leading-relaxed text-[var(--muted)]">
         {text}
       </p>
     </footer>
@@ -240,7 +244,7 @@ function Resume({
 
   if (entries.length === 0) {
     return (
-      <p className="plate mt-8 text-sm text-[var(--muted)]">
+      <p className="mt-8 text-sm text-[var(--muted)]">
         Start a quiz or a deck and you will be able to start another one just like it from here.
       </p>
     );
@@ -248,7 +252,7 @@ function Resume({
 
   return (
     <section className="mt-8">
-      <h2 className="plate text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
+      <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
         Start another
       </h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">

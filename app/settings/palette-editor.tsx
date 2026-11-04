@@ -185,7 +185,7 @@ export function PaletteEditor({
                         form.set('color', draft);
                         return setColor(form);
                       })}
-                      className="rounded bg-[var(--accent)] px-3 py-1 text-sm text-[var(--accent-fg)] disabled:opacity-60"
+                      className="btn btn-primary btn-sm"
                     >
                       Save
                     </button>

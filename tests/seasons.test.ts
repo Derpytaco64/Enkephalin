@@ -495,25 +495,13 @@ describe('nothing drifts behind text', () => {
     expect(body).toContain('linear-gradient(var(--season-wash), var(--season-wash))');
   });
 
-  it('lets a page open its column, on condition that every block is plated', () => {
+  it('lets one page open its column', () => {
     // Asked for on the home page: the weather should reach the gaps between
-    // the cards, not only the gutters. That is safe exactly while nothing in
-    // the column is bare text, so the two rules are a pair and the opt-in is
-    // what keeps every other page's blanket ground.
+    // the cards, not only the gutters. Opt-in, so every other page keeps its
+    // blanket ground and nothing drifts through a paragraph anywhere else.
     const open = CSS.slice(CSS.indexOf('main.open {'));
     expect(open.slice(0, open.indexOf('}'))).toContain('background-color: transparent');
 
-    const plate = CSS.slice(CSS.indexOf('.plate {'));
-    const body = plate.slice(0, plate.indexOf('}'));
-    expect(body).toContain('background-color: var(--bg)');
-    expect(body).toContain('linear-gradient(var(--season-wash), var(--season-wash))');
-
-    // No padding or margin on a plate: an unlayered `.plate` margin would beat
-    // the Tailwind `mt-*` on the same element and eat the page's spacing.
-    expect(body).not.toMatch(/\bpadding\b|\bmargin\b/);
-  });
-
-  it('opens exactly one column, and plates the text in it', () => {
     const { readdirSync, statSync } = require('node:fs') as typeof import('node:fs');
     const walk = (path: string): string[] => readdirSync(path).flatMap((entry) => {
       const full = `${path}/${entry}`;
@@ -522,13 +510,22 @@ describe('nothing drifts behind text', () => {
         .test(readFileSync(full, 'utf8')) ? [full] : [];
     });
     expect(walk('app')).toEqual(['app/page.tsx']);
+  });
 
-    // Its three bare-text blocks: the greeting row, the resume heading and its
-    // empty-state line, and the disclaimer. A card needs no plate -- it has
-    // `--surface` -- so this counts the ones that would otherwise be text on
-    // open ground.
-    const home = readFileSync('app/page.tsx', 'utf8');
-    expect((home.match(/className="plate /g) ?? []).length).toBeGreaterThanOrEqual(4);
+  it('has no plate left to repaint the ground behind text', () => {
+    // `.plate` was the other half of `main.open`: a local repaint of the page
+    // ground behind the open column's bare text, so a mote could not cross a
+    // word. It is gone by the owner's call, and the reason is worth keeping --
+    // it repainted the *season* wash and not the ambience wash or the
+    // starfield under it, so rather than being invisible it read as an opaque
+    // band behind the greeting, the heading and the disclaimer.
+    //
+    // What replaced it is the trade, not another mechanism: on that one page a
+    // mote may pass behind a greeting, a two-word heading and a disclaimer.
+    // Every block there carrying real reading is a card, and a card still
+    // paints --surface.
+    expect(CSS).not.toContain('.plate {');
+    expect(readFileSync('app/page.tsx', 'utf8')).not.toContain('className="plate');
   });
 
   it('keeps both layers behind the content wrapper', () => {

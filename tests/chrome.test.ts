@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '@/lib/theme/palette';
 
@@ -189,5 +189,66 @@ describe('the pill that says where you are', () => {
     // sees.
     expect(NAV).toContain("aria-current={here ? 'page' : undefined}");
     expect(NAV).toContain('font-medium');
+  });
+});
+
+/* ------------------------------------------------------------------------
+   Buttons.
+
+   They were `bg-[var(--accent)]`, which is the *link* colour: a fixed blue
+   the seasons deliberately never touch. Right for a link in a sentence,
+   wrong for a filled button -- on a tinted autumn page the whole chrome
+   goes warm and a cold blue lozenge sat in the middle of it.
+   --------------------------------------------------------------------- */
+
+describe('every button is the page’s own ink', () => {
+  /** Every .tsx under app/, so a new button cannot slip in uncounted. */
+  function screens(): string[] {
+    const walk = (path: string): string[] => readdirSync(path).flatMap((entry) => {
+      const full = `${path}/${entry}`;
+      if (statSync(full).isDirectory()) return walk(full);
+      return entry.endsWith('.tsx') ? [full] : [];
+    });
+    return walk('app');
+  }
+
+  it('fills with the reading pair, inverted', () => {
+    // --fg on --bg, both of which the seasons already retint, so the button
+    // takes the season with it and there is no new contrast figure to defend:
+    // it is the body text's own pair swapped over.
+    const primary = block('.btn-primary {');
+    expect(primary).toContain('background-color: var(--fg)');
+    expect(primary).toContain('color: var(--bg)');
+    expect(primary).not.toContain('--accent');
+
+    const quiet = block('.btn-quiet {');
+    expect(quiet).toContain('background-color: var(--surface)');
+    expect(quiet).not.toContain('--accent');
+  });
+
+  it('drops the underline a link brings with it', () => {
+    // Half of these are `next/link`, and a button that is underlined is a
+    // link wearing a button's clothes.
+    expect(block('.btn {')).toContain('text-decoration: none');
+  });
+
+  it('leaves no accent fill anywhere but the avatar', () => {
+    // The one deliberate exception, and it is not a button: the initials
+    // circle in the top bar, where a filled accent reads as an identity chip.
+    const offenders = screens().filter((file) =>
+      readFileSync(file, 'utf8').includes('bg-[var(--accent)]'));
+
+    expect(offenders.map((file) => file.replaceAll('\\', '/')))
+      .toEqual(['app/_components/avatar.tsx']);
+  });
+
+  it('is a button wherever it reads as one', () => {
+    // The owner's note: a link that looks like the button beside it should be
+    // the button beside it. Both session-end screens offer "start another",
+    // and both were underlined blue text next to a filled control.
+    expect(readFileSync('app/study/quiz/quiz-runner.tsx', 'utf8'))
+      .toMatch(/className="btn btn-quiet">\s*\n\s*Another quiz/);
+    expect(readFileSync('app/study/flashcards/session-runner.tsx', 'utf8'))
+      .toMatch(/className="btn btn-quiet mt-4">\s*\n\s*Start another/);
   });
 });
