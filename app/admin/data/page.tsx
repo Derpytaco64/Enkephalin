@@ -6,7 +6,7 @@ import { requireAdmin } from '@/lib/session';
 import { restoreAction } from './actions';
 import { RestoreForm } from './restore-form';
 
-export const metadata = { title: 'Data — Enkephalin' };
+export const metadata = { title: 'Data' };
 export const dynamic = 'force-dynamic';
 
 export default async function DataPage() {

@@ -7,7 +7,7 @@ import { requireAdmin } from '@/lib/session';
 import { createDrugAction } from '../actions';
 import { DrugForm } from '../drug-form';
 
-export const metadata = { title: 'Add a drug — Enkephalin' };
+export const metadata = { title: 'Add a drug' };
 export const dynamic = 'force-dynamic';
 
 export default async function NewDrugPage() {

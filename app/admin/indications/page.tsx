@@ -6,7 +6,7 @@ import {
 } from './actions';
 import { IndicationList } from './indication-list';
 
-export const metadata = { title: 'Indications — Enkephalin' };
+export const metadata = { title: 'Indications' };
 export const dynamic = 'force-dynamic';
 
 export default async function IndicationsPage() {

@@ -6,7 +6,7 @@ import {
 import { markUniqueAction, saveDosingAction } from './actions';
 import { BenchRowPanel } from './bench-row';
 
-export const metadata = { title: 'Dosing review — Enkephalin' };
+export const metadata = { title: 'Dosing review' };
 export const dynamic = 'force-dynamic';
 
 function isKind(value: unknown): value is BenchKind {

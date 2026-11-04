@@ -7,7 +7,7 @@ import {
 } from './actions';
 import { UserRow } from './user-row';
 
-export const metadata = { title: 'Users — Enkephalin' };
+export const metadata = { title: 'Users' };
 export const dynamic = 'force-dynamic';
 
 /**

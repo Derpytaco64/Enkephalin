@@ -9,7 +9,7 @@ import {
 import { LookForm } from './look-form';
 import { PaletteEditor } from './palette-editor';
 
-export const metadata = { title: 'Settings — Enkephalin' };
+export const metadata = { title: 'Settings' };
 export const dynamic = 'force-dynamic';
 
 const AXIS_NOUN = {

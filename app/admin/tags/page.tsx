@@ -6,7 +6,7 @@ import { requireAdmin } from '@/lib/session';
 import { createTagAction } from './actions';
 import { NewTagForm } from './new-tag-form';
 
-export const metadata = { title: 'Tags — Enkephalin' };
+export const metadata = { title: 'Tags' };
 export const dynamic = 'force-dynamic';
 
 const KIND_LABELS: Record<string, string> = {

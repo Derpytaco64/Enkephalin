@@ -11,7 +11,7 @@ import {
 } from './actions';
 import { SiteThemeForm } from './site-theme-form';
 
-export const metadata = { title: 'Look — Enkephalin' };
+export const metadata = { title: 'Look' };
 export const dynamic = 'force-dynamic';
 
 const AXIS_LABELS: Record<Exclude<ColorAxis, 'none'>, string> = {

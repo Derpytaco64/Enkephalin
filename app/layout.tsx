@@ -3,13 +3,25 @@ import { AmbienceLayer } from '@/app/_components/ambience-layer';
 import { SeasonLayer } from '@/app/_components/season-layer';
 import { SiteHeader } from '@/app/_components/site-header';
 import { getSession } from '@/lib/session';
+import { getSiteName } from '@/lib/settings';
 import { decorAttributes, getPreferences, themeAttribute } from '@/lib/theme/preferences';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: 'Enkephalin',
-  description: 'Drug study reference and quiz tool for pharmacy school.',
-};
+/**
+ * The tab title, from the name an admin set.
+ *
+ * A template rather than a string, so the eighteen pages that carry a title
+ * say only their own half of it -- `title: 'Drugs'` becomes "Drugs — <name>".
+ * Each of them used to append the default name itself, which is why renaming
+ * the site in the database changed nothing anybody could see.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const name = await getSiteName();
+  return {
+    title: { default: name, template: `%s — ${name}` },
+    description: 'Drug study reference and quiz tool for pharmacy school.',
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Stamped during the render rather than corrected in the browser. A theme

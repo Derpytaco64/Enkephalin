@@ -20,7 +20,7 @@ import { ScopePicker } from '../_components/scope-picker';
 import { finishQuizAction } from './actions';
 import { QuizRunner } from './quiz-runner';
 
-export const metadata = { title: 'Quiz — Enkephalin' };
+export const metadata = { title: 'Quiz' };
 export const dynamic = 'force-dynamic';
 
 type Search = {

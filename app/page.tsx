@@ -3,7 +3,7 @@ import type { Route } from 'next';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { overviewFor, type Overview } from '@/lib/home/overview';
 import { getSession } from '@/lib/session';
-import { getSiteSettings } from '@/lib/settings';
+import { FALLBACK_SITE_NAME, getSiteSettings } from '@/lib/settings';
 import { lastUsedSetups } from '@/lib/study/last-used';
 import { describeSetup, SURFACES, type SetupParams, type Surface } from '@/lib/study/presets';
 
@@ -40,12 +40,15 @@ export const dynamic = 'force-dynamic';
  */
 export default async function Home() {
   const session = await getSession();
-  const disclaimer = (await getSiteSettings())?.disclaimerText;
+  const settings = await getSiteSettings();
+  const disclaimer = settings?.disclaimerText;
 
   if (session === null) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-16">
-        <h1 className="text-3xl font-semibold tracking-tight">Enkephalin</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {settings?.siteName ?? FALLBACK_SITE_NAME}
+        </h1>
         <p className="mt-3 text-[var(--muted)]">
           Drug profiles, flashcards and quizzes for the top-drugs list — self-hosted, one class,
           no accounts you did not invite.

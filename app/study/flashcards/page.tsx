@@ -18,7 +18,7 @@ import { ScopePicker } from '../_components/scope-picker';
 import { RememberSetup } from '../_components/remember-setup';
 import { SessionRunner } from './session-runner';
 
-export const metadata = { title: 'Flashcards — Enkephalin' };
+export const metadata = { title: 'Flashcards' };
 export const dynamic = 'force-dynamic';
 
 type Search = {

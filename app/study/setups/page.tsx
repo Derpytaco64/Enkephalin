@@ -7,7 +7,7 @@ import {
 import { deleteSetupAction, saveSetupAction } from './actions';
 import { SetupManager, type SetupRow } from './setup-manager';
 
-export const metadata = { title: 'Saved setups — Enkephalin' };
+export const metadata = { title: 'Saved setups' };
 export const dynamic = 'force-dynamic';
 
 type Search = Record<string, string | string[] | undefined>;

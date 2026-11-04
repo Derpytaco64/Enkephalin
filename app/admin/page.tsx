@@ -10,10 +10,10 @@ import type { Route } from 'next';
  * where every other index is a grid of cards. Same cards as the home page's
  * areas now, same hover, read off one table so adding a screen is a row.
  *
- * Grouped, because eight destinations in one grid is a wall and these are not
- * eight of a kind: three are the content, two are the people who reach it, two
- * are how it looks and where it is kept. The headings are what make the row
- * you want findable without reading all eight.
+ * Grouped, because nine destinations in one grid is a wall and these are not
+ * nine of a kind: four are the content, two are the people who reach it, and
+ * three are the site itself -- what it is, how it looks, where it is kept. The
+ * headings are what make the one you want findable without reading all nine.
  */
 type Area = { href: Route; title: string; blurb: string };
 
@@ -61,6 +61,11 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
   {
     heading: 'The site itself',
     areas: [
+      {
+        href: '/admin/site',
+        title: 'Site',
+        blurb: 'Its name, who may register, and the disclaimer everyone reads.',
+      },
       {
         href: '/admin/look',
         title: 'Look',

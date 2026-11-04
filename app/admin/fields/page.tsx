@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { groupFieldDefs, listFieldDefs } from '@/lib/fields/registry';
 import { deleteFieldAction, restoreFieldAction } from './actions';
 
-export const metadata = { title: 'Fields — Enkephalin' };
+export const metadata = { title: 'Fields' };
 
 export default async function FieldsPage() {
   const all = await listFieldDefs({ includeDeleted: true });

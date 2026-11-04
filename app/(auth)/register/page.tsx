@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getRegistrationMode } from '@/lib/settings';
 import { RegisterForm } from './register-form';
 
-export const metadata = { title: 'Register — Enkephalin' };
+export const metadata = { title: 'Register' };
 
 // registration_mode is site settings an admin can change, so this page must
 // be rendered per request rather than baked at build time -- where the

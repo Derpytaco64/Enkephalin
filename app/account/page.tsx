@@ -9,7 +9,7 @@ import { EmailForm } from './email-form';
 import { PasswordForm } from './password-form';
 import { ProfileForm } from './profile-form';
 
-export const metadata = { title: 'Account — Enkephalin' };
+export const metadata = { title: 'Account' };
 export const dynamic = 'force-dynamic';
 
 /**

@@ -1366,6 +1366,68 @@ it** -- five sentences, three row identities, one identity chip. That is the sam
 where a sentence or a row earns it", so a new one has to come to the list and say which. Proved to
 bite by planting an accent hover on the 403 page and an accent mention in an unlisted file.
 
+### What the site is called (2026-11-04)
+
+Three values have been in `site_settings` since phase 0 with no way to edit them: `site_name`,
+`registration_mode` and `disclaimer_text`. `/admin/site` edits them now. The lock is why this was
+the first of the two remaining gaps worth closing — the register page refuses a stranger because
+of `registration_mode`, and turning it meant SQL or a backup restore.
+
+**The site name was stored and nothing read it.** That is the part worth writing down, because it
+means the setting was not merely unreachable, it was *fictional*: every one of the eighteen page
+titles appended the default name itself, the top bar printed the word, the signed-out front page
+used it as its heading, and the 403 said *Back to Enkephalin*. Renaming the row would have changed
+nothing anybody could see. So a settings screen had to come with the wiring, or its first field
+would have been a control that does nothing:
+
+- The root layout is a `generateMetadata` with a **title template** — `{ default: name, template:
+  '%s — <name>' }` — and the eighteen pages now carry only their own half, `title: 'Drugs'`. One
+  async function instead of eighteen.
+- The wordmark, the front-page heading and the 403 read `getSiteName()`, which falls back rather
+  than returning undefined: every caller would otherwise invent the same fallback, and a bar with
+  a hole in it is worse than one showing the default.
+- `/drugs` had the disclaimer's first half *hard-coded as a second copy* — so rewording the
+  disclaimer on the front page left the page people actually read drug facts on still saying the
+  old thing. It reads the stored text now.
+
+**Separate from `/admin/look`, deliberately.** Same row in the database, two different questions:
+Look is the theme and palette everyone *starts* on and any reader can override, while nothing on
+this page can be overridden by anyone, because none of it is a preference. The admin index grew a
+third group for it — the content, the people who reach it, the site itself.
+
+**Both texts are required, and the disclaimer's refusal is a judgement rather than a constraint.**
+A blank name leaves the bar and the tab title with a hole in them, which is arithmetic. A blank
+disclaimer is a choice: this is a study aid built off a class sheet, the sentence saying it is not
+a clinical reference is the one sentence it should not be able to lose, and clearing a field is far
+too quiet a way to lose it. Rewording is the control that exists; removing is not. The two caps
+(40 characters, 500) are about the wordmark and the footer they are printed in, not about the
+column, which would take a novel.
+
+**One writer for all three**, validated before anything is written, because an admin changing the
+name and the disclaimer in one sitting must not be able to land the first and be refused the
+second — which is exactly what three independent setters would do. It returns what it stored, so
+the form re-seeds from that rather than from what was typed: a name entered with a trailing space
+visibly loses it instead of sitting there looking unsaved.
+
+**Every change writes one audit row** — `site_settings.update`, with `from` and `to` for the fields
+that *moved* and nothing for the ones that did not. A save that changes nothing writes no row at
+all. The log is still write-only until the audit UI is built, which makes it the last real gap in
+phase 8; these rows are what it will have to render first.
+
+Two smaller things fell out. `lib/settings.ts` became `lib/settings/{index,shape}.ts`, because the
+admin form is a client component and needs the modes, the labels and the caps — importing them from
+a module that reaches for `@/db` pulls `postgres` into the browser bundle, which does not build.
+Exactly the split `lib/account/shape.ts` already carries a comment about, and I walked into it
+again. And the look half and the identity half now share one `upsertSiteSettings`, so there is a
+single statement that creates row 1 rather than two that could disagree about whether it exists.
+
+Guarded in `tests/site-settings.test.ts` (22). The ones that matter are the refusals: each of the
+five bad inputs is checked to leave the row exactly as it was, a junk `registration_mode` in the
+column falls back to *invite* rather than to open — a corrupt value must not be a way in — and a
+source check holds the wiring, since a title that re-hard-codes the name would otherwise break the
+setting silently and no runtime would notice. Driven live as well: the name changed in the
+database, with the tab title, the template and the front-page heading all following, and put back.
+
 ### The dosing review bench (2026-11-03)
 
 The one queue in this app that has ever had real work in it. **76 of 252 regimens** carry a reading
@@ -2314,7 +2376,9 @@ taking part in the look:
   [Four screenshots and what they cost](#four-screenshots-and-what-they-cost-2026-11-04).
 - **Again** — a new paper from the settings the last one was drawn with, from the results screen.
   **Done 2026-11-04.**
-- **Site settings** — name, registration mode, default theme and palette, disclaimer text.
+- **Site** — the name, who may register, and the disclaimer. **Done 2026-11-04**; the default
+  theme and palette are next door in **Look**, because a preference and a lock are not the same
+  kind of setting. See [What the site is called](#what-the-site-is-called-2026-11-04).
 - **Data** — JSON export/backup and restore.
 - **Audit log** — who changed what, with diffs.
 
@@ -2355,7 +2419,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Users admin done 2026-11-03, and the self-service email change with it — see [The only way back in](#the-only-way-back-in-2026-11-03) and [Changing the address you sign in with](#changing-the-address-you-sign-in-with-2026-11-03). Dosing review bench done 2026-11-03 — see [The dosing review bench](#the-dosing-review-bench-2026-11-03). Remaining, and this is the whole list: **site settings** (`site_name`, `registration_mode`, `disclaimer_text` have no editor — `/admin/look` is the theme and the palette only, so closing registration or rewording the disclaimer means SQL or a restore), the **audit UI** (six modules write `audit_log`; nothing reads it), the **flagged queue** (the browse filter offers *Flagged*; there is no most-quizzed-first screen — 0 rows to put in it), **bulk field-set** (bulk tagging is the tag roster, which exists), and the **brand↔indication pairing editor** (0 brands awaiting review). The last three have nothing to act on today; the first two do. |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Users admin done 2026-11-03, and the self-service email change with it — see [The only way back in](#the-only-way-back-in-2026-11-03) and [Changing the address you sign in with](#changing-the-address-you-sign-in-with-2026-11-03). Dosing review bench done 2026-11-03 — see [The dosing review bench](#the-dosing-review-bench-2026-11-03). Site settings done 2026-11-04 — see [What the site is called](#what-the-site-is-called-2026-11-04). Remaining, and this is the whole list: the **audit UI** (seven modules write `audit_log`; nothing reads it), the **flagged queue** (the browse filter offers *Flagged*; there is no most-quizzed-first screen — 0 rows to put in it), **bulk field-set** (bulk tagging is the tag roster, which exists), and the **brand↔indication pairing editor** (0 brands awaiting review). The last three have nothing to act on today; the audit UI does. |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
@@ -2828,6 +2892,19 @@ see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs
   and the admin index is a grid of cards like every other index. See
   [The rest of the blue](#the-rest-of-the-blue-2026-11-04) — including the two guards that keep it
   from coming back, and the three kinds of link the line is drawn between.
+
+- **done — 2026-11-04.** ~~Site settings~~, picked off the list of what is left because
+  `registration_mode` is a lock the app could not turn: the register page refuses a stranger because
+  of it, and changing it meant SQL or a restore. `/admin/site` edits the name, the mode and the
+  disclaimer. The name needed wiring before it could be a setting at all — it was stored and read
+  nowhere, with all eighteen page titles appending the default themselves. See
+  [What the site is called](#what-the-site-is-called-2026-11-04).
+
+  What is left after this: **the audit UI**, which is the last gap in phase 8 with anything in it
+  (seven modules write `audit_log`, nothing reads it, and the site-settings rows above are the
+  newest entries); the flagged queue, bulk field-set and the brand↔indication pairing editor, all
+  three screens over queues that are empty today; and the one non-code item, a reverse proxy
+  terminating TLS on the server, which compose assumes and the repo does not contain.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

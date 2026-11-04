@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createFieldAction } from '../actions';
 import { FieldForm } from '../field-form';
 
-export const metadata = { title: 'New field — Enkephalin' };
+export const metadata = { title: 'New field' };
 
 export default function NewFieldPage() {
   return (

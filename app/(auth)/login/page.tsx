@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getRegistrationMode } from '@/lib/settings';
 import { LoginForm } from './login-form';
 
-export const metadata = { title: 'Sign in — Enkephalin' };
+export const metadata = { title: 'Sign in' };
 
 // Same reason as the register page: registration_mode is site settings an
 // admin can change, so this is rendered per request rather than baked at

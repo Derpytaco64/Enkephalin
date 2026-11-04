@@ -9,9 +9,9 @@
  */
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { siteSettings, userPreferences } from '@/db/schema';
+import { userPreferences } from '@/db/schema';
 import type { Result } from '@/lib/drugs/mutations';
-import { getSiteSettings } from '@/lib/settings';
+import { getSiteSettings, upsertSiteSettings } from '@/lib/settings';
 import { withAxisColors, withColor, type Overrides } from './overrides';
 import { isColorAxis, type ColorAxis } from './palette';
 import { daypartOf, type Daypart } from './ambience';
@@ -268,7 +268,14 @@ export async function clearPalette(userId: string): Promise<Result> {
    test or reuse.
    ------------------------------------------------------------------------ */
 
-/** Creates row 1 on first change, like the per-user upsert. */
+/**
+ * Creates row 1 on first change, like the per-user upsert.
+ *
+ * The statement itself lives in `lib/settings.ts`, which owns the row: the
+ * look half and the identity half are two questions asked of one singleton,
+ * and two copies of "create it if it is not there" is exactly the kind of pair
+ * that drifts.
+ */
 async function upsertSite(
   patch: Partial<{
     defaultTheme: ThemePref;
@@ -278,10 +285,7 @@ async function upsertSite(
     defaultPalette: Overrides;
   }>,
 ): Promise<void> {
-  await db
-    .insert(siteSettings)
-    .values({ id: 1, ...patch })
-    .onConflictDoUpdate({ target: siteSettings.id, set: patch });
+  await upsertSiteSettings(patch);
 }
 
 async function siteOverrides(): Promise<Overrides> {

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
+import { getSiteName } from '@/lib/settings';
 import { Avatar } from './avatar';
 import { NavLinks, type NavItem } from './nav-links';
 import { SignOutButton } from './sign-out-button';
@@ -10,7 +11,7 @@ import { SignOutButton } from './sign-out-button';
  * to any page drops a disabled account's sessions, not just a guarded one.
  */
 export async function SiteHeader() {
-  const session = await getSession();
+  const [session, siteName] = await Promise.all([getSession(), getSiteName()]);
 
   const items: NavItem[] = [
     { href: '/drugs', label: 'Drugs' },
@@ -52,7 +53,7 @@ export async function SiteHeader() {
             src="/enkephalin.webp" alt="" width={256} height={256}
             className="mark h-8 w-8 shrink-0"
           />
-          Enkephalin
+          {siteName}
         </Link>
 
         {session ? (

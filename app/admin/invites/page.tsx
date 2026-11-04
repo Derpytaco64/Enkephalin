@@ -1,7 +1,7 @@
 import { listInvites } from '@/lib/invites';
 import { createInviteAction, revokeInviteAction } from './actions';
 
-export const metadata = { title: 'Invites — Enkephalin' };
+export const metadata = { title: 'Invites' };
 
 function status(invite: Awaited<ReturnType<typeof listInvites>>[number]) {
   if (invite.revokedAt) return 'revoked';
