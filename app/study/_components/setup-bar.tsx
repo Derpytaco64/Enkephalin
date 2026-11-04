@@ -73,9 +73,9 @@ export function SetupBar({
             key={setup.id}
             href={{ pathname: path, query: setup.params }}
             title={setup.summary}
-            className={compact
-              ? 'text-[var(--accent)] underline'
-              : 'text-sm text-[var(--accent)] underline'}
+            // A saved setup is a chip: it stands for a thing you made, and
+            // a row of them was a row of blue underlines.
+            className={compact ? 'pill pill-xs pill-edge' : 'pill pill-edge'}
           >
             {setup.name}
           </Link>
@@ -84,11 +84,11 @@ export function SetupBar({
 
       <span className={compact ? 'flex gap-3' : 'ml-auto flex gap-3 text-xs'}>
         {saveHref !== null && (
-          <a href={saveHref} target="_blank" rel="noreferrer" className="text-[var(--accent)] underline">
+          <a href={saveHref} target="_blank" rel="noreferrer" className="pill pill-xs">
             Save what’s running ↗
           </a>
         )}
-        <Link href="/study/setups" className="text-[var(--muted)] underline">Manage</Link>
+        <Link href="/study/setups" className="pill pill-xs">Manage</Link>
       </span>
     </div>
   );

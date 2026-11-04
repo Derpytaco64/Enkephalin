@@ -144,9 +144,9 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <Link href="/drugs" className="text-sm text-[var(--accent)] underline">← Drugs</Link>
+        <Link href="/drugs" className="pill">← Drugs</Link>
         {isAdmin && (
-          <Link href={`/drugs/${drug.slug}/edit`} className="text-sm text-[var(--accent)] underline">
+          <Link href={`/drugs/${drug.slug}/edit`} className="pill pill-edge">
             Edit this drug
           </Link>
         )}
@@ -269,10 +269,14 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                   {siblings.length} other{siblings.length === 1 ? '' : 's'} in it — where a quiz draws
                   its near-miss from, so compare them here.
                 </p>
-                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {/* Chips rather than a row of blue underlines. A handful of
+                    names side by side is a set of targets, and underlining
+                    each one made the sentence above it read as a paragraph
+                    with six links loose in it. */}
+                <ul className="mt-2 flex flex-wrap gap-1">
                   {siblings.map((sibling) => (
                     <li key={sibling.slug}>
-                      <Link href={`/drugs/${sibling.slug}`} className="text-[var(--accent)] underline">
+                      <Link href={`/drugs/${sibling.slug}`} className="pill pill-xs pill-edge">
                         {sibling.generic}
                       </Link>
                     </li>
@@ -325,7 +329,7 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                               type="hidden" name="status"
                               value={value.status === 'flagged' ? 'ok' : 'flagged'}
                             />
-                            <button type="submit" className="text-xs text-[var(--accent)] underline">
+                            <button type="submit" className="pill pill-xs">
                               {value.status === 'flagged' ? 'Clear flag' : 'Flag this'}
                             </button>
                           </form>
@@ -350,10 +354,12 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
           {tags.length > 0 && (
             <section className={CARD}>
               <SectionHead>Tags</SectionHead>
-              <ul className="mt-3 space-y-1 text-sm">
+              {/* A tag is the clearest chip in the app: it stands for a
+                  thing, not a place, and it was a stack of blue underlines. */}
+              <ul className="mt-3 flex flex-wrap gap-1">
                 {tags.map((tag) => (
                   <li key={tag.slug}>
-                    <Link href={`/drugs?tag=${tag.slug}`} className="text-[var(--accent)] underline">
+                    <Link href={`/drugs?tag=${tag.slug}`} className="pill pill-xs pill-edge">
                       {tag.label}
                     </Link>
                   </li>

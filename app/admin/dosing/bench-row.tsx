@@ -50,11 +50,13 @@ export function BenchRowPanel({
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {/* Opens the row in place rather than navigating, so it reads as a
+            pill and not as a link; filled while it is open. */}
         <button
           type="button"
           onClick={() => { setOpen(!open); setError(null); }}
           aria-expanded={open}
-          className="text-left font-medium text-[var(--accent)] underline"
+          className={`pill font-medium ${open ? 'pill-on' : 'pill-soft'}`}
         >
           {row.generic}
         </button>

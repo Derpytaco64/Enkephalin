@@ -65,14 +65,23 @@ export async function SiteHeader() {
               {/* The email used to sit here as text, which spent a third of
                   the bar saying something the reader already knows. The
                   circle is the same information when you want it -- it is the
-                  title -- and a way into the account when you do not. */}
+                  title -- and a way into the account when you do not.
+
+                  The ring was `--accent`, which is the one chrome token the
+                  seasons never move: in a tinted autumn, hovering the circle
+                  drew a cold blue ring in a warm bar. It is `--btn-edge` now
+                  -- the button's own boundary colour, and the only seasonal
+                  token held at 3:1 or better against every ground, which is
+                  what a ring has to be. The fill inside stays `--accent` on
+                  purpose: it is an identity chip rather than a control, and
+                  it is the one accent fill left in the app. */}
               <Link
                 href="/account"
                 title={session.user.email}
                 aria-label="Account settings"
                 className="rounded-full ring-offset-2 ring-offset-[var(--bg)]
-                  hover:ring-2 hover:ring-[var(--accent)]
-                  focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  hover:ring-2 hover:ring-[var(--btn-edge)]
+                  focus-visible:ring-2 focus-visible:ring-[var(--btn-edge)]"
               >
                 <Avatar user={session.user} size={32} />
               </Link>
@@ -80,12 +89,7 @@ export async function SiteHeader() {
             </div>
           </>
         ) : (
-          <Link
-            href="/login"
-            className="rounded-full border border-[var(--border)] px-3 py-1.5 text-sm
-              hover:border-[var(--accent)] hover:text-[var(--accent)]
-              sm:col-start-3 sm:justify-self-end"
-          >
+          <Link href="/login" className="pill pill-edge sm:col-start-3 sm:justify-self-end">
             Sign in
           </Link>
         )}

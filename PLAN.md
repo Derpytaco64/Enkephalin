@@ -1301,6 +1301,71 @@ identical, no season quietly restating the default, and no `[data-tint]` creepin
 selectors. Proved to bite by planting a summer edge at 2.6:1 and a winter ink the same lightness as
 its fill; both failed by name.
 
+### The rest of the blue (2026-11-04)
+
+Two reports, one cause. *Hovering the avatar and Sign out does not follow the theme*, and *there is
+still blue link text that should be pills*.
+
+`--accent` is the colour of a link inside a sentence, and it is deliberately the one chrome token
+the seasons never move -- four seasonal accents would be four more contrast pairs to defend for no
+gain. Every filled button used to borrow it, which was the first thing to go wrong and is fixed.
+What was left behind was everything that is *not quite a button*: a back link, a tag, a class-mate,
+*Clear filters*, *Remove*, a disclosure row, the ring on the avatar, the edge of *Sign out*, the
+hover on every card on the home page. All of it in a sentence's treatment, in the one colour that
+cannot take a season -- so in a tinted autumn the warm page was dotted with cold blue.
+
+**The line drawn, and it is three ways rather than two:**
+
+- **A sentence keeps its link.** *"There are 236 drugs to draw from"*, *"...until you clear yours"*,
+  *"Settings is where the theme lives"*. The words are prose and the link is a word in them. Accent
+  and underlined, unchanged -- this is what accent is *for*, and the point of the pass is to make
+  that claim true rather than to delete the colour.
+- **A target gets a pill.** A place to go, a small action standing on its own, or a chip that stands
+  for a thing: tags, class-mates, saved setups. Shaped like the top bar's navigation, because it is
+  the same kind of thing.
+- **The identity of a row keeps its link.** A drug in the browse table, a field or a list in an
+  admin row. The row is already the target, and a column of pills reads as a wall of buttons rather
+  than as a list of names. Three files, named in the test.
+
+**`.pill` in `globals.css`**, which the top bar used to own privately and now shares with 30-odd
+call sites. `--muted` at rest, `--fg` on a `--border` fill on hover -- the pair the current nav pill
+was already measured in at 11:1 across both themes and all four tints. Four modifiers: `.pill-on`
+for the one you are on (filled, and a notch heavier so the fill is not the only thing saying so),
+`.pill-soft` for a row where one pill is already filled, `.pill-edge` for a chip, `.pill-xs` for the
+small form, `.pill-danger` for removing and revoking.
+
+Two details worth keeping. `.pill-soft` repoints a `--pill-hover` variable rather than overriding
+the hover rule, so the rule is written once -- and it exists because hovering a neighbour in the top
+bar must not draw the same lozenge as the current pill, or the row lies about where you are. And
+`.pill-danger` has to restate its colour on hover, because the shared hover takes the text to
+`--fg`: without it, *Remove* goes quiet at exactly the moment the cursor is on it.
+
+**What the hovers point at now is `--btn-edge`** -- the avatar's ring, *Sign out*'s edge, a chip's
+edge, and all seven cards on the home page and the admin index. It is the right token for the job
+rather than a convenient one: of everything the seasons move, it is the only value held at 3:1 or
+better against every ground the app can produce, which is what WCAG 1.4.11 asks of a control's
+boundary. The one accent hover left is `:focus-visible` in the stylesheet, and it stays -- an
+accessibility affordance nobody can switch off wants the strongest fixed contrast, not the
+seasonal one.
+
+**The admin index finally took part in the look.** It was eight underlined blue links with grey
+sentences trailing after them -- the browser's own idea of a list -- on a site where every other
+index is a grid of cards. Same cards as the home page's areas now, read off one table, and grouped
+in three: the content, the people who reach it, and the site itself. Eight destinations in one grid
+is a wall, and these are not eight of a kind.
+
+**And the sig glossary's codes are no longer blue.** `QD`, `PO`, `Q8H` were set in `--accent` --
+the one place in the app where blue text did nothing at all when you clicked it. They are `--fg`
+against the muted English beside them; the monospace was always what set them apart.
+
+Guarded in `tests/chrome.test.ts` (seven new, two rewritten), and the two that matter are the two that
+generalise: **no `hover:`/`focus:`/`active:` state anywhere in `app/` may name `--accent`**, and
+**every remaining `var(--accent)` in `app/` has to be on a list in the test with a reason beside
+it** -- five sentences, three row identities, one identity chip. That is the same shape as
+`tests/form-reset.test.ts`, and for the same reason: the rule is not "no accent", it is "accent
+where a sentence or a row earns it", so a new one has to come to the list and say which. Proved to
+bite by planting an accent hover on the 403 page and an accent mention in an unlisted file.
+
 ### The dosing review bench (2026-11-03)
 
 The one queue in this app that has ever had real work in it. **76 of 252 regimens** carry a reading
@@ -2220,7 +2285,9 @@ surfaces and warns below 4.5:1 rather than silently allowing unreadable text. Co
 signal — every badge carries text, which also covers color-vision deficiency. Reset-to-default per
 entry and for the whole palette.
 
-**Admin** (`/admin`):
+**Admin** (`/admin`) — a grid of cards grouped into the content, the people who reach it, and the
+site itself; it was a bulleted list of blue links until 2026-11-04, the last screen in the app not
+taking part in the look:
 
 - **Users** — list, search, change role, disable/enable, force-logout, set a new password, delete.
   **Done 2026-11-03.** "Trigger password reset" became "set a new password" because there is no
@@ -2752,6 +2819,15 @@ see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs
   seasonless themes. The design is one decision and the rest follows from it: the fills are pale,
   so the button needs a third token for its boundary or it cannot be told from the page. See
   [The button gets a colour of its own](#the-button-gets-a-colour-of-its-own-2026-11-04).
+
+- **done — 2026-11-04.** ~~Hovering the pfp and the Sign out button does not follow the
+  theme/season~~, and ~~there is still blue link text in the drug profile and the quiz screen that
+  should be pills — do a once-over for more, like the admin UI~~. One cause for both: `--accent` is
+  the link colour and the seasons never move it, and everything that was not quite a button was
+  wearing it. `.pill` is now shared by every target in the app, the hovers point at `--btn-edge`,
+  and the admin index is a grid of cards like every other index. See
+  [The rest of the blue](#the-rest-of-the-blue-2026-11-04) — including the two guards that keep it
+  from coming back, and the three kinds of link the line is drawn between.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

@@ -1,44 +1,108 @@
 import Link from 'next/link';
+import type { Route } from 'next';
+
+/**
+ * The way into every admin screen, and the one page in the app that never
+ * took part in the look.
+ *
+ * It was a bulleted list of eight underlined blue links with grey sentences
+ * trailing after them -- the browser's own idea of a list of links, on a site
+ * where every other index is a grid of cards. Same cards as the home page's
+ * areas now, same hover, read off one table so adding a screen is a row.
+ *
+ * Grouped, because eight destinations in one grid is a wall and these are not
+ * eight of a kind: three are the content, two are the people who reach it, two
+ * are how it looks and where it is kept. The headings are what make the row
+ * you want findable without reading all eight.
+ */
+type Area = { href: Route; title: string; blurb: string };
+
+const GROUPS: { heading: string; areas: Area[] }[] = [
+  {
+    heading: 'Content',
+    areas: [
+      {
+        href: '/admin/fields',
+        title: 'Fields',
+        blurb: 'What a drug profile is made of: add one, reorder, retype, retire.',
+      },
+      {
+        href: '/admin/tags',
+        title: 'Tags',
+        blurb: 'Lists and courses, and which drugs are on each.',
+      },
+      {
+        href: '/admin/indications',
+        title: 'Indications',
+        blurb: 'The sheet’s own vocabulary — rename a wording, merge two into one.',
+      },
+      {
+        href: '/admin/dosing',
+        title: 'Dosing review',
+        blurb: 'The readings the parser would not stand behind, worst first.',
+      },
+    ],
+  },
+  {
+    heading: 'People',
+    areas: [
+      {
+        href: '/admin/users',
+        title: 'Users',
+        blurb: 'Roles, access, and the only route back into a locked-out account.',
+      },
+      {
+        href: '/admin/invites',
+        title: 'Invites',
+        blurb: 'Mint a code, see who redeemed it, revoke one.',
+      },
+    ],
+  },
+  {
+    heading: 'The site itself',
+    areas: [
+      {
+        href: '/admin/look',
+        title: 'Look',
+        blurb: 'The default theme, season and colour palette everyone starts from.',
+      },
+      {
+        href: '/admin/data',
+        title: 'Data',
+        blurb: 'The whole database as one JSON file: download it, or restore one.',
+      },
+    ],
+  },
+];
 
 export default function AdminHome() {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-16">
+    <main className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
-      <ul className="mt-6 space-y-2">
-        <li>
-          <Link href="/admin/users" className="text-[var(--accent)] underline">Users</Link>
-          <span className="ml-2 text-sm text-[var(--muted)]">roles, access, password resets</span>
-        </li>
-        <li>
-          <Link href="/admin/fields" className="text-[var(--accent)] underline">Fields</Link>
-        </li>
-        <li>
-          <Link href="/admin/invites" className="text-[var(--accent)] underline">Invites</Link>
-        </li>
-        <li>
-          <Link href="/admin/tags" className="text-[var(--accent)] underline">Tags</Link>
-        </li>
-        <li>
-          <Link href="/admin/indications" className="text-[var(--accent)] underline">
-            Indications
-          </Link>
-          <span className="ml-2 text-sm text-[var(--muted)]">rename and merge</span>
-        </li>
-        <li>
-          <Link href="/admin/dosing" className="text-[var(--accent)] underline">Dosing review</Link>
-          <span className="ml-2 text-sm text-[var(--muted)]">
-            the readings the parser would not stand behind
-          </span>
-        </li>
-        <li>
-          <Link href="/admin/look" className="text-[var(--accent)] underline">Look</Link>
-          <span className="ml-2 text-sm text-[var(--muted)]">default theme and colours</span>
-        </li>
-        <li>
-          <Link href="/admin/data" className="text-[var(--accent)] underline">Data</Link>
-          <span className="ml-2 text-sm text-[var(--muted)]">export and restore</span>
-        </li>
-      </ul>
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        Everything that is the site rather than the studying.
+      </p>
+
+      {GROUPS.map((group) => (
+        <section key={group.heading} className="mt-8">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
+            {group.heading}
+          </h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {group.areas.map((area) => (
+              <Link
+                key={area.href}
+                href={area.href}
+                className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4
+                  hover:border-[var(--btn-edge)]"
+              >
+                <p className="font-medium">{area.title}</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">{area.blurb}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
     </main>
   );
 }

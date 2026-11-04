@@ -28,7 +28,9 @@ export function LookupTrigger({
   available,
   unavailableReason,
   onOpen,
-  className = 'text-sm text-[var(--accent)] underline',
+  // A chip, not a link in a sentence: it stands alone under the question and
+  // what it names is a drug rather than a word in a line of prose.
+  className = 'pill pill-edge',
 }: {
   drug: LookupTarget;
   available: boolean;
@@ -189,10 +191,13 @@ export function LookupPanel({
             autoComplete="off"
             className="h-9 min-w-48 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 text-sm"
           />
+          {/* Square-cornered like the search field beside it rather than a
+              pill, because the two of them are one row. Only the hover moved:
+              it lifted the edge to `--accent`, which no season touches. */}
           <button
             type="button" onClick={close}
             className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm
-              hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              hover:border-[var(--btn-edge)] hover:text-[var(--fg)]"
           >
             Close <span className="text-xs text-[var(--muted)]">esc</span>
           </button>
@@ -291,7 +296,7 @@ export function LookupPanel({
                   session is in memory and a navigation would end it. */}
               <Link
                 href={`/drugs/${card.slug}`} target="_blank" rel="noreferrer"
-                className="mt-5 inline-block text-xs text-[var(--accent)] underline"
+                className="pill pill-xs mt-5"
               >
                 Full profile &#8599;
               </Link>

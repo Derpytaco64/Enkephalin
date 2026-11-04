@@ -13,7 +13,7 @@ export default async function FieldsPage() {
     <main className="mx-auto max-w-3xl px-4 py-16">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Fields</h1>
-        <Link href="/admin/fields/new" className="text-sm text-[var(--accent)] underline">
+        <Link href="/admin/fields/new" className="pill pill-edge">
           New field
         </Link>
       </div>
@@ -46,7 +46,7 @@ export default async function FieldsPage() {
                   ) : (
                     <form action={deleteFieldAction}>
                       <input type="hidden" name="id" value={field.id} />
-                      <button type="submit" className="text-[var(--danger)] underline">Remove</button>
+                      <button type="submit" className="pill pill-xs pill-danger">Remove</button>
                     </form>
                   )}
                 </span>
@@ -69,7 +69,7 @@ export default async function FieldsPage() {
                 <code className="text-xs text-[var(--muted)]">{field.key}</code>
                 <form action={restoreFieldAction} className="ml-auto">
                   <input type="hidden" name="id" value={field.id} />
-                  <button type="submit" className="text-xs text-[var(--accent)] underline">Restore</button>
+                  <button type="submit" className="pill pill-xs">Restore</button>
                 </form>
               </li>
             ))}

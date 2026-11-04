@@ -32,7 +32,7 @@ export default async function TagsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <Link href="/admin" className="text-sm text-[var(--accent)] underline">← Admin</Link>
+      <Link href="/admin" className="pill">← Admin</Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">Tags</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         A tag is a list you can study by: the sheet edition, a course, or anything you gather
@@ -68,10 +68,10 @@ export default async function TagsPage() {
             <span className="font-mono">scripts/seed-categories.ts</span>. Readable here, edited
             there — the seeder rebuilds their membership on every run.
           </p>
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <ul className="mt-3 flex flex-wrap gap-1">
             {categories.map((row) => (
               <li key={row.slug}>
-                <Link href={`/admin/tags/${row.slug}`} className="text-[var(--accent)] underline">
+                <Link href={`/admin/tags/${row.slug}`} className="pill pill-xs pill-edge">
                   {row.label}
                 </Link>
                 <span className="ml-1 text-xs text-[var(--muted)]">{row.drugs}</span>

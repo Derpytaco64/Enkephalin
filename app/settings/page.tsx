@@ -56,7 +56,7 @@ export default async function SettingsPage() {
             const color = colorFor(preferences.colorAxis, drug, preferences.paletteOverrides);
             return (
               <li key={drug.slug} className="flex flex-wrap items-center gap-2 text-sm">
-                <Link href={`/drugs/${drug.slug}`} className="text-[var(--accent)] underline">
+                <Link href={`/drugs/${drug.slug}`} className="pill pill-xs pill-edge">
                   {drug.generic}
                 </Link>
                 {color !== null && (

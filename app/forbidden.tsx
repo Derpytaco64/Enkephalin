@@ -7,7 +7,9 @@ export default function Forbidden() {
       <p className="mt-2 text-[var(--muted)]">
         You are signed in, but this page is for administrators.
       </p>
-      <Link href="/" className="mt-8 inline-block text-sm text-[var(--accent)] underline">
+      {/* The only thing to do on this page, so it is shaped like a thing to
+          do. Quiet rather than primary: it is a way out, not an achievement. */}
+      <Link href="/" className="btn btn-quiet mt-8">
         Back to Enkephalin
       </Link>
     </main>

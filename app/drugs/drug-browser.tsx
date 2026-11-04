@@ -318,7 +318,7 @@ export function DrugBrowser({
             )}
 
             {active && (
-              <button type="button" onClick={() => setFilters(EMPTY)} className="text-sm text-[var(--accent)] underline">
+              <button type="button" onClick={() => setFilters(EMPTY)} className="pill">
                 Clear filters
               </button>
             )}

@@ -24,7 +24,7 @@ export default async function NewDrugPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <Link href="/drugs" className="text-sm text-[var(--accent)] underline">← Drugs</Link>
+      <Link href="/drugs" className="pill">← Drugs</Link>
 
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">Add a drug</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">

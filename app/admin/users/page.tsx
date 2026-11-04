@@ -34,7 +34,7 @@ export default async function UsersPage({
     <main className="mx-auto max-w-4xl px-4 py-16">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-        <Link href="/admin/invites" className="text-sm text-[var(--accent)] underline">
+        <Link href="/admin/invites" className="pill">
           Invites
         </Link>
       </div>
@@ -61,7 +61,7 @@ export default async function UsersPage({
           Search
         </button>
         {(q ?? '') !== '' && (
-          <Link href="/admin/users" className="text-sm text-[var(--muted)] underline">
+          <Link href="/admin/users" className="pill pill-xs">
             Clear
           </Link>
         )}

@@ -68,7 +68,7 @@ export function FieldPicker({
                 setChosen([]);
                 setActiveYear('');
               }}
-              className="text-xs text-[var(--accent)] underline"
+              className="pill pill-xs"
             >
               Clear fields
             </button>

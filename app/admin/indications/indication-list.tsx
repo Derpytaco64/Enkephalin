@@ -84,11 +84,14 @@ export function IndicationList({
           return (
             <li key={item.slug} className="py-2">
               <div className="flex flex-wrap items-baseline gap-x-3">
+                {/* A pill rather than a link, because it is not one: it
+                    opens the row in place and goes nowhere. Filled while it is
+                    open, which is the same thing the top bar's pill says. */}
                 <button
                   type="button"
                   onClick={() => { setOpen(expanded ? null : item.slug); setError(null); }}
                   aria-expanded={expanded}
-                  className="text-left text-[var(--accent)] underline"
+                  className={`pill ${expanded ? 'pill-on' : 'pill-soft'}`}
                 >
                   {item.label}
                 </button>

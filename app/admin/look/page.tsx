@@ -87,14 +87,17 @@ export default async function AdminLookPage({
         {/* The axis is a view here, not a setting, so it is links and not a
             select: an admin editing the schedule ramp has not changed their
             mind about how they want drugs coloured. */}
-        <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        {/* The same pills the top bar uses, for the same reason: a row of
+            destinations where one of them is the one you are on. It was four
+            blue underlines with the current one underlined in black, which
+            said "current" only to somebody comparing them. */}
+        <nav className="mt-3 flex flex-wrap items-center gap-1">
           {EDITABLE.map((value) => (
             <Link
               key={value}
               href={`/admin/look?axis=${value}`}
-              className={value === axis
-                ? 'font-medium text-[var(--fg)] underline'
-                : 'text-[var(--accent)] underline'}
+              aria-current={value === axis ? 'page' : undefined}
+              className={`pill ${value === axis ? 'pill-on' : 'pill-soft'}`}
             >
               {AXIS_LABELS[value]}
             </Link>

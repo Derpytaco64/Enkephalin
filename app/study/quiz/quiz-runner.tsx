@@ -403,7 +403,7 @@ export function QuizRunner({
                         available
                         unavailableReason=""
                         onOpen={setLookup}
-                        className="text-xs text-[var(--accent)] underline"
+                        className="pill pill-xs pill-edge"
                       />
                     </div>
                   </li>

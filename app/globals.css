@@ -318,6 +318,106 @@ body {
   line-height: 1.1rem;
 }
 
+/* ===== pills ===============================================================
+
+   The step below a button, and the answer to the rest of the blue in this app.
+
+   `--accent` is the colour of a link *inside a sentence*, and it is
+   deliberately the one chrome token the seasons never move. Every filled
+   button used to borrow it, which was the first thing to go wrong; what was
+   left afterwards was everything that is not quite a button -- a back link, a
+   tag, a drug in a list of class-mates, *Clear filters*, *Remove*, a pill
+   saying which page you are on. All of those were underlined accent text,
+   which is to say: a sentence's treatment on something that is not a
+   sentence, in the one colour that cannot take a season.
+
+   So three kinds, and the line between them is what you are aiming at:
+
+   - **A sentence keeps its link.** "There are 236 drugs to draw from", "nine
+     drugs are CII" -- the words are prose and the link is a word in it.
+     Accent and underlined, unchanged, and that is what accent is *for*.
+   - **A target gets a pill.** A place to go, or a small action standing on its
+     own. Shaped like the navigation, because it is the same kind of thing.
+   - **The identity of a row keeps its link.** A drug in the browse table, a
+     field in the admin list: the row is already the target, and a column of
+     pills reads as a wall of buttons rather than as a list of names.
+
+   The colours are the chrome's own, so a season reaches all of it: `--muted`
+   at rest, `--fg` on a `--border` fill on hover -- the same pair the current
+   pill in the top bar is drawn in, which measures 11:1 at worst across both
+   themes and all four tints. Nothing here is ever `--muted` on `--border`;
+   that pair reads 4.47:1 in a light autumn, which is the one combination to
+   keep away from.
+   ========================================================================= */
+
+.pill {
+  /* Repointed by .pill-soft rather than overridden, so the hover rule itself
+     is written once. */
+  --pill-hover: var(--border);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  padding: 0.375rem 0.75rem;
+  font-size: var(--text-sm);
+  line-height: 1.125rem;
+  color: var(--muted);
+  /* Half of these are links, and a pill is not a sentence. */
+  text-decoration: none;
+  transition: background-color 120ms, color 120ms, box-shadow 120ms;
+}
+
+.pill:hover:not(:disabled) {
+  background-color: var(--pill-hover);
+  color: var(--fg);
+}
+
+.pill:disabled { opacity: 0.6; }
+
+/* The one you are on: filled, and a notch heavier so the fill is not the only
+   thing saying so. */
+.pill-on {
+  background-color: var(--border);
+  color: var(--fg);
+  font-weight: 500;
+}
+
+/* A quieter hover, for a row where one pill is already filled -- the top bar
+   and the colour-axis switcher. Without it, hovering a neighbour would draw
+   exactly the same lozenge as the current one and the row would lie about
+   where you are. */
+.pill-soft { --pill-hover: var(--surface); }
+
+/* A chip: something that stands for a thing rather than for a place. A tag, a
+   class-mate, a saved setup. The hairline is what makes it read as an object,
+   and it is the same hairline `.btn-quiet` wears -- `--border` carries no
+   contrast duty at rest in this app (1.27:1 against its own surface), and the
+   text is what carries the information.
+
+   Hover lifts the edge to `--btn-edge`, the button's own boundary colour --
+   the one seasonal token held at 3:1 or better against every ground the app
+   can produce, which is exactly what an edge needs to be. */
+.pill-edge { box-shadow: inset 0 0 0 1px var(--border); }
+
+.pill-edge:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--btn-edge); }
+
+/* The small form, for a pill inside a row of controls or beside a field. */
+.pill-xs {
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  font-size: var(--text-xs);
+  line-height: 1.125rem;
+}
+
+/* Removing, revoking, deleting. The hover restates the colour rather than
+   taking `--fg`, or the one control on the row that should stay alarming would
+   go quiet exactly when the cursor is on it. --danger reads 4.79:1 or better
+   on every border fill it can land on. */
+.pill-danger { color: var(--danger); }
+
+.pill-danger:hover:not(:disabled) { color: var(--danger); }
+
 /* ===== seasons =============================================================
 
    Decoration, and only decoration.

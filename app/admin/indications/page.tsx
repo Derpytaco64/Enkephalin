@@ -15,7 +15,7 @@ export default async function IndicationsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <Link href="/admin" className="text-sm text-[var(--accent)] underline">← Admin</Link>
+      <Link href="/admin" className="pill">← Admin</Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">Indications</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         What the drugs are for, as one shared list. A drug editor picks from these words, so this

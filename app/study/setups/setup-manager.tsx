@@ -123,7 +123,7 @@ export function SetupManager({
             <li key={row.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
               <Link
                 href={{ pathname: row.path, query: row.query }}
-                className="font-medium text-[var(--accent)] underline"
+                className="pill pill-edge font-medium"
               >
                 {row.name}
               </Link>
@@ -138,7 +138,7 @@ export function SetupManager({
                 <button
                   type="submit"
                   disabled={pending}
-                  className="text-xs text-[var(--danger)] underline disabled:opacity-60"
+                  className="pill pill-xs pill-danger"
                 >
                   Remove
                 </button>

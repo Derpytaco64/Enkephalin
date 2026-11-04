@@ -43,7 +43,7 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <Link href="/admin/tags" className="text-sm text-[var(--accent)] underline">← Tags</Link>
+      <Link href="/admin/tags" className="pill">← Tags</Link>
 
       <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{tag.label}</h1>
@@ -63,7 +63,7 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
               .filter((drug) => members.includes(drug.id))
               .map((drug) => (
                 <li key={drug.id}>
-                  <Link href={`/drugs/${drug.slug}`} className="text-[var(--accent)] underline">
+                  <Link href={`/drugs/${drug.slug}`} className="pill pill-xs pill-edge">
                     {drug.generic}
                   </Link>
                 </li>
@@ -86,7 +86,7 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
 
           <form action={deleteTagAction} className="mt-10 border-t border-[var(--border)] pt-4">
             <input type="hidden" name="slug" value={tag.slug} />
-            <button type="submit" className="text-xs text-[var(--flagged)] underline">
+            <button type="submit" className="pill pill-xs pill-danger">
               Delete this list
             </button>
             <span className="ml-2 text-xs text-[var(--muted)]">

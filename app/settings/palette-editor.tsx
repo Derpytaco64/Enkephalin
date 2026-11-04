@@ -95,7 +95,7 @@ export function PaletteEditor({
                 return shuffle(form);
               })}
               disabled={pending}
-              className="text-xs text-[var(--accent)] underline disabled:opacity-60"
+              className="pill pill-xs"
             >
               Shuffle all {swatches.length}
             </button>
@@ -105,7 +105,7 @@ export function PaletteEditor({
               type="button"
               onClick={run(clearAll)}
               disabled={pending}
-              className="text-xs text-[var(--danger)] underline disabled:opacity-60"
+              className="pill pill-xs pill-danger"
             >
               Reset every colour
             </button>
@@ -199,7 +199,7 @@ export function PaletteEditor({
                           form.set('color', '');
                           return setColor(form);
                         })}
-                        className="text-xs text-[var(--muted)] underline disabled:opacity-60"
+                        className="pill pill-xs"
                       >
                         Back to default
                       </button>

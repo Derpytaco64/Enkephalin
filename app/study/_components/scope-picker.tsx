@@ -103,7 +103,7 @@ export function ScopePicker({
             <button
               type="button"
               onClick={() => setChosen([])}
-              className="mt-1 h-9 shrink-0 text-xs text-[var(--accent)] underline"
+              className="pill pill-xs mt-1 shrink-0"
             >
               Clear
             </button>

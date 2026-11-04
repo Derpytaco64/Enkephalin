@@ -50,7 +50,7 @@ export default async function EditDrugPage({
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <Link href={`/drugs/${drug.slug}`} className="text-sm text-[var(--accent)] underline">
+      <Link href={`/drugs/${drug.slug}`} className="pill">
         ← {drug.genericName}
       </Link>
 

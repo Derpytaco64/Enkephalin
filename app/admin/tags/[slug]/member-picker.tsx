@@ -114,10 +114,10 @@ export function MemberPicker({
           Show only what is on it
         </label>
         <span className="ml-auto flex gap-3 text-xs">
-          <button type="button" onClick={() => setShown(true)} className="text-[var(--accent)] underline">
+          <button type="button" onClick={() => setShown(true)} className="pill pill-xs">
             Tick these {shown.length}
           </button>
-          <button type="button" onClick={() => setShown(false)} className="text-[var(--accent)] underline">
+          <button type="button" onClick={() => setShown(false)} className="pill pill-xs">
             Untick these
           </button>
         </span>

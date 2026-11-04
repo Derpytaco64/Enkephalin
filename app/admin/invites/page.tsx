@@ -71,7 +71,7 @@ export default async function InvitesPage() {
                       {state === 'active' && (
                         <form action={revokeInviteAction}>
                           <input type="hidden" name="id" value={invite.id} />
-                          <button type="submit" className="text-[var(--danger)] underline">Revoke</button>
+                          <button type="submit" className="pill pill-xs pill-danger">Revoke</button>
                         </form>
                       )}
                     </td>

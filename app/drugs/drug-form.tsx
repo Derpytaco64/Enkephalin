@@ -429,8 +429,10 @@ export function DrugForm({
         >
           {pending ? 'Saving…' : submitLabel}
         </button>
+        {/* Beside the save, so it is the save's shape: a link that reads as
+            the button next to it should be the button next to it. */}
         {drug && (
-          <a href={`/drugs/${drug.slug}`} className="text-sm text-[var(--accent)] underline">
+          <a href={`/drugs/${drug.slug}`} className="btn btn-quiet">
             Back to the profile
           </a>
         )}

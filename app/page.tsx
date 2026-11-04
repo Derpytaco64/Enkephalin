@@ -203,7 +203,7 @@ function Stats({ overview, labelFor }: { overview: Overview; labelFor: (key: str
           key={tile.label}
           href={tile.href}
           className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4
-            hover:border-[var(--accent)]"
+            hover:border-[var(--btn-edge)]"
         >
           <p className="text-2xl font-semibold tabular-nums">{tile.figure}</p>
           <p className="mt-0.5 text-sm font-medium">{tile.label}</p>
@@ -261,7 +261,7 @@ function Resume({
             key={surface}
             href={{ pathname: SURFACES[surface].path as Route, query: params }}
             className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4
-              hover:border-[var(--accent)]"
+              hover:border-[var(--btn-edge)]"
           >
             <p className="text-sm font-medium">{SURFACES[surface].label}</p>
             <p className="mt-0.5 text-xs text-[var(--muted)]">Same settings as last time</p>
@@ -303,7 +303,7 @@ function Areas({ drugs }: { drugs: number }) {
             key={area.href}
             href={area.href}
             className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4
-              hover:border-[var(--accent)]"
+              hover:border-[var(--btn-edge)]"
           >
             <p className="font-medium">{area.title}</p>
             <p className="mt-1 text-sm text-[var(--muted)]">{area.blurb}</p>

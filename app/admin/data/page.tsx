@@ -27,7 +27,7 @@ export default async function DataPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <Link href="/admin" className="text-sm text-[var(--accent)] underline">← Admin</Link>
+      <Link href="/admin" className="pill">← Admin</Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight">Data</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         Everything you have written lives in one Postgres volume. This is how you get a copy of it

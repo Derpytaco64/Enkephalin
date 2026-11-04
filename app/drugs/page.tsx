@@ -22,7 +22,7 @@ export default async function DrugsPage() {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Drugs</h1>
         {session.user.role === 'admin' && (
-          <Link href="/drugs/new" className="text-sm text-[var(--accent)] underline">
+          <Link href="/drugs/new" className="pill pill-edge">
             Add a drug
           </Link>
         )}

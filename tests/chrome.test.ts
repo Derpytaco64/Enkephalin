@@ -149,10 +149,21 @@ describe('the pill that says where you are', () => {
     // --accent is the colour of a link in a sentence. As a lozenge it was the
     // one piece of the chrome that ignored the rest of it: in a tinted autumn
     // the whole bar goes warm and the pill stayed cold blue.
-    const current = NAV.slice(NAV.indexOf('here\n'), NAV.indexOf(': \'text-[var(--muted)]'));
-    expect(current).toContain('bg-[var(--border)]');
-    expect(current).toContain('text-[var(--fg)]');
-    expect(current).not.toContain('--accent');
+    //
+    // Read off the stylesheet rather than the component, because the shape
+    // moved there: `.pill` started as this bar's private styling and is now
+    // every target in the app.
+    const on = block('.pill-on {');
+    expect(on).toContain('background-color: var(--border)');
+    expect(on).toContain('color: var(--fg)');
+    expect(on).not.toContain('--accent');
+  });
+
+  it('is drawn from the shared pill rather than its own utilities', () => {
+    // One definition. Two would drift, and the bar is the one place where the
+    // pill's states are all visible at once.
+    expect(NAV).toContain("className={`pill ${here ? 'pill-on' : 'pill-soft'}`}");
+    expect(NAV).not.toContain('bg-[var(--');
   });
 
   it('keeps its words readable on every ground it can take', () => {
@@ -186,9 +197,126 @@ describe('the pill that says where you are', () => {
   it('says which pill is current in more than a colour', () => {
     // Colour is confirmation. `aria-current` is what a screen reader reads,
     // and the weight is what anyone who cannot tell the fill from the hover
-    // sees.
+    // sees -- which now lives in `.pill-on` with the fill it belongs to.
     expect(NAV).toContain("aria-current={here ? 'page' : undefined}");
-    expect(NAV).toContain('font-medium');
+    expect(block('.pill-on {')).toContain('font-weight: 500');
+  });
+
+  it('keeps a neighbour’s hover quieter than the current fill', () => {
+    // Otherwise hovering the pill beside the current one draws exactly the
+    // same lozenge, and the row stops saying where you are.
+    expect(block('.pill-soft {')).toContain('--pill-hover: var(--surface)');
+    expect(NAV).toContain('pill-soft');
+  });
+});
+
+/* ------------------------------------------------------------------------
+   Pills, and the blue that is left.
+
+   `--accent` is the colour of a link inside a sentence, and it is the one
+   chrome token the seasons deliberately never move. Everything that was not
+   quite a button wore it anyway -- a back link, a tag, a class-mate, *Clear
+   filters*, *Remove*, a disclosure row -- which is a sentence's treatment on
+   things that are not sentences, in the one colour that cannot take a season.
+
+   Three kinds now, and the two tests at the end of this block are the ones
+   that matter: no decoration state may reach for accent, and the accent text
+   that is left has to be on a list with a reason beside it.
+   --------------------------------------------------------------------- */
+
+describe('the pill, for everything that is not a button', () => {
+  function screens(): string[] {
+    const walk = (path: string): string[] => readdirSync(path).flatMap((entry) => {
+      const full = `${path}/${entry}`;
+      if (statSync(full).isDirectory()) return walk(full);
+      return entry.endsWith('.tsx') ? [full] : [];
+    });
+    return walk('app');
+  }
+
+  it('rests in the chrome and lights up in it', () => {
+    // --muted at rest, --fg on a --border fill on hover: the same pair the
+    // current pill in the bar is drawn in, which the test above measures at
+    // 11:1 across both themes and all four tints.
+    const pill = block('.pill {');
+    expect(pill).toContain('color: var(--muted)');
+    expect(pill).toContain('--pill-hover: var(--border)');
+    expect(pill).not.toContain('--accent');
+    // A pill is not a sentence; half of these are links and would arrive
+    // underlined.
+    expect(pill).toContain('text-decoration: none');
+
+    const hover = block('.pill:hover:not(:disabled) {');
+    expect(hover).toContain('background-color: var(--pill-hover)');
+    expect(hover).toContain('color: var(--fg)');
+  });
+
+  it('lifts a chip’s edge to the button’s edge, not to link blue', () => {
+    // The owner's report, and the whole reason this pass happened: hovering
+    // the avatar and Sign out drew a cold blue ring in a warm autumn bar.
+    // --btn-edge is the seasonal token held at 3:1 against every ground.
+    expect(block('.pill-edge {')).toContain('inset 0 0 0 1px var(--border)');
+    expect(block('.pill-edge:hover:not(:disabled) {'))
+      .toContain('inset 0 0 0 1px var(--btn-edge)');
+  });
+
+  it('keeps a destructive pill alarming while the cursor is on it', () => {
+    // Without the second rule the shared hover takes it to --fg, so Remove
+    // and Revoke would go quiet at exactly the moment they are aimed at.
+    expect(block('.pill-danger {')).toContain('color: var(--danger)');
+    expect(block('.pill-danger:hover:not(:disabled) {')).toContain('color: var(--danger)');
+  });
+
+  it('never puts muted text on a border fill', () => {
+    // The one pair in this family to keep away from: --muted on --border
+    // reads 4.47:1 in a light autumn. Which is why hover takes the text to
+    // --fg in the same rule that fills the pill, rather than only filling it.
+    const hover = block('.pill:hover:not(:disabled) {');
+    expect(hover).toContain('color: var(--fg)');
+    expect(block('.pill-on {')).toContain('color: var(--fg)');
+  });
+
+  it('leaves no hover or focus state reaching for the link colour', () => {
+    // The actual complaint: a hover that ignores the season. The global
+    // focus ring is the deliberate exception and is not a utility -- it is
+    // `:focus-visible` in globals.css, an accessibility affordance nobody can
+    // switch off, where the strongest fixed contrast is the right answer.
+    const offenders = screens().filter((file) =>
+      /(?:hover|focus|focus-visible|active|group-hover):[a-z-]*-\[var\(--accent\)\]/
+        .test(readFileSync(file, 'utf8')));
+
+    expect(offenders.map((file) => file.replaceAll('\\', '/'))).toEqual([]);
+  });
+
+  it('keeps the accent text that is left on a list, with a reason', () => {
+    // Same shape as tests/form-reset.test.ts: the rule is not "no accent", it
+    // is "accent where a sentence or a row identity earns it", and a new one
+    // has to come here and say which.
+    const allowed: Record<string, string> = {
+      // A link inside a sentence, which is what accent is for.
+      'app/(auth)/login/page.tsx': 'Have an invite code? Create an account',
+      'app/(auth)/register/page.tsx': 'Already have an account? Sign in',
+      'app/account/page.tsx': 'Settings is where the theme and the colours live',
+      'app/admin/look/page.tsx': 'will not show on your own pages until you clear yours',
+      'app/study/flashcards/page.tsx': 'There are 236 drugs to draw from',
+
+      // The identity of a row in a list or a table. The row is already the
+      // target; a column of pills reads as a wall of buttons.
+      'app/admin/fields/page.tsx': 'the field being named in each row',
+      'app/admin/tags/page.tsx': 'the list being named in each row',
+      'app/drugs/drug-browser.tsx': 'the drug named in each row of 236',
+
+      // Not text at all, and not a button: the initials circle, where a
+      // filled accent reads as an identity chip. Pinned again below.
+      'app/_components/avatar.tsx': 'the identity chip in the top bar',
+    };
+
+    const found = screens()
+      .filter((file) => readFileSync(file, 'utf8').includes('var(--accent)'))
+      .map((file) => file.replaceAll('\\', '/'))
+      .sort();
+
+    expect(found).toEqual(Object.keys(allowed).sort());
   });
 });
 

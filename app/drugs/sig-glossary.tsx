@@ -16,13 +16,18 @@ import {
  * once a day" -- and the parser reads it; what appears underneath is the sig.
  * Knowing that `QD` came from "once a day" is the whole skill being practised,
  * so the English each code stands for is right beside it.
+ *
+ * The codes were set in `--accent`, which is the colour of a *link* and these
+ * are not links -- it was the one place in the app where blue text did nothing
+ * when you clicked it. They are `--fg` against the muted English beside them
+ * now; the monospace was always what set them apart.
  */
 export function SigGlossary() {
   const rows = <T,>(items: T[], render: (item: T) => { code: string; label: string }) => items
     .map(render)
     .map((row) => (
       <div key={row.code} className="flex gap-2">
-        <dt className="shrink-0 font-mono text-[var(--accent)]">{row.code}</dt>
+        <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">{row.code}</dt>
         <dd className="text-[var(--muted)]">{row.label}</dd>
       </div>
     ));
@@ -52,19 +57,19 @@ export function SigGlossary() {
               ([unit, letter]) => ({ code: `Q${letter}`, label: `every ${unit}` }),
             )}
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">Q8H</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">Q8H</dt>
               <dd className="text-[var(--muted)]">every 8 hours — any number before the letter</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">QOD</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">QOD</dt>
               <dd className="text-[var(--muted)]">every other day</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">x1</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">x1</dt>
               <dd className="text-[var(--muted)]">once, a single dose</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">2-3x/day</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">2-3x/day</dt>
               <dd className="text-[var(--muted)]">
                 a range of counts, spelled out — there is no code for it
               </dd>
@@ -89,17 +94,17 @@ export function SigGlossary() {
               (entry) => ({ code: entry.sig, label: entry.label }),
             )}
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">5-10 mg</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">5-10 mg</dt>
               <dd className="text-[var(--muted)]">
                 a range, which compares as a range rather than as either end
               </dd>
             </div>
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">/kg</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">/kg</dt>
               <dd className="text-[var(--muted)]">per kilogram of body weight</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="shrink-0 font-mono text-[var(--accent)]">x7 days</dt>
+              <dt className="shrink-0 font-mono font-medium text-[var(--fg)]">x7 days</dt>
               <dd className="text-[var(--muted)]">for seven days — how long, not how often</dd>
             </div>
           </>

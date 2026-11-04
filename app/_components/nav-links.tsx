@@ -19,9 +19,13 @@ import type { Route } from 'next';
  * pill saying where you are stayed the same cold blue. `--border` is the token
  * the seasons move *most* -- it is what makes the app read as seasonal at all
  * -- so the pill now takes the season with it, and `--fg` on it measures 11:1
- * at worst across both themes and all four tints (tests/seasons.test.ts). The hover state keeps
- * `--surface`, which is near enough to the page ground to stay plainly
- * quieter than a filled pill.
+ * at worst across both themes and all four tints (tests/seasons.test.ts).
+ *
+ * The shape itself lives in `globals.css` as `.pill`, which this used to own
+ * privately and now shares with every other target in the app -- a back link,
+ * a tag, a saved setup, the colour-axis switcher. `.pill-soft` is what keeps
+ * the bar's hover quieter than its fill: hovering a neighbour must not draw
+ * the same lozenge as the current pill, or the row lies about where you are.
  *
  * A client component for one reason -- `usePathname`, to know which pill is
  * the current one. There is no other state here, and the links themselves are
@@ -46,11 +50,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             key={item.href}
             href={item.href}
             aria-current={here ? 'page' : undefined}
-            className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-              here
-                ? 'bg-[var(--border)] font-medium text-[var(--fg)]'
-                : 'text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--fg)]'
-            }`}
+            className={`pill ${here ? 'pill-on' : 'pill-soft'}`}
           >
             {item.label}
           </Link>
