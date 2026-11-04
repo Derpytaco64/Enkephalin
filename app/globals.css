@@ -426,6 +426,35 @@ main {
   background-image: linear-gradient(var(--season-wash), var(--season-wash));
 }
 
+/* `main.open` gives the gaps *between* a page's blocks back to the weather,
+   as well as the gutters either side -- asked for on the home page, where the
+   column is a grid of cards and the holes between them are exactly where a
+   drifting leaf belongs.
+
+   Opt-in, and only the home page opts in, because it only holds while *every*
+   block in that column paints its own ground: a card already does, with
+   `--surface`, and anything that is bare text carries `.plate`. Open a column
+   whose paragraphs are not plated and the leaf is back in the paragraph. */
+main.open {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* The page ground, locally. Invisible as a box -- it is the same colour the
+   column used to be -- and its whole job is to stop a mote where the text
+   starts. The wash is repainted for the same reason it is on `main`: without
+   it a plate inside an open column would be a pale rectangle against the
+   washed page.
+
+   Background only, deliberately. Padding here would have to be cancelled with
+   a negative margin, and an unlayered `.plate` margin beats the Tailwind
+   `mt-*` on the same element -- so a plate that bled past its box would
+   silently eat the page's spacing. */
+.plate {
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--season-wash), var(--season-wash));
+}
+
 /* ===== ambience ============================================================
 
    The decorations that belong to light and dark rather than to a season, under
@@ -588,11 +617,27 @@ main {
    by data -- and the data is already printed beside it in words, which is what
    keeps it decoration. */
 /* Static, deliberately. A pulsing glow would be the one animation in the whole
-   decoration that cannot run on the compositor -- text-shadow repaints -- and
-   the pulse was never the interesting half. The intensity scaling with the run
-   is, and that needs no frames at all. */
+   decoration that cannot run on the compositor -- box-shadow and text-shadow
+   both repaint -- and the pulse was never the interesting half. The intensity
+   scaling with the run is, and that needs no frames at all.
+
+   It is a chip rather than a glow on bare words because the first attempt was
+   invisible and was reported as missing: a one-day run is `--streak: 1`, and
+   three pixels of blur behind five small words is nothing at all. The ring is
+   unconditional, so the thing is *there* at one day, and only the halo outside
+   it grows with the run.
+
+   Nothing here touches an ink or a ground. The ring and the halo are
+   `--unverified` -- the palette's warm one -- and the text keeps `--fg` on
+   whatever the page ground is, so the contrast argument in
+   tests/study-colour.test.ts still covers it unchanged. */
 .streak {
-  text-shadow: 0 0 calc(var(--streak, 0) * 3px) var(--unverified);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  box-shadow:
+    inset 0 0 0 1px var(--unverified),
+    0 0 calc(3px + var(--streak, 0) * 2.5px) color-mix(in srgb, var(--unverified) 55%, transparent);
+  text-shadow: 0 0 calc(var(--streak, 0) * 2px) var(--unverified);
 }
 
 /* The mark beside the wordmark, breathing. Two degrees and eleven seconds:

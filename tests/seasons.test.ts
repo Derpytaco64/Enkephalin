@@ -495,6 +495,42 @@ describe('nothing drifts behind text', () => {
     expect(body).toContain('linear-gradient(var(--season-wash), var(--season-wash))');
   });
 
+  it('lets a page open its column, on condition that every block is plated', () => {
+    // Asked for on the home page: the weather should reach the gaps between
+    // the cards, not only the gutters. That is safe exactly while nothing in
+    // the column is bare text, so the two rules are a pair and the opt-in is
+    // what keeps every other page's blanket ground.
+    const open = CSS.slice(CSS.indexOf('main.open {'));
+    expect(open.slice(0, open.indexOf('}'))).toContain('background-color: transparent');
+
+    const plate = CSS.slice(CSS.indexOf('.plate {'));
+    const body = plate.slice(0, plate.indexOf('}'));
+    expect(body).toContain('background-color: var(--bg)');
+    expect(body).toContain('linear-gradient(var(--season-wash), var(--season-wash))');
+
+    // No padding or margin on a plate: an unlayered `.plate` margin would beat
+    // the Tailwind `mt-*` on the same element and eat the page's spacing.
+    expect(body).not.toMatch(/\bpadding\b|\bmargin\b/);
+  });
+
+  it('opens exactly one column, and plates the text in it', () => {
+    const { readdirSync, statSync } = require('node:fs') as typeof import('node:fs');
+    const walk = (path: string): string[] => readdirSync(path).flatMap((entry) => {
+      const full = `${path}/${entry}`;
+      if (statSync(full).isDirectory()) return walk(full);
+      return /\.tsx$/.test(entry) && /className="open |className="[^"]* open /
+        .test(readFileSync(full, 'utf8')) ? [full] : [];
+    });
+    expect(walk('app')).toEqual(['app/page.tsx']);
+
+    // Its three bare-text blocks: the greeting row, the resume heading and its
+    // empty-state line, and the disclaimer. A card needs no plate -- it has
+    // `--surface` -- so this counts the ones that would otherwise be text on
+    // open ground.
+    const home = readFileSync('app/page.tsx', 'utf8');
+    expect((home.match(/className="plate /g) ?? []).length).toBeGreaterThanOrEqual(4);
+  });
+
   it('keeps both layers behind the content wrapper', () => {
     const layout = readFileSync('app/layout.tsx', 'utf8');
     expect(layout).toContain('relative z-10');

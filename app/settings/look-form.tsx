@@ -21,13 +21,17 @@ const AXIS_LABELS: Record<ColorAxis, string> = {
  * a refusal means a hand-made request -- but silently ignoring one of those is
  * how a form starts lying about what it saved.
  *
- * **Every control here is controlled, and has to be.** React resets a form
- * once its action resolves, which for an uncontrolled field means snapping
- * back to the `defaultValue` the browser still holds. The save works and the
- * revalidated layout comes back wearing the new theme -- and then the selects
- * show the old one, so the form reads as though nothing saved while the page
- * around it plainly did. Holding the five answers in state is what makes the
- * form agree with the page.
+ * **This form must not use `action`, and every control in it is controlled.**
+ * Both halves are load-bearing, and the first one is the half that actually
+ * fixes it. React calls `requestFormReset` on any `<form action={...}>` before
+ * running the action, and the commit that follows calls the DOM's own
+ * `form.reset()`. A controlled component does not survive that either: the
+ * reset puts the mount-time selection back into the DOM, `reset()` dispatches
+ * no change event, and React has no state change to re-render from -- so the
+ * select goes on showing the old answer while the page around it plainly wears
+ * the new one. `onSubmit` with `preventDefault` never schedules the reset at
+ * all, and holding the answers in state means what is displayed cannot
+ * disagree with what was sent.
  */
 export function LookForm({
   theme,
@@ -69,7 +73,9 @@ export function LookForm({
 
   return (
     <form
-      action={async (formData: FormData) => {
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
         setPending(true);
         setError(null);
         const result = await save(formData);

@@ -431,22 +431,46 @@ describe('decorAttributes', () => {
 });
 
 /**
- * The bug this guards: React calls `form.reset()` once a form action resolves,
- * and on update it only reapplies a `<select>`'s `defaultValue` if `multiple`
- * changed. So an uncontrolled select in one of these forms snaps back to
- * whatever it was first rendered with and *stays* there -- the save works, the
- * revalidated layout comes back wearing the new theme, and the form sits there
- * claiming the old one. A checkbox recovers only if the re-render wins a race,
- * which is not a thing to rely on either.
+ * The bug this guards, and the half of it I got wrong the first time.
  *
- * Source-scanned rather than rendered, because what went wrong is the wiring:
- * `defaultValue` anywhere in these two files is the defect itself.
+ * React calls `requestFormReset` on any `<form action={...}>` before running
+ * the action, and the commit that follows calls the DOM's own `form.reset()`.
+ * On update a `<select>` only has its `defaultValue` reapplied if `multiple`
+ * changed, so an uncontrolled one snaps back to whatever it first rendered
+ * with -- the save works, the revalidated layout comes back wearing the new
+ * theme, and the form sits there claiming the old one.
+ *
+ * Making the controls *controlled* does not fix that, which is what the first
+ * attempt assumed and the owner reported back as still broken: `reset()`
+ * dispatches no change event, so React never restores the controlled value,
+ * and nothing in state changed to re-render from. **The fix is not using
+ * `action` at all** -- `onSubmit` with `preventDefault` never schedules the
+ * reset. The controls stay controlled on top of that, because a displayed
+ * value held in state cannot disagree with what was posted.
+ *
+ * Source-scanned rather than rendered, because what went wrong is the wiring
+ * both times.
  */
 describe('the cosmetic forms hold their own answers', () => {
   const FORMS = [
     'app/settings/look-form.tsx',
     'app/admin/look/site-theme-form.tsx',
   ];
+
+  /** Comments stripped, because both files *discuss* `<form action>` at length. */
+  const code = (path: string) => readFileSync(path, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+
+  it('never hands the form to a form action', () => {
+    // The whole bug in one assertion: `<form action={...}>` is what makes
+    // React reset the form, and nothing else here does.
+    for (const path of FORMS) {
+      expect(code(path), `${path} action=`).not.toMatch(/action=\{/);
+      expect(code(path), `${path} onSubmit`).toContain('onSubmit={async (event) => {');
+      expect(code(path), `${path} preventDefault`).toContain('event.preventDefault();');
+    }
+  });
 
   it('leaves no control uncontrolled', () => {
     for (const path of FORMS) {

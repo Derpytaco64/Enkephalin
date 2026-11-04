@@ -5,7 +5,7 @@ import { overviewFor, type Overview } from '@/lib/home/overview';
 import { getSession } from '@/lib/session';
 import { getSiteSettings } from '@/lib/settings';
 import { lastUsedSetups } from '@/lib/study/last-used';
-import { describeSetup, listSetups, SURFACES, type SetupParams, type Surface } from '@/lib/study/presets';
+import { describeSetup, SURFACES, type SetupParams, type Surface } from '@/lib/study/presets';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +18,17 @@ export const dynamic = 'force-dynamic';
  * without setting it up again. Everything else on the page is a way in.
  *
  * Nothing here is a new source of truth. The figures are counted in
- * `lib/home/overview.ts`, the setups come from the same whitelist the study
+ * `lib/home/overview.ts`, the setup comes from the same whitelist the study
  * pages save through, and the disclaimer is the one an admin edits in site
  * settings rather than a sentence hard-coded twice.
+ *
+ * **This is the one page whose column the weather passes through.** `open` on
+ * the `<main>` drops the opaque ground that every other page keeps, so a
+ * season's motes drift between the cards instead of only in the gutters -- and
+ * that is only safe because every block below paints its own: a card with
+ * `--surface`, bare text with `.plate`. Adding an unplated paragraph here puts
+ * a leaf back in a paragraph, which is the thing the whole arrangement exists
+ * to prevent.
  */
 export default async function Home() {
   const session = await getSession();
@@ -48,12 +56,10 @@ export default async function Home() {
     );
   }
 
-  const [overview, defs, lastUsed, quizSetups, deckSetups] = await Promise.all([
+  const [overview, defs, lastUsed] = await Promise.all([
     overviewFor(session.user.id),
     listFieldDefs(),
     lastUsedSetups(session.user.id),
-    listSetups(session.user.id, 'quiz'),
-    listSetups(session.user.id, 'flashcards'),
   ]);
 
   const labelFor = (key: string) => key
@@ -66,15 +72,15 @@ export default async function Home() {
     : 'Welcome back';
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <main className="open mx-auto max-w-5xl px-4 py-10">
+      <div className="plate flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
         {overview.streak > 0 && (
           <p className="text-sm text-[var(--muted)]">
-            {/* The glow is the one decoration in the app driven by data, and
+            {/* The chip is the one decoration in the app driven by data, and
                 the data is printed right beside it in words -- which is what
-                keeps it decoration. Capped at six, past which a longer run
-                would only make the text harder to read. */}
+                keeps it decoration. Capped at six: past that the halo would
+                grow without the number meaning anything more. */}
             <span
               className="streak font-medium text-[var(--fg)]"
               style={{ ['--streak' as string]: String(Math.min(overview.streak, 6)) }}
@@ -90,18 +96,13 @@ export default async function Home() {
 
       <Resume lastUsed={lastUsed} labelFor={labelFor} />
 
-      <Saved
-        surfaces={[['quiz', quizSetups], ['flashcards', deckSetups]]}
-        labelFor={labelFor}
-      />
-
-      <Areas isAdmin={session.user.role === 'admin'} drugs={overview.catalogue.drugs} />
+      <Areas drugs={overview.catalogue.drugs} />
 
       {/* The admin's own wording out of site settings, not a sentence
           hard-coded on two pages. Absent only before bootstrap has written
           the singleton, which is a state nobody signed in can be in. */}
       {disclaimer !== undefined && (
-        <p className="mt-12 border-t border-[var(--border)] pt-6 text-sm text-[var(--muted)]">
+        <p className="plate mt-12 border-t border-[var(--border)] pt-6 text-sm text-[var(--muted)]">
           {disclaimer}
         </p>
       )}
@@ -186,7 +187,13 @@ function Stats({ overview, labelFor }: { overview: Overview; labelFor: (key: str
  *
  * Recorded by the study pages themselves once a session is on screen, not by
  * this page guessing from history -- see `lib/study/last-used.ts`. Absent
- * until there is something to resume, rather than shown empty.
+ * until there is something to start again, rather than shown empty.
+ *
+ * The wording is deliberately flat. It first read *Pick up where you left
+ * off* over *Sit that quiz again* and *Carry on with that deck*, which was
+ * three different metaphors for one thing and promised something it does not
+ * do -- a quiz is not resumed here, it is started afresh with the settings
+ * that were used last. So: the name of the thing, and what is being reused.
  */
 function Resume({
   lastUsed,
@@ -203,29 +210,28 @@ function Resume({
 
   if (entries.length === 0) {
     return (
-      <p className="mt-8 text-sm text-[var(--muted)]">
-        Start a deck or a quiz and its settings will be waiting here next time.
+      <p className="plate mt-8 text-sm text-[var(--muted)]">
+        Start a quiz or a deck and you will be able to start another one just like it from here.
       </p>
     );
   }
 
   return (
     <section className="mt-8">
-      <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
-        Pick up where you left off
+      <h2 className="plate text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
+        Start another
       </h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {entries.map(({ surface, params }) => (
           <Link
             key={surface}
             href={{ pathname: SURFACES[surface].path as Route, query: params }}
-            className="rounded-lg border border-[var(--border)] p-4 hover:border-[var(--accent)]"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4
+              hover:border-[var(--accent)]"
           >
-            <p className="text-sm font-medium">
-              {surface === 'quiz' ? 'Sit that quiz again' : 'Carry on with that deck'}
-            </p>
-            {/* The settings in words, so the link is not a leap of faith --
-                the same summary the saved-setup list uses. */}
+            <p className="text-sm font-medium">{SURFACES[surface].label}</p>
+            <p className="mt-0.5 text-xs text-[var(--muted)]">Same settings as last time</p>
+            {/* Those settings in words, so the link is not a leap of faith. */}
             <p className="mt-1 text-xs text-[var(--muted)]">
               {describeSetup(surface, params, labelFor)}
             </p>
@@ -236,67 +242,34 @@ function Resume({
   );
 }
 
-/* ------------------------------------------------------------- saved ------ */
-
-/** The named setups, as chips. Nothing when there are none. */
-function Saved({
-  surfaces,
-  labelFor,
-}: {
-  surfaces: [Surface, { id: string; name: string; params: SetupParams }[]][];
-  labelFor: (key: string) => string;
-}) {
-  const all = surfaces.flatMap(([surface, setups]) => setups.map((setup) => ({ surface, setup })));
-  if (all.length === 0) return null;
-
-  return (
-    <section className="mt-8">
-      <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">
-        Saved setups
-      </h2>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {all.map(({ surface, setup }) => (
-          <Link
-            key={setup.id}
-            href={{ pathname: SURFACES[surface].path as Route, query: setup.params }}
-            title={describeSetup(surface, setup.params, labelFor)}
-            className="rounded-full border border-[var(--border)] px-3 py-1.5 text-sm
-              hover:border-[var(--accent)]"
-          >
-            {setup.name}
-            <span className="ml-2 text-xs text-[var(--muted)]">{SURFACES[surface].label}</span>
-          </Link>
-        ))}
-        <Link href="/study/setups" className="text-xs text-[var(--muted)] underline">
-          Manage
-        </Link>
-      </div>
-    </section>
-  );
-}
-
 /* ------------------------------------------------------------- areas ------ */
 
-/** The four places there are, plus admin for those who have it. */
-function Areas({ isAdmin, drugs }: { isAdmin: boolean; drugs: number }) {
+/**
+ * The four places there are.
+ *
+ * Admin is not among them, by the owner's call: an admin reaches it from the
+ * pill that is already in the top bar on every page, and a fifth card here
+ * made the row of four into a row of five that wrapped to 3 + 2.
+ */
+function Areas({ drugs }: { drugs: number }) {
   const areas: { href: Route; title: string; blurb: string }[] = [
     { href: '/drugs', title: 'Drugs', blurb: `Browse and search all ${drugs}, filter by class, schedule or list.` },
     { href: '/study/flashcards', title: 'Flashcards', blurb: 'Prompt, reveal, grade yourself. Spaced so what you miss comes back.' },
     { href: '/study/quiz', title: 'Quiz', blurb: 'Multiple choice, scored, both directions, weighted to what you got wrong.' },
-    { href: '/settings', title: 'Settings', blurb: 'Theme, the colour axis, and a colour per class or schedule.' },
-    ...(isAdmin
-      ? [{ href: '/admin' as Route, title: 'Admin', blurb: 'Fields, tags, indications, invites, the site palette and the backup.' }]
-      : []),
+    { href: '/settings', title: 'Settings', blurb: 'Theme, the season, the colour axis, and a colour per class or schedule.' },
   ];
 
+  // No plate on the section: a border draws on a transparent element just the
+  // same, so the rule above the row stays a rule and the weather goes past it.
   return (
     <section className="mt-10 border-t border-[var(--border)] pt-8">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {areas.map((area) => (
           <Link
             key={area.href}
             href={area.href}
-            className="rounded-lg border border-[var(--border)] p-4 hover:border-[var(--accent)]"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4
+              hover:border-[var(--accent)]"
           >
             <p className="font-medium">{area.title}</p>
             <p className="mt-1 text-sm text-[var(--muted)]">{area.blurb}</p>

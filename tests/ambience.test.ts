@@ -199,13 +199,34 @@ describe('the three with no switch', () => {
   });
 
   it('glows the streak without animating it', () => {
-    // text-shadow repaints, so animating it would be the one decoration in the
-    // app that cannot run on the compositor. The intensity was the point.
+    // box-shadow and text-shadow both repaint, so animating either would be
+    // the one decoration in the app that cannot run on the compositor. The
+    // intensity was the point.
     const block = CSS.slice(CSS.indexOf('.streak {'));
     const body = block.slice(0, block.indexOf('}'));
     expect(body).toContain('var(--streak, 0)');
     expect(body).not.toContain('animation');
     expect(CSS).not.toContain('streak-breathe');
+  });
+
+  it('shows at a one-day run, which is what the first attempt did not', () => {
+    // `--streak: 1` and three pixels of blur behind five small words is
+    // nothing at all, and it was reported as the feature being missing. The
+    // ring carries no `var(--streak)` -- it is there at every run length --
+    // and only the halo outside it scales.
+    const block = CSS.slice(CSS.indexOf('.streak {'));
+    const body = block.slice(0, block.indexOf('}'));
+    expect(body).toMatch(/inset 0 0 0 1px var\(--unverified\)/);
+    expect(body).toMatch(/calc\(3px \+ var\(--streak, 0\)/);
+  });
+
+  it('leaves the inks alone, so the contrast guards still hold', () => {
+    // The chip paints a ring and a halo, not a ground: the words keep --fg on
+    // whatever the page ground is.
+    const block = CSS.slice(CSS.indexOf('.streak {'));
+    const body = block.slice(0, block.indexOf('}'));
+    expect(body).not.toContain('background');
+    expect(body).not.toContain('color:');
   });
 
   it('drives the streak glow from the run it already prints in words', () => {

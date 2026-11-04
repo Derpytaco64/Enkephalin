@@ -22,10 +22,22 @@ export async function SiteHeader() {
 
   return (
     <header className="border-b border-[var(--border)]">
-      {/* Wraps. Signed in as an admin this holds the wordmark, five pills, the
-          avatar and Sign out, which does not fit on a phone -- and without a
-          wrap it did not shrink, it overflowed the page sideways. */}
-      <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+      {/* Two layouts, because the bar has two jobs at two widths.
+
+          Wide: a three-column grid with the outer columns at `1fr`, which puts
+          the pills dead centre of the *page* -- not centred in whatever is
+          left over beside the wordmark, which is what `mx-auto` on a flex
+          child would have given, and which drifts as the account end changes
+          width (Sign out is there, the Admin pill is not always).
+
+          Narrow: back to a wrapping flex row, centred. Signed in as an admin
+          this holds the wordmark, five pills, the avatar and Sign out, which
+          does not fit on a phone -- and without a wrap it did not shrink, it
+          overflowed the page sideways. */}
+      <nav
+        className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-4 gap-y-2
+          px-4 py-3 sm:grid sm:grid-cols-[1fr_auto_1fr]"
+      >
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
           {/* Decorative, so alt is empty: the word beside it already says the
               name, and alt="Enkephalin" would have a screen reader read the
@@ -47,9 +59,9 @@ export async function SiteHeader() {
           <>
             <NavLinks items={items} />
 
-            {/* Pushed to the far end, and last in the source as well as on
-                screen, so tabbing reaches the destinations before the account. */}
-            <div className="ml-auto flex items-center gap-3">
+            {/* The far end, and last in the source as well as on screen, so
+                tabbing reaches the destinations before the account. */}
+            <div className="flex items-center gap-3 sm:justify-self-end">
               {/* The email used to sit here as text, which spent a third of
                   the bar saying something the reader already knows. The
                   circle is the same information when you want it -- it is the
@@ -70,8 +82,9 @@ export async function SiteHeader() {
         ) : (
           <Link
             href="/login"
-            className="ml-auto rounded-full border border-[var(--border)] px-3 py-1.5 text-sm
-              hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="rounded-full border border-[var(--border)] px-3 py-1.5 text-sm
+              hover:border-[var(--accent)] hover:text-[var(--accent)]
+              sm:col-start-3 sm:justify-self-end"
           >
             Sign in
           </Link>

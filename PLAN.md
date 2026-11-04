@@ -1038,17 +1038,27 @@ and nothing is visibly wrong. For a `<select>` it does not: the update path only
 mount** and leaves it there. An uncontrolled select in a form action is therefore guaranteed to
 snap back, which is exactly the three controls the owner was looking at.
 
-Both cosmetic forms -- `app/settings/look-form.tsx` and `app/admin/look/site-theme-form.tsx` --
-now hold all five answers in state. Controlled rather than the alternative escape (handling submit
-by hand so React never schedules the reset) because these forms are small, and because a control
-whose displayed value is state is a control that cannot disagree with itself for any reason, not
-just this one. Editing anything also retires the "Saved." line, which was previously left standing
-over a form that had since been changed.
+**Making the controls controlled does not fix this, and the first attempt at it shipped broken.**
+That was the obvious move and it is wrong for a reason worth writing down: `form.reset()` dispatches
+no change event, so React's controlled-input machinery -- which only restores a value in response to
+an event it intercepted -- never runs. And the reset changes nothing in state, so there is no
+re-render to repaint the select from either. The DOM is left holding the mount-time selection with
+React perfectly content. The owner reported it back still broken, which is the only reason it was
+caught: no test could have failed, because the defect was in a behaviour no test here can run.
 
-A source-scanning guard in `tests/theme-preferences.test.ts` holds it: no `defaultValue` or
-`defaultChecked` in either file, and one `value`/`checked` **and** one `onChange` per named
-control, so a sixth switch added without wiring fails in the suite rather than in somebody's
-settings.
+**The fix is to stop using `action`.** Both cosmetic forms --
+`app/settings/look-form.tsx` and `app/admin/look/site-theme-form.tsx` -- now use `onSubmit` with
+`preventDefault`, which never reaches `startHostTransition` and so never schedules a reset. The
+controls stay controlled on top of that, because a displayed value held in state cannot disagree
+with what was posted, and editing anything now retires the "Saved." line that used to stand over a
+form which had since changed.
+
+A source-scanning guard in `tests/theme-preferences.test.ts` holds both halves: no `action={` in
+either file (comments stripped first, since both files discuss `<form action>` at length), an
+`onSubmit` that calls `preventDefault`, no `defaultValue` or `defaultChecked`, and one
+`value`/`checked` **and** one `onChange` per named control -- so a sixth switch added without
+wiring fails in the suite rather than in somebody's settings. Confirmed on the running container:
+the shipped `/settings` and `/admin/look` chunks contain one `onSubmit` and zero `action:`.
 
 **Known, and not fixed here:** the same deterministic bug is in the two editors that keep a
 `<select>` on a page they stay on after saving -- `/admin/fields/[id]` (`dataType`) and the drug
@@ -1075,6 +1085,21 @@ the gutters are the same shade and there is no seam down the edge of the text. W
 `--season-wash` is undefined, the gradient is invalid at computed-value time, and `background-image`
 falls back to `none` — which is exactly the behaviour wanted, and the reason it is written as a
 gradient rather than as a second background colour.
+
+**Then the owner asked for the home page back** (2026-11-03): the motes should reach the middle of
+that page, just not the blocks holding the text. So the blanket rule gained an opt-out and a
+counterpart. `main.open` drops the opaque ground, and `.plate` paints it locally -- the same colour
+and the same wash, invisible as a box, its whole job being to stop a mote where the words start.
+Open a column and the weather gets the gaps *between* the blocks as well as the gutters, which on
+the home page is a grid of cards and is exactly where a drifting leaf belongs.
+
+It is opt-in, and only the home page opts in, because it holds only while **every** block in that
+column paints its own ground: a card already does, with `--surface`, and anything that is bare text
+carries `.plate`. An unplated paragraph in an open column puts the leaf straight back in the
+paragraph. Two guards in `tests/seasons.test.ts`: exactly one file may open a column, and the
+plates in it are counted; and `.plate` may not carry padding or margin, because an unlayered
+`.plate` margin beats the Tailwind `mt-*` on the same element and a plate that bled past its box
+would silently eat the page's spacing.
 
 ### The season, let into the chrome (2026-11-03)
 
@@ -1137,11 +1162,17 @@ and a test.
   should not be something anyone can turn off, and the app had only the browser default — which on a
   light ground is a thin dark outline that is easy to lose. Keyboard-only, so a mouse click does not
   ring the thing it clicked.
-- **A glow on the study streak**, scaled by the run and capped at six. The only decoration in the
-  app driven by data — and the data is printed beside it in words, which is what keeps it
-  decoration. **Static, not pulsing**: `text-shadow` repaints, so animating it would have been the
-  one thing here that cannot run on the compositor, and the intensity was always the interesting
-  half.
+- **A chip on the study streak**, its halo scaled by the run and capped at six. The only decoration
+  in the app driven by data — and the data is printed beside it in words, which is what keeps it
+  decoration. **Static, not pulsing**: `box-shadow` and `text-shadow` both repaint, so animating
+  either would have been the one thing here that cannot run on the compositor, and the intensity
+  was always the interesting half.
+
+  It shipped as a bare text-shadow and was reported as missing, correctly: a one-day run is
+  `--streak: 1`, and three pixels of blur behind five small words is nothing at all. It is now a
+  pill with an unconditional 1px ring -- so the thing is *there* at one day -- and only the halo
+  outside it grows. Still no ground and no ink of its own: the ring and the halo are `--unverified`
+  and the words keep `--fg`, so every contrast figure in the suite covers it unchanged.
 - **An idle tilt on the wordmark.** Two degrees, eleven seconds, `rotate` so it composites. Enough
   to notice once, not enough to watch.
 
@@ -2201,6 +2232,42 @@ reachable one-handed; browse table degrades to cards.
   (bupropion, fluoxetine, sildenafil, tirzepatide — albuterol and digoxin turned out uniform).
   `dosing_regimens` has no indication column, so the database cannot yet say which dose belongs to
   which branch. See item 7 below for the one drug where that already tells a lie.
+
+**Queued by the owner, 2026-11-03** — a second pass over the same two screens:
+
+- **done — 2026-11-03.** ~~The selectors still do not stay put, on the settings page and the admin
+  page both~~. The first fix was wrong: controlled state does not survive `form.reset()`, because
+  the reset dispatches no change event for React to restore from and changes nothing in state to
+  re-render from. Fixed properly by not using `action` at all. Written up in full, including what I
+  got wrong and why no test could have caught it, in
+  [A form action resets the form](#a-form-action-resets-the-form-2026-11-03).
+
+- **done — 2026-11-03.** ~~The streak visual is not there~~. It was, and it was invisible: a
+  one-day run drew three pixels of blur. Now a chip with a ring that does not depend on the run
+  length. See *The light and the dark get their own weather* above.
+
+- **done — 2026-11-03.** ~~Centre the top-bar links~~. A three-column grid at `sm` and up, outer
+  columns at `1fr`, so the pills are centred on the *page* rather than in whatever is left beside
+  the wordmark — which is what `mx-auto` on a flex child gives, and which drifts as the account end
+  changes width (the Admin pill is not always there). Below `sm` it is a centred wrapping flex row
+  again, because five pills, a wordmark, an avatar and Sign out do not fit on a phone in any
+  arrangement.
+
+- **done — 2026-11-03.** ~~Drop the saved-setups section and the admin card from the home page, and
+  redo the resume wording~~. The setups list and its two queries are gone — `/study/setups` and
+  each study page's own setup bar still have them, and the home page was a third place to read the
+  same list. Admin goes for the reason it was the fifth of four: the pill is in the top bar on
+  every page already, and a fifth card turned a row of four into 3 + 2.
+
+  The wording was three metaphors for one thing — *Pick up where you left off*, over *Sit that quiz
+  again* and *Carry on with that deck* — and it promised something it does not do: nothing is
+  resumed here, a fresh session is started with the settings used last. It now says **Start
+  another**, names the thing (*Quiz*, *Flashcards*), and states what is being reused (*Same
+  settings as last time*) above the settings themselves in words.
+
+- **done — 2026-11-03.** ~~Let the season show through the middle of the home page, but not behind
+  the blocks of text~~. `main.open` and `.plate`, written up under
+  [Nothing drifts behind text](#nothing-drifts-behind-text-2026-11-03).
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

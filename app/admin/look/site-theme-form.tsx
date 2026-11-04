@@ -15,10 +15,10 @@ import { SEASON_LABELS, SEASON_PREFS, type SeasonPref } from '@/lib/theme/season
  * since "the whole site goes autumn in October" is a thing somebody would
  * actually want.
  *
- * Controlled, for the same reason the personal form is: React resets a form
- * after its action resolves, and an uncontrolled control snaps back to the
- * value the browser still has -- leaving the admin looking at the old default
- * immediately after setting a new one. See `app/settings/look-form.tsx`.
+ * `onSubmit` rather than `action`, and controlled throughout, for the reason
+ * spelled out in `app/settings/look-form.tsx`: a form action makes React reset
+ * the form, and a reset select keeps showing the old answer however the value
+ * is held. Same bug, same page, same fix.
  */
 export function SiteThemeForm({
   theme,
@@ -52,7 +52,9 @@ export function SiteThemeForm({
 
   return (
     <form
-      action={async (formData: FormData) => {
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
         setPending(true);
         setError(null);
         const result = await save(formData);
