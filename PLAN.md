@@ -26,6 +26,12 @@ Transcription of the note:
 
 - **Content source is the class sheet** — `2026 - top-drugs-master-doc-blackboard-posting.pdf`,
   237 drugs, extracted to `data/top-drugs-2026.json`. No bulk third-party import.
+- **The database is the content now; the sheet was the baseline** (2026-11-04, owner's call). The
+  extract was how the content got here and is still the reference for what the class is examined
+  on, but it is no longer re-run and no longer a thing the app is rebuilt from. The database is the
+  authority, and the way content moves or comes back is `npm run export` / restore — not re-seeding.
+  See [The sheet is a baseline, not a source of
+  truth](#the-sheet-is-a-baseline-not-a-source-of-truth-2026-11-04) for what that changes.
 - **The sheet assigns fields to program years.** Its header makes each column the responsibility of
   P1, P2, or P3. This is a property of the *field*, not the drug, and it drives study scoping.
 - **Only the sheet's own columns are study material** (2026-11-01). Generic, brand, indication,
@@ -425,7 +431,7 @@ Footer disclaimer plus a first-login notice: not for clinical decision-making.
 | Auth | better-auth, email + password, DB sessions | Self-host friendly, no external IdP, pairs with a custom invite table |
 | Styling | Tailwind + CSS custom properties | Theme and per-user palette both resolve to tokens, never hardcoded colors |
 | Client search | Fuse.js over a prefetched compact index | A few hundred drugs ≈ 100 KB — instant fuzzy search, zero round-trips |
-| Container | `docker compose`: `web` + `db` + volume | Reverse proxy (Caddy/Traefik/nginx) assumed already on the server |
+| Container | `docker compose`: `web` + `db` + volume | Reverse proxy (Caddy/Traefik/nginx) assumed already on the server — see [What deploying actually needs](#what-deploying-actually-needs-2026-11-04) |
 
 ```
 Enkephalin/
@@ -1428,6 +1434,688 @@ source check holds the wiring, since a title that re-hard-codes the name would o
 setting silently and no runtime would notice. Driven live as well: the name changed in the
 database, with the tab title, the template and the front-page heading all following, and put back.
 
+### The last three screens of phase 8 (2026-11-08)
+
+Done, and phase 8 with them. All three were listed as *nothing to act on today*, which was true of
+their queues and not true of the gaps behind them.
+
+**The flagged queue** -- `/admin/flagged`. The browse filter has offered *Flagged* since phase 7
+with nowhere to send anyone who used it. A flag means *somebody thinks this value is wrong*, and a
+flagged value is **still studied** while it waits, so a flag with no queue behind it is a doubt
+recorded and then forgotten -- worse than not recording it. Ordered by what it costs to leave
+wrong: a value that has actually been asked of somebody leads, then the most recently asked, then
+the alphabet. Two outcomes, and only one of them lives on the screen: *Looks right* clears the doubt
+and leaves the value untouched, which is what most flags resolve to and is one click; correcting a
+value goes to the field's own editor, because an enum picker, a list box and a markdown area with a
+preview are what a value may need and a second set of those on a queue screen would be two editors
+disagreeing about what is allowed.
+
+Finding the flagged values needed raw SQL. `browse.ts` walks all 236 drugs in JS and is right to --
+it needs every field anyway to compute the gaps -- but here the answer is a handful of rows out of a
+few thousand values, and `jsonb_each` with a status test is the query the question actually is.
+Drizzle's builder cannot express a lateral over a jsonb column: putting the table in a `sql` FROM
+makes it invisible to the select, which fails with *the table drugs is not part of the query*. Same
+place migration 0010 ended up for its `coalesce` index -- written out, and pinned by a test.
+
+**The brand pairing editor** -- `/admin/pairing`, and this one was not a missing screen but a
+**missing writer**. `brand_indications` could only be written by the importer and the merge path, so
+a pairing was unchangeable once asserted -- and seven of them were asserted by
+`scripts/fill-review-gaps.ts` from FDA labelling rather than read off the sheet. An assertion nobody
+can correct is the wrong kind of fact for a study aid, and these are the rows *Direction decides what
+counts as correct* turns brand questions on: get Zyban wrong and the app teaches that Wellbutrin is
+for smoking cessation. `setBrandIndications` now lives beside the other list writers in
+`mutations.ts`, audited as `drug.brand_indications`, naming brands rather than uuids because a
+person reads that log.
+
+Six drugs, because pairing is only a question where a drug has more than one brand *and* more than
+one indication -- and **release forms of one brand do not count**, which is the same collapse
+`build-seed.py` does: Depakote against Depakote ER is one brand in two forms, three Wellbutrins
+against one Zyban is a real question. The screen says which six rather than listing 236 and letting
+somebody discover that 230 of them have a single row. A brand with nothing ticked **covers all of the
+drug's indications** -- the importer's own default and the common case -- so the grid says so in the
+row as the boxes change, or an empty row reads as *treats nothing* and somebody ticks everything to
+be safe.
+
+**Bulk field set** -- `/admin/bulk`. The case is the sheet's own shape: a field that is the same
+answer for most of the list. Most drugs have no black box warning, and recording that by opening 180
+editors is how a true fact stays unrecorded -- where an unrecorded *none* is indistinguishable from a
+gap, which is the one confusion the field system exists to avoid. Every write goes through
+`setDrugField`, one drug at a time, so a bulk set is a stack of ordinary edits with an audit row
+each; there is deliberately no bulk path into the database, since a second writer that skipped the
+field's rules would be the fastest way to put 236 bad values somewhere.
+
+**The dangerous half of a bulk set is what it overwrites, not what it writes**, so the roster shows
+every drug's current value beside its box, counts how many ticked drugs already hold a value, and
+counts separately how many were set by a *person* -- the ones where a bulk write undoes somebody's
+work. *Only the gaps* is the default selection, so the first click cannot overwrite anything. And the
+outcome separates *changed* from *already matched*, because reporting 180 writes when 179 were no-ops
+makes every later count untrustworthy.
+
+Live on `?field=bbw` the gap count reads **0 against 146 blank values**, which is correct and is the
+whole distinction working: `bbw` is `blankMeansNone`, so a blank is the answer *None* rather than a
+hole, the roster shows *None* for each, and a bulk write is not offered the chance to overwrite 146
+recorded facts as though they were missing. Pinned by a test, since the dev data has no real gaps
+left to see it with.
+
+Guarded in `tests/flagged-queue.test.ts` (9), `tests/brand-pairing.test.ts` (9) and
+`tests/bulk-field-set.test.ts` (9). Two of those tests needed the schema's own rules pointed out to
+them first: a core field like `brand` lives in its own column and so **cannot be flagged at all**,
+which is why the first attempt to flag one for a live check updated nothing; and `indications` is a
+shared vocabulary with a unique slug, so a fixture building two drugs that both treat *First* has to
+reuse the row rather than insert a second.
+
+Two chrome guards caught all three screens on the way through, both working exactly as intended.
+`tests/chrome.test.ts` keeps an allowlist of files allowed accent-coloured text with a stated reason
+-- *accent where a sentence or a row identity earns it* -- and the drug named in each row is that, so
+all three are registered with reasons. And `tests/form-reset.test.ts` allows `<form action={...}>`
+only where the reset is the point, which sent the flagged queue's one-click control back to being
+what it should have been from the start: not a form at all, but a button handing two constants to a
+server action.
+
+Verified on the running container: 6 drugs and 35 checkboxes on the pairing grid with every current
+link ticked correctly (three Wellbutrins to Depression, Zyban to Smoking cessation, Revatio to
+pulmonary hypertension, Viagra to erectile dysfunction); the flagged queue rendering two
+deliberately-flagged values with their sources and both actions, then its empty state once they were
+cleared; 236 roster checkboxes on the bulk screen with the field pills, an unknown `?field=` falling
+back to the picker rather than erroring, and the apply button naming its own count. Flags and
+pairings were put back exactly as they were -- 0 flagged, 24 pairings, 105 audit rows untouched.
+
+### The log that nobody could read (2026-11-08)
+
+Done. `/admin/audit` opens the 105 rows that seven modules had been writing since phase 8 began,
+which was the last gap in the phase with anything actually in it: the cost of keeping the record was
+already being paid and none of the benefit was available.
+
+It is a reader, not a queue. Nothing on it can be edited and reading it writes nothing -- the one
+screen in the admin UI with no action on it, which is what keeps the log a record rather than a
+document.
+
+**It summarises the shapes it knows and shows every diff raw.** Seventeen actions produce five
+different diff shapes: `{from,to}` pairs, nested per-field pairs, identity snapshots left behind by
+deletes, lists, and merge reports with a moved/dropped count per child table. Seventeen bespoke
+renderers would mean the eighteenth action silently rendering as nothing, which is the one failure a
+log may not have. So `summarise` handles what it recognises, returns null otherwise, and the raw JSON
+is one click away on every row -- labelled *No summary for this shape* where there is none. The same
+rule the dosing parser follows one table over: a value that cannot be read keeps its place.
+
+**A deleted target keeps its name.** `audit_log.target_id` carries no foreign key on purpose -- a log
+that cascaded away with its subject would lose exactly the rows somebody is looking for -- so names
+are resolved by joining where the row still exists and read back out of the diff where it does not.
+`drug.delete` recorded the slug and generic, `tag.delete` the label, `user.delete` the email. Those
+rows render as sentences and say *(deleted)* instead of offering a dead link. The site is the one
+target with no table at all, named where the rows are built.
+
+**The filter pills are read off the table, not hard-coded.** A new action appears in the filters the
+first time it is written. Hard-coding the seventeen would mean a new one being invisible on the one
+screen whose whole purpose is that nothing written goes unseen.
+
+**And a real bug, found by two pages that did not add up.** Paging is keyset rather than offset,
+because this table is written by the very edits somebody makes while reading it. The obvious cursor
+-- timestamp plus id -- silently skipped rows: `timestamptz` keeps microseconds and a JavaScript
+`Date` keeps milliseconds, so a timestamp that has been through Drizzle is *already* truncated.
+`17:47:47.329008` came back as `.329`, `at < '...329Z'` then excluded all 65 rows stored at `.329008`
+while `at = '...329Z'` matched none of them, and **23 of 105 rows fell down the gap between page one
+and page two**. Found by walking the pages and adding them up -- 50 + 32 against a table of 105 --
+which is the only reason it was found at all, because a short history looks exactly like a short
+history.
+
+The fix is to stop converting the value: the cursor is the row's **id alone**, and the comparison
+reads that row's own stored `(at, id)` back in SQL as a row-wise `<`. Safe because `audit_log` is
+append-only -- nothing in the codebase deletes from it -- and the comment says what to do if that
+ever changes, because then a missing cursor row would read as the end of the log.
+
+Guarded in `tests/audit-log.test.ts` (13). The one that matters inserts `PAGE_SIZE * 2 + 7` rows in
+one statement, asserts the premise -- one instant, every row carrying a sub-millisecond component --
+and then walks every page and checks the ids cover the table exactly once. A bulk write is precisely
+where this bites, because every row it inserts shares one `now()`.
+
+Verified on the running container: 105 entries over 17 kinds of change, three pages walked by
+following the screen's own *Older entries* link with no overlap and no gap, filters narrowing to 5
+and 1 and 0 rows, contradictory filters giving an empty state rather than an error, and a junk cursor
+opening the first page rather than failing. Also surfaced, exactly as predicted when it was written:
+the duplicate `dosing.reparsed` pair on dofetilide from the double-rebuild bug, sitting there in the
+log at the same timestamp.
+
+One thing it needed from the chrome guard: `tests/chrome.test.ts` keeps an allowlist of files that
+may use accent-coloured text, each with a stated reason, and the rule is *accent where a sentence or
+a row identity earns it*. This screen has both -- the subject of each entry is that row's identity,
+and the empty state offers *Clear them* inside a sentence -- so it is registered there with its
+reason rather than worked around.
+
+### Only one drug splits its dose by brand (2026-11-04)
+
+Asked by the owner after the sildenafil fix: *are there any other medications that need the dose
+split?* The answer is **no**, and the owner's own criterion is what settles it — a split is for
+drugs with **multiple dosing strategies tied to their brand on the sheet**.
+
+That criterion is machine-checkable, which is better than a judgement call per drug.
+`data/top-drugs-2026.json` has exactly one generic on more than one row: **sildenafil**, Revatio
+and Viagra, each row carrying its own dosing line. It is also the only drug whose brands carry a
+`dosing_override`, because `perRowDosing` in `lib/content/sync.ts` fires only in that case. One
+criterion, one query, one drug — already done.
+
+**What the earlier count meant, and did not.** The note under *Direction decides what counts as
+correct* records *4 genuinely split (bupropion, fluoxetine, sildenafil, tirzepatide)*. That is a
+count of drugs whose **brands partition the indications** — Zyban against the three Wellbutrins,
+Sarafem against Prozac — which is a fact about pairing, not about dosing, and reading it as a
+dose-split queue is the mistake this section exists to stop. Of the ten drugs with two or more
+indications and an unbranched dosing line, every one of them keeps it:
+
+- **Bupropion** — the sheet gives one row and one dose. Zyban's own regimen (150 mg daily for three
+  days, then twice daily, run 7–12 weeks from before the quit date) is a fact about FDA labelling,
+  not about this sheet. Out of scope by the criterion, deliberately: the sheet is what the class is
+  examined on.
+- **Fluoxetine** — Prozac and Sarafem are both 20 mg once a day. Only the schedule differs, and the
+  sheet says nothing about it.
+- **Tirzepatide** — Mounjaro and Zepbound both start at 2.5 mg weekly. Nothing to split.
+- **Divalproex, celecoxib, lamotrigine, budesonide/formoterol** — the dose does vary by indication
+  in the labelling, but no brand on the sheet is tied to one branch, so the split would have nothing
+  to hang on.
+- **Albuterol, digoxin** — already recorded as uniform. Digoxin's real HF/AF difference is the
+  target serum level, which is not a dose and is not a sheet column.
+
+So the indication-scoped dosing built on 2026-11-03 serves one drug today and is still the right
+shape: it cost one nullable column, and the next edition of the sheet can split a row without any
+code moving.
+
+### A thousandfold typo, and where a correction lives (2026-11-04)
+
+Found while answering the question above. Dofetilide was stored — and asked, and shown on its
+profile — as **500 mg by mouth twice daily**. The dose is 500 **mcg**. A thousandfold overdose of a
+drug whose own black box warning is about hospitalising patients on a monitor for the arrhythmia it
+can induce, sitting in a study aid as the right answer.
+
+**It is the sheet's error, not ours.** Checked against the PDF (page 8) before deciding anything,
+because the two cases have different fixes and guessing between them is how you corrupt the one
+file that can tell them apart: the text really does read *500 mg by mouth twice daily*, so the
+extractor transcribed it faithfully.
+
+Which is why the fix is **not** in `data/top-drugs-2026.json`. That file is a reading of the PDF
+and has to stay one — it is how a bad value in the app can be told from a bad value on the sheet,
+and it is regenerated whenever the sheet is re-extracted, so an edit there is both a lie and
+temporary. `data/drugs-seed.json` is no better: it is built from that file by `build-seed.py`.
+
+So a correction is **a human's value written over the sheet's**, exactly as if somebody had typed it
+into the drug editor, which is a path that already exists and already works:
+`scripts/correct-sheet-errors.ts` holds one reviewable table of them, each with its own `source`
+(*FDA labelling for Tikosyn; the class sheet prints mg where the label says mcg*) and attributed to
+the env-seeded admin by foreign key. `updatedBy` is what makes it stick — the importer keeps a
+human's value over the sheet's unless run with `--force` — and the same pattern is already carrying
+`fill-review-gaps.ts` and `split-dosing-by-indication.ts`. A fresh database seeds the typo and this
+script removes it, which is a documented step rather than a surprise.
+
+Deliberately narrow: this file is for values that are **wrong**, not values that are thin. The
+corrected line stays as terse as the sheet's. Dofetilide's renal and QTc adjustments are real and
+are not added here, because rewriting the sheet into a better reference is a different project.
+
+**And a bug in the script it was modelled on.** Both scripts carried the comment *`setDrugField`
+does not re-read the regimens*. It does — `lib/drugs/mutations.ts` rebuilds them for the dosing
+field, and passes `{ unique: drug.dosingUnique }` when it does. So the explicit second call logged a
+duplicate `dosing.reparsed` for one edit, and dropped `unique` — the human saying *the sig is simply
+like that* — which would push a settled drug back into the dosing bench. It is not simply redundant,
+though, which is why it was there: `setDrugField` returns early **without** writing when the value,
+source and status all already match, and that is exactly the half-done state both scripts check for.
+The call is now the repair path only, taken when the rows do not already reflect the prose, and it
+passes `unique`. Both scripts re-run to *already corrected* / *already split* and write nothing.
+
+### The sheet is a baseline, not a source of truth (2026-11-04)
+
+Settled by the owner, immediately after the section above argued from the opposite premise: *I don't
+think we should be re-extracting from the sheet now that we have the database. It was just the
+baseline and a reference while building.* Right, and it moves where the authority sits.
+
+**What is now true.** The database holds the content. `data/top-drugs-2026.json` and
+`data/drugs-seed.json` are the baseline it was built from and the reference for what the class is
+examined on — kept, read, diffed against, never re-imported. `scripts/extract-top-drugs.py` and
+`scripts/build-seed.py` are archival: they are how the content got here, and they document the
+reading, which is exactly what let the dofetilide typo be pinned on the sheet rather than on us.
+
+**`npm run seed` stops being routine.** It was always conservative — a human's value survives it
+unless it is run with `--force` — so it cannot undo an edit. What it *can* do is **resurrect**: it
+creates drugs the database lacks, so a drug deleted on purpose comes back. That is a re-import of a
+baseline over a database that has moved on, which is no longer a thing anyone wants. It stays in
+`package.json` because it is how a genuinely empty database gets its 236 drugs, and that is now its
+only job.
+
+**Which promotes export/restore from convenience to the only recovery path**, and that makes the
+backup's exclusions matter more than they did when re-seeding was a fallback. `lib/data/backup.ts`
+deliberately carries no password hashes, no sessions, no invite codes and **no audit log** — chosen
+so a dump is a file you can keep anywhere without it being a way to log in as you, which is still
+right for the first three. The audit log is the odd one out: it is not a credential, it is the
+record of who asserted what, and under this decision it is the one thing in the database that a
+move to a new server would silently drop. **Open, and worth settling before the activity log lands:
+either `audit_log` joins the backup or it is accepted as local-only and said so out loud.** Leaning
+toward joining it — rows whose actor is matched by email, like study progress already is, since the
+file carries no UUIDs.
+
+`scripts/correct-sheet-errors.ts` keeps its place, with its job changed: it is a no-op against the
+live database now, and what it carries is the *record* of why dofetilide reads `mcg` when the sheet
+says `mg` — provenance in `source`, attribution by foreign key, and the fix ready if an empty
+database is ever seeded from the baseline again.
+
+### What deploying actually needs (2026-11-04)
+
+Asked by the owner: *is this ready to deploy via Docker?* **Yes, the image is.** `docker compose up
+-d --build` is verified working on this machine today. What is not automatic is the content and two
+environment values, and one of those is a quiet security bug if it is missed.
+
+**What the container already does right.** Multi-stage build on `node:22-alpine`, running as a
+non-root `app` user. `output: 'standalone'`, so the runtime ships without `node_modules` — bar
+`drizzle-orm` and `postgres`, copied deliberately because the entrypoint needs them. The entrypoint
+runs migrations under `set -e` **before** `exec`ing the server, so a failed migration stops the
+container rather than serving against a schema the code does not expect. The health check is a real
+`select 1` round-trip, and `web` is gated on `db` being healthy. Both services publish to
+`127.0.0.1` only. Secrets arrive as env and are never baked into a layer; `.env` is in
+`.gitignore` *and* `.dockerignore` and is untracked. `bootstrap()` seeds site settings, the field
+defs and the first admin idempotently, and `registration_mode` defaults to `invite`, so a fresh
+instance is never briefly open.
+
+**What a deploy has to supply:**
+
+1. **`BETTER_AUTH_URL` must be the public `https://` origin.** `lib/auth.ts` passes it straight to
+   `baseURL`, and that scheme is what decides whether the session cookie is marked `Secure`. Left at
+   the dev `http://localhost:3000`, sign-in still works and the cookie travels in clear — the
+   failure mode is silence, which is why it is first on this list.
+2. **A fresh `BETTER_AUTH_SECRET` and `ADMIN_PASSWORD`**, not the dev ones. `ADMIN_PASSWORD` is read
+   only while no admin exists, so it can be dropped from the server's env after the first boot
+   rather than sitting there for the life of the deployment.
+3. **The content, which does not ship in the image.** A fresh database boots with settings, fields
+   and an admin, and **zero drugs**. Under the decision above the way to fill it is a backup:
+   `npm run export` here, then `/admin/data` on the server to restore. Not `npm run seed` — that
+   needs the repo, node and `DATABASE_URL_HOST` on the server, none of which a machine running only
+   the image has, and it would import the baseline rather than the database that has been worked on.
+   **Export after the last content change, not before** — the newest file in `backups/` predates the
+   dofetilide correction.
+4. **The reverse proxy forwarding to `127.0.0.1:3000`**, which is the whole of the TLS item.
+
+Not blocking, but true: a restore does not carry invite codes or the audit log, so classmates are
+re-invited on a move and the change history stays on the old box until the question above is
+settled.
+
+### Two logs, not one — planned
+
+Asked for by the owner, 2026-11-04: *an activity log in the admin panel with the things you listed
+before.* Those things — somebody signed in, started a quiz, finished one, changed their password,
+flagged a value — are **not** what `audit_log` holds, and the distinction is the design:
+
+- **`audit_log` answers "who changed the content?"** Sixteen actions across seven modules, every
+  one of them an edit with a diff: `drug.field`, `drug.create`/`delete`/`merge`, `dosing.reparsed`,
+  `indication.rename`/`merge`, the four `tag.*`, `site_settings.update`, and the admin-acting-on-a-
+  person set `user.role`/`status`/`password`/`signout` plus a person's own `account.email`. This is
+  the one that matters when a value in a study aid turns out to be wrong, and it is the **audit UI**
+  on the phase 8 list.
+- **An activity log answers "what has been happening?"** Different question, different shape: high
+  volume, no diffs, per-person, and interesting in aggregate rather than row by row.
+
+Two screens, then, not one table with a filter — a diff-per-row view and a volume view want
+opposite layouts, and merging them makes the audit log unreadable the day somebody does forty
+flashcards.
+
+**What exists already, which is more than half of it.** Quiz and flashcard activity is in
+`quiz_attempts` and `quiz_answers`, which the results and streak screens already read — an activity
+view over study is a query, not a schema change. Password changes are in `audit_log` when an admin
+does it (`user.password`).
+
+**What is genuinely missing:**
+
+- **Sign-in and sign-out are recorded nowhere.** A successful sign-in leaves a `sessions` row, which
+  says a session exists, not that one began — and nothing at all survives a sign-out. This needs a
+  write in the auth path.
+- **A person changing their own password.** `account.email` is audited; the self-service password
+  change is not.
+- **Flagging is not an event.** `status: 'flagged'` is a field's current state. *Who* flagged it and
+  *when* is in `audit_log` only as a `drug.field` row whose status moved, which no activity view
+  would find without knowing to look for it.
+
+Decisions to make when it is built, recorded here so they are not made by accident: whether an
+activity row is retained forever or rolled up (forty flashcards a night is 15,000 rows a year);
+whether a person can see their own activity or only an admin can; and whether this table joins the
+backup, which is the same open question the audit log has above.
+
+### A second section: imported sets — planned
+
+Asked for by the owner, 2026-11-08: *define a format for a second section, for importing generic
+flashcard sets for flashcarding and generic quiz generation.* The home page already promises it —
+*for the top-drugs list **and more*** — so this is the *and more*.
+
+**The one decision everything else follows from: a set is a small table, not a list of cards.**
+
+A flashcard app would take `front,back` pairs and be finished. This app cannot, because its quiz is
+not built from cards — it is built from **an axis shared across many subjects**. Every option in a
+multiple-choice question is another drug's answer to *the same field*: `drawDistractors` takes one
+near miss from the same class, then falls back to the same category, then to anyone, and
+`atomsOf`/`answerKey` keep a subject's *other* true answers out of the wrong-answer pool. Strip the
+axis out and there is nothing to draw from but unrelated backs, which produces questions answerable
+by shape alone — a date among three sentences — and that is worse than no quiz.
+
+So an imported set declares **columns**, and its rows are subjects. A plain two-column set is then
+the degenerate case rather than a different feature: one column, and the distractors are the other
+rows' answers in that column, which is an ordinary and perfectly good MCQ.
+
+**Grounded in the real notes, 2026-11-08.** The owner supplied the nine endocrine decks for ERGI PD
+Exam 3 (PSCI 413), plus a 142-card flashcard file as a *reference for the kind of content* an import
+would carry -- not as a format to read. The format is ours. What the decks settle is which
+identifiers it needs, and they settle it with their own column headings.
+
+**The decks are already tables, and the lecturer names the columns.** Deck 19 states them outright
+-- *"What to know for each: Generic name; chemical class; mechanism; use/indication; and be able to
+suggest a drug for a given condition"* -- where that last clause is the reverse direction this engine
+already has. Pulling every table heading out of all nine decks gives the real vocabulary:
+
+| Heading, as the slides write it | Deck |
+|---|---|
+| `Class / Generic / Composition / Mechanism / Effect / Use` | 13, 18 — and 14 without the first two |
+| `Class / Generic / Composition / Mechanism / Use / Toxicity` | 13 |
+| `Drug / Indication / Target`, `Drug / Indication / Mechanism`, `Drug / Main use / Mechanism` | 19 |
+| `Drug / Principle mechanism / Type` | 19 |
+| `Drug (Sub)Class / Generic / Brand`, `Drug / Brand (first FDA approval)` | 15, 12 |
+| `Hormone / Chains / Residues / Type` | 13 |
+| `Hormone / Source / Use / Patient` | 13 |
+| `Receptor / Location / Function` | 13 |
+| `Site / Drugs shown` | 14 |
+| `Step / Detail` | 14 |
+| `Stem / Meaning` | 19 |
+| `Compound / Notes`, `Drug / Notes` | 14 |
+
+Three things fall out of that table, and each one is an identifier.
+
+**One: the column sets differ per topic, but they rhyme.** `Class / Generic / Composition /
+Mechanism / Effect / Use` recurs almost verbatim in three decks. So one set per topic with its own
+declared columns is right -- a single global schema for "study material" would be wrong -- *and* the
+same kind of answer keeps appearing under different headings. *Mechanism*, *Principle mechanism* and
+*Target* are one pool wearing three names.
+
+**Two: the rows are not all drugs.** A `Receptor / Location / Function` row, a `Hormone / Chains /
+Residues / Type` row and a `Site / Drugs shown` row are different sorts of subject, and a question
+asked about one must not be answered with the others. Six subject kinds appear in nine decks: drug,
+hormone, receptor, site, step, stem.
+
+**Three: some rows are a sequence.** `Step / Detail` is the thyroid synthesis pathway and the GPCR
+cascade, where the order *is* the content. Those want a different question entirely -- what comes
+next -- and they must never take a random distractor, because the only honest wrong answer to "what
+is step 3" is another step.
+
+And a note on the flashcard file, kept because it is the clearest evidence for the table shape: of
+its 142 cards, **96 contain a semicolon** and 26 ask more than one thing -- *"What is octreotide used
+for, how is it dosed, and what are its adverse effects?"* answered in three clauses, median answer
+120 characters. Those are good flashcards and impossible questions: four 120-character three-part
+options are told apart by overlap, and a distractor wrong in one of its three parts is unfair rather
+than instructive. Organised as a row with three columns, the same fact makes three real questions
+plus a bundle. That is the whole argument for importing **organised data** rather than cards.
+
+**The format.** JSON is canonical, because it is what `lib/data/backup.ts` already speaks and it is
+diffable; CSV/TSV is accepted for a table pasted out of a spreadsheet, read as one set with its
+header as the columns. Natural keys throughout, no UUIDs, same rule the backup follows.
+
+**`docs/set-format.md` is the authoring guide**, written 2026-11-08 to be handed to a model along
+with a set of lecture notes: the skeleton, every key, the closed `answers` vocabulary, how to
+decompose a multi-fact note into columns, the refusal list, and a pre-handover checklist. It exists
+because the format's hard part is not the syntax, it is knowing that one card with three clauses is
+three columns — and because the `answers` vocabulary cannot be guessed. Its six JSON examples are
+checked valid, and its worked example passes the spec it documents. The importer gets written
+against that file, and the two have to stay in step.
+
+```jsonc
+{
+  "format": "enkephalin.set/1",
+  "slug": "ergi-pd-thyroid-drugs",
+  "name": "Thyroid - Drugs to Know",
+
+  // Scope hierarchy: what "small quizzes based on its identifiers" means.
+  // Study one topic, or everything on Exam 3. Maps onto `tags` plus an ordering.
+  "course": "PSCI 413",
+  "exam": "Exam 3",
+  "unit": "Unit 5: Thyroid",
+  "topic": "Hyperthyroidism",
+  "source": { "file": "14.Thyroid.pdf", "pages": "11-13" },   // provenance, as every value carries
+
+  "identity": { "key": "generic", "label": "Generic", "kind": "drug" },
+  "group": "subclass",          // names a column: the near-miss axis AND the colour axis
+  "kinds": ["drug", "hormone", "receptor", "site", "step", "stem"],
+
+  "fields": [
+    { "key": "subclass",    "label": "Subclass",     "type": "enum",     "answers": "chemical_class" },
+    { "key": "composition", "label": "Composition",  "type": "text",     "answers": "composition" },
+    { "key": "mechanism",   "label": "Mechanism",    "type": "markdown", "answers": "mechanism",
+      "prompt": "What is the mechanism of {{name}}?" },
+    { "key": "target",      "label": "Target",       "type": "text",     "answers": "enzyme",
+      "reversible": true },    // "which drug inhibits TPO?" is a fair question
+    { "key": "effect",      "label": "Effect",       "type": "text",     "answers": "effect" },
+    { "key": "use",         "label": "Clinical use", "type": "list",     "answers": "indication" },
+    { "key": "toxicity",    "label": "Toxicity",     "type": "list",     "answers": "toxicity" },
+    { "key": "residues",    "label": "Residues",     "type": "number",   "answers": "count",
+      "measured_in": "aa" },
+    { "key": "notes",       "label": "Notes",        "type": "markdown", "asks": false }
+  ],
+
+  "items": [
+    { "generic": "Methimazole", "kind": "drug", "aliases": ["Tapazole"],
+      "subclass": "Thioamide",
+      "mechanism": "Inhibits thyroid peroxidase, blocking organification",
+      "target": "Thyroid peroxidase",
+      "effect": "Decrease thyroid hormone levels",
+      "use": ["Hyperthyroidism", "Graves disease"],
+      "toxicity": ["Agranulocytosis", "Rash"] },
+
+    { "generic": "Organification", "kind": "step",
+      "sequence": "t4-synthesis", "order": 2,
+      "notes": "Iodine attached to tyrosine residues on thyroglobulin" }
+  ]
+}
+```
+
+**The identifiers, and what each is for.** This is what the owner asked to be thought through --
+*information tagged as things like drug, treatment, etc. for mixing answers*:
+
+- **`answers` on a column is the distractor pool key, and deliberately not the column name.** The
+  table above is the proof: three decks call one thing *Mechanism*, *Principle mechanism* and
+  *Target*. Column headings are local and must stay local; the pool they draw from has to be shared.
+  So `answers` is a small closed vocabulary, every entry of which is a heading or cell type observed
+  in these nine decks: `drug_name`, `brand_name`, `hormone`, `receptor`, `enzyme`, `site`, `stem`,
+  `chemical_class`, `composition`, `mechanism`, `target`, `indication`, `effect`, `function`,
+  `toxicity`, `population`, `dose`, `route`, `half_life`, `duration_class`, `potency_ratio`,
+  `location`, `source_tissue`, `count`, `year`, `prose`. **This is the identifier that does the
+  mixing** -- it lets a thyroid question borrow a wrong answer from the steroid deck and have it
+  still be a mechanism.
+- **`kind` on a row is the same idea for the identity question.** Asked *which of these is
+  methimazole?*, the options must be other **drugs** -- a hormone, a receptor and a site among them
+  would be eliminable without knowing anything. The six kinds above are what nine decks actually
+  contain; `kinds` is declared per set rather than fixed, because the next course is respiratory and
+  will want `organ` and `pathogen`.
+- **`group`** is the near miss inside a kind -- *Thioamide* against *Iodide* -- and it is the one
+  identifier that already has somewhere to go: it maps onto `drugClass`, which drives the near-miss
+  rule, the scope filter and the colour coding today.
+- **`aliases`** are not a convenience. T4, thyroxine and levothyroxine are one thing, and offering
+  two of them as two options is a question with two right answers. The alias table built for
+  indications already solves this, and `answerKey` has to fold aliases in or the engine's "never
+  offer a second true answer" guarantee quietly breaks on exactly the material most full of synonyms.
+- **`reversible` on a column** decides whether it can be the *stimulus* rather than the answer.
+  `Site / Drugs shown` is a reverse row the slides wrote out by hand; *which drug inhibits TPO?* is a
+  fair question where *which drug has these notes?* is not. Entity-typed columns default reversible,
+  prose defaults not. This is also the data the drug section has been missing: randomising the
+  stimulus is recorded as unbuilt because the fan rule needed thinking through, and a per-column flag
+  is what makes it safe to turn on.
+- **`sequence` + `order` on a row** marks a sequence member, from `Step / Detail`. Both, not just
+  `order`: one set holds more than one sequence -- T4 synthesis and the GPCR cascade are both
+  `Step / Detail` tables -- and a bare position number would silently interleave them. It buys a
+  question type the engine does not have, *what follows organification?*, and more importantly it
+  **forbids** the random fallback: a step's wrong answers are the other steps in its own sequence,
+  or there is no question.
+- **`measured_in` on a numeric column** keeps `Chains`, `Residues` and a dose comparable, and means
+  numeric distractors come from other rows' real values rather than being invented. Named the long
+  way round because `unit` was already taken by the scope level above -- deck 14 calls itself *Unit
+  5: Thyroid*, which is the course's own word and the one a person will look for.
+- **`asks: false`** marks a column that is context, not an answer. Without it every set grows a
+  *Notes* column that becomes a terrible question -- and both `Compound / Notes` and `Drug / Notes`
+  are real headings in deck 14.
+- **`recall_only` on a row** is the escape hatch for a fact that genuinely does not decompose:
+  deck 19's `Stem / Meaning` matching table is nine stems at once, and the ordering facts are
+  likewise one card. It imports, it flashcards, it is never offered as multiple choice.
+
+**The distractor ladder**, which is the existing `drawDistractors` rule generalised one step at a
+time, with the owner's random fallback at the bottom:
+
+1. **Same column, same set, same `group`** -- the true near miss.
+2. **Same column, same set.**
+3. **Same `answers` type, same `unit` or `exam`** -- the mixing. A mechanism from one topic against a
+   mechanism from the next, which is the real exam's own difficulty.
+4. **Same `answers` type, anywhere imported.**
+5. **Any answer in the set, chosen at random.** Honest last resort -- and **recorded on the
+   question**, so "how many questions needed the random fallback" is a number the import report and
+   the results screen can show, rather than something nobody ever finds out.
+
+Three rules bound the ladder, and they are what keep the random rung from being a licence:
+
+- **A sequence never reaches rung 5.** A row with a `sequence` draws only from the other members of
+  that same sequence. The only honest wrong answer to *what is step 3* is another step, and a random
+  mechanism offered there does not make the question harder, it makes it free.
+- **An identity question is bounded by `kind`.** *Which of these is methimazole?* draws only from
+  rows of kind `drug`, at every rung including the last.
+- **Below three distractors it refuses to ask** rather than padding, exactly as the drug engine does
+  today: a short quiz beats a silently bad question. And a value the subject itself holds is never
+  offered, which the `acceptable` machinery already guarantees.
+
+**No relations block, and that is a decision rather than an omission.** Much of this material is
+signed relations between entities -- *GHRH stimulates GH*, *ketoconazole inhibits P450c17*, *T3/T4
+inhibit TRH and TSH*. A triple store was the obvious second data model and it is not needed: a
+relation **is** a column whose `answers` type is an entity type. `inhibits` with
+`answers: "enzyme"` gives *which enzyme does ketoconazole inhibit?* with other enzymes as
+distractors, and the reverse direction free. A row for GH with list columns `stimulated_by` and
+`inhibited_by` carries a whole feedback axis. One model, not two -- the same reason the dosing branch
+went in the prose rather than into a column somebody ticks.
+
+**What this buys for free, which is nearly all of it.** `buildCards` and `buildQuiz` consume
+`CardSource`, a plain shape — they do not know what a drug is. So a set needs an **adapter**, not an
+engine:
+
+| `CardSource` | drug section | set section |
+|---|---|---|
+| `generic` | generic name | the item's identity value |
+| `drugClass` | FDA EPC class | the set's `group` column |
+| `tags` | tag slugs | the set's tags |
+| `values` | `drugs.fields` | the item's columns |
+| `schedule`, `routes`, `indications`, `dosingSig`, `dosingBranches` | real | empty |
+
+Those last five being empty is correct by construction rather than a stub: `askable` already
+refuses `controlled` without a schedule, and `atomsOf` only branches dosing when branches exist. And
+mapping `group` onto `drugClass` means one line buys the near-miss distractor rule, the scope
+filter (`scope.classes`), and the colour coding — all three of which are class-driven today.
+
+Free, then: both study modes, inclusive and exclusive, both directions, the identity question
+(*which of these is X?* with other items' names as options), per-subject bundles, the
+acceptable-answer protection on `list` columns, SRS (`srs.ts` has no drug reference at all), cram
+blocks, the priority weighting and the quiz cap.
+
+**What actually needs building:**
+
+1. **`set_fields`, not `field_defs`, and it needs an editor.** `field_defs.key` is globally unique,
+   which is exactly wrong when two sets both want a column called `definition` — and the table
+   carries sheet-specific baggage (`yearLevels`, `isCore`, the lookup mapping) that a set has no use
+   for. A separate, set-scoped table, unique on `(set_id, key)`. **An imported set is editable
+   afterwards** (owner's call, 2026-11-08): re-import is not the only way to change a column, which
+   means `set_fields` gets the screen `/admin/fields` already is — rename, reorder, retype, set
+   `options`, set the prompt, soft-delete — scoped to one set, and the items get the drug editor's
+   treatment one table over. Deciding this now rather than later is what makes the merge policy
+   below a real question instead of a theoretical one.
+2. **The study tables learn a second kind of subject.** `study_cards.drug_id` and
+   `quiz_answers.drug_id` are `not null` FKs today. They become nullable, gain an `item_id`
+   alongside, and a `check (num_nonnulls(drug_id, item_id) = 1)`. **The unique index is the trap**,
+   and this project has already fallen into it once: in Postgres nulls are distinct, so
+   `(user_id, drug_id, card_key)` stops constraining anything the moment `drug_id` can be null.
+   Same fix as migration 0010 — index over `coalesce(..., zero-uuid)`, with a test reading
+   `pg_indexes`, because Drizzle cannot express it.
+3. **A section-neutral identity.** `promptFor` hard-codes `{{generic}}`, the literal field keys
+   `'brand'` and `'generic'`, and `IDENTITY_FIELD = 'generic'`. These become a property of the
+   section. Small, but it is the one place the engine genuinely knows it is about drugs.
+4. **The import screen**, under `/admin`, and a browse/study surface for sets alongside `/drugs`.
+5. **The distractor pool gains two rungs, and that is the one real change inside `quiz.ts`.** Today
+   `drawDistractors` draws from the candidates already in scope. Rungs 3 and 4 of the ladder reach
+   *outside* the scope — same `answers` type across other sets in the unit — so the builder needs a
+   second pool handed to it alongside the scoped candidates, kept distinct so a set can never be
+   studied *as* another set while still borrowing wrong answers from it. Indexed on
+   `(answers_type, value_key)`.
+6. **Alias folding into the answer key.** `answerKey` is what stops a second true answer being
+   offered, and it compares meanings. With aliases declared, two spellings of one thing must produce
+   one key, or the guarantee breaks on exactly the material most likely to carry synonyms -- T4 and
+   thyroxine sitting in the same four options.
+
+7. **`<br>` is a line break, and today nothing renders one.** Asked for by the owner, 2026-11-08:
+   the authoring template must not produce long single-line answers run together with semicolons.
+   `docs/set-format.md` now tells an author to break such a cell with `<br>`, which puts a small
+   requirement on this side: there is **no markdown library in the project at all** -- a `markdown`
+   field is split on blank lines by `formatFieldValue` and rendered as `<p>{paragraph}</p>`, which
+   React escapes, so a literal `<br>` would reach a reader as four characters. So the set renderer
+   splits a cell on `<br>` (and on a real newline, treated identically) and emits the lines as
+   separate nodes. Two properties matter and are worth a test each: the split is **presentational
+   only** -- a cell is still one answer, so `answerKey`, the distractor pool and the alias folding
+   above see the whole value and never a line of it -- and nothing is ever injected as HTML, because
+   accepting one tag from an imported file is how a format grows an XSS hole. A `list` column is
+   still the right home for several *independent* values; `<br>` is only for parts of one answer
+   that need to be read apart.
+
+**The importer refuses rather than guesses**, which is the dosing parser's rule one level up —
+all-or-nothing is what makes a format safe to point at a file somebody else wrote. It refuses the
+whole file, naming the row and column, on: a cell in an `enum` column that is not one of its
+`options`; a row with no identity value; two rows with the same identity; a `group` naming a column
+that does not exist; a `kind` not in the set's declared `kinds`; an `answers` type outside the
+vocabulary; the same alias claimed by two rows; an `order` without a `sequence`, or two rows at the
+same position in one sequence; an unknown `format`. Nothing is half-imported and nothing is coerced.
+(Gaps in a sequence are fine -- the slides skip steps, and a set that only has 2, 3 and 5 still asks
+*what follows 3* correctly.)
+
+The `answers` vocabulary being closed is the one refusal worth defending, because it is the opposite
+of the `kinds` decision three paragraphs up. `kinds` is open because a new course brings genuinely
+new sorts of thing. `answers` is closed because its *only* job is to make two sets agree, and a
+vocabulary anyone can extend by typing agrees with nothing -- a column tagged `mechanisms` and
+another tagged `mechanism` would silently never pool. Adding a type is a one-line change to a
+constant, with the import refusal naming what is allowed.
+
+**And it reports what the set can and cannot be quizzed on, at import time rather than at question
+time.** A column needs **four distinct answers** across the set before it can make a four-option
+question, so a 40-item set with a three-value `class` column is a fine flashcard column and a
+guessable quiz column. That is a fact about the file, it is cheap to count, and saying it while
+somebody is looking at the import result is worth more than a short question six weeks later. Same
+report should flag a column whose answers are not the same *kind* of thing — the shape tell above —
+as a warning, not a refusal, because that one is a judgement.
+
+**Re-import is a merge keyed by slug**, keeping a human's later edits the way `sync.ts` already
+does via `updatedBy`, with the backup's two named modes rather than a flag: `merge` leaves what the
+file does not mention alone, `replace` deletes the items the file lacks and takes a typed
+confirmation.
+
+Because sets are editable, that policy has to cover **columns** as well as cells, and the two behave
+differently:
+
+- **A cell a person edited survives re-import**, exactly as a drug field does. `updatedBy` already
+  answers *has a human touched this*, and the rule is already written and tested.
+- **A column a person edited survives too** — a renamed label, a reworded prompt, a corrected
+  `answers` type. The file supplies columns; it does not own them after the first import.
+- **A column a person deleted stays deleted in `merge`.** This is the resurrection problem
+  `npm run seed` has with drugs, one table over, and the answer is the same: soft-delete, and the
+  importer skips a key it finds already soft-deleted rather than reviving it. `replace` revives it,
+  which is what `replace` is for.
+- **A column whose `type` changed under it is a refusal, not a coercion.** If the file now says
+  `number` where the stored column is `list`, the import stops and names it: the existing cells are
+  one shape or the other and quietly reinterpreting 236 values is how a parser earns distrust.
+
+**Out of v1, deliberately:** cloze deletion (the engine has no model for a hole in a sentence);
+images and audio; per-card SRS state in the file — progress belongs to this app and is matched by
+email, as the backup already does; nested sets. Anki `.apkg` is *not* a format this reads: it is a
+converter script writing `enkephalin.set/1`, which is the point of having a format at all.
+
+**Where the mixing stops.** Sets mix freely with each other, which is what rungs 3 and 4 are for:
+that is one body of imported material with one declared vocabulary, and a mechanism is a mechanism
+whichever lecture it came from. Sets do **not** mix with the drug section in v1. Not because it
+would be wrong in principle -- 236 drugs' mechanisms are the best distractor pool in the database --
+but because the drug fields carry no `answers` types, so there is nothing to pool *on*, and
+inventing the mapping at the same time as the format would mean two untested ideas holding each
+other up. The later move is small and deliberate: tag `field_defs` with `answers` types and the two
+pools join on the identifier that already exists. Worth doing, worth doing second.
+
+What a quiz must never do, in any version, is draw a wrong answer from a *different* `answers` type
+-- a mechanism offered against an indication is not a near miss, it is a category error, and the
+near-miss rule is the one thing holding question quality up.
+
 ### The dosing review bench (2026-11-03)
 
 The one queue in this app that has ever had real work in it. **76 of 252 regimens** carry a reading
@@ -2363,7 +3051,7 @@ taking part in the look:
   the sheet importer.
 - **Tags** — CRUD, kind, default color, merge.
 - **Flagged queue** — every field anyone has flagged, most-quizzed first: the fields where a wrong
-  value costs most.
+  value costs most. **Done 2026-11-08**; see [The last three screens of phase 8](#the-last-three-screens-of-phase-8-2026-11-08).
 - **Dosing review** — the regimens the parser could not fully read, worst first, with the prose
   editable in place and a live readback. **Done 2026-11-03**; see
   [The dosing review bench](#the-dosing-review-bench-2026-11-03).
@@ -2380,7 +3068,17 @@ taking part in the look:
   theme and palette are next door in **Look**, because a preference and a lock are not the same
   kind of setting. See [What the site is called](#what-the-site-is-called-2026-11-04).
 - **Data** — JSON export/backup and restore.
-- **Audit log** — who changed what, with diffs.
+- **Audit log** — who changed what, with diffs. **Done 2026-11-08**; see
+  [The log that nobody could read](#the-log-that-nobody-could-read-2026-11-08).
+- **Activity log** — what has been happening: signed in, started a quiz, finished one, changed a
+  password, flagged a value. A separate screen from the audit log, deliberately; asked for
+  2026-11-04 and **for later, after 1.0**. See [Two logs, not one](#two-logs-not-one--planned) for
+  the split, what the schema already covers, and the three events nothing records yet.
+- **Imported sets** — a second section beside the drugs, studied by the same engine: import a table
+  of subjects and columns, get flashcards and multiple-choice over it. Asked for 2026-11-08 and
+  **for later, after 1.0**. See [A second section: imported
+  sets](#a-second-section-imported-sets--planned) for the format, the adapter onto `CardSource`, and
+  the four things that genuinely need building.
 
 ---
 
@@ -2419,7 +3117,7 @@ cannot drift from the schema. Regenerate with `npm run db:generate` after every 
 | 5 | **done — 2026-11-01** — shared study config in `lib/study/config.ts`, card builder, SM-2, [blocks](#blocks-cram-inside-a-session), [review and cram modes](#review-and-cram), `/study/flashcards`. Defaults: one card per drug, blocks of 10, review mode. Config lives in the URL; `card_key` is stable across field reselection. Scope axes since: therapeutic categories and indications, each a collapsible multiselect |
 | 6 | **done — 2026-11-02** — `dosing_regimens` (migration 0001), `lib/dosing/` parse + sig, `scripts/backfill-dosing.ts`: all 236 drugs carry a regimen, 251 rows. `/study/quiz` on `lib/study/quiz.ts`: four options (answer + one class-mate + two from the whole database), both directions, scoring, per-field history in `quiz_attempts`/`quiz_answers`. Live: 236 askable on mechanism, 12 on a statins × 3-field paper |
 | 7 | **theme and palette done — 2026-11-02** — `/settings`: light/dark/system stamped on `<html>` during the render, colour axis (class / schedule / tag / off), and a per-value colour editor with live contrast figures. Categorical colour moved out of CSS into `lib/theme/palette.ts` so the editor and the page cannot disagree. See [One colour per value](#one-colour-per-value-and-31-not-451-2026-11-02). Responsive pass done 2026-11-02 — see [Where it did not fit](#where-it-did-not-fit-2026-11-02). `/admin/look` done 2026-11-02 — the site default theme and palette, every axis editable, same editor as `/settings`. **Phase 7 complete** |
-| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Users admin done 2026-11-03, and the self-service email change with it — see [The only way back in](#the-only-way-back-in-2026-11-03) and [Changing the address you sign in with](#changing-the-address-you-sign-in-with-2026-11-03). Dosing review bench done 2026-11-03 — see [The dosing review bench](#the-dosing-review-bench-2026-11-03). Site settings done 2026-11-04 — see [What the site is called](#what-the-site-is-called-2026-11-04). Remaining, and this is the whole list: the **audit UI** (seven modules write `audit_log`; nothing reads it), the **flagged queue** (the browse filter offers *Flagged*; there is no most-quizzed-first screen — 0 rows to put in it), **bulk field-set** (bulk tagging is the tag roster, which exists), and the **brand↔indication pairing editor** (0 brands awaiting review). The last three have nothing to act on today; the audit UI does. |
+| 8 | **drug + tag editors done — 2026-11-02** — `/drugs/[slug]/edit` and `/drugs/new` write through `lib/drugs/mutations.ts`: identity, brands, indications, assignable tags and every stored field with its own source and status, plus a live sig/readback preview beside the dosing prose. `/admin/tags` and `/admin/tags/[slug]` write through `lib/tags/mutations.ts`: create, rename, delete, and set membership from a columned checklist of all 236 drugs. `/admin/data` exports and restores the whole database as one JSON file (`npm run export` / `npm run restore` for a timer). Dosing: a *unique/complicated sig* checkbox settles a sig the parser cannot read, rather than leaving it as review work forever. Lookup panel done 2026-11-02 — see [A lookup you cannot reach mid-question](#a-lookup-you-cannot-reach-mid-question-2026-11-02). Delete and merge done 2026-11-03 — see [Two rows that should never have been two](#two-rows-that-should-never-have-been-two-2026-11-03). Home page, the pill nav, the avatar and `/account` done 2026-11-03 — see [A front door, and a face on it](#a-front-door-and-a-face-on-it-2026-11-03) and [An account is not a setting](#an-account-is-not-a-setting-2026-11-03). Users admin done 2026-11-03, and the self-service email change with it — see [The only way back in](#the-only-way-back-in-2026-11-03) and [Changing the address you sign in with](#changing-the-address-you-sign-in-with-2026-11-03). Dosing review bench done 2026-11-03 — see [The dosing review bench](#the-dosing-review-bench-2026-11-03). Site settings done 2026-11-04 — see [What the site is called](#what-the-site-is-called-2026-11-04). **Phase 8 is complete, 2026-11-08.** The audit UI — see [The log that nobody could read](#the-log-that-nobody-could-read-2026-11-08) — and the last three screens, the flagged queue, the brand pairing editor and bulk field set — see [The last three screens of phase 8](#the-last-three-screens-of-phase-8-2026-11-08). The pairing editor turned out to be a missing *writer* rather than a missing screen: `brand_indications` could only be written by the importer. |
 
 Phase 2 sits ahead of content deliberately — authoring profiles against a schema about to change
 wastes the work. Phases 0–2 need nothing external. Phase 3 needs the class sheet.
@@ -2764,6 +3462,9 @@ reachable one-handed; browse table degrades to cards.
   Randomising the stimulus would land straight in the fan rule, and the data was not ready for it.
   Of 352 brands, 15 are narrowed to a branch, covering 6 drugs, and only 4 are genuinely split
   (bupropion, fluoxetine, sildenafil, tirzepatide — albuterol and digoxin turned out uniform).
+  **That is a count of brands partitioning indications, not of doses that differ** — a distinction
+  worth keeping straight, since only sildenafil needs its dose split. See
+  [Only one drug splits its dose by brand](#only-one-drug-splits-its-dose-by-brand-2026-11-04).
 
   **The dose half of that is now built**, on the owner's call the same day: see
   [A dose can belong to one indication](#a-dose-can-belong-to-one-indication-2026-11-03).
@@ -2905,6 +3606,33 @@ see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs
   newest entries); the flagged queue, bulk field-set and the brand↔indication pairing editor, all
   three screens over queues that are empty today; and the one non-code item, a reverse proxy
   terminating TLS on the server, which compose assumes and the repo does not contain.
+
+  **The TLS item is closed, 2026-11-04**, on the owner's call: the server already runs a reverse
+  proxy, and terminating TLS there is that proxy's job rather than this repo's. Nothing to build,
+  and nothing was ever going to be — `docker-compose.yml` already binds both services to
+  `127.0.0.1` with the comment saying why. What remains is a deployment note, not work, and it is
+  one line: **`BETTER_AUTH_URL` must be the public `https://` origin**, because `lib/auth.ts` passes
+  it straight to `baseURL` and that scheme is what decides whether the session cookie is marked
+  `Secure`. Left at the dev value, sign-in would work and the cookie would travel in clear. The
+  loopback bindings keep the containers themselves unreachable off-box. So the list is three screens
+  and the audit UI — all code, all in this repo.
+
+  **The activity log asked for the same day is deliberately not on this list.** It is a second
+  screen over a different question, it needs writes in the auth path that do not exist yet, and 1.0
+  does not want to grow. After. See [Two logs, not one](#two-logs-not-one--planned).
+
+  **All four are done, 2026-11-08, and 1.0 is complete.** The audit UI, then the flagged queue, the
+  brand pairing editor and bulk field set — see
+  [The log that nobody could read](#the-log-that-nobody-could-read-2026-11-08) and
+  [The last three screens of phase 8](#the-last-three-screens-of-phase-8-2026-11-08). 855 tests
+  across 44 files, every screen driven on the running container.
+
+  Worth saying plainly, since the owner's reason for pushing through was *I need to study*: **none
+  of these four screens is a study feature.** They are the tools that keep the content honest — a
+  queue for doubted values, an editor for an assertion that could not be corrected, a safe way to
+  record a fact 180 times, and a readable history of all of it. The studying was already built. What
+  comes next is the thing that was actually wanted: [imported
+  sets](#a-second-section-imported-sets--planned), which is where new material gets in.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

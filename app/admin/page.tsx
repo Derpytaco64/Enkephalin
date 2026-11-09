@@ -41,6 +41,21 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
         title: 'Dosing review',
         blurb: 'The readings the parser would not stand behind, worst first.',
       },
+      {
+        href: '/admin/flagged',
+        title: 'Flagged values',
+        blurb: 'Values somebody doubted, the ones already asked first.',
+      },
+      {
+        href: '/admin/pairing',
+        title: 'Brand pairing',
+        blurb: 'Which brand treats which condition, where a drug has several of both.',
+      },
+      {
+        href: '/admin/bulk',
+        title: 'Bulk field set',
+        blurb: 'One value across many drugs, with what it would overwrite shown first.',
+      },
     ],
   },
   {
@@ -75,6 +90,11 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
         href: '/admin/data',
         title: 'Data',
         blurb: 'The whole database as one JSON file: download it, or restore one.',
+      },
+      {
+        href: '/admin/audit',
+        title: 'Audit log',
+        blurb: 'Every change anyone has made, and what it was before.',
       },
     ],
   },

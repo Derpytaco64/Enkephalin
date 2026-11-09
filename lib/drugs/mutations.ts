@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   auditLog,
+  brandIndications,
   dosingRegimens,
   drugBrands,
   drugIndications,
@@ -208,6 +209,103 @@ export async function setDrugIndications(slug: string, raw: string, actorId: str
     actorId, action: 'drug.indications', drugId: drug.id,
     diff: { indications: labels, ...(created.length > 0 && { newIndications: created.map((row) => row.label) }) },
   });
+  return { ok: true };
+}
+
+/**
+ * Which of a drug's indications each of its brands is for.
+ *
+ * Until this existed `brand_indications` had no writer outside the importer and
+ * the merge path, so a pairing was unchangeable once asserted -- and seven of
+ * them were asserted by `scripts/fill-review-gaps.ts` from FDA labelling, not
+ * read off the sheet. An assertion nobody can correct is the wrong kind of
+ * fact to have in a study aid, because *Direction decides what counts as
+ * correct* turns brand questions on exactly these rows.
+ *
+ * **A brand with no rows covers all of the drug's indications**, which is the
+ * common case and the importer's own default -- Proventil, Ventolin and Proair
+ * are all albuterol for all three of its indications. So clearing every box on
+ * a brand is meaningful rather than empty: it says "this brand is not narrowed",
+ * which is different from saying it treats nothing.
+ *
+ * Takes the whole map and replaces it, like every other list writer here: a
+ * per-checkbox endpoint would make the grid's state and the database's two
+ * different things that have to be kept in step.
+ */
+export async function setBrandIndications(
+  slug: string,
+  /** Brand id -> the drug_indications ids it is narrowed to. Empty means "all". */
+  pairs: Record<string, string[]>,
+  actorId: string,
+): Promise<Result> {
+  const drug = await drugBySlug(slug);
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const brands = await db
+    .select({ id: drugBrands.id, name: drugBrands.name })
+    .from(drugBrands)
+    .where(eq(drugBrands.drugId, drug.id));
+  const indications = await db
+    .select({ id: drugIndications.id })
+    .from(drugIndications)
+    .where(eq(drugIndications.drugId, drug.id));
+
+  const brandIds = new Set(brands.map((row) => row.id));
+  const indicationIds = new Set(indications.map((row) => row.id));
+
+  // Refuse rather than silently drop: a grid posting an id that is not this
+  // drug's means the page was built from stale data, and writing the half of
+  // it that happens to match would be worse than declining the save.
+  for (const [brandId, wanted] of Object.entries(pairs)) {
+    if (!brandIds.has(brandId)) {
+      return { ok: false, message: 'That brand does not belong to this drug. Reload and try again.' };
+    }
+    for (const indicationId of wanted) {
+      if (!indicationIds.has(indicationId)) {
+        return {
+          ok: false,
+          message: 'That indication does not belong to this drug. Reload and try again.',
+        };
+      }
+    }
+  }
+
+  const rows = [...new Set(
+    Object.entries(pairs).flatMap(([brandId, wanted]) =>
+      [...new Set(wanted)].map((indicationId) => `${brandId}:${indicationId}`)),
+  )].map((key) => {
+    const [brandId, indicationId] = key.split(':');
+    return { brandId, indicationId };
+  });
+
+  await db.transaction(async (tx) => {
+    if (brandIds.size > 0) {
+      await tx.delete(brandIndications).where(inArray(brandIndications.brandId, [...brandIds]));
+    }
+    if (rows.length > 0) await tx.insert(brandIndications).values(rows);
+  });
+
+  await touch(drug.id);
+
+  // Named brands, not ids: the audit log is read by a person, and a uuid pair
+  // says nothing about what was asserted.
+  const nameOf = new Map(brands.map((row) => [row.id, row.name]));
+  await audit({
+    actorId,
+    action: 'drug.brand_indications',
+    drugId: drug.id,
+    diff: {
+      narrowed: Object.fromEntries(
+        Object.entries(pairs)
+          .filter(([, wanted]) => wanted.length > 0)
+          .map(([brandId, wanted]) => [nameOf.get(brandId) ?? brandId, wanted.length]),
+      ),
+      coversAll: brands
+        .filter((row) => (pairs[row.id]?.length ?? 0) === 0)
+        .map((row) => row.name),
+    },
+  });
+
   return { ok: true };
 }
 

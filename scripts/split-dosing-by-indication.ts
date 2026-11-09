@@ -128,9 +128,25 @@ async function main() {
       continue;
     }
 
-    // `setDrugField` does not re-read the regimens; the editor calls this after
-    // it, and so must anything else that writes the prose.
-    await rebuildRegimens(drug.id, drug.genericName, prose, actorId);
+    // `setDrugField` re-reads the regimens itself when it writes the dosing
+    // field -- but it returns early *without* writing when the value, source
+    // and status already all match, which is exactly the half-done state the
+    // check above exists for. Then the rows are still the unsplit prose's and
+    // nothing else will fix them, so the repair path has to re-read them here.
+    // Only here: calling it unconditionally logs a second `dosing.reparsed` for
+    // one edit, and loses `unique` -- the human saying "the sig is simply like
+    // that" -- by not passing it, which would push a settled drug back into the
+    // review queue.
+    const reread = await db
+      .select({ indicationId: dosingRegimens.indicationId })
+      .from(dosingRegimens)
+      .where(eq(dosingRegimens.drugId, drug.id));
+    if (reread.filter((row) => row.indicationId !== null).length
+      !== Object.keys(split.doses).length) {
+      await rebuildRegimens(
+        drug.id, drug.genericName, prose, actorId, { unique: drug.dosingUnique },
+      );
+    }
 
     const rows = await db
       .select({

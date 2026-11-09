@@ -305,6 +305,12 @@ describe('the pill, for everything that is not a button', () => {
       'app/admin/fields/page.tsx': 'the field being named in each row',
       'app/admin/tags/page.tsx': 'the list being named in each row',
       'app/drugs/drug-browser.tsx': 'the drug named in each row of 236',
+      // Both kinds at once: the subject of each log entry is that row's
+      // identity and its link to the thing that changed, and the empty state
+      // offers "Clear them" inside a sentence.
+      'app/admin/audit/page.tsx': 'the drug, tag or person named in each entry',
+      'app/admin/flagged/page.tsx': 'the drug named in each flagged value',
+      'app/admin/pairing/page.tsx': 'the drug named above each brand grid',
 
       // Not text at all, and not a button: the initials circle, where a
       // filled accent reads as an identity chip. Pinned again below.
