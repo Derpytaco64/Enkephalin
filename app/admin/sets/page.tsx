@@ -1,15 +1,19 @@
-import Link from 'next/link';
 import { requireAdmin } from '@/lib/session';
-import { listSets } from '@/lib/sets/import';
-import { importSetAction } from './actions';
+import { listSets, setDeletePreviews } from '@/lib/sets/import';
+import { deleteSetAction, importSetAction } from './actions';
 import { ImportForm } from './import-form';
+import { SetList } from './set-list';
 
 export const metadata = { title: 'Imported sets' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminSetsPage() {
   await requireAdmin();
-  const sets = await listSets();
+  const [sets, previews] = await Promise.all([listSets(), setDeletePreviews()]);
+  const rows = sets.map((set) => ({
+    ...set,
+    preview: previews.get(set.id) ?? { items: set.items, fields: set.fields, cards: 0, answers: 0 },
+  }));
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
@@ -31,23 +35,7 @@ export default async function AdminSetsPage() {
         {sets.length === 0 ? 'Nothing imported yet' : `${sets.length} set${sets.length === 1 ? '' : 's'}`}
       </h2>
 
-      {sets.length > 0 && (
-        <ul className="mt-3 divide-y divide-[var(--border)] rounded border border-[var(--border)]">
-          {sets.map((set) => (
-            <li key={set.id} className="px-3 py-2.5">
-              <Link href={`/sets/${set.slug}`} className="font-medium text-[var(--accent)] underline">
-                {set.name}
-              </Link>
-              <p className="mt-0.5 text-xs text-[var(--muted)]">
-                {[set.course, set.exam, set.unit, set.topic].filter(Boolean).join(' · ')}
-                {[set.course, set.exam, set.unit, set.topic].some(Boolean) && ' — '}
-                {set.items} row{set.items === 1 ? '' : 's'}, {set.fields} column
-                {set.fields === 1 ? '' : 's'}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {rows.length > 0 && <SetList rows={rows} remove={deleteSetAction} />}
     </main>
   );
 }

@@ -1,34 +1,38 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { requireUser } from '@/lib/session';
-import { loadSetStudy } from '@/lib/sets/session';
+import { deckHref, studyHref, type Deck } from '@/lib/sets/deck';
+import { progressBySet, progressOfSets } from '@/lib/sets/scope';
+import { buildScopeTree, findNode, type TreeSet } from '@/lib/sets/tree';
 import { cellLines } from '@/lib/sets/render';
-
-export const dynamic = 'force-dynamic';
-
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const source = await loadSetStudy(slug);
-  return { title: source?.set.name ?? 'Set' };
-}
+import { NodeRow } from './tree';
 
 /**
- * The set as the table it is.
+ * A deck: one set as the table it is, or a node of the tree as what is under
+ * it.
  *
- * One row per subject, one column per declared column, which is the shape the
- * material was authored in and the shape that makes the questions work. A cell
- * written in several parts with `<br>` is shown as several lines -- as plain
- * text nodes, never as injected HTML.
+ * The same url shape serves both -- `/sets/thyroid` and `/sets/pharm/exam-3`
+ * -- because both are things you study, and splitting them into two routes
+ * would mean two of every page beneath them. What differs is only what there
+ * is to show: a set has rows, a node has children.
  */
-export default async function SetPage({ params }: { params: Promise<{ slug: string }> }) {
-  await requireUser();
-  const { slug } = await params;
-  const source = await loadSetStudy(slug);
-  if (!source) notFound();
+export async function DeckView({
+  deck, sets, userId,
+}: {
+  deck: Deck;
+  sets: TreeSet[];
+  userId: string;
+}) {
+  const here = deckHref(deck.path);
+  const memberIds = sets
+    .filter((set) => deck.members.some((member) => member.slug === set.slug))
+    .map((set) => set.id);
+  const [progress, bySet] = await Promise.all([
+    progressOfSets(userId, memberIds),
+    progressBySet(userId),
+  ]);
 
-  const { set, defs, sources, extras } = source;
+  const { set, defs, sources, extras } = deck.source;
   const columns = defs.filter((def) => def.key !== set.identityKey);
-  const scope = [set.course, set.exam, set.unit, set.topic].filter(Boolean);
+  const node = deck.kind === 'scope' ? findNode(buildScopeTree(sets), deck.path) : null;
 
   // Sequences are shown in their own order and apart from the table: the order
   // *is* the content, and sorting them alphabetically among the others would
@@ -49,24 +53,72 @@ export default async function SetPage({ params }: { params: Promise<{ slug: stri
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <p className="text-xs text-[var(--muted)]">
-        <Link href="/sets" className="underline">Sets</Link>
-        {scope.length > 0 && ` · ${scope.join(' · ')}`}
+        <Link href="/sets" className="underline">Class sets</Link>
+        {deck.trail.map((step) => (
+          <span key={step.href}>
+            {' · '}
+            <Link href={step.href} className="underline">{step.label}</Link>
+          </span>
+        ))}
       </p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight">{set.name}</h1>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight">{deck.title}</h1>
 
       <p className="mt-2 text-sm">
-        <Link href={`/sets/${set.slug}/flashcards`} className="text-[var(--accent)] underline">
+        <Link href={studyHref(deck.path, 'flashcards')} className="text-[var(--accent)] underline">
           Flashcards
         </Link>
         {' · '}
-        <Link href={`/sets/${set.slug}/quiz`} className="text-[var(--accent)] underline">
+        <Link href={studyHref(deck.path, 'quiz')} className="text-[var(--accent)] underline">
           Quiz
         </Link>
         <span className="ml-2 text-xs text-[var(--muted)]">
+          {deck.kind === 'scope' && `${deck.members.length} set${deck.members.length === 1 ? '' : 's'}, `}
           {sources.length} row{sources.length === 1 ? '' : 's'}, {columns.length} column
           {columns.length === 1 ? '' : 's'}
+          {progress.scheduled > 0 && ` · ${progress.due} of ${progress.scheduled} cards due`}
         </span>
       </p>
+
+      {/* What the merge could not keep. Said here rather than left to be
+          noticed as a short session six weeks later. */}
+      {deck.notes.length > 0 && (
+        <ul className="mt-4 space-y-1 rounded border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+          {deck.notes.map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      )}
+
+      {node && node.children.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold tracking-tight">Inside this</h2>
+          <ul className="mt-2 divide-y divide-[var(--border)] rounded border border-[var(--border)]">
+            {node.children.map((child) => (
+              <NodeRow key={child.path.join('/')} node={child} progress={bySet} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {deck.kind === 'scope' && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold tracking-tight">
+            {deck.members.length} set{deck.members.length === 1 ? '' : 's'} in this deck
+          </h2>
+          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+            {deck.members.map((member) => (
+              <li key={member.slug}>
+                <Link href={deckHref([member.slug])} className="text-[var(--accent)] underline">
+                  {member.name}
+                </Link>
+                <span className="text-xs text-[var(--muted)]"> {member.items}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Studied together: a column these sets share draws its wrong answers from all of them,
+            which is the reason to sit a unit rather than a set.
+          </p>
+        </section>
+      )}
 
       {plain.length > 0 && (
         <div className="mt-6 overflow-x-auto rounded border border-[var(--border)]">

@@ -242,6 +242,9 @@ function labelFromDiff(targetType: string | null, diff: unknown): string | null 
   if (targetType === 'tag') return first('label', 'slug');
   if (targetType === 'user') return first('email');
   if (targetType === 'indication') return first('label', 'text', 'from');
+  // A set is never resolved live -- `nameTargets` has no query for one -- so
+  // every set row, import and delete alike, is named from here.
+  if (targetType === 'set') return first('name', 'slug');
   return null;
 }
 

@@ -1,24 +1,15 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { requireUser } from '@/lib/session';
 import { DEFAULT_CONFIG, normalizeConfig, type StudyConfig } from '@/lib/study/config';
 import { fieldKeysParam } from '@/lib/study/search-params';
-import { loadSetDeck, loadSetStudy, studiableFields } from '@/lib/sets/session';
+import { loadSetDeck, studiableFields } from '@/lib/sets/session';
+import { deckHref, type Deck } from '@/lib/sets/deck';
 import { SessionRunner } from '@/app/study/flashcards/session-runner';
-import { gradeSetCardAction } from './actions';
+import { gradeSetCardAction } from '../_actions/flashcards';
 
-export const dynamic = 'force-dynamic';
-
-type Search = {
+export type FlashcardSearch = {
   mode?: string; dir?: string; set?: string; block?: string; max?: string;
   fields?: string | string[];
 };
-
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const source = await loadSetStudy(slug);
-  return { title: source ? `${source.set.name} — flashcards` : 'Flashcards' };
-}
 
 /**
  * Flashcards for one imported set.
@@ -28,18 +19,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  * you picked it by opening it. What is left is the handful of settings that
  * still mean something.
  */
-export default async function SetFlashcardsPage({
-  params,
-  searchParams,
+export async function FlashcardsView({
+  deck,
+  search,
+  userId,
 }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<Search>;
+  deck: Deck;
+  search: FlashcardSearch;
+  userId: string;
 }) {
-  const session = await requireUser();
-  const [{ slug }, search] = await Promise.all([params, searchParams]);
-
-  const source = await loadSetStudy(slug);
-  if (!source) notFound();
+  const source = deck.source;
 
   const studiable = studiableFields(source);
   const fromQuery = fieldKeysParam(search.fields);
@@ -60,17 +49,23 @@ export default async function SetFlashcardsPage({
     scope: { ...DEFAULT_CONFIG.scope },
   });
 
-  const deck = await loadSetDeck(session.user.id, source, config);
+  const drawn = await loadSetDeck(userId, source, config);
   const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
-  const running = deck.cards.length > 0;
+  const running = drawn.cards.length > 0;
   const subject = source.set.identityLabel;
 
   return (
     <main className={`mx-auto max-w-2xl px-4 ${running ? 'py-5' : 'py-10'}`}>
       <p className="text-xs text-[var(--muted)]">
-        <Link href="/sets" className="underline">Sets</Link>
+        <Link href="/sets" className="underline">Class sets</Link>
+        {deck.trail.map((step) => (
+          <span key={step.href}>
+            {' · '}
+            <Link href={step.href} className="underline">{step.label}</Link>
+          </span>
+        ))}
         {' · '}
-        <Link href={`/sets/${source.set.slug}`} className="underline">{source.set.name}</Link>
+        <Link href={deckHref(deck.path)} className="underline">{deck.title}</Link>
       </p>
       <h1 className={`mt-1 font-semibold tracking-tight ${running ? 'text-base' : 'text-2xl'}`}>
         Flashcards
@@ -147,10 +142,10 @@ export default async function SetFlashcardsPage({
       </details>
 
       <SessionRunner
-        cards={deck.cards}
+        cards={drawn.cards}
         config={config}
-        inScope={deck.inScope}
-        available={deck.available}
+        inScope={drawn.inScope}
+        available={drawn.available}
         onGrade={gradeSetCardAction}
         emptyHint={
           studiable.length === 0

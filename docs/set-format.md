@@ -1,7 +1,14 @@
 # `enkephalin.set/1` — authoring guide
 
-This is the import format for Enkephalin's **imported sets** section: organised course material that
+This is the import format for Enkephalin's **Class sets** section: organised course material that
 the app turns into flashcards and multiple-choice questions.
+
+Sets **nest**. Each file declares where it sits in the course (`course` / `exam` / `unit` / `topic`),
+and the app builds a deck tree out of those four lines: every level is itself studiable, so you can
+sit *just hyperthyroidism*, or the whole of *Exam 3*, and an Exam 3 paper draws its wrong answers
+from every set under Exam 3. Getting those four lines right — and spelling them the **same way
+every time** — is what makes a file you write today join the set you imported last week. See
+*Where the set sits* below; it is the part most worth re-reading before you hand a file over.
 
 You are probably reading this because somebody handed you this file plus a set of lecture notes and
 asked for a set file. Everything you need is here. Output **one strict JSON file per topic** — no
@@ -91,8 +98,106 @@ Copy this and fill it. Delete the optional keys you do not need.
 | `fields` | **yes** | The columns |
 | `items` | **yes** | The rows |
 
-`course` / `exam` / `unit` / `topic` are how somebody studies a small slice — *just hyperthyroidism*,
-or *everything on Exam 3*. Fill in as many as the notes support.
+`course` / `exam` / `unit` / `topic` are the set's address in the deck tree. See the next section —
+they have to be spelled consistently, and they are the keys that let a later file land in the same
+deck as this one.
+
+## Where the set sits — `course` / `exam` / `unit` / `topic`
+
+These four lines put the set in the deck tree. Nothing else does: there is no nesting key, no parent
+id, no folder. Two files that spell their scope the same way are in the same deck, and two that do
+not, are not.
+
+### How a line becomes a deck
+
+Each value is **slugified** into one URL segment, by exactly this rule:
+
+> lower-case → strip accents → every run of anything that is not a letter or digit becomes a single
+> `-` → trim leading and trailing `-`
+
+So a set declaring
+
+```json
+"course": "PSCI 413",
+"exam":   "Exam 3",
+"unit":   "Unit 5: Thyroid",
+"topic":  "Hyperthyroidism",
+```
+
+is reachable at `/sets/psci-413/exam-3/unit-5-thyroid/hyperthyroidism`, and at every level above it.
+The **first spelling imported supplies the label** people see; the slug is what groups.
+
+### The spelling rule: same words, same digits
+
+Because the slug is what groups, **case and punctuation are forgiving and words and digits are
+not.** These all land in the same deck:
+
+| Written | Slug |
+|---|---|
+| `"Exam 3"` | `exam-3` |
+| `"exam 3"` | `exam-3` |
+| `"EXAM 3"` | `exam-3` |
+| `"Exam #3"` | `exam-3` |
+
+and every one of these makes a **separate, half-empty deck** that will quietly not pool with the
+others:
+
+| Written | Slug | Why it splits |
+|---|---|---|
+| `"Exam III"` | `exam-iii` | Roman numerals are different words |
+| `"Test 3"` | `test-3` | Different noun |
+| `"Exam 3 (Endocrine)"` | `exam-3-endocrine` | The extra word is part of the address |
+| `"Exam 3 — Endocrine"` | `exam-3-endocrine` | Same |
+| `"Exam3"` | `exam3` | No separator, so no `-` |
+| `"Exam 03"` | `exam-03` | `03` and `3` are different digits |
+
+**So: `"Exam 3"`. The word `Exam`, a space, the arabic numeral, nothing else.** Put the endocrine
+part in `unit`, where it belongs. The same discipline applies to `course` (`"PSCI 413"`, the
+registrar's code, not `"Pharm 2"` one week and `"Pharmacology II"` the next) and to `unit` (the
+course's own unit heading, copied — `"Unit 5: Thyroid"`).
+
+### Reproducing it next time
+
+You will be back here: a quiz finds a gap, the lecture gets a second set of slides, and you write
+another file for the same exam. Two ways, and the choice is only about whether it is the *same set*:
+
+**Adding rows to the set that already exists** — keep the **same `slug`**, and re-import. The
+importer merges by slug: rows it has never seen are inserted, rows it recognises are updated, and
+**study history survives** — schedules and quiz answers are keyed on the row, not on the file. Rows
+are recognised by the slug of their identity value under the same rule as above, so
+`"Levothyroxine"` is `levothyroxine` whatever else changes in the file. Renaming a row is therefore
+*not* an edit: `"Levothyroxine"` → `"Levothyroxine (T4)"` is a new row and the old one's history
+stays with the old row. Put other names in `aliases` instead.
+
+**Adding a new set beside it** — a new `slug`, the **same four scope lines, character for
+character**. It appears as another set under that unit, and the unit and exam decks above it now
+quiz over both files at once.
+
+Either way, the scope lines are re-read on every import, so **a wrong exam number is a fix, not a
+migration**: correct the line, re-import the same slug, and the set moves to the right deck with
+its progress intact. A deck's identity never enters a card's key, so nothing re-starts from zero.
+
+The fastest way to get the strings right is not to retype them: open `/sets`, read the labels off
+the tree (the URL segment is in the address bar), and **copy the four lines out of a sibling file
+you have already imported.**
+
+### Fill from the top down, no holes
+
+An empty level **collapses** — a set with a `course` and a `unit` but no `exam` hangs directly off
+its course, and that is deliberate: a branch called *(no exam)* is a thing nobody filed anything
+under. The consequence is that a skipped level is not addressable, so that set will never show up
+under any exam. Fill `course`, then `exam`, then `unit`, then `topic`, and stop where the notes stop.
+
+One set per `topic` is still the rule. If the notes for a topic are long, that is more **rows**, not
+a second file with the same scope and a different slug.
+
+### Keep `kinds` consistent within an exam
+
+The identity question is worded from the declared kind — *Which drug?*, *Which hormone?*. A deck
+whose sets disagree asks *Which one?* instead, which is correct but vaguer. Worth a thought when
+you pick `identity.kind` for a file that will sit beside others.
+
+---
 
 ### `identity`
 
@@ -206,23 +311,32 @@ list every one you use in the set's `kinds` array, or the import is refused.
 
 ## Wrong answers, and the three things you control
 
-You never write wrong answers. The app draws them, trying hardest first:
+You never write wrong answers. The app draws them from the **deck being studied** — one set, or
+every set under the exam or unit you opened — trying hardest first:
 
-1. Same column, same set, same `group`
-2. Same column, same set
-3. Same `answers` type, elsewhere in the same `unit` or `exam`
-4. Same `answers` type, anywhere imported
-5. Any answer in the set, at random — last resort
+1. Same column, same `group` value
+2. Same column, same scope — a set sharing this one's unit or exam ranks above an unrelated one
+3. Same column, anywhere in the deck
+4. Any answer in the deck, at random — last resort
+
+Note what step 1 and step 3 mean together: **columns pool across sets by their `key`.** Three sets
+under Exam 3 that all call a column `mechanism` give that exam's paper one pool of mechanisms over
+all their rows, which is the reason to sit the exam rather than the set. A column one file calls
+`mechanism` and another calls `moa` is two pools. **Reuse the key.**
 
 So three of your choices decide question quality:
 
 - **`group`** gets you step 1. Point it at the column that sorts rows into families — `subclass`,
   `class`, `mechanism_type`. Without it, the best near miss is unavailable.
-- **`answers`** gets you steps 3 and 4.
+- **The column `key`, spelled the same across sibling sets**, gets you the cross-set pool.
 - **`list` and `aliases`** stop a *true* answer being offered as a wrong one.
 
+`answers` is still required and still checked, and it is what a later version will use to pool two
+*differently named* columns of the same type. It does not draw anything today.
+
 A question with fewer than three usable distractors is not asked at all, so a set with four rows in
-a column makes flashcards and no multiple choice. That is fine and expected; the import report will
+a column makes flashcards and no multiple choice — though the unit above it may well have enough
+rows to ask what the set alone cannot. That is fine and expected; the import report will
 tell the user which columns are quizzable.
 
 ---
@@ -324,13 +438,18 @@ The whole file, with the row and column named. Nothing is half-imported.
 1. **Valid strict JSON** — no comments, no trailing commas.
 2. **Every `answers` value is from the table above.** Check each one.
 3. **Every `kind` used is in `kinds`.**
-4. **No fabricated content.** Every cell traceable to the notes. Omit rather than infer — this is
+4. **The scope lines match the set they belong beside, character for character** — `"Exam 3"`, not
+   `"Exam III"` or `"Exam 3 (Endocrine)"`. Copy them from a sibling file rather than retyping, and
+   say in your handover which deck this lands in: `/sets/<course>/<exam>/<unit>`.
+5. **Column keys match the sibling sets' keys** where they mean the same thing, so the exam's
+   questions pool.
+6. **No fabricated content.** Every cell traceable to the notes. Omit rather than infer — this is
    pharmacy study material and a plausible invention is worse than a gap.
-5. **No multi-fact cells.** Scan for `;` and ` and ` in values; each is probably two columns or a
+7. **No multi-fact cells.** Scan for `;` and ` and ` in values; each is probably two columns or a
    `list`. If the parts really do belong to one answer, break them with `<br>` — no value should
    be a long single line of semicolon-separated parts.
-6. **`group` is set** if the rows have any natural family.
-7. **Count rows per column.** Say in your handover which columns have four or more distinct values
+8. **`group` is set** if the rows have any natural family.
+9. **Count rows per column.** Say in your handover which columns have four or more distinct values
    (quizzable) and which do not (flashcard only).
 
 Report anything the notes were ambiguous about rather than resolving it silently.

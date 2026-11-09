@@ -14,6 +14,8 @@ import type { StudyConfig } from '../study/config.ts';
 import { sessionRules } from '../study/config.ts';
 import { buildCards, type StudyCardSpec, type StudySubject } from '../study/cards.ts';
 import { buildQuiz, capQuiz, type QuizDirection, type QuizQuestion } from '../study/quiz.ts';
+import { questionWeights } from '../study/quiz-session.ts';
+import { wasMissed } from '../study/priority.ts';
 import { loadSet, withIdentityValue, type SetStudySource } from './source.ts';
 
 export type SetDeck = {
@@ -28,6 +30,12 @@ export type SetPaper = {
   available: number;
   /** Rows held back from the paper because they are flashcard-only. */
   recallOnly: number;
+  /**
+   * How many drawn questions this user has missed before, or null when the
+   * draw was even. Same meaning as the drug quiz's, so the page can say it in
+   * the same words -- and never imply a count it did not measure.
+   */
+  missed: number | null;
 };
 
 /**
@@ -113,22 +121,32 @@ export async function loadSetPaper(
   source: SetStudySource,
   config: StudyConfig,
   direction: QuizDirection = 'random',
+  /**
+   * Whose history to weight the draw by, exactly as the drug quiz means it.
+   * `questionWeights` already coalesces `drug_id` and `item_id`, so a set's
+   * own answers are the history being read -- no second weighter.
+   */
+  weightFor: string | null = null,
 ): Promise<SetPaper> {
   const askable = source.sources.filter(
     (item) => source.extras.get(item.slug)?.recallOnly !== true,
   );
 
+  const weights = weightFor === null ? null : await questionWeights(weightFor);
   const all = buildQuiz(askable, source.defs, config, {
     direction,
     subject: subjectOf(source),
   });
-  const questions = capQuiz(all, config.maxCards, Math.random);
+  const questions = capQuiz(all, config.maxCards, Math.random, weights ?? undefined);
 
   return {
     id: crypto.randomUUID(),
     questions,
     available: all.length,
     recallOnly: source.sources.length - askable.length,
+    missed: weights === null
+      ? null
+      : questions.filter((question) => wasMissed(weights, question)).length,
   };
 }
 

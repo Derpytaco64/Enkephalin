@@ -18,7 +18,9 @@
  */
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/index.ts';
-import { auditLog, setFields, setItems, sets, type FieldValue } from '../../db/schema.ts';
+import {
+  auditLog, quizAnswers, setFields, setItems, sets, studyCards, type FieldValue,
+} from '../../db/schema.ts';
 import type { ParsedField, ParsedItem, ParsedSet } from './format.ts';
 
 export type ImportMode = 'merge' | 'replace';
@@ -412,12 +414,172 @@ export async function listSets() {
       unit: sets.unit,
       topic: sets.topic,
       importedAt: sets.importedAt,
-      items: sql<number>`(select count(*)::int from ${setItems} where ${setItems.setId} = ${sets.id})`,
+      // Table-qualified by hand, and it has to be. Drizzle renders a column
+      // embedded in a `sql` template as a **bare** identifier, so
+      // `${setItems.setId} = ${sets.id}` compiled to `"set_id" = "id"` -- and
+      // since `set_items` has an `id` of its own, that is a correlation to the
+      // wrong table that is always false. Every set read 0 rows, 0 columns.
+      items: sql<number>`(
+        select count(*)::int from set_items where set_items.set_id = sets.id
+      )`,
       fields: sql<number>`(
-        select count(*)::int from ${setFields}
-        where ${setFields.setId} = ${sets.id} and ${setFields.deletedAt} is null
+        select count(*)::int from set_fields
+        where set_fields.set_id = sets.id and set_fields.deleted_at is null
       )`,
     })
     .from(sets)
     .orderBy(sql`${sets.importedAt} desc`);
+}
+
+/* -------------------------------------------------------------- delete ---- */
+
+/** What deleting a set would take with it. */
+export type SetDeletePreview = {
+  /** Rows, including any a person edited after the import. */
+  items: number;
+  /** Live columns. A soft-deleted one is already gone from view. */
+  fields: number;
+  /** SRS schedules anyone holds on those rows. */
+  cards: number;
+  /** Answers in papers anyone has sat. */
+  answers: number;
+};
+
+export type SetDeleteReport = SetDeletePreview & { slug: string; name: string };
+
+export type SetDeleteResult =
+  | { ok: true; report: SetDeleteReport }
+  | { ok: false; message: string };
+
+/**
+ * What each set would cost to delete, keyed by set id.
+ *
+ * Counted for the whole list in two grouped queries rather than per row,
+ * because the admin page needs all of them at once and the drug section's
+ * one-drug preview has no equivalent shape.
+ *
+ * The two numbers that matter are `cards` and `answers`: rows and columns are
+ * the file, and the file is on disk somewhere. A schedule and a past answer are
+ * the only things in a set that **nobody can re-import** -- they are the record
+ * of somebody studying it.
+ */
+export async function setDeletePreviews(): Promise<Map<string, SetDeletePreview>> {
+  const [counts, cards, answers] = await Promise.all([
+    db
+      .select({
+        id: sets.id,
+        // Qualified by hand for the reason `listSets` states.
+        items: sql<number>`(
+          select count(*)::int from set_items where set_items.set_id = sets.id
+        )`,
+        fields: sql<number>`(
+          select count(*)::int from set_fields
+          where set_fields.set_id = sets.id and set_fields.deleted_at is null
+        )`,
+      })
+      .from(sets),
+    db
+      .select({ id: setItems.setId, n: sql<number>`count(${studyCards.id})::int` })
+      .from(setItems)
+      .innerJoin(studyCards, eq(studyCards.itemId, setItems.id))
+      .groupBy(setItems.setId),
+    db
+      .select({ id: setItems.setId, n: sql<number>`count(${quizAnswers.id})::int` })
+      .from(setItems)
+      .innerJoin(quizAnswers, eq(quizAnswers.itemId, setItems.id))
+      .groupBy(setItems.setId),
+  ]);
+
+  const cardsBySet = new Map(cards.map((row) => [row.id, row.n]));
+  const answersBySet = new Map(answers.map((row) => [row.id, row.n]));
+
+  return new Map(counts.map((row) => [row.id, {
+    items: row.items,
+    fields: row.fields,
+    cards: cardsBySet.get(row.id) ?? 0,
+    answers: answersBySet.get(row.id) ?? 0,
+  }]));
+}
+
+/**
+ * Deletes a set, its columns, its rows, and the study history on those rows.
+ *
+ * **One `delete` and four foreign keys do the work.** `set_fields` and
+ * `set_items` cascade from `sets`, and `study_cards.item_id` and
+ * `quiz_answers.item_id` cascade from `set_items` -- so the schedules and the
+ * answers go without being named here, which is the behaviour to want: a
+ * schedule pointing at a row that no longer exists is not recoverable state,
+ * it is a dangling reference the database would refuse anyway.
+ *
+ * A past *attempt* survives with its score. Only the per-question rows that
+ * pointed at this set's items go, so an old paper keeps saying 14 of 20 while
+ * the questions themselves thin out. That is the honest reading -- the person
+ * did sit it -- and the alternative, deleting attempts that touched the set,
+ * would take a mixed paper's drug questions with it.
+ *
+ * The counts are read **before** the delete and inside the same transaction,
+ * so the report says what actually went rather than what the page last drew.
+ */
+export async function deleteSet(slug: string, actorId: string): Promise<SetDeleteResult> {
+  const trimmed = slug.trim();
+  if (!trimmed) return { ok: false, message: 'Which set?' };
+
+  return db.transaction(async (tx) => {
+    const [found] = await tx
+      .select({ id: sets.id, slug: sets.slug, name: sets.name })
+      .from(sets)
+      .where(eq(sets.slug, trimmed));
+
+    if (!found) {
+      return { ok: false, message: `No set called "${trimmed}". Somebody may have deleted it already.` };
+    }
+
+    const [[items], [fields], [cards], [answers]] = await Promise.all([
+      tx.select({ n: sql<number>`count(*)::int` }).from(setItems).where(eq(setItems.setId, found.id)),
+      tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(setFields)
+        .where(and(eq(setFields.setId, found.id), isNull(setFields.deletedAt))),
+      tx
+        .select({ n: sql<number>`count(${studyCards.id})::int` })
+        .from(setItems)
+        .innerJoin(studyCards, eq(studyCards.itemId, setItems.id))
+        .where(eq(setItems.setId, found.id)),
+      tx
+        .select({ n: sql<number>`count(${quizAnswers.id})::int` })
+        .from(setItems)
+        .innerJoin(quizAnswers, eq(quizAnswers.itemId, setItems.id))
+        .where(eq(setItems.setId, found.id)),
+    ]);
+
+    const report: SetDeleteReport = {
+      slug: found.slug,
+      name: found.name,
+      items: items?.n ?? 0,
+      fields: fields?.n ?? 0,
+      cards: cards?.n ?? 0,
+      answers: answers?.n ?? 0,
+    };
+
+    await tx.delete(sets).where(eq(sets.id, found.id));
+
+    // The id goes with the row, so the diff carries everything the audit
+    // screen can still show about a set that no longer exists.
+    await tx.insert(auditLog).values({
+      actorId,
+      action: 'set.delete',
+      targetType: 'set',
+      targetId: found.id,
+      diff: {
+        slug: report.slug,
+        name: report.name,
+        items: report.items,
+        fields: report.fields,
+        cards: report.cards,
+        answers: report.answers,
+      },
+    });
+
+    return { ok: true, report };
+  });
 }

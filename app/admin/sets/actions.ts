@@ -3,7 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/session';
 import type { SetProblem } from '@/lib/sets/format';
-import { importSet, type ImportMode, type ImportReport } from '@/lib/sets/import';
+import {
+  deleteSet, importSet,
+  type ImportMode, type ImportReport, type SetDeleteReport,
+} from '@/lib/sets/import';
 import { parseBatch, type FailedEntry, type SetInput } from '@/lib/sets/batch';
 
 /** What happened to one file. The name is what the person will look for. */
@@ -13,6 +16,11 @@ export type FileResult =
   | { name: string; ok: false; problems: SetProblem[] }
   /** Never got as far as parsing, or the importer refused it. */
   | { name: string; ok: false; message: string };
+
+/** The outcome of a delete, for the banner above the list. */
+export type DeleteState =
+  | { ok: true; report: SetDeleteReport }
+  | { ok: false; message: string };
 
 export type ImportState =
   | { kind: 'results'; files: FileResult[] }
@@ -102,4 +110,31 @@ function asFileResult(entry: FailedEntry): FileResult {
   return 'problems' in entry
     ? { name: entry.name, ok: false, problems: entry.problems }
     : { name: entry.name, ok: false, message: entry.message };
+}
+
+/**
+ * Deleting an imported set.
+ *
+ * The confirmation is a checkbox in the form rather than the slug typed out,
+ * which is the choice the drug editor's danger zone already made and for the
+ * same reason: what stops a mistake is the preview beside it saying how many
+ * schedules and answers go, not the ceremony. The slug is still required to
+ * match a real set, so a stale page deletes nothing.
+ */
+export async function deleteSetAction(formData: FormData): Promise<DeleteState> {
+  const session = await requireAdmin();
+
+  const slug = String(formData.get('slug') ?? '').trim();
+  if (!slug) return { ok: false, message: 'Which set?' };
+  if (formData.get('confirm') !== 'yes') {
+    return { ok: false, message: 'Tick the box first — this cannot be undone.' };
+  }
+
+  const result = await deleteSet(slug, session.user.id);
+  if (!result.ok) return result;
+
+  revalidatePath('/admin/sets');
+  revalidatePath('/sets');
+  revalidatePath(`/sets/${slug}`);
+  return result;
 }

@@ -3,7 +3,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { auditLog, setFields, setItems, sets, users } from '@/db/schema';
 import { parseSet, SET_FORMAT, type ParsedSet } from '@/lib/sets/format';
-import { importSet, MIN_DISTINCT, reportColumns } from '@/lib/sets/import';
+import { importSet, listSets, MIN_DISTINCT, reportColumns } from '@/lib/sets/import';
 
 /**
  * Writing a set into the database, and re-writing it later.
@@ -389,5 +389,50 @@ describe('a second set', () => {
 
     const rows = await db.select().from(sets).where(eq(sets.slug, 'adrenal'));
     expect(await storedItems(rows[0].id)).toHaveLength(1);
+  });
+});
+
+describe('the list every screen reads', () => {
+  /**
+   * The counts in this list were **0 for every set** until 2026-11-09, and
+   * nothing failed -- the admin page and `/sets` both printed "0 rows, 0
+   * columns" beside sets that were fine.
+   *
+   * The cause is worth knowing, because the pattern is inviting: Drizzle
+   * renders a column embedded in a `sql` template as a bare identifier, so
+   * `where ${setItems.setId} = ${sets.id}` compiled to `where "set_id" = "id"`
+   * -- and `set_items` has an `id` column, so the subquery correlated to
+   * itself and was always false. A count that is wrong is not a count that
+   * throws, which is why this is a test and not a type.
+   */
+  it("counts each set's rows and live columns", async () => {
+    await importSet(file(), ME, 'merge');
+    await importSet(file({
+      slug: 'adrenal',
+      name: 'Adrenal',
+      fields: [{ key: 'mechanism', label: 'Mechanism', answers: 'mechanism' }],
+      items: [{ generic: 'Mitotane', mechanism: 'Destroys adrenal cortex' }],
+    }), ME, 'merge');
+
+    const listed = await listSets();
+    const bySlug = new Map(listed.map((row) => [row.slug, row]));
+
+    expect(bySlug.get('thyroid')).toMatchObject({ items: 4, fields: 2 });
+    expect(bySlug.get('adrenal')).toMatchObject({ items: 1, fields: 1 });
+  });
+
+  it('leaves a soft-deleted column out of the column count', async () => {
+    await importSet(file(), ME, 'merge');
+    const [row] = await db.select().from(sets).where(eq(sets.slug, 'thyroid'));
+
+    await db
+      .update(setFields)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(setFields.setId, row.id), eq(setFields.key, 'mechanism')));
+
+    const [listed] = await listSets();
+    expect(listed.fields).toBe(1);
+    // The rows are untouched: a retired column keeps its stored cells.
+    expect(listed.items).toBe(4);
   });
 });

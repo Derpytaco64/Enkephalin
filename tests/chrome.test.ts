@@ -317,9 +317,10 @@ describe('the pill, for everything that is not a button', () => {
       // are the page's whole purpose rather than chrome around it, which is
       // the same argument the drug browser already won.
       'app/sets/page.tsx': 'each set named, and the links that start it',
-      'app/sets/[slug]/page.tsx': 'the set named in the crumb, and the links that start it',
-      'app/sets/[slug]/quiz/page.tsx': 'the crumb back to the set, and the flashcard offer',
-      'app/admin/sets/page.tsx': 'each imported set named in the list',
+      'app/sets/_components/tree.tsx': 'each node and set named in the deck tree',
+      'app/sets/_components/deck-view.tsx': 'the deck named in the crumb, and the links that start it',
+      'app/sets/_components/quiz-view.tsx': 'the crumb back to the deck, and the flashcard offer',
+      'app/admin/sets/set-list.tsx': 'each imported set named in the list, and its two study links',
       'app/admin/sets/import-form.tsx': 'the set just imported, named, and the links that start it',
 
       // Not text at all, and not a button: the initials circle, where a

@@ -2266,8 +2266,10 @@ differently:
 
 **Out of v1, deliberately:** cloze deletion (the engine has no model for a hole in a sentence);
 images and audio; per-card SRS state in the file — progress belongs to this app and is matched by
-email, as the backup already does; nested sets. Anki `.apkg` is *not* a format this reads: it is a
-converter script writing `enkephalin.set/1`, which is the point of having a format at all.
+email, as the backup already does; ~~nested sets~~ — **done 2026-11-09, and without the format
+growing a nesting key at all: see *Nested decks* below.** Anki `.apkg` is *not* a format this
+reads: it is a converter script writing `enkephalin.set/1`, which is the point of having a format
+at all.
 
 **Where the mixing stops.** Sets mix freely with each other, which is what rungs 3 and 4 are for:
 that is one body of imported material with one declared vocabulary, and a mechanism is a mechanism
@@ -2281,6 +2283,109 @@ pools join on the identifier that already exists. Worth doing, worth doing secon
 What a quiz must never do, in any version, is draw a wrong answer from a *different* `answers` type
 -- a mechanism offered against an indication is not a near miss, it is a category error, and the
 near-miss rule is the one thing holding question quality up.
+
+### Nested decks (2026-11-09)
+
+Asked for as *nested views and quizzing, like the spaced repetition plugin in Obsidian*. There, a
+deck is a path of nested tags and **every node of it is reviewable**: the parent holds its
+children's cards. That is the shape, and the thing worth noticing is that this app already had the
+data for it. Every set declares `course / exam / unit / topic` — a four-level path in the course's
+own words — and nothing read it as a path. So **no migration, and no nesting key in the format**:
+the hierarchy was in the file from the first import.
+
+**Every node is a deck, and a set is a leaf.** `/sets/thyroid`, `/sets/pharm/exam-3`,
+`/sets/pharm/exam-3/endocrine/thyroid` and `/sets/pharm/exam-3/quiz` are all the same kind of
+address, resolved by one function, so the flashcard page never learns which it was handed. Two
+rules keep the tree and the url in agreement, both in `lib/sets/tree.ts`:
+
+- **An empty level collapses.** A set with a course and a unit but no exam hangs off its course.
+  A branch called *(no exam)* is a thing nobody filed anything under.
+- **A node is grouped by the segment it is addressed by.** `Exam 3` and `exam-3` are one node, not
+  two nodes sharing a url — the failure that would otherwise stay invisible until one of them went
+  missing from the other's session.
+
+**A set slug wins over a node for a single segment**, so every `/sets/<slug>` link written before
+the tree existed still means the set. And the *surface* is the last segment rather than a nested
+route, because Next refuses anything under a catch-all (*Catch-all must be the last part of the
+URL* — it builds and then 500s every request): the whole path is resolved as a deck first, and only
+if that fails is a trailing `flashcards` or `quiz` read as the surface. A unit somebody really
+called *quiz* therefore stays openable.
+
+**The merge is where the judgement is** (`lib/sets/scope.ts`), and the rule is *a node studies what
+its sets agree on, and says what it left out*:
+
+- Columns are unioned **by key**. Three decks that all call a column `mechanism` become one column
+  over all their rows, which is the entire reason to sit a unit instead of a set: verified live, a
+  Fludrocortisone question drew its wrong answers from the thyroid and renal decks.
+- A key two sets disagree about the **shape** of is dropped, not coerced — the same refusal the
+  importer makes when a file changes a column's type under it — and the page names it.
+- A column any set calls context is **shown but never asked** anywhere in the node.
+- Identity: the majority `identity.key` wins, every set's identity column is kept out of the
+  askable columns, and a node of mixed kinds asks *Which one?* rather than *Which hormone?* over a
+  deck half of which is drugs. `card_key` is built from fact keys only, so none of this forks a
+  schedule that already exists.
+- Item slugs are prefixed with their set (`thyroid/levothyroxine`): two decks may each hold a row
+  called levothyroxine, and `extras` is keyed by slug, so without it one row would wear the other's
+  `recall_only` flag.
+
+**Not done here, deliberately:** pooling two *differently named* columns that share an `answers`
+type (`mechanism` and `target`). That is rungs 3 and 4 above, and doing it as a side effect of this
+would mean remapping column keys — which is what `card_key` is built from, so every remapped card
+already reviewed would fork its schedule. Worth doing deliberately.
+
+The tree shows `rows · N due` per node, rolled up from `study_cards`, and a node with something due
+opens itself: the page you open to decide what to study should not begin by hiding the answer.
+*Not started* and *nothing due* are different words, because they are very different situations.
+
+**Called *Class sets* in the chrome**, not *Sets*: a nav item called *Sets* next to *Drugs*,
+*Flashcards* and *Quiz* said nothing about what was in it, and what is in it is one course's
+material. The url stays `/sets`.
+
+**The deck quiz is the drug quiz's page, down to the words.** It had drifted into a dialect of its
+own — *Paper settings*, *Most questions*, *Another paper* — and two screens that do the same job in
+different words are two things to learn. So it now carries the same compact running header (title,
+then `6 questions · per fact · mixed directions · Mechanism, Clinical use`), the same
+*Quiz settings* → *Change these and start a new quiz* disclosure with *the one running now is left
+behind* beside it, the same hinted labels, and the same *Questions* control that starts at the whole
+pool. It also gains **Priority**, which it could have had all along: `questionWeights` already
+coalesces `drug_id` and `item_id`, so a set's own answers were already the history — the deck paper
+just never asked for them. One weighter, two sections.
+
+### Deleting an imported set (2026-11-09)
+
+Asked for straight after the nesting: a set could be imported and re-imported but never removed, so
+a mistaken import was permanent. `/admin/sets` now folds a delete under each row.
+
+**One `delete` and four foreign keys do the work.** `set_fields` and `set_items` cascade from
+`sets`; `study_cards.item_id` and `quiz_answers.item_id` cascade from `set_items`. So the schedules
+and the answers go without being named, which is the behaviour to want — a schedule pointing at a
+row that no longer exists is not recoverable state.
+
+**A past attempt survives with its score.** Only the per-question rows pointing at this set's items
+go, so an old paper keeps saying *14 of 20* while the questions inside it thin out. That is the
+honest reading — the person did sit it — and deleting attempts that merely touched the set would
+take a mixed paper's drug questions with it. Verified live: 11 attempts before, 11 after, three
+answers and three schedules gone.
+
+**The confirmation is a checkbox and the counts beside it**, which is the choice
+`app/drugs/[slug]/edit/danger-zone.tsx` already made one section over: what stops a mistake is
+*3 study schedules and 3 quiz answers go with it*, not a typed-out slug. The counts come from the
+server (`setDeletePreviews`, two grouped queries for the whole list rather than one per row), and
+the delete recounts inside its own transaction so the report says what actually went rather than
+what the page last drew. The result banner lives **above** the list, not in the row: a successful
+delete revalidates the page, the row unmounts, and a message held inside it would vanish with the
+thing it was reporting on.
+
+**Found while building it: every set's row and column count was 0, on both this screen and
+`/sets`.** `listSets` counted with a correlated subquery written as
+`where ${setItems.setId} = ${sets.id}`, and **Drizzle renders a column embedded in a `sql` template
+as a bare identifier** — so it compiled to `where "set_id" = "id"`, and since `set_items` has an
+`id` of its own that is a correlation to the wrong table which is always false. A count that is
+wrong is not a count that throws, so nothing failed and the numbers were simply not true. Both
+subqueries are table-qualified by hand now, with the reason written beside them, and
+`tests/set-import.test.ts` pins the counts. The pattern is worth knowing before writing the next
+one: everywhere else in this codebase that does this aliases the inner table (`as other`) and
+qualifies through the alias, which is why only sets had the bug.
 
 ### The dosing review bench (2026-11-03)
 
