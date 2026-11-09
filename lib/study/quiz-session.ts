@@ -115,8 +115,10 @@ export async function recordAttempt(input: {
   config: StudyConfig;
   questions: QuizQuestion[];
   answers: SubmittedAnswer[];
+  /** Which sort of thing each question's id names. See `recordGrade`. */
+  subject?: 'drug' | 'item';
 }): Promise<{ attemptId: string; score: number; total: number }> {
-  const { userId, config, questions, answers } = input;
+  const { userId, config, questions, answers, subject = 'drug' } = input;
   const chosenById = new Map(answers.map((answer) => [answer.questionId, answer.chosenIndex]));
 
   const graded = questions.map((question) => {
@@ -140,7 +142,9 @@ export async function recordAttempt(input: {
   if (graded.length > 0) {
     await db.insert(quizAnswers).values(graded.map((row) => ({
       attemptId: attempt.id,
-      drugId: row.question.drugId,
+      ...(subject === 'item'
+        ? { itemId: row.question.drugId }
+        : { drugId: row.question.drugId }),
       questionKey: row.question.questionKey,
       fieldKey: row.question.fieldKey,
       prompt: { text: row.question.prompt, generic: row.question.generic, slug: row.question.slug },

@@ -2148,6 +2148,77 @@ blocks, the priority weighting and the quiz cap.
    still the right home for several *independent* values; `<br>` is only for parts of one answer
    that need to be read apart.
 
+### Sets you can actually study (2026-11-09)
+
+Asked for by the owner: *make them so i can study*. Build items 2, 3, 4 and 7 above are done, and
+the section is reachable and usable end to end — import a file, browse the table, flashcard it,
+quiz it, and have the schedule and the score kept.
+
+**The study tables learned a second kind of subject.** Migration 0011: `drug_id` nullable on
+`study_cards` and `quiz_answers`, `item_id` alongside, `check (num_nonnulls(...) = 1)` so *neither*
+stops being representable. The trap landed exactly where it was predicted — in Postgres nulls are
+distinct, so `(user_id, drug_id, card_key)` would stop constraining the set case the moment
+`drug_id` could be null, and every set card would look unique to the index. Coalesced over both
+columns against the zero uuid, the same fix migration 0010 needed, hand-written because Drizzle
+cannot express it. `tests/study-subject.test.ts` reads `pg_indexes` *and* pins the other side: a drug
+card and a set card sharing a card key must stay two cards.
+
+**The engine's last piece of drug knowledge is gone.** `IDENTITY_FIELD = 'generic'`, the literal
+`'brand'`, and two hard-coded "Which drug?" strings became a `StudySubject` the builders read.
+The default is the drug section, so the 71 existing engine tests pass untouched — and a set of
+hormones asks *Which hormone?* because the kind is declared in the file rather than assumed.
+
+**`lib/sets/source.ts` is an adapter, not a second engine**, which was the whole bet of the table
+decision and it paid. A set's columns become `FieldDef`s, its rows become `CardSource`s, the five
+drug-only fields stay empty (correct by construction: `askable` already refuses `controlled`
+without a schedule), and mapping the set's `group` column onto `drugClass` buys the near-miss rule,
+the scope filter and the colour coding in one line. The scope becomes tag slugs — `set:`, `course:`,
+`exam:`, `unit:`, `topic:` — because the scope filter already speaks tags, so *everything on Exam 3*
+needed no new kind of filter.
+
+**Only two writers know which sort of subject an id names**, and that is deliberate: the engine
+threads one string through untouched. `recordGrade` and `recordAttempt` take `subject: 'drug' |
+'item'`, and getting it wrong is not a silent bug but a failed insert, which is what the check
+constraint is for.
+
+**The screens.** `/admin/sets` imports — a file input *and* a textarea, because a file is what a
+model hands back and a paste is what you do at eleven at night. `/sets` lists them grouped by course
+and exam, since that is how somebody decides what to study. `/sets/[slug]` is the table itself, with
+sequences shown apart and in their own order because the order *is* the content. `/sets/[slug]/
+flashcards` and `/quiz` reuse the drug runners — the session runner took an `onGrade` prop and an
+`emptyHint`; the quiz runner already took its action as one.
+
+Their forms are deliberately **shorter** than the drug pages'. Most of those pages is scope — lists,
+categories, indications, program year — and a set *is* the scope: you picked it by opening it. Every
+column is ticked by default, because a set is small and you opened it to learn it.
+
+**`<br>` renders**, as build item 7 required. `lib/sets/render.ts` splits a cell on `<br>` or a real
+newline and emits plain strings; the tag is **recognised and discarded, never passed through**, since
+accepting one tag from an imported file is how a format grows an XSS hole. The split is
+presentational only, and the test that matters proves it through the real builder rather than through
+the private key function: two rows sharing a first line and differing after the break must stay two
+distinct answers, or one would be silently dropped from the other's options as "not wrong".
+
+**One convention was being broken and is now fixed.** The `lib/sets/*` modules imported `@/db` and
+extensionless siblings, which only Next can resolve — but `lib/data/backup.ts` and `db/schema.ts`
+deliberately use relative `.ts` imports so plain `node --experimental-strip-types` can load them for
+the scripts. The sets modules now follow it, which is what let the import be driven from a host
+script against the live database.
+
+Verified against the real database rather than only in tests: a real eleven-row thyroid set imported
+through the actual parser and importer (6 columns, 5 subclasses, 6 mechanisms, a five-step synthesis
+sequence), and all four pages fetched over HTTP as a signed-in user — the table renders, the aliases
+render, the sequence renders in order, and a `<br>` cell arrives as two lines with no literal tag
+anywhere in the output.
+
+**Still to build, and none of it blocks studying:** the `set_fields` editor (build item 1 — the
+table and the merge policy exist, the screen does not); rungs 3 and 4 of the distractor ladder, which
+is the cross-set mixing (build item 5); alias folding into the answer key (build item 6 — aliases are
+parsed, stored, refused when duplicated and shown on the table, but `answerKey` does not yet fold
+them, so a set with T4 and thyroxine as separate rows could still offer both); and **sets joining the
+backup**, which is a real gap of the same shape as the quiz history: a card or answer about an item
+is currently skipped by the export with a comment saying so, rather than written half-resolved.
+
 **The importer refuses rather than guesses**, which is the dosing parser's rule one level up —
 all-or-nothing is what makes a format safe to point at a file somebody else wrote. It refuses the
 whole file, naming the row and column, on: a cell in an `enum` column that is not one of its

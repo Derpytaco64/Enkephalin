@@ -96,6 +96,11 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
         title: 'Audit log',
         blurb: 'Every change anyone has made, and what it was before.',
       },
+      {
+        href: '/admin/sets',
+        title: 'Imported sets',
+        blurb: 'Study material that is not the top-drugs list: import a set, or see what is here.',
+      },
     ],
   },
 ];

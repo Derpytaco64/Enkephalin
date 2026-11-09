@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState,
+} from 'react';
 import type { StudyCardSpec } from '@/lib/study/cards';
 import { sessionRules, type StudyConfig } from '@/lib/study/config';
 import {
@@ -51,12 +53,28 @@ export function SessionRunner({
   config,
   inScope,
   available,
+  onGrade = gradeCardAction,
+  emptyHint,
 }: {
   cards: StudyCardSpec[];
   config: StudyConfig;
   inScope: number;
   /** What the scope offered after the due filter, before the session cap. */
   available: number;
+  /**
+   * Where a grade is written. Defaults to the drug action; an imported set
+   * passes its own, because the id on a card looks the same either way and
+   * only the server knows which column it belongs in.
+   */
+  onGrade?: (input: {
+    drugId: string;
+    cardKey: string;
+    fieldKeys: string[];
+    grade: Grade;
+    config: StudyConfig;
+  }) => Promise<void>;
+  /** What to say when the deck is empty, where the drug wording would be wrong. */
+  emptyHint?: ReactNode;
 }) {
   const byId = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const [session, setSession] = useState(() => createSession(cards.map((card) => card.id), config.blockSize));
@@ -74,7 +92,7 @@ export function SessionRunner({
 
       // Fire and forget: the queue should not stall on a round-trip, and a
       // failed write is a lost grade rather than a lost session.
-      void gradeCardAction({
+      void onGrade({
         drugId: card.drugId,
         cardKey: card.cardKey,
         fieldKeys: card.fieldKeys,
@@ -85,7 +103,7 @@ export function SessionRunner({
       setRevealed(false);
       setSession((current) => gradeSession(current, grade));
     },
-    [card, config],
+    [card, config, onGrade],
   );
 
   // Space flips, 1-4 grade: on a laptop the whole session should be keyboard.
@@ -118,7 +136,8 @@ export function SessionRunner({
         <p className="font-medium">Nothing to study.</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           {inScope === 0
-            ? 'No cards match this scope. Try picking more fields, or widening the class and tag filters.'
+            ? emptyHint
+              ?? 'No cards match this scope. Try picking more fields, or widening the class and tag filters.'
             : `All ${inScope} cards in scope are scheduled for later. Switch to cram to go through them anyway.`}
         </p>
       </div>

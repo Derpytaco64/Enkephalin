@@ -17,9 +17,9 @@
  * everything below is about reconciling two good states.
  */
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { db } from '@/db';
-import { auditLog, setFields, setItems, sets, type FieldValue } from '@/db/schema';
-import type { ParsedField, ParsedItem, ParsedSet } from './format';
+import { db } from '../../db/index.ts';
+import { auditLog, setFields, setItems, sets, type FieldValue } from '../../db/schema.ts';
+import type { ParsedField, ParsedItem, ParsedSet } from './format.ts';
 
 export type ImportMode = 'merge' | 'replace';
 

@@ -15,6 +15,9 @@ export async function SiteHeader() {
 
   const items: NavItem[] = [
     { href: '/drugs', label: 'Drugs' },
+    // Beside Drugs rather than under Flashcards: it is the other body of
+    // material, not another way to study the same one.
+    { href: '/sets', label: 'Sets' },
     { href: '/study/flashcards', label: 'Flashcards' },
     { href: '/study/quiz', label: 'Quiz' },
     { href: '/settings', label: 'Settings' },

@@ -27,10 +27,10 @@
  * are class-driven today.
  */
 import { and, asc, eq, isNull } from 'drizzle-orm';
-import { db } from '@/db';
-import { setFields, setItems, sets, type FieldValue } from '@/db/schema';
-import type { CardSource } from '@/lib/study/cards';
-import type { FieldDef } from '@/lib/fields/registry';
+import { db } from '../../db/index.ts';
+import { setFields, setItems, sets, type FieldValue } from '../../db/schema.ts';
+import type { CardSource } from '../study/cards.ts';
+import type { FieldDef } from '../fields/registry.ts';
 
 export type SetScope = {
   id: string;

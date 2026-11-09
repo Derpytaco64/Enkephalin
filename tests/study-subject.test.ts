@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { drugs, setItems, sets, studyCards, users } from '@/db/schema';
+import { drugs, quizAnswers, quizAttempts, setItems, sets, studyCards, users } from '@/db/schema';
+import { recordGrade } from '@/lib/study/session';
+import { recordAttempt } from '@/lib/study/quiz-session';
+import { normalizeConfig, type StudyConfig } from '@/lib/study/config';
 
 /**
  * The study tables learning a second kind of subject.
@@ -20,7 +23,17 @@ import { drugs, setItems, sets, studyCards, users } from '@/db/schema';
 
 const ME = 'me-id';
 
+/** A cram config: nothing here is testing the schedule. */
+const setConfig = (): StudyConfig => normalizeConfig({
+  sessionMode: 'cram',
+  fields: ['moa'],
+  mode: 'exclusive',
+  direction: 'drug_to_fields',
+});
+
 beforeEach(async () => {
+  await db.delete(quizAnswers);
+  await db.delete(quizAttempts);
   await db.delete(studyCards);
   await db.delete(sets);
   await db.delete(drugs);
@@ -169,5 +182,93 @@ describe('a set column is unique per set, not globally', () => {
     const [row] = await db.execute<{ n: number }>(sql`
       select count(*)::int as n from set_fields where key = 'definition'`);
     expect(row.n).toBe(2);
+  });
+});
+
+describe('writing progress about a set item', () => {
+  /**
+   * The two writers are the only places that have to know which sort of
+   * subject an id names -- the engine threads one string through untouched, and
+   * the set adapter puts an item id in it on purpose. Both are exercised here
+   * against the real constraint, because a wrong column is not a silent bug:
+   * it is a failed insert, which is exactly what the constraint is for.
+   */
+  it('records a grade against item_id, not drug_id', async () => {
+    const itemId = await anItem();
+
+    await recordGrade({
+      userId: ME,
+      card: { drugId: itemId, cardKey: 'moa', fieldKeys: ['moa'] },
+      config: setConfig(),
+      grade: 'good',
+      subject: 'item',
+    });
+
+    const [row] = await db.select().from(studyCards);
+    expect(row.itemId).toBe(itemId);
+    expect(row.drugId).toBeNull();
+    expect(row.reviewCount).toBe(1);
+  });
+
+  it('finds its own row again rather than inserting a second', async () => {
+    const itemId = await anItem();
+    const card = { drugId: itemId, cardKey: 'moa', fieldKeys: ['moa'] };
+
+    await recordGrade({ userId: ME, card, config: setConfig(), grade: 'good', subject: 'item' });
+    await recordGrade({ userId: ME, card, config: setConfig(), grade: 'good', subject: 'item' });
+
+    const rows = await db.select().from(studyCards);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].reviewCount).toBe(2);
+  });
+
+  it('records a quiz answer against item_id', async () => {
+    const itemId = await anItem();
+
+    const result = await recordAttempt({
+      userId: ME,
+      config: setConfig(),
+      subject: 'item',
+      questions: [{
+        id: 'q1',
+        drugId: itemId,
+        slug: 'methimazole',
+        generic: 'Methimazole',
+        questionKey: 'drug_to_fields:mechanism',
+        fieldKey: 'mechanism',
+        fieldLabel: 'Mechanism',
+        direction: 'drug_to_fields',
+        prompt: 'What is the mechanism of Methimazole?',
+        options: ['Inhibits TPO', 'Something else'],
+        correctIndex: 0,
+        acceptable: ['Inhibits TPO'],
+        fromSlug: [null, null],
+        fromGeneric: [null, null],
+        fromFact: [null, null],
+      } as never],
+      answers: [{ questionId: 'q1', chosenIndex: 0 }],
+    });
+
+    expect(result.score).toBe(1);
+    const [row] = await db.select().from(quizAnswers);
+    expect(row.itemId).toBe(itemId);
+    expect(row.drugId).toBeNull();
+    expect(row.wasCorrect).toBe(true);
+  });
+
+  /** And the drug path is untouched, which is the thing not to break. */
+  it('still records a drug grade against drug_id', async () => {
+    const drugId = await aDrug();
+
+    await recordGrade({
+      userId: ME,
+      card: { drugId, cardKey: 'moa', fieldKeys: ['moa'] },
+      config: setConfig(),
+      grade: 'good',
+    });
+
+    const [row] = await db.select().from(studyCards);
+    expect(row.drugId).toBe(drugId);
+    expect(row.itemId).toBeNull();
   });
 });

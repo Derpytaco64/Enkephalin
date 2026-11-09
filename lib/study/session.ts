@@ -67,20 +67,27 @@ export async function loadDeck(userId: string, config: StudyConfig): Promise<Ses
 /**
  * Writes one answer. In review the schedule moves; in cram it does not, and
  * only the fact that the card was seen is recorded.
+ *
+ * `subject` says which sort of thing `card.drugId` names. The study engine
+ * threads one id through untouched -- the set adapter puts an item id there on
+ * purpose -- but the *write* has to know, because `study_cards` keeps two
+ * columns and a check constraint rather than one column and a convention.
  */
 export async function recordGrade(input: {
   userId: string;
   card: Pick<StudyCardSpec, 'drugId' | 'cardKey' | 'fieldKeys'>;
   config: StudyConfig;
   grade: Grade;
+  subject?: 'drug' | 'item';
 }) {
-  const { userId, card, config, grade } = input;
+  const { userId, card, config, grade, subject = 'drug' } = input;
   const rules = sessionRules(config);
+  const column = subject === 'item' ? studyCards.itemId : studyCards.drugId;
 
   const [existing] = await db
     .select()
     .from(studyCards)
-    .where(and(eq(studyCards.userId, userId), eq(studyCards.drugId, card.drugId), eq(studyCards.cardKey, card.cardKey)));
+    .where(and(eq(studyCards.userId, userId), eq(column, card.drugId), eq(studyCards.cardKey, card.cardKey)));
 
   const current = existing ?? {
     ease: 2.5,
@@ -110,7 +117,7 @@ export async function recordGrade(input: {
 
   await db.insert(studyCards).values({
     userId,
-    drugId: card.drugId,
+    ...(subject === 'item' ? { itemId: card.drugId } : { drugId: card.drugId }),
     cardKey: card.cardKey,
     mode: config.mode,
     direction: config.direction,

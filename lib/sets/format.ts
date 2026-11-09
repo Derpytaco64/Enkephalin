@@ -18,7 +18,7 @@
  */
 import {
   defaultDataType, isAnswerType, reversibleByDefault, type AnswerType,
-} from './vocabulary';
+} from './vocabulary.ts';
 
 export const SET_FORMAT = 'enkephalin.set/1';
 
@@ -104,7 +104,7 @@ export function itemSlug(name: string): string {
   return name
     .toLowerCase()
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
@@ -393,7 +393,7 @@ export function parseSet(input: unknown): ParseResult {
       fail(`${at}.sequence`, `"${sequence}" needs an "order": which step this is.`);
     }
     if (sequence && order !== null) {
-      const positionKey = `${sequence} ${order}`;
+      const positionKey = `${sequence}\u0000${order}`;
       const taken = seenPositions.get(positionKey);
       if (taken !== undefined) {
         fail(`${at}.order`, `Row ${taken} is already position ${order} of "${sequence}".`);

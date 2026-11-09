@@ -312,6 +312,16 @@ describe('the pill, for everything that is not a button', () => {
       'app/admin/flagged/page.tsx': 'the drug named in each flagged value',
       'app/admin/pairing/page.tsx': 'the drug named above each brand grid',
 
+      // The set section, where the accent marks the thing itself: a set's own
+      // name in a list, and the two links that start studying it. The links
+      // are the page's whole purpose rather than chrome around it, which is
+      // the same argument the drug browser already won.
+      'app/sets/page.tsx': 'each set named, and the links that start it',
+      'app/sets/[slug]/page.tsx': 'the set named in the crumb, and the links that start it',
+      'app/sets/[slug]/quiz/page.tsx': 'the crumb back to the set, and the flashcard offer',
+      'app/admin/sets/page.tsx': 'each imported set named in the list',
+      'app/admin/sets/import-form.tsx': 'the set just imported, named, and the links that start it',
+
       // Not text at all, and not a button: the initials circle, where a
       // filled accent reads as an identity chip. Pinned again below.
       'app/_components/avatar.tsx': 'the identity chip in the top bar',
