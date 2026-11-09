@@ -70,6 +70,14 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
                     still in the file, so invite them and restore it again
                   </li>
                 )}
+                {state.report.quizAttemptsRestored > 0 && (
+                  <li>
+                    {state.report.quizAttemptsRestored} quizzes with{' '}
+                    {state.report.quizAnswersRestored} answers
+                    {state.report.quizAnswersOrphaned > 0
+                      && `, ${state.report.quizAnswersOrphaned} dropped for a drug that is not here`}
+                  </li>
+                )}
                 {(state.report.auditRestored > 0 || state.report.auditSkipped > 0) && (
                   <li>
                     {state.report.auditRestored} audit entries written

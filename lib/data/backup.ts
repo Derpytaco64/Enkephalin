@@ -12,14 +12,22 @@
  * made, the progress you earned and the record of who changed what -- so it is
  * a file you can hand around without handing over the ability to log in as you.
  *
- * **The audit log joins it as of version 2**, on the owner's call, 2026-11-08.
+ * **The audit log joins it as of version 2, and the quiz history as of version
+ * 3**, both on the owner's call, 2026-11-08.
  * It was the odd one out among the exclusions: not a credential, but the record
  * of who asserted what -- and once export/restore became the only recovery
  * path, the one thing in the database a server move would silently drop. It
  * keeps the no-UUID rule: an entry names its actor by email and its subject by
  * slug or label, and both are resolved again on the way back in.
+ *
+ * The quiz history was a plain gap rather than a decision. `study_cards` was
+ * carried and `quiz_attempts`/`quiz_answers` were not, so a restore brought
+ * back *what is due* while losing every score, result and streak -- which made
+ * "the progress you earned" half true. Attempts nest their answers, so neither
+ * needs an id written down.
  */
 import { asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 // Relative rather than '@/...' on purpose: scripts/export-backup.ts and
 // scripts/restore-backup.ts run this under `node --experimental-strip-types`,
 // which resolves no path aliases.
@@ -35,6 +43,8 @@ import {
   dosingRegimens,
   fieldDefs,
   indications,
+  quizAnswers,
+  quizAttempts,
   siteSettings,
   studyCards,
   studyPresets,
@@ -50,7 +60,7 @@ import type { Amount, Duration, Frequency, Modifier, RouteCode, Site } from '../
  * restore refuses a version it does not understand rather than guessing at
  * half-matching fields.
  */
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 export type BackupBrand = {
   name: string;
@@ -125,6 +135,45 @@ export type BackupFieldDef = {
   deletedAt: string | null;
 };
 
+/**
+ * One sat quiz, with its answers nested inside it.
+ *
+ * Nested rather than two flat lists because that is what lets the file keep its
+ * no-UUID rule: an answer belongs to its attempt by *position in the file*, so
+ * `attempt_id` never has to be written down. The attempt in turn belongs to the
+ * person it is nested under.
+ *
+ * None of the jsonb needs translating, which is worth saying because it was not
+ * obvious until it was checked: `question_key` is a kind and a field
+ * (`fields_to_drug:dosing`), `prompt` carries the drug's slug and generic,
+ * `choices` and `acceptable` are plain answer text, and `config` names its
+ * scope by tag slug. No database ids anywhere.
+ */
+export type BackupAttempt = {
+  config: Record<string, unknown>;
+  score: number;
+  total: number;
+  /** ISO 8601 with microseconds -- this is an ordered history. */
+  startedAt: string;
+  finishedAt: string | null;
+  answers: BackupAnswer[];
+};
+
+export type BackupAnswer = {
+  /** The drug asked about. An answer whose drug is gone cannot be restored. */
+  drugSlug: string;
+  questionKey: string;
+  fieldKey: string | null;
+  prompt: Record<string, unknown>;
+  choices: string[];
+  acceptable: string[];
+  /** Null where the question was never answered -- an abandoned attempt. */
+  chosenIndex: number | null;
+  correctIndex: number;
+  wasCorrect: boolean | null;
+  answeredAt: string | null;
+};
+
 export type BackupProgress = {
   /** Who it belongs to. Matched on restore; unknown people are reported. */
   email: string;
@@ -149,6 +198,8 @@ export type BackupProgress = {
     reviewCount: number;
     lastReviewedAt: string | null;
   }[];
+  /** Every quiz this person has sat, oldest first. */
+  attempts: BackupAttempt[];
 };
 
 /**
@@ -197,6 +248,31 @@ export type Backup = {
 
 const iso = (value: Date | null) => (value ? value.toISOString() : null);
 
+/**
+ * A timestamp that is part of an **ordered history**, read without going
+ * through `Date`.
+ *
+ * `timestamptz` keeps microseconds and `Date` keeps milliseconds, so a round
+ * trip through one truncates -- and a truncated history is one whose rows can
+ * swap places. This is the same mismatch that cost the audit UI 23 rows of its
+ * own pagination; here it would reorder a quiz.
+ *
+ * Deliberately *not* used for `study_cards`. A due date is day-scale, nothing
+ * is ordered by it to the microsecond, and `iso` above is the right shape for
+ * a value a person might read.
+ */
+const exact = (column: AnyPgColumn) =>
+  sql<string | null>`to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
+/**
+ * The same timestamp on the way back in.
+ *
+ * Raw SQL because Drizzle's `timestamp` mapper calls `.toISOString()` on
+ * whatever it is handed: a `Date` has already lost the precision and a string
+ * throws outright. Postgres parses its own format and keeps all six digits.
+ */
+const exactIn = (value: string | null) => (value ? sql`${value}::timestamptz` : null);
+
 function group<T extends { drugId: string }>(rows: T[]) {
   const map = new Map<string, T[]>();
   for (const row of rows) {
@@ -213,7 +289,7 @@ export async function exportBackup(): Promise<Backup> {
   const [
     drugRows, indicationRows, brandRows, linkRows, regimenRows,
     tagRows, drugTagRows, defRows, settingsRows,
-    userRows, prefRows, presetRows, cardRows,
+    userRows, prefRows, presetRows, cardRows, attemptRows, answerRows,
   ] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.slug)),
     db
@@ -242,7 +318,45 @@ export async function exportBackup(): Promise<Backup> {
     db.select().from(userPreferences),
     db.select().from(studyPresets).orderBy(asc(studyPresets.createdAt)),
     db.select().from(studyCards),
+    db
+      .select({
+        id: quizAttempts.id,
+        userId: quizAttempts.userId,
+        config: quizAttempts.config,
+        score: quizAttempts.score,
+        total: quizAttempts.total,
+        startedAt: exact(quizAttempts.startedAt),
+        finishedAt: exact(quizAttempts.finishedAt),
+      })
+      .from(quizAttempts)
+      .orderBy(asc(quizAttempts.startedAt), asc(quizAttempts.id)),
+    db
+      .select({
+        attemptId: quizAnswers.attemptId,
+        drugId: quizAnswers.drugId,
+        questionKey: quizAnswers.questionKey,
+        fieldKey: quizAnswers.fieldKey,
+        prompt: quizAnswers.prompt,
+        choices: quizAnswers.choices,
+        acceptable: quizAnswers.acceptable,
+        chosenIndex: quizAnswers.chosenIndex,
+        correctIndex: quizAnswers.correctIndex,
+        wasCorrect: quizAnswers.wasCorrect,
+        answeredAt: exact(quizAnswers.answeredAt),
+      })
+      .from(quizAnswers)
+      // Unanswered questions sort last rather than first: `answered_at` is null
+      // on an abandoned attempt, and they belong at the end of it.
+      .orderBy(asc(quizAnswers.attemptId), sql`${quizAnswers.answeredAt} asc nulls last`,
+        asc(quizAnswers.id)),
   ]);
+
+  const answersByAttempt = new Map<string, typeof answerRows>();
+  for (const answer of answerRows) {
+    const found = answersByAttempt.get(answer.attemptId);
+    if (found) found.push(answer);
+    else answersByAttempt.set(answer.attemptId, [answer]);
+  }
 
   const indicationsByDrug = group(indicationRows);
   const brandsByDrug = group(brandRows);
@@ -323,6 +437,34 @@ export async function exportBackup(): Promise<Backup> {
       presets: presetRows
         .filter((row) => row.userId === user.id)
         .map((row) => ({ name: row.name, config: row.config, createdAt: row.createdAt.toISOString() })),
+      attempts: attemptRows
+        .filter((row) => row.userId === user.id)
+        .map((attempt) => ({
+          config: attempt.config,
+          score: attempt.score,
+          total: attempt.total,
+          // notNull on the column, so `exact` cannot return null here.
+          startedAt: attempt.startedAt!,
+          finishedAt: attempt.finishedAt,
+          answers: (answersByAttempt.get(attempt.id) ?? []).flatMap((answer) => {
+            const drugSlug = slugById.get(answer.drugId);
+            // An answer whose drug has been deleted has nothing to point at.
+            // The attempt keeps its score, which is the number that mattered.
+            if (!drugSlug) return [];
+            return [{
+              drugSlug,
+              questionKey: answer.questionKey,
+              fieldKey: answer.fieldKey,
+              prompt: answer.prompt,
+              choices: answer.choices,
+              acceptable: answer.acceptable,
+              chosenIndex: answer.chosenIndex,
+              correctIndex: answer.correctIndex,
+              wasCorrect: answer.wasCorrect,
+              answeredAt: answer.answeredAt,
+            }];
+          }),
+        })),
       cards: cardRows
         .filter((row) => row.userId === user.id)
         .flatMap((row) => {
@@ -344,7 +486,8 @@ export async function exportBackup(): Promise<Backup> {
           }];
         }),
     };
-  }).filter((entry) => entry.cards.length > 0 || entry.presets.length > 0 || entry.preferences);
+  }).filter((entry) => entry.cards.length > 0 || entry.presets.length > 0
+    || entry.attempts.length > 0 || entry.preferences);
 
   const settings = settingsRows[0] ?? null;
   const audit = await exportAudit();
@@ -363,6 +506,8 @@ export async function exportBackup(): Promise<Backup> {
       fieldDefs: defRows.length,
       people: progress.length,
       studyCards: cardRows.length,
+      quizAttempts: attemptRows.length,
+      quizAnswers: answerRows.length,
       auditEntries: audit.length,
     },
     fieldDefs: defRows.map((def) => ({
@@ -420,10 +565,7 @@ export async function exportBackup(): Promise<Backup> {
 async function exportAudit(): Promise<BackupAuditEntry[]> {
   const rows = await db
     .select({
-      // Read as text, not as a Date. `timestamptz` keeps microseconds and
-      // `Date` keeps milliseconds, so going through one would truncate every
-      // timestamp in the history on its way out.
-      at: sql<string>`to_char(${auditLog.at} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      at: exact(auditLog.at),
       actorEmail: users.email,
       action: auditLog.action,
       targetType: auditLog.targetType,
@@ -483,7 +625,8 @@ async function exportAudit(): Promise<BackupAuditEntry[]> {
   };
 
   return rows.map((row) => ({
-    at: row.at,
+    // notNull on the column, so `exact` cannot actually return null here.
+    at: row.at!,
     actorEmail: row.actorEmail ?? null,
     action: row.action,
     targetType: row.targetType,
@@ -513,6 +656,14 @@ export type RestoreReport = {
   /** People in the file with no account here. Their progress is not invented. */
   progressSkipped: string[];
   settingsWritten: boolean;
+  /** Quiz attempts written, and the answers inside them. */
+  quizAttemptsRestored: number;
+  quizAnswersRestored: number;
+  /**
+   * Answers in the file whose drug does not exist here. Dropped, because an
+   * answer has nowhere to point without one -- the attempt keeps its score.
+   */
+  quizAnswersOrphaned: number;
   /** Audit entries written. */
   auditRestored: number;
   /** Entries already present, in `merge` only. */
@@ -587,6 +738,9 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     progressRestored: [],
     progressSkipped: [],
     settingsWritten: false,
+    quizAttemptsRestored: 0,
+    quizAnswersRestored: 0,
+    quizAnswersOrphaned: 0,
     auditRestored: 0,
     auditSkipped: 0,
     auditActorsUnmatched: [],
@@ -807,6 +961,8 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     });
     if (rows.length > 0) await db.insert(studyCards).values(rows);
 
+    await restoreAttempts(person, user.id, slugToId, report);
+
     report.progressRestored.push(person.email);
   }
 
@@ -874,7 +1030,7 @@ async function restoreAudit(
   if (mode === 'merge') {
     const existing = await db
       .select({
-        at: sql<string>`to_char(${auditLog.at} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+        at: exact(auditLog.at),
         actorEmail: users.email,
         action: auditLog.action,
         targetType: auditLog.targetType,
@@ -920,12 +1076,7 @@ async function restoreAudit(
       targetType: entry.targetType,
       targetId,
       diff: entry.diff,
-      // Raw SQL rather than the column's own mapper, which is the only way the
-      // microseconds survive: Drizzle's `timestamp` calls `.toISOString()` on
-      // whatever it is handed, so a `Date` would already have truncated them
-      // and a string throws outright. Postgres parses the text itself and keeps
-      // all six digits.
-      at: sql`${entry.at}::timestamptz`,
+      at: exactIn(entry.at)!,
     });
   }
 
@@ -938,4 +1089,83 @@ async function restoreAudit(
 
   report.auditRestored = rows.length;
   report.auditActorsUnmatched = [...unmatched].sort();
+}
+
+/**
+ * Writes one person's quiz history back.
+ *
+ * **Replaced wholesale, in both modes**, which is the same rule the rest of a
+ * person's progress follows and the drug's children before it: the file is the
+ * authority on what it describes. Merging attempt by attempt would need an
+ * identity an attempt does not have -- two quizzes of the same five cards, sat
+ * a minute apart, differ only in their timestamps -- and getting that wrong
+ * means either a duplicated history or a silently dropped one.
+ *
+ * The answers cascade with their attempt, so the delete is one statement.
+ *
+ * An answer whose drug no longer exists is dropped and counted, not invented:
+ * `quiz_answers.drug_id` is a real foreign key, so there is nothing to point it
+ * at. The attempt still keeps its `score` and `total`, which is the part a
+ * results screen shows and the part a streak counts.
+ */
+async function restoreAttempts(
+  person: BackupProgress,
+  userId: string,
+  slugToId: Map<string, string>,
+  report: RestoreReport,
+) {
+  // "Describes no attempts" and "does not describe attempts" are different
+  // files, and only the first one means *delete what is here*. Guarding the
+  // delete is what keeps a hand-trimmed file from wiping a history it never
+  // claimed to know about.
+  if (!Array.isArray(person.attempts)) return;
+
+  await db.delete(quizAttempts).where(eq(quizAttempts.userId, userId));
+
+  for (const attempt of person.attempts) {
+    if (!attempt.startedAt) continue;
+
+    const [row] = await db
+      .insert(quizAttempts)
+      .values({
+        userId,
+        config: attempt.config ?? {},
+        score: attempt.score ?? 0,
+        total: attempt.total ?? 0,
+        startedAt: exactIn(attempt.startedAt)!,
+        finishedAt: exactIn(attempt.finishedAt),
+      })
+      .returning({ id: quizAttempts.id });
+
+    report.quizAttemptsRestored += 1;
+
+    const answers = (attempt.answers ?? []).flatMap((answer) => {
+      const drugId = slugToId.get(answer.drugSlug);
+      if (!drugId) {
+        report.quizAnswersOrphaned += 1;
+        return [];
+      }
+      return [{
+        attemptId: row.id,
+        drugId,
+        questionKey: answer.questionKey,
+        fieldKey: answer.fieldKey,
+        prompt: answer.prompt ?? {},
+        choices: answer.choices ?? [],
+        acceptable: answer.acceptable ?? [],
+        chosenIndex: answer.chosenIndex,
+        correctIndex: answer.correctIndex ?? 0,
+        wasCorrect: answer.wasCorrect,
+        answeredAt: exactIn(answer.answeredAt),
+      }];
+    });
+
+    // Chunked for the same reason the audit log is: a year of study is a lot of
+    // answers, and one insert that size is a parameter count Postgres refuses.
+    const CHUNK = 500;
+    for (let at = 0; at < answers.length; at += CHUNK) {
+      await db.insert(quizAnswers).values(answers.slice(at, at + CHUNK));
+    }
+    report.quizAnswersRestored += answers.length;
+  }
 }

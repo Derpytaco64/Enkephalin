@@ -1568,12 +1568,44 @@ microsecond apart keeping their order, a slug resolving to a *different* uuid in
 lands in, replace clearing, merge skipping and merge still adding, the unmatched actor, the deleted
 subject, and a v1 file refused rather than half-read.
 
-**Still not in the backup, and this one is a gap rather than a decision:** `quiz_attempts` and
-`quiz_answers`. `study_cards` — the spaced-repetition schedule — is carried, so a restore brings back
-*what is due*, but every score, result and streak is lost. The header's promise of "the progress you
-earned" is only half true. Raised with the owner 2026-11-08; not implemented, because whether a dump
-should carry every answer anyone ever gave is a volume and privacy call rather than a bug to fix
-quietly.
+**And the quiz history followed it the same day, as version 3.** `quiz_attempts` and `quiz_answers`
+were the other omission, and unlike the audit log that one was a plain gap rather than a decision:
+`study_cards` was carried, so a restore brought back *what is due* while losing every score, result
+and streak, which made "the progress you earned" half true. Raised, and the owner said put it in.
+
+**Answers nest inside their attempt, which is what keeps the no-UUID rule.** An answer belongs to
+its attempt by *position in the file*, so `attempt_id` is never written down; the attempt belongs to
+the person it is nested under. Nothing in the jsonb needed translating, which was worth checking
+rather than assuming: `question_key` is a kind and a field (`fields_to_drug:dosing`), `prompt`
+carries the drug's slug and generic, `choices` and `acceptable` are plain answer text, and `config`
+names its scope by tag slug. Verified on the real export — 10 attempts, 128 answers, **zero UUIDs in
+the progress section**, every score intact.
+
+Three decisions worth keeping:
+
+- **Replaced wholesale per person, in both modes**, which is the rule the rest of a person's
+  progress and the drug's children already follow. Merging attempt by attempt would need an identity
+  an attempt does not have — two quizzes of the same five cards, sat a minute apart, differ only in
+  their timestamps — and getting that wrong means either a doubled history or a silently dropped one.
+- **But "describes no attempts" and "does not describe attempts" are different files**, and only the
+  first means *delete what is here*. The delete is skipped when the key is absent, so a hand-trimmed
+  file cannot wipe a history it never claimed to know about.
+- **An answer whose drug is gone is dropped and counted; the attempt keeps its score.**
+  `quiz_answers.drug_id` is a real foreign key, so there is nothing to point it at — and `score` and
+  `total` are what a results screen shows and what a streak counts. Rarer than it looks: a restore
+  re-creates every drug the file describes, so this only bites a file somebody edited.
+
+The microsecond rule got a name while this landed — `exact()` and `exactIn()`, one place saying why
+an ordered history never goes through a `Date`, now used by both the audit log and the quiz history.
+Deliberately *not* used for `study_cards`: a due date is day-scale, nothing is ordered by it to the
+microsecond, and millisecond ISO is the right shape for a value a person might read.
+
+`tests/backup-quiz-history.test.ts` (14). The version number is pinned in exactly one file, because
+two tests asserting it means every bump fails twice and says nothing extra.
+
+**So the backup now covers 19 of the 23 tables.** What is left out is left out on purpose and is all
+credential: password hashes, sessions, invite codes and redemptions, verification tokens — plus
+`lookup_cache`, which is a cache and rebuilds itself.
 
 ### The log that nobody could read (2026-11-08)
 

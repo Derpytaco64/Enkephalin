@@ -222,8 +222,10 @@ describe('restoring it', () => {
 });
 
 describe('the version', () => {
-  it('is bumped, because the shape changed', () => {
-    expect(BACKUP_VERSION).toBe(2);
+  // The number itself is pinned once, in tests/backup-quiz-history.test.ts --
+  // two files asserting it means every bump fails twice and says nothing extra.
+  it('is past the version that had no audit log', () => {
+    expect(BACKUP_VERSION).toBeGreaterThan(1);
   });
 
   it('refuses the older shape rather than half-reading it', async () => {
