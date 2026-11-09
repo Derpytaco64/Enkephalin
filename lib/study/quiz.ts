@@ -22,7 +22,7 @@ import type { FieldValue } from '@/db/schema';
 import { indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
-import { answerText, inScope, type CardSource } from './cards';
+import { answerText, DRUG_SUBJECT, inScope, type CardSource, type StudySubject } from './cards';
 import type { StudyConfig, StudyDirection } from './config';
 import { weightOf, type QuestionWeights } from './priority';
 
@@ -77,7 +77,10 @@ export type QuizQuestion = {
 };
 
 /** The drug's own name is the stimulus or the answer, never a thing asked about. */
-const IDENTITY_FIELD = 'generic';
+// The drug section's subject, which is the default. See `StudySubject` in
+// cards.ts: the engine reads what sort of thing it is teaching rather than
+// assuming, so a set of hormones asks "Which hormone?".
+const DEFAULT_SUBJECT = DRUG_SUBJECT;
 
 /** The line break inside a bundled option, spelled so no tool can eat it. */
 const NEWLINE = String.fromCharCode(10);
@@ -210,6 +213,8 @@ export type QuizOptions = {
   optionCount?: number;
   /** Defaults to the config's own direction. */
   direction?: QuizDirection;
+  /** What sort of thing is being asked about. Defaults to drugs. */
+  subject?: StudySubject;
 };
 
 /**
@@ -282,12 +287,13 @@ export function buildQuiz(
   const rng = options.rng ?? Math.random;
   const optionCount = options.optionCount ?? 4;
   const direction = options.direction ?? config.direction;
+  const subject = options.subject ?? DEFAULT_SUBJECT;
 
   const byKey = new Map(defs.map((def) => [def.key, def]));
   const selected = config.fields
     .map((key) => byKey.get(key))
     .filter((def): def is FieldDef => Boolean(def) && def!.isQuizzable)
-    .filter((def) => def.key !== IDENTITY_FIELD);
+    .filter((def) => def.key !== subject.identityKey);
 
   if (selected.length === 0) return [];
 
@@ -306,7 +312,7 @@ export function buildQuiz(
         : direction === 'fields_to_drug';
 
       const built = asksForTheDrug
-        ? nameQuestion(about, candidate, candidates, optionCount, rng)
+        ? nameQuestion(about, candidate, candidates, optionCount, rng, subject)
         : factQuestion(about, candidate, candidates, optionCount, rng);
       if (built) questions.push(built);
     }
@@ -525,6 +531,7 @@ function nameQuestion(
   candidates: Candidate[],
   optionCount: number,
   rng: () => number,
+  subject: StudySubject,
 ): QuizQuestion | null {
   const asked = candidate.source;
   const at = Math.floor(rng() * candidate.atoms.length);
@@ -564,7 +571,9 @@ function nameQuestion(
     rng,
   );
 
-  const asking = def.key === 'brand' ? 'Which generic is this a brand of?' : 'Which drug?';
+  const asking = subject.pairKey && subject.pairAsking && def.key === subject.pairKey
+    ? subject.pairAsking
+    : subject.askingWhich;
 
   // Two branches of a split dosing are two different questions with the same
   // answer, so they are keyed apart -- otherwise history files them as one and

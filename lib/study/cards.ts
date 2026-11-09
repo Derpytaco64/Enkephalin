@@ -108,27 +108,69 @@ export function inScope(source: CardSource, config: StudyConfig) {
 }
 
 /**
- * The drug's own name is never one of the things asked about. Going
- * drug -> facts it is the stimulus, so a card made of it alone asks "Which
- * drug is this?" with nothing to go on; going facts -> drug it is the answer,
- * so putting it among the clues gives the game away.
+ * What sort of thing is being studied.
+ *
+ * This is the one place the engine genuinely knew it was about drugs, and an
+ * imported set of hormones or receptors needs it not to. Everything below reads
+ * the subject rather than a constant, and the default *is* the drug section, so
+ * nothing about the top-drugs list changes.
+ *
+ * A subject's own name is never one of the things asked about. Going
+ * subject -> facts it is the stimulus, so a card made of it alone asks "Which
+ * drug is this?" with nothing to go on; going facts -> subject it is the
+ * answer, so putting it among the clues gives the game away.
  */
-const IDENTITY_FIELD = 'generic';
+export type StudySubject = {
+  /** The field key holding the subject's own name. */
+  identityKey: string;
+  /** The label on a face showing that name. */
+  identityLabel: string;
+  /** How the identity question is asked: *Which drug?*, *Which hormone?* */
+  askingWhich: string;
+  /**
+   * A field that *pairs* with the identity, where naming the pair is sharper
+   * than the general question: shown Xanax, what is wanted is the generic name
+   * and not "which drug" in some looser sense. Drugs have one; a set does not,
+   * and leaving it unset simply uses the general question.
+   */
+  pairKey?: string;
+  /** The pair question, in a quiz. */
+  pairAsking?: string;
+  /** The pair question on a flashcard, where there is less room. */
+  pairAskingShort?: string;
+};
+
+export const DRUG_SUBJECT: StudySubject = {
+  identityKey: 'generic',
+  identityLabel: 'Drug',
+  askingWhich: 'Which drug?',
+  pairKey: 'brand',
+  pairAsking: 'Which generic is this a brand of?',
+  pairAskingShort: 'Generic name?',
+};
 
 /**
  * A prompt has to say what it wants. Without this a card reads as a bare drug
  * name and you are left guessing whether it means the dose, the mechanism or
  * the warning.
  */
-function promptFor(config: StudyConfig, generic: string, faces: CardFace[], defs: FieldDef[]) {
+function promptFor(
+  config: StudyConfig,
+  generic: string,
+  faces: CardFace[],
+  defs: FieldDef[],
+  subject: StudySubject,
+) {
   if (config.direction === 'fields_to_drug') {
     const clues = faces.map((face) => `${face.label}: ${face.text}`).join('\n');
 
-    // Brand and generic are a pair, and naming the pair is sharper than the
-    // general question: shown Xanax, what is wanted is the generic name, not
-    // "which drug" in some looser sense. The reverse card -- generic shown,
-    // brands wanted -- comes from the brand field's own template.
-    const asking = faces.length === 1 && faces[0].key === 'brand' ? 'Generic name?' : 'Which drug?';
+    // The pair question where the subject has one: shown Xanax, what is
+    // wanted is the generic name. The reverse card -- generic shown, brands
+    // wanted -- comes from the brand field's own template.
+    const asking = subject.pairKey && subject.pairAskingShort
+      && faces.length === 1 && faces[0].key === subject.pairKey
+      ? subject.pairAskingShort
+      : subject.askingWhich;
     return `${asking}\n\n${clues}`;
   }
 
@@ -144,12 +186,13 @@ export function buildCards(
   sources: CardSource[],
   defs: FieldDef[],
   config: StudyConfig,
+  subject: StudySubject = DRUG_SUBJECT,
 ): StudyCardSpec[] {
   const byKey = new Map(defs.map((def) => [def.key, def]));
   const selected = config.fields
     .map((key) => byKey.get(key))
     .filter((def): def is FieldDef => Boolean(def) && def!.isQuizzable)
-    .filter((def) => def.key !== IDENTITY_FIELD);
+    .filter((def) => def.key !== subject.identityKey);
 
   if (selected.length === 0) return [];
 
@@ -181,8 +224,10 @@ export function buildCards(
           generic: source.generic,
           cardKey: key,
           fieldKeys,
-          prompt: promptFor(config, source.generic, [face], defs),
-          faces: config.direction === 'fields_to_drug' ? [{ key: 'generic', label: 'Drug', text: source.generic }] : [face],
+          prompt: promptFor(config, source.generic, [face], defs, subject),
+          faces: config.direction === 'fields_to_drug'
+            ? [{ key: subject.identityKey, label: subject.identityLabel, text: source.generic }]
+            : [face],
         });
       }
       continue;
@@ -197,10 +242,10 @@ export function buildCards(
       generic: source.generic,
       cardKey: key,
       fieldKeys,
-      prompt: promptFor(config, source.generic, answered, defs),
+      prompt: promptFor(config, source.generic, answered, defs, subject),
       faces:
         config.direction === 'fields_to_drug'
-          ? [{ key: 'generic', label: 'Drug', text: source.generic }]
+          ? [{ key: subject.identityKey, label: subject.identityLabel, text: source.generic }]
           : answered,
     });
   }

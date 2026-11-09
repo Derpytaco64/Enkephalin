@@ -2061,9 +2061,14 @@ Three rules bound the ladder, and they are what keep the random rung from being 
   mechanism offered there does not make the question harder, it makes it free.
 - **An identity question is bounded by `kind`.** *Which of these is methimazole?* draws only from
   rows of kind `drug`, at every rung including the last.
-- **Below three distractors it refuses to ask** rather than padding, exactly as the drug engine does
-  today: a short quiz beats a silently bad question. And a value the subject itself holds is never
-  offered, which the `acceptable` machinery already guarantees.
+- **It asks short rather than padding**, exactly as the drug engine does today — and the engine's
+  actual threshold, checked 2026-11-09 rather than assumed: it refuses when there is **no**
+  distractor at all, not when there are fewer than three. `quiz.ts` says why in a comment at the
+  refusal — *"A lone option is not a question. Two is, barely, and a scope that small is the user's
+  own doing — better a short quiz than a drug silently skipped."* An earlier draft of this section
+  said "below three distractors", which was wrong about the code it was describing; sets inherit the
+  real rule and `tests/set-study.test.ts` pins both ends of it. A value the subject itself holds is
+  never offered, which the `acceptable` machinery already guarantees.
 
 **No relations block, and that is a decision rather than an omission.** Much of this material is
 signed relations between entities -- *GHRH stimulates GH*, *ketoconazole inhibits P450c17*, *T3/T4
