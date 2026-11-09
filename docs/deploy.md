@@ -6,11 +6,11 @@ the entrypoint runs. There is nothing to add — this document is the order to d
 things in, and the handful of values that must change when the address stops
 being `localhost`.
 
-**On a ZimaOS or CasaOS box, read `deploy/zimaos/` instead of this file.** The
-difference is not cosmetic: those install apps by *pulling an image*, so the
-`build: .` in the repo's compose file cannot work there and the image has to be
-built elsewhere first. `deploy/zimaos/docker-compose.yml` is the version to
-paste in.
+**On a ZimaOS or CasaOS box, read `deploy/zimaos/` instead of this file.** Most
+of what follows still applies, but the ports and the data directory want
+different values, and their App Store importer only *pulls* images -- so a
+compose file that builds cannot go in that dialog, even though the box's own
+Docker builds fine from a terminal.
 
 ## What you are deploying
 

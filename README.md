@@ -99,8 +99,10 @@ rebuild.** `docker compose up -d --build`, every time.
 - **[`docs/deploy.md`](docs/deploy.md)** — an ordinary Linux server: getting the
   code there, the `.env` values that change once the address is not `localhost`,
   Caddy or nginx in front, moving your data over, backups.
-- **[`deploy/zimaos/`](deploy/zimaos/)** — ZimaOS or CasaOS. A different compose
-  file, because those install apps by *pulling an image* and cannot build one.
+- **[`deploy/zimaos/`](deploy/zimaos/)** — ZimaOS or CasaOS. Either clone and
+  build on the box with a small port override, or, if it has not the RAM for
+  `next build`, ship it a prebuilt image and use the compose file there — the
+  App Store importer only *pulls* images, so it cannot build one for you.
 
 The thing that catches everyone, in both: **`BETTER_AUTH_URL` must be exactly
 the address you type in the browser**, scheme and port included. Otherwise the

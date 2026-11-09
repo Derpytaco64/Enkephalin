@@ -6,9 +6,12 @@
 #
 # How this differs from the repo's own docker-compose.yml, and why:
 #
-#   1. `image:` instead of `build: .`  -- ZimaOS has no source tree and cannot
-#      run `docker build`. The image must already exist, either pulled from a
-#      registry or side-loaded with `docker load`.
+#   1. `image:` instead of `build: .`  -- the App Store importer only *pulls*
+#      images, so a compose file that builds is no good in that dialog and the
+#      image must already exist, either pulled from a registry or side-loaded
+#      with `docker load`. The Zima's own Docker can build perfectly well from
+#      a terminal; if you would rather do that, use the repo's compose file and
+#      Route A in this directory's README instead of this file.
 #   2. Literal values instead of `${VAR}` -- the YAML is pasted into a text
 #      box, not run next to a .env file, so there is nothing to interpolate
 #      from. Every value marked CHANGE-ME is yours to fill in.

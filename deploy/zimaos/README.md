@@ -1,17 +1,95 @@
 # Running it on ZimaOS
 
-Short answer: **yes, and the compose file next to this one is the one to
-paste** — but not the repo's own `docker-compose.yml`, and the reason is worth
-understanding before you start.
+There are two ways in, and the difference is *where the image gets built*.
+Everything else — migrations on boot, the seeding, the healthchecks — carries
+over from the repo's own compose file unchanged.
 
-ZimaOS (and CasaOS, which it grew out of) installs apps from a compose file,
-and it does that by **pulling images**. It has no copy of this source tree and
-no way to run `docker build`, so the repo's compose file — which says
-`build: .` — cannot work there. The image has to exist before ZimaOS sees the
-YAML. That is the whole difference; everything else carries over, migrations on
-boot included.
+**[Route A: clone it on the Zima and build there](#route-a-clone-and-build-on-the-zima)**
+is the simpler one, and the one to start with. The repo's own
+`docker-compose.yml` works as-is, plus a small override for the ports. It needs
+~2 GB of free RAM for `next build` and about five minutes.
 
-So it is three steps: build the image, get it onto the Zima, paste the YAML.
+**[Route B: build the image elsewhere and ship it](#route-b-build-elsewhere-and-ship-the-image)**
+uses `deploy/zimaos/docker-compose.yml` instead, and is the answer when the box
+cannot build — too little RAM, or no outbound network for `npm ci`.
+
+One correction to something an earlier draft of this file said, because it sent
+people down Route B needlessly: **the App Store importer cannot build, but the
+Zima can.** CasaOS-derived app installers only *pull* images, so a compose file
+saying `build: .` is no good in that dialog — but the Docker daemon underneath
+is an ordinary one, and `docker compose up --build` in a terminal builds like
+anywhere else. The constraint is RAM, not the platform.
+
+## Route A: clone and build on the Zima
+
+### A1. Get the source there
+
+```bash
+mkdir -p /DATA/AppData && cd /DATA/AppData
+git clone -b indication-scope https://github.com/Derpytaco64/Enkephalin.git enkephalin
+cd enkephalin
+```
+
+No `git` on the box? The repo is public, so curl and tar are enough:
+
+```bash
+mkdir -p /DATA/AppData && cd /DATA/AppData
+curl -fL https://github.com/Derpytaco64/Enkephalin/archive/refs/heads/indication-scope.tar.gz | tar xz
+mv Enkephalin-indication-scope enkephalin && cd enkephalin
+```
+
+The tarball route gives up `git pull` for updates — re-download instead.
+
+### A2. Write `.env`
+
+The repo's compose interpolates every value from `.env`, which is gitignored
+and so is never in the clone. `.env.example` lists them; the five that must
+actually change are the Postgres password (in **both** places), a fresh
+`BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` — which must be *exactly* the
+address you will type in the browser, port included, or the session cookie is
+issued for an origin you are not on and signing in silently fails.
+
+Note `DATABASE_URL` uses the host `db` (the compose service name) while
+`DATABASE_URL_HOST` uses `127.0.0.1` — the first is for the app inside the
+network, the second for operator scripts on the host. Keep both.
+
+### A3. Override the ports
+
+The repo's compose binds both published ports to `127.0.0.1`, because it was
+written for a server with a reverse proxy in front. On a NAS you want the app
+reachable from your laptop, so republish it on every interface. An override
+file rather than an edit, so `git pull` never fights you:
+
+```yaml
+# /DATA/AppData/enkephalin/docker-compose.override.yml
+services:
+  web:
+    ports: !override ["3000:3000"]
+```
+
+`!override` replaces the list rather than appending to it — without it you get
+both bindings, and the loopback one is harmless but confusing. Postgres keeps
+its loopback-only binding, which is correct: nothing off-box should reach it.
+
+### A4. Build and start
+
+```bash
+docker compose up -d --build
+docker compose logs -f web
+```
+
+Expect `running migrations...`, then `migrations applied`, then Next's ready
+line, then `[bootstrap] seeded admin`. Then jump to
+[First boot](#4-first-boot-both-routes) below — the rest of this file applies to both
+routes.
+
+Updating later is `git pull && docker compose up -d --build`. **The `--build`
+is not optional**: the container runs a built image, so without it your pull
+changed nothing that is running.
+
+## Route B: build elsewhere and ship the image
+
+Three steps: build the image, get it onto the Zima, paste the YAML.
 
 ## 0. Check the architecture
 
@@ -115,7 +193,7 @@ Two notes on the file, both deliberate:
   HTTP across your network, with session cookies not marked secure. Fine on a
   home LAN you trust; see "TLS, if you want it" below if this ever leaves it.
 
-## 4. First boot
+## 4. First boot (both routes)
 
 ZimaOS shows container logs from the app tile, or over SSH:
 
@@ -133,7 +211,7 @@ curl -s http://<zima-ip>:3000/api/health   # {"ok":true,"db":"up"}
 That endpoint does a real `select 1`, so a 200 means the app and the database
 are genuinely talking, not merely running.
 
-## 5. Get your drugs in
+## 5. Get your drugs in (both routes)
 
 The database is empty at this point — field definitions and your admin account,
 no drugs. **Move the one you already have**, rather than reseeding: you have
@@ -172,7 +250,7 @@ here — it matches progress to accounts **by email** and will not create a
 login out of a file, and it does not model imported sets yet. It is for merging
 content, not for moving a database.
 
-## 6. Backing it up
+## 6. Backing it up (both routes)
 
 Everything lives in `/DATA/AppData/enkephalin/db`, which is why the compose file
 uses a bind mount there instead of a named volume: ZimaOS's own file manager and
