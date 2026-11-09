@@ -447,6 +447,9 @@ export async function exportBackup(): Promise<Backup> {
           startedAt: attempt.startedAt!,
           finishedAt: attempt.finishedAt,
           answers: (answersByAttempt.get(attempt.id) ?? []).flatMap((answer) => {
+            // An answer about an imported set's item rather than a drug. Sets
+            // are not in this file yet -- see the sets plan.
+            if (!answer.drugId) return [];
             const drugSlug = slugById.get(answer.drugId);
             // An answer whose drug has been deleted has nothing to point at.
             // The attempt keeps its score, which is the number that mattered.
@@ -468,6 +471,10 @@ export async function exportBackup(): Promise<Backup> {
       cards: cardRows
         .filter((row) => row.userId === user.id)
         .flatMap((row) => {
+          // A card about an imported set's item rather than a drug. Sets are
+          // not in this file yet -- see the sets plan -- so their progress is
+          // skipped rather than written half-resolved.
+          if (!row.drugId) return [];
           const drugSlug = slugById.get(row.drugId);
           // A schedule whose drug is gone has nothing to attach to.
           if (!drugSlug) return [];

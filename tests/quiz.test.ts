@@ -637,7 +637,7 @@ describe('capQuiz', () => {
   it('draws a question you missed before one you have never seen', () => {
     const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
     const weights = weightsFromHistory([
-      { drugId: 'id-metformin', fieldKey: 'moa', wasCorrect: false },
+      { subjectId: 'id-metformin', fieldKey: 'moa', wasCorrect: false },
     ]);
 
     // A constant rng leaves weight as the only thing deciding the order, so
@@ -648,7 +648,7 @@ describe('capQuiz', () => {
   it('orders the whole pool even with no cap, so half a quiz is the right half', () => {
     const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
     const weights = weightsFromHistory([
-      { drugId: 'id-lisinopril', fieldKey: 'moa', wasCorrect: false },
+      { subjectId: 'id-lisinopril', fieldKey: 'moa', wasCorrect: false },
     ]);
 
     const ordered = capQuiz(questions, 0, first, weights);
@@ -662,7 +662,7 @@ describe('capQuiz', () => {
     // one miss, which is four times heavier than anything else in the pool.
     const weights = weightsFromHistory(questions.flatMap((question) =>
       Array.from({ length: question.slug === 'metformin' ? 1 : 3 }, () => ({
-        drugId: question.drugId,
+        subjectId: question.drugId,
         fieldKey: 'moa',
         wasCorrect: question.slug !== 'metformin',
       }))));

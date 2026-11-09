@@ -5,8 +5,8 @@ import {
 } from '@/lib/study/priority';
 
 /** Newest first, as the history query returns it. */
-const answered = (drugId: string, fieldKey: string, wasCorrect: boolean): AnsweredRow =>
-  ({ drugId, fieldKey, wasCorrect });
+const answered = (subjectId: string, fieldKey: string, wasCorrect: boolean): AnsweredRow =>
+  ({ subjectId, fieldKey, wasCorrect });
 
 const question = (drugId: string, fieldKey: string) => ({ drugId, fieldKey });
 
@@ -104,7 +104,7 @@ describe('weightsFromHistory', () => {
   });
 
   it('treats a question with no field as its own bucket rather than crashing', () => {
-    const weights = weightsFromHistory([{ drugId: 'drug-1', fieldKey: null, wasCorrect: false }]);
+    const weights = weightsFromHistory([{ subjectId: 'drug-1', fieldKey: null, wasCorrect: false }]);
     expect(weightOf(weights, { drugId: 'drug-1', fieldKey: null })).toBe(MISSED);
   });
 

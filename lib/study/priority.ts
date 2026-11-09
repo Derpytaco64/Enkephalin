@@ -26,8 +26,8 @@ export type QuestionWeights = Map<string, number>;
  * mechanism would visibly half-work. Per-drug mode separates itself anyway,
  * since its field key is the joined selection (`moa+dosing`).
  */
-export function weightKey(drugId: string, fieldKey: string | null): string {
-  return `${drugId}:${fieldKey ?? 'unknown'}`;
+export function weightKey(subjectId: string, fieldKey: string | null): string {
+  return `${subjectId}:${fieldKey ?? 'unknown'}`;
 }
 
 /**
@@ -51,9 +51,15 @@ export const MISSED = 4;
 export const NEVER_ASKED = 2;
 export const FLOOR = 0.5;
 
-/** One answer, as the history query returns it: newest first. */
+/**
+ * One answer, as the history query returns it: newest first.
+ *
+ * `subjectId` rather than `drugId`: a subject is a drug or an imported set's
+ * item, and nothing about weighting cares which. This file is pure arithmetic
+ * over a history and is the right place for the distinction to already be gone.
+ */
 export type AnsweredRow = {
-  drugId: string;
+  subjectId: string;
   fieldKey: string | null;
   wasCorrect: boolean | null;
 };
@@ -77,7 +83,7 @@ export function weightsFromHistory(rows: AnsweredRow[]): QuestionWeights {
   const streaks = new Map<string, { correct: number; closed: boolean }>();
 
   for (const row of rows) {
-    const key = weightKey(row.drugId, row.fieldKey);
+    const key = weightKey(row.subjectId, row.fieldKey);
     const right = row.wasCorrect === true;
     const entry = streaks.get(key);
 
@@ -98,7 +104,15 @@ export function weightsFromHistory(rows: AnsweredRow[]): QuestionWeights {
   return weights;
 }
 
-/** The weight a question carries, which for one never asked is `NEVER_ASKED`. */
+/**
+ * The weight a question carries, which for one never asked is `NEVER_ASKED`.
+ *
+ * Still `drugId`-shaped, unlike `AnsweredRow` above, and the asymmetry is
+ * deliberate: a history row comes out of a query that already coalesced its
+ * subject, while a `Question` is whatever the builder made and the builder
+ * still speaks of drugs. Both become one word when the section-neutral
+ * identity lands.
+ */
 export function weightOf(
   weights: QuestionWeights,
   question: { drugId: string; fieldKey: string | null },

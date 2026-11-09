@@ -6,7 +6,7 @@
  * one that wrote a row per question would leave half-attempts everywhere; so
  * the attempt is written once, at the end, from what the runner collected.
  */
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { quizAnswers, quizAttempts } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
@@ -82,7 +82,9 @@ const HISTORY_LIMIT = 20_000;
 export async function questionWeights(userId: string): Promise<QuestionWeights> {
   const rows = await db
     .select({
-      drugId: quizAnswers.drugId,
+      // One subject per answer, drug or set item, and weighting does not care
+      // which -- so it is coalesced here rather than branched on downstream.
+      subjectId: sql<string>`coalesce(${quizAnswers.drugId}, ${quizAnswers.itemId})`,
       fieldKey: quizAnswers.fieldKey,
       wasCorrect: quizAnswers.wasCorrect,
     })

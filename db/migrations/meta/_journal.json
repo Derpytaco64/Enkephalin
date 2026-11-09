@@ -78,6 +78,13 @@
       "when": 1793641153604,
       "tag": "0010_a_dose_can_belong_to_one_indication",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794202651363,
+      "tag": "0011_a_second_kind_of_subject",
+      "breakpoints": true
     }
   ]
 }

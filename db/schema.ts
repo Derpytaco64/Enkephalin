@@ -464,7 +464,18 @@ export const studyPresets = pgTable('study_presets', {
 export const studyCards = pgTable('study_cards', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  drugId: uuid('drug_id').notNull().references(() => drugs.id, { onDelete: 'cascade' }),
+
+  /**
+   * Exactly one of these two is set -- a card is about a drug or about a set
+   * item, never both and never neither. Enforced by a check constraint in
+   * migration 0011, which also carries the unique index: in Postgres nulls are
+   * distinct, so `(user_id, drug_id, card_key)` would stop constraining
+   * anything the moment `drug_id` could be null. The index is over
+   * `coalesce(..., zero-uuid)` for the same reason migration 0010's was.
+   */
+  drugId: uuid('drug_id').references(() => drugs.id, { onDelete: 'cascade' }),
+  itemId: uuid('item_id').references(() => setItems.id, { onDelete: 'cascade' }),
+
   cardKey: text('card_key').notNull(),
   mode: studyMode('mode').notNull(),
   direction: studyDirection('direction').notNull(),
@@ -477,8 +488,11 @@ export const studyCards = pgTable('study_cards', {
   reviewCount: integer('review_count').notNull().default(0),
   lastReviewedAt: timestamp('last_reviewed_at', { withTimezone: true }),
 }, (t) => [
-  uniqueIndex('study_cards_unique').on(t.userId, t.drugId, t.cardKey),
+  // `study_cards_unique` is deliberately absent here and written out in
+  // migration 0011: it coalesces two nullable columns, which Drizzle cannot
+  // express. `tests/study-subject.test.ts` reads `pg_indexes` to pin it.
   index('study_cards_due_idx').on(t.userId, t.dueAt),
+  index('study_cards_item_idx').on(t.itemId),
 ]);
 
 export const quizAttempts = pgTable('quiz_attempts', {
@@ -494,7 +508,11 @@ export const quizAttempts = pgTable('quiz_attempts', {
 export const quizAnswers = pgTable('quiz_answers', {
   id: uuid('id').primaryKey().defaultRandom(),
   attemptId: uuid('attempt_id').notNull().references(() => quizAttempts.id, { onDelete: 'cascade' }),
-  drugId: uuid('drug_id').notNull().references(() => drugs.id, { onDelete: 'cascade' }),
+
+  /** One subject per answer, drug or set item. See the note on `study_cards`. */
+  drugId: uuid('drug_id').references(() => drugs.id, { onDelete: 'cascade' }),
+  itemId: uuid('item_id').references(() => setItems.id, { onDelete: 'cascade' }),
+
   questionKey: text('question_key').notNull(),
   fieldKey: text('field_key'),
   prompt: jsonb('prompt').$type<Record<string, unknown>>().notNull(),
@@ -510,7 +528,166 @@ export const quizAnswers = pgTable('quiz_answers', {
   correctIndex: integer('correct_index').notNull(),
   wasCorrect: boolean('was_correct'),
   answeredAt: timestamp('answered_at', { withTimezone: true }),
-}, (t) => [index('quiz_answers_attempt_idx').on(t.attemptId)]);
+
+  /**
+   * Which rung of the distractor ladder the options came from.
+   *
+   * Rung 5 is the random fallback, and recording it is what makes *how many
+   * questions needed it* a number the import report and the results screen can
+   * show rather than something nobody finds out.
+   */
+  distractorRung: integer('distractor_rung'),
+}, (t) => [
+  index('quiz_answers_attempt_idx').on(t.attemptId),
+  index('quiz_answers_item_idx').on(t.itemId),
+]);
+
+/* --------------------------------------------------------------- sets ---- */
+
+/**
+ * An imported set: a small table of study material that is not the top-drugs
+ * list.
+ *
+ * **A set is a table, not a list of cards**, and that is the decision the whole
+ * second section follows from. The quiz is not built from cards, it is built
+ * from an axis shared across many subjects -- every wrong option is another
+ * row's answer to the *same column*. A `front,back` import would leave nothing
+ * to draw distractors from but unrelated backs, which makes questions
+ * answerable by shape alone.
+ *
+ * The scope columns are the course's own words -- `course`, `exam`, `unit`,
+ * `topic` -- because that is how somebody says what they want to study: this
+ * topic tonight, everything on Exam 3 by Friday. `unit` rather than a generic
+ * level because deck 14 calls itself *Unit 5: Thyroid* and that is the string a
+ * person will look for.
+ */
+export const sets = pgTable('sets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+
+  course: text('course'),
+  exam: text('exam'),
+  unit: text('unit'),
+  topic: text('topic'),
+
+  /** Where it came from, as every value in this database carries. */
+  sourceFile: text('source_file'),
+  sourcePages: text('source_pages'),
+
+  /**
+   * The column holding each row's name -- `generic`, `hormone`, `receptor`.
+   * The drug section's `IDENTITY_FIELD`, made a property of the subject rather
+   * than a constant.
+   */
+  identityKey: text('identity_key').notNull(),
+  identityLabel: text('identity_label').notNull(),
+  /** Default `kind` for rows that do not state one. */
+  identityKind: text('identity_kind').notNull(),
+
+  /**
+   * Names a column that is the near-miss axis -- *Thioamide* against *Iodide*.
+   * Maps onto `drugClass` in the study adapter, which is one line for the
+   * near-miss rule, the scope filter and the colour coding all three.
+   */
+  groupKey: text('group_key'),
+
+  /** The subject kinds this set may use, declared per set rather than fixed. */
+  kinds: text('kinds').array().$type<string[]>().notNull().default([]),
+
+  importedAt: timestamp('imported_at', { withTimezone: true }).notNull().defaultNow(),
+  importedBy: text('imported_by').references(() => users.id, { onDelete: 'set null' }),
+  /** Set the first time a person edits the set, like `updatedBy` one table over. */
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+  updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
+}, (t) => [
+  index('sets_scope_idx').on(t.course, t.exam, t.unit),
+]);
+
+/**
+ * A set's columns. Deliberately not `field_defs`.
+ *
+ * `field_defs.key` is globally unique, which is exactly wrong when two sets
+ * both want a column called `definition` -- and that table carries sheet
+ * baggage a set has no use for (`yearLevels`, `isCore`, the lookup mapping).
+ * So: set-scoped, unique on `(set_id, key)`.
+ *
+ * **`answersType` is the distractor pool key, and is deliberately not the
+ * column name.** Three of the nine source decks call one thing *Mechanism*,
+ * *Principle mechanism* and *Target*. Headings are local; the pool they draw
+ * from has to be shared, or a thyroid question can never borrow a wrong answer
+ * from the steroid deck and have it still be a mechanism.
+ */
+export const setFields = pgTable('set_fields', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  setId: uuid('set_id').notNull().references(() => sets.id, { onDelete: 'cascade' }),
+  key: text('key').notNull(),
+  label: text('label').notNull(),
+  dataType: fieldDataType('data_type').notNull().default('text'),
+  /** From the closed vocabulary in `lib/sets/vocabulary.ts`. Null when `asks` is false. */
+  answersType: text('answers_type'),
+  enumOptions: text('enum_options').array().$type<string[]>(),
+  /** Question wording, `{{name}}` standing in for the subject. */
+  prompt: text('prompt'),
+  /** False for a column that is context rather than an answer -- a `notes` column. */
+  asks: boolean('asks').notNull().default(true),
+  /** Whether the column can be the *clue* instead of the answer. */
+  reversible: boolean('reversible').notNull().default(false),
+  /** Unit of measure for a numeric column. Not `unit`, which the scope took. */
+  measuredIn: text('measured_in'),
+  ordinal: boolean('ordinal').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  /** Soft-deleted, like `field_defs`: a retired column keeps its stored values. */
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (t) => [
+  uniqueIndex('set_fields_unique').on(t.setId, t.key),
+]);
+
+/**
+ * A row of a set: one subject, with its columns in `values`.
+ *
+ * Same shape as `drugs.fields` -- a jsonb map of key to `FieldValue`, each
+ * value carrying its own source and status -- so the field formatter, the
+ * flagging and the provenance all work unchanged.
+ */
+export const setItems = pgTable('set_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  setId: uuid('set_id').notNull().references(() => sets.id, { onDelete: 'cascade' }),
+  /** The identity value: what the row is called. */
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  /** Overrides the set's `identityKind` for this row. */
+  kind: text('kind').notNull(),
+
+  /**
+   * Other names for the same thing. Folded into the answer key, because
+   * offering T4 and thyroxine as two options is a question with two right
+   * answers.
+   */
+  aliases: text('aliases').array().$type<string[]>().notNull().default([]),
+
+  /**
+   * A sequence member. **Both or neither**: one set holds more than one
+   * sequence -- T4 synthesis and the GPCR cascade are both `Step / Detail`
+   * tables -- and a bare position would silently interleave them.
+   */
+  sequence: text('sequence'),
+  sequenceOrder: integer('sequence_order'),
+
+  /** Flashcard only, never multiple choice: a fact that will not decompose. */
+  recallOnly: boolean('recall_only').notNull().default(false),
+
+  values: jsonb('values').$type<Record<string, FieldValue>>().notNull().default({}),
+  sortOrder: integer('sort_order').notNull().default(0),
+
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+  updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
+}, (t) => [
+  uniqueIndex('set_items_unique').on(t.setId, t.slug),
+  // A sequence's members are drawn as each other's distractors, so the lookup
+  // is by sequence rather than by set.
+  index('set_items_sequence_idx').on(t.setId, t.sequence, t.sequenceOrder),
+]);
 
 /* ------------------------------------------------------------- admin ----- */
 
