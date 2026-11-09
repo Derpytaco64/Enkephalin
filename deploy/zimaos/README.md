@@ -1,167 +1,61 @@
 # Running it on ZimaOS
 
-There are two ways in, and the difference is *where the image gets built*.
-Everything else — migrations on boot, the seeding, the healthchecks — carries
-over from the repo's own compose file unchanged.
-
-**[Route A: clone it on the Zima and build there](#route-a-clone-and-build-on-the-zima)**
-is the simpler one, and the one to start with. The repo's own
-`docker-compose.yml` works as-is, plus a small override for the ports. It needs
-~2 GB of free RAM for `next build` and about five minutes.
-
-**[Route B: build the image elsewhere and ship it](#route-b-build-elsewhere-and-ship-the-image)**
-uses `deploy/zimaos/docker-compose.yml` instead, and is the answer when the box
-cannot build — too little RAM, or no outbound network for `npm ci`.
-
-One correction to something an earlier draft of this file said, because it sent
-people down Route B needlessly: **the App Store importer cannot build, but the
-Zima can.** CasaOS-derived app installers only *pull* images, so a compose file
-saying `build: .` is no good in that dialog — but the Docker daemon underneath
-is an ordinary one, and `docker compose up --build` in a terminal builds like
-anywhere else. The constraint is RAM, not the platform.
-
-## Route A: clone and build on the Zima
-
-### A1. Get the source there
+The Ishi-Reader pattern works here — clone into `/DATA/AppData`, build on the
+box, push to Docker Hub, install from the App Store:
 
 ```bash
-mkdir -p /DATA/AppData && cd /DATA/AppData
-git clone -b indication-scope https://github.com/Derpytaco64/Enkephalin.git enkephalin
-cd enkephalin
+cd /DATA/AppData/Ishi-Reader
+git pull
+docker build -t dt64/ishi-read:latest .
+docker push dt64/ishi-read:latest
 ```
 
-No `git` on the box? The repo is public, so curl and tar are enough:
+**One difference, and it is the only one that matters: this app is two
+containers, not one.** It needs a Postgres beside it, and the two find each
+other over the compose network — so the thing you paste into Custom Install is
+a two-service compose file rather than a single image, and it carries the
+database password and the auth secret as environment variables. That file is
+`docker-compose.yml` next to this one.
+
+Everything else is the same shape. Migrations run from the container's
+entrypoint on every boot, so there is no separate "set up the database" step,
+and `lib/bootstrap.ts` seeds the field definitions and one admin on the first
+start.
+
+## 1. Build and push, on the Zima
 
 ```bash
-mkdir -p /DATA/AppData && cd /DATA/AppData
-curl -fL https://github.com/Derpytaco64/Enkephalin/archive/refs/heads/indication-scope.tar.gz | tar xz
-mv Enkephalin-indication-scope enkephalin && cd enkephalin
+cd /DATA/AppData
+git clone -b indication-scope https://github.com/Derpytaco64/Enkephalin.git Enkephalin
+cd Enkephalin
+docker build -t dt64/enkephalin:latest .
+docker push dt64/enkephalin:latest
 ```
 
-The tarball route gives up `git pull` for updates — re-download instead.
+`docker login` first if the box is not already logged in. Note the branch:
+**`indication-scope`**, not `main` — `main` is 58 commits behind as of
+2026-11-09, missing dosing-by-indication and imported sets entirely.
 
-### A2. Write `.env`
+The build wants **~2 GB of free RAM**; `next build` is the hungry step, not the
+running app. If it dies without a clear error, that was the memory — add swap,
+or build it on the Windows box and `docker save | ssh … docker load` instead.
 
-The repo's compose interpolates every value from `.env`, which is gitignored
-and so is never in the clone. `.env.example` lists them; the five that must
-actually change are the Postgres password (in **both** places), a fresh
-`BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` — which must be *exactly* the
-address you will type in the browser, port included, or the session cookie is
-issued for an origin you are not on and signing in silently fails.
-
-Note `DATABASE_URL` uses the host `db` (the compose service name) while
-`DATABASE_URL_HOST` uses `127.0.0.1` — the first is for the app inside the
-network, the second for operator scripts on the host. Keep both.
-
-### A3. Override the ports
-
-The repo's compose binds both published ports to `127.0.0.1`, because it was
-written for a server with a reverse proxy in front. On a NAS you want the app
-reachable from your laptop, so republish it on every interface. An override
-file rather than an edit, so `git pull` never fights you:
+The push is optional, strictly speaking. It is in this flow because a CasaOS
+installer *pulls*, and will go looking on Docker Hub for an image that is
+already on the disk. If you would rather keep it local, skip the push and add
+one line to the web service:
 
 ```yaml
-# /DATA/AppData/enkephalin/docker-compose.override.yml
-services:
-  web:
-    ports: !override ["3000:3000"]
+    pull_policy: never
 ```
 
-`!override` replaces the list rather than appending to it — without it you get
-both bindings, and the loopback one is harmless but confusing. Postgres keeps
-its loopback-only binding, which is correct: nothing off-box should reach it.
+What ends up on Docker Hub is the runtime image only: the `Dockerfile`'s final
+stage copies the standalone server, the static assets and `db/`, so
+`data/drugs-seed.json` and the rest of the course extract are **not** in the
+published image. They are in the public repo, which is a separate decision
+recorded in the root README.
 
-### A4. Build and start
-
-```bash
-docker compose up -d --build
-docker compose logs -f web
-```
-
-Expect `running migrations...`, then `migrations applied`, then Next's ready
-line, then `[bootstrap] seeded admin`. Then jump to
-[First boot](#4-first-boot-both-routes) below — the rest of this file applies to both
-routes.
-
-Updating later is `git pull && docker compose up -d --build`. **The `--build`
-is not optional**: the container runs a built image, so without it your pull
-changed nothing that is running.
-
-## Route B: build elsewhere and ship the image
-
-Three steps: build the image, get it onto the Zima, paste the YAML.
-
-## 0. Check the architecture
-
-```bash
-docker image inspect enkephalin-web:latest --format '{{.Os}}/{{.Architecture}}'
-# linux/amd64
-```
-
-ZimaBoard, ZimaBlade and ZimaCube are all x86-64, so an image built on your
-Windows machine matches. If you are running ZimaOS on ARM hardware instead,
-build for it explicitly or the container will refuse to start with an `exec
-format error`:
-
-```bash
-docker buildx build --platform linux/arm64 -t enkephalin-web:arm64 .
-```
-
-## 1. Build and tag the image
-
-```bash
-docker compose build web
-```
-
-That produces `enkephalin-web:latest`. Give it a real tag before shipping it —
-`latest` on a home server is how you end up unable to say what is running:
-
-```bash
-docker tag enkephalin-web:latest enkephalin-web:2026-11-09
-```
-
-## 2. Get the image onto the Zima
-
-### Side-load over SSH — no accounts, no registry
-
-The straightforward route, and the one to use if the repo is still local-only.
-
-```bash
-docker save enkephalin-web:2026-11-09 | gzip > enkephalin-web.tar.gz   # ~100 MB
-scp enkephalin-web.tar.gz zima@<zima-ip>:/DATA/
-ssh zima@<zima-ip> 'gunzip -c /DATA/enkephalin-web.tar.gz | docker load && rm /DATA/enkephalin-web.tar.gz'
-```
-
-Then in the compose file use the bare name, since there is no registry to pull
-from — and ZimaOS must not try:
-
-```yaml
-image: enkephalin-web:2026-11-09
-pull_policy: never
-```
-
-`pull_policy: never` matters. Without it an install can fail trying to reach
-Docker Hub for an image that is already sitting there locally.
-
-### Or push to GHCR — better if you will update often
-
-Needs the GitHub repo from `docs/deploy.md`. A private repo gives you a private
-image, which then needs a login on the Zima as well.
-
-```bash
-# on your machine
-echo <a classic PAT with write:packages> | docker login ghcr.io -u <you> --password-stdin
-docker tag enkephalin-web:2026-11-09 ghcr.io/<you>/enkephalin-web:2026-11-09
-docker push ghcr.io/<you>/enkephalin-web:2026-11-09
-
-# on the Zima, once, if the package is private
-ssh zima@<zima-ip> 'echo <a PAT with read:packages> | docker login ghcr.io -u <you> --password-stdin'
-```
-
-Updating is then: build, tag with a new date, push, and change one line in the
-app's compose in the ZimaOS UI.
-
-## 3. Edit the YAML, then paste it
+## 2. Fill in the compose file, then install
 
 Open `docker-compose.yml` next to this file and replace every `CHANGE-ME`:
 
@@ -169,113 +63,157 @@ Open `docker-compose.yml` next to this file and replace every `CHANGE-ME`:
 |---|---|
 | `POSTGRES_PASSWORD` | a long random string — **the same string in `DATABASE_URL`** |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32`, fresh |
-| `BETTER_AUTH_URL` | the exact address you will type in the browser |
+| `BETTER_AUTH_URL` | `http://<zima-ip>:3636` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your seed login |
-| `web.image` | the tag from step 2 |
+
+Two things about that file worth knowing before you paste it.
 
 **`BETTER_AUTH_URL` is the one that fails silently.** `lib/auth.ts` hands it to
-better-auth as its `baseURL`, so if it says `http://zima.local:3000` and you
-browse to `http://192.168.1.50:3000`, the session cookie is issued for an
-origin you are not on: sign-in appears to succeed and you are immediately
-signed out again. Pick one address and use it everywhere — scheme and port
-included.
+better-auth as its `baseURL`, so if it says `http://zima.local:3636` and you
+browse to `http://192.168.1.50:3636`, the session cookie is issued for an
+origin you are not on: sign-in appears to succeed and you are signed straight
+out again. Pick one address and use it everywhere, scheme and port included.
+
+**The port mapping is `3636:3000`, and that is not a typo.** 3636 is the port
+on the Zima; 3000 is inside the container, where the server listens no matter
+what the host side says. Only the left number is yours to pick. The same
+asymmetry is why the healthcheck inside the compose file says 3000 while the
+`curl` you run from a terminal says 3636.
 
 Then: **App Store → the `+` / Custom Install → Import docker-compose**, paste,
-install. ZimaOS creates `/DATA/AppData/enkephalin/db` for the database itself.
+install.
 
-Two notes on the file, both deliberate:
+Postgres deliberately publishes no port. Nothing off-box needs it, and the
+`npm run export` / `restore` scripts that wanted `127.0.0.1:5432` need Node,
+which the Zima has not got — `docker exec` covers pg_dump and psql instead.
 
-- **Postgres publishes no port.** Nothing outside the compose network needs it,
-  and the host scripts that wanted `127.0.0.1:5432` cannot run on ZimaOS
-  anyway — there is no Node there. `docker exec` covers the rest.
-- **The web port is published to the whole LAN** (`3000:3000`) rather than
-  loopback, because reaching it from your laptop is the point. That means plain
-  HTTP across your network, with session cookies not marked secure. Fine on a
-  home LAN you trust; see "TLS, if you want it" below if this ever leaves it.
+## 3. First boot
 
-## 4. First boot (both routes)
-
-ZimaOS shows container logs from the app tile, or over SSH:
+From the app tile's log view, or a terminal:
 
 ```bash
 docker logs -f enkephalin-web
 ```
 
-Look for `running migrations...`, then `[bootstrap] seeded admin …`, then
-Next's ready line. Then:
+In order: `running migrations...`, `migrations applied`, Next's ready line,
+`[bootstrap] seeded admin …`. **No `migration failed` lines** — if you see
+some, the image was built from a commit before 2026-11-09, when the database
+healthcheck was reporting ready during `initdb`. Then:
 
 ```bash
-curl -s http://<zima-ip>:3000/api/health   # {"ok":true,"db":"up"}
+curl -s http://127.0.0.1:3636/api/health    # {"ok":true,"db":"up"}
 ```
 
-That endpoint does a real `select 1`, so a 200 means the app and the database
-are genuinely talking, not merely running.
+That endpoint runs a real query, so a true there means the app and the database
+are talking rather than merely both running.
 
-## 5. Get your drugs in (both routes)
+## 4. Get your drugs in
 
 The database is empty at this point — field definitions and your admin account,
-no drugs. **Move the one you already have**, rather than reseeding: you have
-236 drugs with hand-verified edits, study schedules and quiz history, and
-ZimaOS cannot run `npm run seed` regardless (no Node, and the runtime image
-deliberately ships without the dev tree).
+no drugs. **Move the one you already have** rather than reseeding: 236 drugs
+with hand-verified edits, study schedules and quiz history, and ZimaOS cannot
+run `npm run seed` anyway.
+
+On the Windows box, with the local stack up:
 
 ```bash
-# on your machine, with the local stack up
 docker compose exec -T db pg_dump -U enkephalin -d enkephalin -Fc > enkephalin.dump
-scp enkephalin.dump zima@<zima-ip>:/DATA/
+```
 
-# on the Zima -- stop the app first so nothing writes mid-restore.
-# Use the ZimaOS UI to stop it, or:
-ssh zima@<zima-ip>
+Upload that to `/DATA` with the ZimaOS **Files** app (or `scp` it), then:
+
+```bash
 docker stop enkephalin-web
 docker cp /DATA/enkephalin.dump enkephalin-db:/tmp/enkephalin.dump
-docker exec -i enkephalin-db pg_restore -U enkephalin -d enkephalin \
+docker exec enkephalin-db pg_restore -U enkephalin -d enkephalin \
   --clean --if-exists /tmp/enkephalin.dump
-docker exec -i enkephalin-db rm /tmp/enkephalin.dump
-rm /DATA/enkephalin.dump
+docker exec enkephalin-db rm /tmp/enkephalin.dump
 docker start enkephalin-web
+rm /DATA/enkephalin.dump
 ```
 
 Copy the dump *into* the container rather than piping it in. A `-Fc` archive
-needs to seek, and `pg_restore … < file` through `docker exec` fails with
-`did not find magic string in file header` — which reads like a corrupted dump
-and is not one.
+needs to seek, and `pg_restore … < file` through `exec` fails with `did not
+find magic string in file header` — which reads like a corrupt dump and is not
+one.
 
-A `pg_dump` move brings the accounts with it, passwords included, so the
-`ADMIN_*` values in the YAML are never used after this: `lib/bootstrap.ts`
-seeds an admin only when none exists.
+Plenty of `does not exist, skipping` notices are normal: `--clean` tries to
+drop objects a fresh database never had. Errors that are not "skipping" are
+worth reading properly.
 
-The JSON backup (`npm run export`) is the other route, but it is the wrong one
-here — it matches progress to accounts **by email** and will not create a
-login out of a file, and it does not model imported sets yet. It is for merging
-content, not for moving a database.
+A `pg_dump` move brings the accounts with it, password hashes included, so you
+sign in with the password you already use and the `ADMIN_PASSWORD` in the YAML
+is never used — `lib/bootstrap.ts` seeds an admin only when none exists.
 
-## 6. Backing it up (both routes)
+The JSON backup (`npm run export`) is the other route, and the wrong one here:
+it matches progress to accounts **by email** and will not create a login out of
+a file, and it does not model imported sets yet. It is for merging content, not
+for moving a database.
 
-Everything lives in `/DATA/AppData/enkephalin/db`, which is why the compose file
-uses a bind mount there instead of a named volume: ZimaOS's own file manager and
-backup tooling can see it.
-
-Do not back it up by copying those files while Postgres is running — that is a
-torn copy, not a backup. Dump it instead:
+To start from the course sheet instead, the source clone from step 1 is still
+on the box, so the seed can run in a throwaway container — the host needs no
+Node:
 
 ```bash
-# a ZimaOS cron job, or run it from your laptop over ssh
+docker run --rm --network enkephalin_default \
+  -e DATABASE_URL_HOST=postgres://enkephalin:<password>@db:5432/enkephalin \
+  -v /DATA/AppData/Enkephalin:/app -w /app node:22-alpine \
+  sh -c 'npm ci && npm run seed'
+```
+
+## 5. Pushing an update
+
+Exactly the Ishi-Reader flow:
+
+```bash
+cd /DATA/AppData/Enkephalin
+git pull
+docker build -t dt64/enkephalin:latest .
+docker push dt64/enkephalin:latest
+```
+
+Then make the app pick it up — the tile's update button, or:
+
+```bash
+docker pull dt64/enkephalin:latest
+docker restart enkephalin-web
+```
+
+A `:latest` tag means you cannot say from the outside which build is running.
+If that ever matters, tag with the date as well (`dt64/enkephalin:2026-11-09`)
+and name that tag in the compose file.
+
+New migrations need nothing extra: they run as the new container starts. There
+are no down-steps, though, so rolling *back* across a migration is a restore
+from backup rather than an older image.
+
+## 6. Backing it up
+
+Everything lives in `/DATA/AppData/enkephalin-db`, which is the point of the
+bind mount — ZimaOS's file manager and backup tooling can see it.
+
+Do not back it up by copying those files while Postgres is running; that is a
+torn copy, not a backup. Dump it:
+
+```bash
+mkdir -p /DATA/Backups
 docker exec -t enkephalin-db pg_dump -U enkephalin -d enkephalin -Fc \
   > /DATA/Backups/enkephalin-$(date +%F).dump
 ```
 
+Worth putting on a timer, and worth copying off the Zima — a backup on the same
+disk as the database is a copy.
+
 ## TLS, if you want it
 
-Only needed if this is reachable from outside your house. Two routes that both
-avoid opening a port:
+Only needed if this becomes reachable from outside the house. As it stands it
+is plain HTTP on your LAN, with session cookies not marked secure: fine for a
+network you trust, not fine on the open internet, where the login would travel
+in the clear.
 
 - **Tailscale** — install it on the Zima, set `BETTER_AUTH_URL` to the
-  `*.ts.net` name, and the traffic is encrypted without a certificate or a
-  public DNS record. Simplest by a distance.
+  `*.ts.net` name, and it is encrypted with no certificate and no public DNS
+  record. Simplest by a distance.
 - **A Caddy container in front**, as in `docs/deploy.md` — then change the web
-  service's ports to `127.0.0.1:3000:3000` so only the proxy can reach it, and
+  service's ports to `127.0.0.1:3636:3000` so only the proxy can reach it, and
   set `BETTER_AUTH_URL` to the `https://` name.
-
-Do not put this on the open internet over plain HTTP. The login would be sent
-in the clear, and the session cookie with it.

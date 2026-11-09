@@ -1,29 +1,25 @@
 # Enkephalin on ZimaOS (and CasaOS, which it descends from).
 #
 # Paste this into App Store -> Custom Install (the "+" / "Install a customized
-# app" dialog, "Import docker-compose" tab). See deploy/zimaos/README.md for
-# the three edits you must make first.
+# app" dialog, "Import docker-compose" tab), after filling in every CHANGE-ME.
+# See README.md next door for the build-and-push step that comes first.
 #
 # How this differs from the repo's own docker-compose.yml, and why:
 #
-#   1. `image:` instead of `build: .`  -- the App Store importer only *pulls*
-#      images, so a compose file that builds is no good in that dialog and the
-#      image must already exist, either pulled from a registry or side-loaded
-#      with `docker load`. The Zima's own Docker can build perfectly well from
-#      a terminal; if you would rather do that, use the repo's compose file and
-#      Route A in this directory's README instead of this file.
-#   2. Literal values instead of `${VAR}` -- the YAML is pasted into a text
-#      box, not run next to a .env file, so there is nothing to interpolate
-#      from. Every value marked CHANGE-ME is yours to fill in.
-#   3. Bind mounts under /DATA/AppData instead of a named volume -- so the
-#      database sits where ZimaOS's own file manager and backup tooling can
+#   1. `image:` instead of `build: .` -- the App Store importer only *pulls*
+#      images, so a compose file that builds is no good in that dialog. The
+#      Zima's own Docker builds it perfectly well from a terminal; the image
+#      just has to exist somewhere pullable before this YAML is pasted.
+#   2. Literal values instead of `${VAR}` -- the YAML goes into a text box, not
+#      next to a .env file, so there is nothing to interpolate from.
+#   3. A bind mount at /DATA/AppData/enkephalin-db instead of a named volume,
+#      so the database sits where ZimaOS's file manager and backup tooling can
 #      see it.
-#   4. The web port is published on all interfaces, not loopback -- the whole
-#      point here is reaching it from your laptop. Read the TLS note in the
-#      README before deciding whether that is what you want.
-#   5. Postgres publishes no port at all. Nothing outside the compose network
-#      needs it, and the host scripts that wanted 127.0.0.1:5432 cannot run on
-#      ZimaOS anyway (no Node there). Use `docker exec` for pg_dump.
+#   4. The app is published on 3636 to the whole LAN rather than loopback:
+#      reaching it from a laptop is the point of putting it on a NAS.
+#   5. Postgres publishes no port at all. Nothing off-box needs it, and the
+#      host scripts that wanted 127.0.0.1:5432 need Node, which the Zima has
+#      not got. `docker exec` covers pg_dump and psql.
 
 name: enkephalin
 
@@ -37,9 +33,12 @@ services:
       POSTGRES_PASSWORD: CHANGE-ME-long-random-string
       POSTGRES_DB: enkephalin
     volumes:
-      # Postgres wants a directory it owns. Let ZimaOS create it empty and the
+      # Postgres wants a directory it owns. Let it be created empty and the
       # image will initdb into it on first boot.
-      - /DATA/AppData/enkephalin/db:/var/lib/postgresql/data
+      # Deliberately not /DATA/AppData/enkephalin/db: the source clone lives at
+      # /DATA/AppData/Enkephalin, and two paths differing only in case is a
+      # trap waiting for the day /DATA is not case-sensitive.
+      - /DATA/AppData/enkephalin-db:/var/lib/postgresql/data
     healthcheck:
       # Gate the web container on readiness, not just on the process existing.
       # -h 127.0.0.1 checks TCP rather than the unix socket: during initdb the
@@ -52,18 +51,8 @@ services:
       retries: 10
 
   web:
-    # CHANGE-ME: wherever you pushed or loaded the image. Pin a date tag rather
-    # than using `latest`, so a redeploy is a decision and not a surprise.
-    #
-    # Pulled from a registry:
-    image: ghcr.io/CHANGE-ME/enkephalin-web:2026-11-09
-    #
-    # Or side-loaded with `docker load` -- then use the bare name and the
-    # pull_policy, or an install can fail reaching Docker Hub for an image
-    # already sitting on the disk:
-    #
-    #   image: enkephalin-web:2026-11-09
-    #   pull_policy: never
+    # Built on the Zima and pushed to Docker Hub -- see README.md, step 1.
+    image: dt64/enkephalin:latest
     container_name: enkephalin-web
     restart: unless-stopped
     depends_on:
@@ -77,14 +66,18 @@ services:
       # the address you type in the browser, scheme and port included. A
       # mismatch issues the session cookie for the wrong origin, so signing in
       # appears to work and then does not.
-      BETTER_AUTH_URL: http://zima.local:3000
+      BETTER_AUTH_URL: http://CHANGE-ME-zima-ip:3636
       ADMIN_EMAIL: CHANGE-ME@example.com
       ADMIN_PASSWORD: CHANGE-ME-then-change-it-in-the-app
       SITE_NAME: Enkephalin
     ports:
-      - "3000:3000"
+      # 3636 is the port on the Zima. The 3000 is inside the container and is
+      # fixed -- the server listens there whatever the host side says, so only
+      # the left number is yours to pick.
+      - "3636:3000"
     healthcheck:
-      # A real database round-trip, not just a liveness ping.
+      # A real database round-trip, not just a liveness ping. Inside the
+      # container, so it is 3000 here and not 3636.
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 15s
       timeout: 5s
@@ -102,7 +95,7 @@ x-casaos:
   developer: self
   category: Utilities
   index: /
-  port_map: "3000"
+  port_map: "3636"
   scheme: http
   title:
     en_us: Enkephalin
@@ -116,4 +109,4 @@ x-casaos:
     before_install:
       en_us: >-
         Set BETTER_AUTH_URL to the exact address you will use in the browser,
-        and use the same POSTGRES_PASSWORD in both services.
+        port included, and use the same POSTGRES_PASSWORD in both services.
