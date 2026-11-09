@@ -39,7 +39,11 @@ services:
       - /DATA/AppData/enkephalin/db:/var/lib/postgresql/data
     healthcheck:
       # Gate the web container on readiness, not just on the process existing.
-      test: ["CMD-SHELL", "pg_isready -U enkephalin -d enkephalin"]
+      # -h 127.0.0.1 checks TCP rather than the unix socket: during initdb the
+      # image runs a temporary server on the socket only, so without the flag
+      # a first boot reports healthy too early and the migration dies with
+      # ECONNREFUSED before restarting into a working state.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U enkephalin -d enkephalin"]
       interval: 5s
       timeout: 5s
       retries: 10

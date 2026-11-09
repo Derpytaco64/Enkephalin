@@ -14,7 +14,14 @@ services:
       - "127.0.0.1:5432:5432"
     healthcheck:
       # Gate the web container on readiness, not just on the process existing.
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      #
+      # -h 127.0.0.1 is the part that matters, and it was missing until
+      # 2026-11-09. Without it pg_isready checks the unix socket, which the
+      # temporary server the image runs *during initdb* is already listening
+      # on -- so on a first boot the database reports healthy while TCP is not
+      # up yet, web starts, and the migration dies with ECONNREFUSED. It
+      # recovers on the restart, but the first boot logs three failures first.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
