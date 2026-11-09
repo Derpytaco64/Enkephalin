@@ -3271,6 +3271,27 @@ docker compose up --build
 `db/migrations/` was generated against the installed drizzle-kit rather than hand-written, so it
 cannot drift from the schema. Regenerate with `npm run db:generate` after every `db/schema.ts` change.
 
+### Deploying to a real server (2026-11-09)
+
+**`docs/deploy.md` is the runbook.** Nothing had to be added to deploy this — phase 0 already
+settled the shape (two services, one named volume, both ports on loopback, migrations in the
+entrypoint, a healthcheck that does a real `select 1`), so the document is the *order* plus the
+values that stop being right once the address is no longer `localhost`.
+
+The three decisions in it worth having here rather than only there:
+
+1. **The app stays on loopback and a reverse proxy faces the internet.** Nothing in the stack
+   terminates TLS, so exposing 3000 is not a shortcut, it is the whole security boundary gone.
+   Caddy is the recommendation because it gets the certificate itself and sets `Host` and
+   `X-Forwarded-Proto` without being told.
+2. **`BETTER_AUTH_URL` is the one value that fails silently.** `lib/auth.ts` passes it as
+   better-auth's `baseURL`, so a mismatch with the browser's address issues cookies for the wrong
+   origin — login appears to work, then does not.
+3. **Moving the database and seeding it are different jobs.** `npm run seed` fills a fresh server
+   from the committed `data/drugs-seed.json`. Carrying over real work is `pg_dump -Fc`, because the
+   JSON backup deliberately will not create accounts (`lib/data/backup.ts` matches progress to
+   users by email and reports an email it cannot find) and does not model imported sets yet.
+
 ## Build sequence
 
 | Phase | Deliverable |
