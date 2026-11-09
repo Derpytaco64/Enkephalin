@@ -3292,6 +3292,17 @@ The three decisions in it worth having here rather than only there:
    JSON backup deliberately will not create accounts (`lib/data/backup.ts` matches progress to
    users by email and reports an email it cannot find) and does not model imported sets yet.
 
+**`deploy/zimaos/` is a second compose file, not a copy of the first.** ZimaOS and CasaOS install
+an app by *pulling an image*, so `build: .` cannot work there and nothing interpolates `${VAR}`
+from a `.env` — the YAML is pasted into a text box. That forces four changes, each of which is a
+small decision rather than a translation: a pinned `image:` tag (built elsewhere, pushed to GHCR
+or side-loaded with `docker load` plus `pull_policy: never`); literal secrets in the file; bind
+mounts under `/DATA/AppData/enkephalin` so ZimaOS's file manager can see the database; and the web
+port published to the LAN instead of loopback, which is the point of a home server and also the
+reason the README says plainly that this is plain HTTP and belongs behind Tailscale if it ever
+leaves the house. Postgres publishes no port there at all — the host scripts that wanted
+`127.0.0.1:5432` cannot run on ZimaOS anyway, since there is no Node on it.
+
 ## Build sequence
 
 | Phase | Deliverable |
