@@ -36,6 +36,10 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      # Other addresses the app answers on -- a reverse proxy, a Tailscale
+      # name. Defaulted to empty: unset is the ordinary case, and compose
+      # would otherwise warn on every command.
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       SITE_NAME: ${SITE_NAME}

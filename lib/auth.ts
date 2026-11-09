@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
 import { db, schema } from '@/db';
+import { parseTrustedOrigins } from '@/lib/auth-origins';
 
 export const auth = betterAuth({
   // usePlural: our tables are `users`/`sessions`/`accounts`/`verifications`,
@@ -9,6 +10,10 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema, usePlural: true }),
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  // Everything the app may be reached at besides baseURL -- a reverse proxy
+  // hostname, a Tailscale name. Without it better-auth answers a sign-in from
+  // any other origin with `Invalid origin` and a 403. See lib/auth-origins.ts.
+  trustedOrigins: parseTrustedOrigins(process.env.BETTER_AUTH_TRUSTED_ORIGINS),
   emailAndPassword: {
     enabled: true,
     // No mailer is configured yet, so requiring verification would lock

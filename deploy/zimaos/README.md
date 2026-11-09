@@ -87,6 +87,40 @@ Postgres deliberately publishes no port. Nothing off-box needs it, and the
 `npm run export` / `restore` scripts that wanted `127.0.0.1:5432` need Node,
 which the Zima has not got — `docker exec` covers pg_dump and psql instead.
 
+## Behind a reverse proxy
+
+Sign-in answers `Invalid origin` with a 403, and nothing else looks wrong.
+
+better-auth validates the request's `Origin` header against a trusted list
+that, by default, holds **exactly one** entry: the origin of `baseURL`, which
+is `BETTER_AUTH_URL`. A proxy forwards the browser's origin — the public
+hostname — so the two stop matching the moment anything sits in front of the
+app. Set the other address explicitly:
+
+```yaml
+      BETTER_AUTH_TRUSTED_ORIGINS: https://drugs.example.com
+```
+
+Comma-separated for more than one, and origins rather than URLs: scheme, host
+and port, no path. Wildcards work, since the value is passed through to
+better-auth's own matcher untouched.
+
+Which address stays as `BETTER_AUTH_URL` is then a real choice, because the
+Secure cookie flag is derived from its scheme — `baseURL.startsWith('https://')`
+and nothing else:
+
+| `BETTER_AUTH_URL` | cookies | consequence |
+|---|---|---|
+| the `https://` proxy URL | `Secure` | correct, but plain-http LAN access can never log in — a browser will not send a Secure cookie over http |
+| the `http://` LAN address | not `Secure` | both ways in work; fine when the proxy is on your own network, wrong if it faces the internet |
+
+Pick one. Wanting both across mixed schemes is what produces "it signs me in
+and then signs me straight out".
+
+This is config, but the option it feeds was added to `lib/auth.ts` on
+2026-11-09 — so an image built before that ignores the variable entirely.
+Rebuild and push, then restart.
+
 ## 3. First boot
 
 From the app tile's log view, or a terminal:

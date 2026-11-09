@@ -67,6 +67,12 @@ services:
       # mismatch issues the session cookie for the wrong origin, so signing in
       # appears to work and then does not.
       BETTER_AUTH_URL: http://CHANGE-ME-zima-ip:3636
+      # Behind a reverse proxy, add the public origin here -- comma-separated,
+      # scheme and host and port, no path. better-auth trusts only the origin
+      # of BETTER_AUTH_URL above, so a proxied sign-in otherwise fails with
+      # `Invalid origin` and a 403 while direct access keeps working.
+      #   BETTER_AUTH_TRUSTED_ORIGINS: https://drugs.example.com
+      BETTER_AUTH_TRUSTED_ORIGINS: ''
       ADMIN_EMAIL: CHANGE-ME@example.com
       ADMIN_PASSWORD: CHANGE-ME-then-change-it-in-the-app
       SITE_NAME: Enkephalin

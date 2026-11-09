@@ -20,3 +20,8 @@ PXL_20261028_223347704.jpg
 
 # Backups written by `npm run export` — yours, not the repo's
 backups/
+
+# The filled-in ZimaOS compose: it holds the real database password and auth
+# secret, so it must never be committed. Generated, not authored -- the
+# template with CHANGE-ME placeholders is deploy/zimaos/docker-compose.yml.
+zimaos-paste-this.yml
