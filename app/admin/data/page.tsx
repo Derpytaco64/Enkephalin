@@ -49,8 +49,10 @@ export default async function DataPage() {
         <p className="mt-3 text-xs text-[var(--muted)]">
           One JSON file, keyed by slug rather than by database id, so it restores into a database it
           did not come from. It carries the content, the tags, the field definitions, the site
-          settings and each person&rsquo;s study progress — and deliberately no passwords, sessions
-          or invite codes, so it is a file you can keep anywhere.
+          settings, each person&rsquo;s study progress and the audit log — and deliberately no
+          passwords, sessions or invite codes, so it is a file you can keep anywhere. Audit entries
+          name who made each change by email, and are the one thing here that a move to a new server
+          would otherwise lose.
         </p>
 
         {/* A plain link, not a fetch: the browser saves the response itself. */}

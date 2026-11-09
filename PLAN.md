@@ -1520,6 +1520,61 @@ cleared; 236 roster checkboxes on the bulk screen with the field pills, an unkno
 back to the picker rather than erroring, and the apply button naming its own count. Flags and
 pairings were put back exactly as they were -- 0 flagged, 24 pairings, 105 audit rows untouched.
 
+### The log leaves with the database (2026-11-08)
+
+Done. `audit_log` is in the backup, `BACKUP_VERSION` is 2, and the exclusion list is down to things
+that are actually credentials: password hashes, sessions, invite codes, verification tokens. The
+audit log was always the odd one out among them — not a credential, but the record of who asserted
+what — and once export/restore became the only recovery path it was the one thing in the database a
+server move would silently drop.
+
+**It keeps the no-UUID rule, which is the only interesting part.** The file names a drug by its
+slug, a person by their email, and carries no database ids at all, so an entry cannot simply hold
+`actor_id` and `target_id`. Five target types resolve five different ways on the way out and back:
+drug, tag and indication by slug, user by email, the settings row by the literal `site`. Verified on
+the real export — 105 entries, **zero UUIDs in the audit section**.
+
+Two things resolve to null rather than being dropped, and both are deliberate:
+
+- **A subject that no longer exists.** 77 of the 105 are like this, 65 of them the `tag.delete`
+  sweep. Dropping them would delete exactly the rows somebody goes looking for, and the audit UI
+  already handles the state — it falls back to the name in the diff and renders *(deleted)* instead
+  of a dead link. `target_id` has no foreign key for the same reason.
+- **An actor with no account in the destination.** The entry is kept with a null actor and the
+  address is *reported* on the restore screen, because losing *what changed* to preserve *who* is
+  the wrong trade for a history. Said out loud rather than left to be noticed.
+
+**And the microsecond bug tried to happen a second time.** The same `timestamptz`-keeps-microseconds,
+`Date`-keeps-milliseconds mismatch that cost the audit UI 23 rows sits in the export too, one layer
+down: a timestamp that goes through a `Date` is truncated, and a truncated history is one whose rows
+can swap places. So `at` is read out with `to_char(... 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` and written
+back as `sql`${at}::timestamptz``, letting Postgres parse its own format.
+
+Writing it back needed the raw SQL specifically, which a test found rather than a guess:
+Drizzle's `timestamp` column calls `.toISOString()` on whatever it is handed, so a `Date` has already
+lost the precision and a string **throws outright** (`value.toISOString is not a function`). Worth
+knowing how close this was to shipping quietly: **all 105 live entries carry a sub-millisecond
+component**, so the truncation would have touched every row in the table rather than an unlucky few.
+
+`replace` clears the table and writes the file; `merge` adds only what is not already there, because
+the log is append-only and a merge that re-inserted everything would duplicate a record whose whole
+value is being a faithful count. With no ids to compare, an entry is identified by what it says —
+instant, actor, action, subject — and at microsecond precision that tuple is as close to unique as
+the table gets. Inserts are chunked at 500, since a long-lived install will have tens of thousands
+of entries and one insert that size is a parameter count Postgres refuses.
+
+`tests/backup-audit.test.ts` (15) holds it: the round trip keeping `.329008`, two entries one
+microsecond apart keeping their order, a slug resolving to a *different* uuid in the database it
+lands in, replace clearing, merge skipping and merge still adding, the unmatched actor, the deleted
+subject, and a v1 file refused rather than half-read.
+
+**Still not in the backup, and this one is a gap rather than a decision:** `quiz_attempts` and
+`quiz_answers`. `study_cards` — the spaced-repetition schedule — is carried, so a restore brings back
+*what is due*, but every score, result and streak is lost. The header's promise of "the progress you
+earned" is only half true. Raised with the owner 2026-11-08; not implemented, because whether a dump
+should carry every answer anyone ever gave is a volume and privacy call rather than a bug to fix
+quietly.
+
 ### The log that nobody could read (2026-11-08)
 
 Done. `/admin/audit` opens the 105 rows that seven modules had been writing since phase 8 began,
@@ -1687,6 +1742,9 @@ move to a new server would silently drop. **Open, and worth settling before the 
 either `audit_log` joins the backup or it is accepted as local-only and said so out loud.** Leaning
 toward joining it — rows whose actor is matched by email, like study progress already is, since the
 file carries no UUIDs.
+
+**Settled 2026-11-08, on the owner's call: it joins.** See
+[The log leaves with the database](#the-log-leaves-with-the-database-2026-11-08).
 
 `scripts/correct-sheet-errors.ts` keeps its place, with its job changed: it is a no-op against the
 live database now, and what it carries is the *record* of why dofetilide reads `mcg` when the sheet

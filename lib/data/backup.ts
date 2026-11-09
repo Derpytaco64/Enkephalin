@@ -8,17 +8,25 @@
  * by a person, and nothing internal leaks into a file you might email yourself.
  *
  * Credentials are deliberately absent. No password hashes, no sessions, no
- * invite codes, no audit log. What a backup holds is the content you made and
- * the progress you earned -- so it is a file you can hand around without
- * handing over the ability to log in as you.
+ * invite codes, no verification tokens. What a backup holds is the content you
+ * made, the progress you earned and the record of who changed what -- so it is
+ * a file you can hand around without handing over the ability to log in as you.
+ *
+ * **The audit log joins it as of version 2**, on the owner's call, 2026-11-08.
+ * It was the odd one out among the exclusions: not a credential, but the record
+ * of who asserted what -- and once export/restore became the only recovery
+ * path, the one thing in the database a server move would silently drop. It
+ * keeps the no-UUID rule: an entry names its actor by email and its subject by
+ * slug or label, and both are resolved again on the way back in.
  */
-import { asc, eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 // Relative rather than '@/...' on purpose: scripts/export-backup.ts and
 // scripts/restore-backup.ts run this under `node --experimental-strip-types`,
 // which resolves no path aliases.
 import { db } from '../../db/index.ts';
 import { resolveIndications } from '../drugs/indication-store.ts';
 import {
+  auditLog,
   brandIndications,
   drugBrands,
   drugIndications,
@@ -42,7 +50,7 @@ import type { Amount, Duration, Frequency, Modifier, RouteCode, Site } from '../
  * restore refuses a version it does not understand rather than guessing at
  * half-matching fields.
  */
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 export type BackupBrand = {
   name: string;
@@ -143,6 +151,31 @@ export type BackupProgress = {
   }[];
 };
 
+/**
+ * One audit entry, with every UUID traded for something a different database
+ * can resolve.
+ *
+ * `at` carries **microseconds**, which `Date` cannot hold -- it is read out as
+ * text and written back as text for that reason. The same millisecond
+ * truncation that broke the audit UI's pagination would, here, quietly reorder
+ * a history.
+ */
+export type BackupAuditEntry = {
+  /** ISO 8601 with microseconds, UTC: `2026-11-04T17:47:47.329008Z`. */
+  at: string;
+  /** Null where the actor was deleted, or where nothing was signed in. */
+  actorEmail: string | null;
+  action: string;
+  targetType: string | null;
+  /**
+   * The subject by natural key -- a drug or tag slug, an indication slug, a
+   * person's email, `site` for the settings row. Null where the subject was
+   * already gone when the backup was taken; the `diff` still names it.
+   */
+  target: string | null;
+  diff: Record<string, unknown> | null;
+};
+
 export type Backup = {
   version: number;
   generatedAt: string;
@@ -158,6 +191,8 @@ export type Backup = {
     disclaimerText: string;
   } | null;
   progress: BackupProgress[];
+  /** Oldest first, so a restore writes the history in the order it happened. */
+  audit: BackupAuditEntry[];
 };
 
 const iso = (value: Date | null) => (value ? value.toISOString() : null);
@@ -312,6 +347,7 @@ export async function exportBackup(): Promise<Backup> {
   }).filter((entry) => entry.cards.length > 0 || entry.presets.length > 0 || entry.preferences);
 
   const settings = settingsRows[0] ?? null;
+  const audit = await exportAudit();
 
   return {
     version: BACKUP_VERSION,
@@ -327,6 +363,7 @@ export async function exportBackup(): Promise<Backup> {
       fieldDefs: defRows.length,
       people: progress.length,
       studyCards: cardRows.length,
+      auditEntries: audit.length,
     },
     fieldDefs: defRows.map((def) => ({
       key: def.key,
@@ -363,7 +400,96 @@ export async function exportBackup(): Promise<Backup> {
         }
       : null,
     progress,
+    audit,
   };
+}
+
+/**
+ * The audit log, with its UUIDs traded for natural keys.
+ *
+ * Five target types, five different places the name lives, so the resolution is
+ * five lookups built once rather than a join per row -- `target_id` carries no
+ * foreign key on purpose (a log that cascaded away with its subject would lose
+ * exactly the rows somebody is looking for), so there is nothing to join on
+ * anyway.
+ *
+ * A subject that was already deleted resolves to null rather than being
+ * dropped: the entry recording the deletion is the most useful row in the
+ * table, and its `diff` still carries the name.
+ */
+async function exportAudit(): Promise<BackupAuditEntry[]> {
+  const rows = await db
+    .select({
+      // Read as text, not as a Date. `timestamptz` keeps microseconds and
+      // `Date` keeps milliseconds, so going through one would truncate every
+      // timestamp in the history on its way out.
+      at: sql<string>`to_char(${auditLog.at} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      actorEmail: users.email,
+      action: auditLog.action,
+      targetType: auditLog.targetType,
+      targetId: auditLog.targetId,
+      diff: auditLog.diff,
+    })
+    .from(auditLog)
+    .leftJoin(users, eq(users.id, auditLog.actorId))
+    .orderBy(asc(auditLog.at), asc(auditLog.id));
+
+  const wanted = (type: string) => new Set(
+    rows.filter((row) => row.targetType === type && row.targetId).map((row) => row.targetId!),
+  );
+
+  // Four explicit lookups rather than one generic helper: Drizzle's column
+  // types do not survive being passed around, and four three-line queries are
+  // clearer than the generics that would be needed to merge them.
+  const asMap = (rows: { id: string; name: string }[]) =>
+    new Map(rows.map((row) => [row.id, row.name]));
+  const only = (ids: Set<string>) => [...ids];
+
+  const drugIds = only(wanted('drug'));
+  const tagIds = only(wanted('tag'));
+  const indicationIds = only(wanted('indication'));
+  const userIds = only(wanted('user'));
+
+  const [drugNames, tagNames, indicationNames, userNames] = await Promise.all([
+    drugIds.length
+      ? db.select({ id: drugs.id, name: drugs.slug }).from(drugs)
+          .where(inArray(drugs.id, drugIds)).then(asMap)
+      : new Map<string, string>(),
+    tagIds.length
+      ? db.select({ id: tags.id, name: tags.slug }).from(tags)
+          .where(inArray(tags.id, tagIds)).then(asMap)
+      : new Map<string, string>(),
+    indicationIds.length
+      ? db.select({ id: indications.id, name: indications.slug }).from(indications)
+          .where(inArray(indications.id, indicationIds)).then(asMap)
+      : new Map<string, string>(),
+    userIds.length
+      ? db.select({ id: users.id, name: users.email }).from(users)
+          .where(inArray(users.id, userIds)).then(asMap)
+      : new Map<string, string>(),
+  ]);
+
+  const nameOf = (type: string | null, id: string | null) => {
+    if (!id) return null;
+    switch (type) {
+      case 'drug': return drugNames.get(id) ?? null;
+      case 'tag': return tagNames.get(id) ?? null;
+      case 'indication': return indicationNames.get(id) ?? null;
+      case 'user': return userNames.get(id) ?? null;
+      // The settings are a single row with no natural key of their own.
+      case 'site_settings': return 'site';
+      default: return null;
+    }
+  };
+
+  return rows.map((row) => ({
+    at: row.at,
+    actorEmail: row.actorEmail ?? null,
+    action: row.action,
+    targetType: row.targetType,
+    target: nameOf(row.targetType, row.targetId),
+    diff: row.diff ?? null,
+  }));
 }
 
 /** A filename that sorts chronologically and says what it is. */
@@ -387,6 +513,16 @@ export type RestoreReport = {
   /** People in the file with no account here. Their progress is not invented. */
   progressSkipped: string[];
   settingsWritten: boolean;
+  /** Audit entries written. */
+  auditRestored: number;
+  /** Entries already present, in `merge` only. */
+  auditSkipped: number;
+  /**
+   * Actor addresses in the file with no account here. Those entries are kept
+   * with no actor rather than dropped -- losing *what changed* to preserve
+   * *who* would be the wrong trade for a history.
+   */
+  auditActorsUnmatched: string[];
 };
 
 export type RestoreResult =
@@ -451,6 +587,9 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     progressRestored: [],
     progressSkipped: [],
     settingsWritten: false,
+    auditRestored: 0,
+    auditSkipped: 0,
+    auditActorsUnmatched: [],
   };
 
   if (mode === 'replace') {
@@ -671,5 +810,132 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     report.progressRestored.push(person.email);
   }
 
+  await restoreAudit(backup.audit ?? [], mode, report);
+
   return { ok: true, report };
+}
+
+/**
+ * Writes the audit log back, resolving every natural key against this database.
+ *
+ * **`replace` clears the table first; `merge` adds only what is not already
+ * there.** That split matters more here than anywhere else in the file: the
+ * audit log is append-only history, so a merge that re-inserted everything
+ * would duplicate a record whose whole value is being a faithful count of what
+ * happened. With no UUIDs to compare, an entry is identified by what it says --
+ * instant, actor, action and subject -- and at microsecond precision that tuple
+ * is as close to unique as the table gets.
+ *
+ * Two things are kept rather than dropped when they cannot be resolved. An
+ * **actor with no account here** leaves the entry with a null actor: the row
+ * still says a role was changed on a Tuesday, which is worth more than nothing,
+ * and the unmatched addresses are reported rather than silently swallowed. A
+ * **subject that no longer exists** leaves `target_id` null, which is exactly
+ * the state the audit UI already handles -- it falls back to the name in the
+ * diff and renders *(deleted)* instead of a dead link.
+ */
+async function restoreAudit(
+  entries: BackupAuditEntry[],
+  mode: RestoreMode,
+  report: RestoreReport,
+) {
+  if (mode === 'replace') await db.delete(auditLog);
+  if (entries.length === 0) return;
+
+  const [drugIds, tagIds, indicationIds, userIds] = await Promise.all([
+    db.select({ id: drugs.id, name: drugs.slug }).from(drugs),
+    db.select({ id: tags.id, name: tags.slug }).from(tags),
+    db.select({ id: indications.id, name: indications.slug }).from(indications),
+    db.select({ id: users.id, name: users.email }).from(users),
+  ]);
+  const byName = (rows: { id: string; name: string }[]) =>
+    new Map(rows.map((row) => [row.name, row.id]));
+  const drugsByName = byName(drugIds);
+  const tagsByName = byName(tagIds);
+  const indicationsByName = byName(indicationIds);
+  const usersByName = byName(userIds);
+
+  const targetFor = (entry: BackupAuditEntry) => {
+    if (!entry.target) return null;
+    switch (entry.targetType) {
+      case 'drug': return drugsByName.get(entry.target) ?? null;
+      case 'tag': return tagsByName.get(entry.target) ?? null;
+      case 'indication': return indicationsByName.get(entry.target) ?? null;
+      case 'user': return usersByName.get(entry.target) ?? null;
+      // The settings row is always id 1 and has no uuid to resolve.
+      case 'site_settings': return null;
+      default: return null;
+    }
+  };
+
+  // In merge, what is already here. The same tuple the doc comment describes,
+  // read once rather than queried per entry.
+  const present = new Set<string>();
+  if (mode === 'merge') {
+    const existing = await db
+      .select({
+        at: sql<string>`to_char(${auditLog.at} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+        actorEmail: users.email,
+        action: auditLog.action,
+        targetType: auditLog.targetType,
+        targetId: auditLog.targetId,
+      })
+      .from(auditLog)
+      .leftJoin(users, eq(users.id, auditLog.actorId));
+
+    for (const row of existing) {
+      present.add([row.at, row.actorEmail ?? '', row.action, row.targetType ?? '', row.targetId ?? ''].join('\u0000'));
+    }
+  }
+
+  const unmatched = new Set<string>();
+  const rows: {
+    actorId: string | null;
+    action: string;
+    targetType: string | null;
+    targetId: string | null;
+    diff: Record<string, unknown> | null;
+    at: SQL;
+  }[] = [];
+
+  for (const entry of entries) {
+    if (!entry.action || !entry.at) continue;
+
+    const actorId = entry.actorEmail ? usersByName.get(entry.actorEmail) ?? null : null;
+    if (entry.actorEmail && !actorId) unmatched.add(entry.actorEmail);
+
+    const targetId = targetFor(entry);
+    if (mode === 'merge') {
+      const key = [entry.at, entry.actorEmail ?? '', entry.action, entry.targetType ?? '', targetId ?? ''].join('\u0000');
+      if (present.has(key)) {
+        report.auditSkipped += 1;
+        continue;
+      }
+      present.add(key);
+    }
+
+    rows.push({
+      actorId,
+      action: entry.action,
+      targetType: entry.targetType,
+      targetId,
+      diff: entry.diff,
+      // Raw SQL rather than the column's own mapper, which is the only way the
+      // microseconds survive: Drizzle's `timestamp` calls `.toISOString()` on
+      // whatever it is handed, so a `Date` would already have truncated them
+      // and a string throws outright. Postgres parses the text itself and keeps
+      // all six digits.
+      at: sql`${entry.at}::timestamptz`,
+    });
+  }
+
+  // Chunked: a long-lived install can have tens of thousands of entries, and
+  // one insert that size is a parameter count Postgres will refuse.
+  const CHUNK = 500;
+  for (let at = 0; at < rows.length; at += CHUNK) {
+    await db.insert(auditLog).values(rows.slice(at, at + CHUNK));
+  }
+
+  report.auditRestored = rows.length;
+  report.auditActorsUnmatched = [...unmatched].sort();
 }

@@ -70,6 +70,21 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
                     still in the file, so invite them and restore it again
                   </li>
                 )}
+                {(state.report.auditRestored > 0 || state.report.auditSkipped > 0) && (
+                  <li>
+                    {state.report.auditRestored} audit entries written
+                    {state.report.auditSkipped > 0
+                      && `, ${state.report.auditSkipped} already here`}
+                  </li>
+                )}
+                {/* Said out loud rather than left to be noticed: the history is
+                    intact, but those rows no longer say who. */}
+                {state.report.auditActorsUnmatched.length > 0 && (
+                  <li>
+                    audit entries by {state.report.auditActorsUnmatched.join(', ')} kept without an
+                    actor — no account here to attribute them to
+                  </li>
+                )}
               </ul>
             </>
           ) : (
