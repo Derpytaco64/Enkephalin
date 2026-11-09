@@ -47,9 +47,29 @@ Two things happen automatically on every boot, which is why there is no separate
 
 ## 1. Get the code onto the server
 
-**This is not on GitHub, and does not need to be.** There is no remote
-configured and no `gh` CLI on the dev machine; the repo is local-only. Any of
-these three routes works, and the first needs nothing you do not already have.
+It is on GitHub — <https://github.com/Derpytaco64/Enkephalin>, public — so a
+clone is the easy route. Two others are here because they need no network and
+no credentials on the server, and because a public repo is a decision that can
+be reversed.
+
+### Clone it
+
+The simplest route, and updating later is `git pull`. **Mind the branch**: the
+work lives on `indication-scope`, which as of 2026-11-09 is 58 commits ahead of
+`main` — everything from the dosing-by-indication change through imported sets.
+Clone it explicitly, or merge it into `main` first and clone the default:
+
+```bash
+git clone -b indication-scope https://github.com/Derpytaco64/Enkephalin.git enkephalin
+cd enkephalin
+```
+
+Nothing tracked is secret: `.env` is gitignored and only `.env.example`, with
+its `change-me` placeholders, is committed. What *is* published is the content —
+`data/top-drugs-2026.json` and `data/drugs-seed.json` are derived from the
+course document (see `PLAN.md`, drug data sourcing). That is a deliberate
+choice, recorded in the README; going private later is a setting, though the
+history would keep the files either way.
 
 ### Ship a tarball of the tracked files
 
@@ -71,32 +91,6 @@ mkdir -p enkephalin && tar -xzf enkephalin.tar.gz -C enkephalin && cd enkephalin
 2026-11-09: the archive contains no `.env`, no `node_modules/`, no `.next/`,
 and neither the PDF nor the photo. Updating later means another tarball, which
 is the one drawback.
-
-### Put it on GitHub first, then clone
-
-Worth it if you will keep changing the app, because updating becomes
-`git pull`. **Make the repo private** — the drug content is derived from the
-course document (see `PLAN.md`, drug data sourcing), and that is not yours to
-publish. Nothing tracked is secret otherwise: `.env` is gitignored and only
-`.env.example` with its `change-me` placeholders is committed.
-
-Create the empty private repo at <https://github.com/new> (no README, no
-.gitignore — the repo already has both), then:
-
-```bash
-git remote add origin git@github.com:<you>/enkephalin.git
-git push -u origin --all
-```
-
-Mind which branch the server ends up on. The work lives on `indication-scope`,
-which as of 2026-11-09 is 58 commits ahead of `main` — everything from the
-dosing-by-indication change through imported sets. Either merge it into `main`
-first, or clone the branch explicitly:
-
-```bash
-git clone -b indication-scope git@github.com:<you>/enkephalin.git enkephalin
-cd enkephalin
-```
 
 ### Build here, ship the image
 

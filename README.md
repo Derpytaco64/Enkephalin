@@ -4,10 +4,6 @@ A self-hosted drug study site for pharmacy school. Flashcards and multiple-choic
 quizzes over a drug database you own and edit, running as two containers on your
 own hardware.
 
-> **Keep this repository private.** The drug content is derived from a course
-> document that is the school's material, not mine to publish. See
-> [Content and provenance](#content-and-provenance).
-
 ## The idea it is built around
 
 **A study set is a table, not a deck of cards.** That one decision is where
@@ -115,17 +111,23 @@ work and then does not.
 
 The drug data began as an extract of a course document — the class's own list of
 drugs to know — and has since been edited by hand in the app. **The database is
-the content now; the sheet was the baseline.** The source PDF and the
-handwritten note the design came from are both gitignored and stay local.
+the content now; the sheet was the baseline.** `data/drugs-seed.json` is that
+baseline as it stood, kept so a fresh install has something in it; the sheet is
+no longer re-run and the app is not rebuilt from it. The source PDF itself and
+the handwritten note the design came from are both gitignored and stay out of
+the repository.
 
-That is also why this repository is private, and the reason there is no license
-file: the code is mine, the subject matter is the school's, and separating them
-cleanly is not worth doing for an audience of one.
+This repository is public, and there is no license file, which means the
+ordinary default: the code is mine and all rights are reserved. Read it, learn
+from it, open an issue — but it is published to be looked at rather than
+offered for reuse, because the subject matter is a school's course list and the
+code and the content are not cleanly separable.
 
-Clinical values are study material, not clinical reference. Every value carries
-a status and a source, and the lookup panel records citations, because a drug
-fact with no provenance is not a fact you should revise from — but this is a
-flashcard app, not a formulary.
+**Nothing here is clinical reference.** It is one student's revision material.
+Every value carries a status and a source and the lookup panel records
+citations, because a drug fact with no provenance is not a fact worth revising
+from — but the authority is the course and the label, not this database. Do not
+make a dosing decision from a flashcard app.
 
 ## Where things live
 
