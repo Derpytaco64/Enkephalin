@@ -85,6 +85,13 @@
       "when": 1794202651363,
       "tag": "0011_a_second_kind_of_subject",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794203297790,
+      "tag": "0012_a_column_someone_edited",
+      "breakpoints": true
     }
   ]
 }

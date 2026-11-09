@@ -639,6 +639,14 @@ export const setFields = pgTable('set_fields', {
   sortOrder: integer('sort_order').notNull().default(0),
   /** Soft-deleted, like `field_defs`: a retired column keeps its stored values. */
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+
+  /**
+   * *Has a human touched this column?* -- the same question `updatedBy` answers
+   * for a drug field, and the thing the re-import merge turns on. The file
+   * supplies columns; it does not own them after the first import.
+   */
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+  updatedBy: text('updated_by').references(() => users.id, { onDelete: 'set null' }),
 }, (t) => [
   uniqueIndex('set_fields_unique').on(t.setId, t.key),
 ]);
