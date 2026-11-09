@@ -2,57 +2,104 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/session';
-import { parseSet, type SetProblem } from '@/lib/sets/format';
+import type { SetProblem } from '@/lib/sets/format';
 import { importSet, type ImportMode, type ImportReport } from '@/lib/sets/import';
+import { parseBatch, type FailedEntry, type SetInput } from '@/lib/sets/batch';
+
+/** What happened to one file. The name is what the person will look for. */
+export type FileResult =
+  | { name: string; ok: true; report: ImportReport }
+  /** Read, but not a valid set. Every problem, not the first. */
+  | { name: string; ok: false; problems: SetProblem[] }
+  /** Never got as far as parsing, or the importer refused it. */
+  | { name: string; ok: false; message: string };
 
 export type ImportState =
-  | { ok: true; report: ImportReport }
-  /** The file was read but is not a valid set. Every problem, not the first. */
-  | { ok: false; problems: SetProblem[] }
-  /** It never got as far as parsing, or the importer refused it. */
-  | { ok: false; message: string };
+  | { kind: 'results'; files: FileResult[] }
+  /** Nothing to work with -- said once rather than once per file. */
+  | { kind: 'nothing'; message: string };
 
 /**
- * Reading a set out of the form.
+ * Reading sets out of the form.
  *
- * A file input *and* a textarea, because both are real: a file is what a model
- * hands back, and a paste is what you do at eleven at night with the JSON on
- * your clipboard. The paste wins if both are filled, since it is the one you
- * just typed into.
+ * Several files at once, because lecture material arrives that way: nine
+ * endocrine decks are nine files, and a form that takes one of them turns an
+ * afternoon's work into nine afternoons of clicking.
+ *
+ * The textarea is still here, and still wins. A paste is what you do at eleven
+ * at night with one set on your clipboard; when there is something in it, that
+ * is the thing you just put there and the file picker is stale by comparison.
+ *
+ * Each file is imported on its own, and a bad one does not stop the others --
+ * see `lib/sets/batch.ts` for why that is the right shape and for the one
+ * exception, two files claiming the same slug.
  */
 export async function importSetAction(formData: FormData): Promise<ImportState> {
   const session = await requireAdmin();
 
   const pasted = String(formData.get('pasted') ?? '').trim();
-  const upload = formData.get('file');
   const mode: ImportMode = formData.get('mode') === 'replace' ? 'replace' : 'merge';
 
-  let text = pasted;
-  if (!text && upload instanceof File && upload.size > 0) {
-    text = (await upload.text()).trim();
+  const inputs: SetInput[] = [];
+  if (pasted) {
+    inputs.push({ name: 'pasted', text: pasted });
+  } else {
+    // getAll, not get: a `multiple` input sends one entry per file, and `get`
+    // would quietly import the first and drop the rest.
+    for (const upload of formData.getAll('file')) {
+      if (upload instanceof File && upload.size > 0) {
+        inputs.push({ name: upload.name, text: await upload.text() });
+      }
+    }
   }
-  if (!text) return { ok: false, message: 'Nothing to import — choose a file or paste the JSON.' };
 
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch (error) {
-    // The message names the position, which is the one useful thing about a
-    // JSON syntax error and the thing a generic "invalid file" hides.
+  if (inputs.length === 0) {
     return {
-      ok: false,
-      message: `That is not valid JSON. ${error instanceof Error ? error.message : ''}`.trim(),
+      kind: 'nothing',
+      message: 'Nothing to import — choose one or more files, or paste the JSON.',
     };
   }
 
-  const parsed = parseSet(json);
-  if (!parsed.ok) return { ok: false, problems: parsed.problems };
+  const entries = parseBatch(inputs);
+  const files: FileResult[] = [];
+  const imported: string[] = [];
 
-  const result = await importSet(parsed.set, session.user.id, mode);
-  if (!result.ok) return { ok: false, message: result.message };
+  // Sequential on purpose. These are writes against the same tables, and a
+  // report that reads in the order the files were listed is worth more than
+  // the second or two concurrency would save.
+  for (const entry of entries) {
+    if (!entry.ok) {
+      files.push(asFileResult(entry));
+      continue;
+    }
 
-  revalidatePath('/admin/sets');
-  revalidatePath('/sets');
-  revalidatePath(`/sets/${parsed.set.slug}`);
-  return { ok: true, report: result.report };
+    const result = await importSet(entry.set, session.user.id, mode);
+    if (!result.ok) {
+      files.push({ name: entry.name, ok: false, message: result.message });
+      continue;
+    }
+
+    files.push({ name: entry.name, ok: true, report: result.report });
+    imported.push(result.report.slug);
+  }
+
+  if (imported.length > 0) {
+    revalidatePath('/admin/sets');
+    revalidatePath('/sets');
+    for (const slug of imported) revalidatePath(`/sets/${slug}`);
+  }
+
+  return { kind: 'results', files };
+}
+
+/**
+ * A failed batch entry is already the shape of a failed result.
+ *
+ * Not a cast: the two types are structurally the same today, and writing the
+ * conversion out means the compiler says so if one of them changes.
+ */
+function asFileResult(entry: FailedEntry): FileResult {
+  return 'problems' in entry
+    ? { name: entry.name, ok: false, problems: entry.problems }
+    : { name: entry.name, ok: false, message: entry.message };
 }
