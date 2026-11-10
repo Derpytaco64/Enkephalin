@@ -3068,6 +3068,57 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### A version's tags go out with it (2026-11-10)
+
+*When a variant with a tag the main drug doesn't have is deleted from the database, the tags get
+added to the main drug when they should disappear along with the variant.*
+
+They were. `clearVariantLayer` deleted the layer and then nulled every pointer at it, on the
+reasoning the removal screen was built with that morning -- *membership and wording are two facts,
+and only one was wrong*. True of a curated list, and wrong about the only tags that were there
+because of the import being undone.
+
+What an import writes is **a version and its scope together**: the lecture's class and exam are
+tagged onto the drug, the layer lands on the narrowest of them, and `pointTagsAtVariant` points the
+others at it. Delete the wording alone and both tags stay behind -- and a class tag with nothing
+left to read is read as *the drug's own words*, so a lecture deleted off cefuroxime went on
+claiming that cefuroxime's own profile is what Heme/Onc Exam 3 teaches. Nobody tagged it. The
+import did, and the import was what was being undone.
+
+So deleting a version now takes, with it:
+
+- **its own membership** -- the drug comes off that class or exam;
+- **every other scope that was reading it** -- a course pointed at the exam's layer is the same
+  lecture under another name.
+
+And deliberately does not take:
+
+- **a list, a year or a custom tag.** `top-drugs-2026` is a curation decision that outlives any one
+  lecture, and the split is already `pointTagsAtVariant`'s: it will point a list at a version and
+  would never put a drug on one. The membership stays and only its pointer is nulled.
+- **a class with wording of its own.** Then it is a version in its own right rather than another
+  name for the one going, and dropping its membership would leave its layer stored and unreachable
+  -- `variantOptionsFor` only offers a layer the drug is still tagged with. Pointer nulled, place
+  kept.
+
+The pointer still gets nulled for everything that stays, for the original reason: a membership
+naming wording that is gone is stale in the way that looks like nothing, because every reader
+quietly falls back to the drug's own words while the profile goes on reporting a version the drug
+has not got.
+
+**Two things make this safe to do by kind rather than by provenance.** `drug_tags` records nothing
+about who put a row there, so a hand-tagged class is indistinguishable from an imported one -- the
+rule has to be about what kind of tag it is, and a class or exam membership is the one kind an
+import creates wholesale. And `clearVariantLayer` has exactly one caller, `/admin/remove`, whose
+whole purpose is undoing an import; the other way a layer goes -- emptying every box on the variant
+form -- is a different sentence (*this class says what the drug says*) and still touches no
+membership at all.
+
+The screen says what it did. `removeAction` reports the memberships it dropped, named
+`drug:tag`, the summary line says *a version takes the class and exam tags that came with it; lists
+stay* before you type DELETE, and the page's intro says it too. A deletion nobody ticked is one the
+screen has to admit to.
+
 ### *Visible by default* means *visible when empty* (2026-11-10)
 
 *Making it not show declutters, but right now if a drug does have info in that field and
@@ -3498,7 +3549,9 @@ Decisions:
 - **A ticked version whose drug is also ticked is skipped**, and the screen says so. Deleting the
   drug takes its layers with it, so clearing one of those is a write racing its own cascade.
 - **Clearing a version drops the wording and keeps the membership.** Two facts, and only one of them
-  was wrong -- the same reasoning migration 0016 gives for `on delete set null`.
+  was wrong -- the same reasoning migration 0016 gives for `on delete set null`. **Reversed later
+  the same day** for the class and exam tags that arrived with the version; see [A version's tags go
+  out with it](#a-versions-tags-go-out-with-it-2026-11-10).
 - **Tick every drug shown** is the control the screen exists for. Undoing a bad import means
   filtering to the tag it created and taking all of them, and doing that by hand twenty-four times is
   how the twenty-fifth gets missed.

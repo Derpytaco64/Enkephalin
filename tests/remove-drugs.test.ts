@@ -4,8 +4,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import { drugTags, drugVariantValues, drugs, tags, users } from '@/db/schema';
 import { deleteDrug } from '@/lib/drugs/merge';
+import { setDrugTags } from '@/lib/drugs/mutations';
 import {
-  clearVariantLayer, overriddenKeys, patchVariantLayer, variantLayerFor,
+  clearVariantLayer, patchVariantLayer, pointTagsAtVariant, variantLayerFor,
 } from '@/lib/drugs/variants';
 
 /**
@@ -16,6 +17,11 @@ import {
  * **a layer whose drug is going too is not cleared separately**, because
  * deleting the drug takes its layers with it and clearing one of those is a
  * write racing its own cascade.
+ *
+ * The four assertions about memberships are the rule `clearVariantLayer`
+ * answers for: **a version goes out with the scope it arrived with** -- its own
+ * class or exam tag and any other scope pointed at it -- while a list, and a
+ * class with wording of its own, keep their place and lose only the pointer.
  *
  * `clearVariantLayer` existed for months with nothing calling it. That is why
  * these assertions are about behaviour rather than about being called: an
@@ -42,6 +48,17 @@ const seedDrug = async (slug: string, generic: string) => {
   return drug;
 };
 
+/** Which lists, classes and exams the drug is on, by slug. */
+const slugsTagged = async (drugSlug: string) => {
+  const rows = await db
+    .select({ slug: tags.slug })
+    .from(drugTags)
+    .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .innerJoin(drugs, eq(drugs.id, drugTags.drugId))
+    .where(eq(drugs.slug, drugSlug));
+  return rows.map((row) => row.slug).sort();
+};
+
 const wordedBy = async (drugId: string, variantSlug: string, value: string) => {
   const result = await patchVariantLayer({
     drugId,
@@ -66,7 +83,7 @@ describe('undoing a bad import', () => {
     await db.insert(users).values({ id: ME, email: 'remove@example.test', role: 'admin' });
   });
 
-  it('clears one version and leaves the drug and its other versions alone', async () => {
+  it('deletes a version with its tag, and leaves the drug and its other versions alone', async () => {
     const course = await seedTag('phrm-535', 'PHRM 535', 'course');
     const exam = await seedTag('heme-onc-exam-3', 'Heme/Onc Exam 3', 'exam');
     const drug = await seedDrug('prednisone', 'Prednisone');
@@ -80,22 +97,108 @@ describe('undoing a bad import', () => {
     const result = await clearVariantLayer({
       drugSlug: 'prednisone', variantSlug: 'heme-onc-exam-3',
     });
-    expect(result.ok).toBe(true);
+    expect(result).toEqual({ ok: true, untagged: ['heme-onc-exam-3'] });
 
-    // The wording is gone and the *membership* is not, which is the right
-    // split: `variantLayerFor` answers for any class the drug is in, with
-    // nothing in it. Clearing a bad lecture must not also drop the drug off the
-    // exam -- membership and wording are two facts, and only one was wrong.
-    const cleared = await variantLayerFor(drug.id, 'heme-onc-exam-3');
-    expect(cleared).not.toBeNull();
-    expect(overriddenKeys(cleared!.fields)).toEqual([]);
+    // The wording **and** the membership, because an import writes the two
+    // together: it tags the drug with the lecture's scope and words it under
+    // the narrowest of them. Leaving the tag behind left a tag with nothing to
+    // read, and a tag with nothing to read is read as the drug's own words --
+    // so a lecture deleted off a drug went on claiming that the drug's own
+    // profile is what that exam teaches.
+    expect(await variantLayerFor(drug.id, 'heme-onc-exam-3')).toBeNull();
     expect(await db.select().from(drugVariantValues)).toHaveLength(1);
-    // The other version survives: one lecture being wrong says nothing about
-    // another, and this is the fix that deleting the drug cannot make.
+    // The other version survives, membership and all: one lecture being wrong
+    // says nothing about another, and this is the fix that deleting the drug
+    // cannot make. Nothing pointed at the version that went, so nothing else
+    // on this drug was part of it.
     expect((await variantLayerFor(drug.id, 'phrm-535'))?.fields.moa.value)
       .toBe('What the class said');
+    expect(await slugsTagged('prednisone')).toEqual(['phrm-535']);
     const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
     expect(after.fields.moa.value).toBe('Its own wording');
+  });
+
+  it('takes the rest of the lecture’s scope with it', async () => {
+    // The shape `applyDrugImport` writes: a file scoped to a class and an exam
+    // words the drug under the exam and points the class at it. Both tags are
+    // that one lecture, so undoing the lecture is both of them -- see
+    // `pointTagsAtVariant` for the half of this that puts them there.
+    await seedTag('phrm-535', 'PHRM 535', 'course');
+    await seedTag('heme-onc-exam-3', 'Heme/Onc Exam 3', 'exam');
+    const drug = await seedDrug('cefuroxime', 'Cefuroxime');
+    await setDrugTags('cefuroxime', ['phrm-535', 'heme-onc-exam-3'], ME);
+    await wordedBy(drug.id, 'heme-onc-exam-3', 'What the exam said');
+    expect(await pointTagsAtVariant({
+      drugId: drug.id, variantSlug: 'heme-onc-exam-3', tagSlugs: ['phrm-535'],
+    })).toBe(1);
+
+    const result = await clearVariantLayer({
+      drugSlug: 'cefuroxime', variantSlug: 'heme-onc-exam-3',
+    });
+    expect(result).toEqual({ ok: true, untagged: ['heme-onc-exam-3', 'phrm-535'] });
+
+    // Nothing of the lecture is left on the drug: not its wording, not the
+    // exam it was worded under, and not the class that was reading it.
+    expect(await slugsTagged('cefuroxime')).toEqual([]);
+    expect(await db.select().from(drugVariantValues)).toEqual([]);
+    // The tags themselves stay. Other drugs are in that class, and a deletion
+    // on one drug is not a decision about the vocabulary.
+    expect((await db.select().from(tags)).map((tag) => tag.slug).sort())
+      .toEqual(['heme-onc-exam-3', 'phrm-535']);
+  });
+
+  it('keeps a list on the drug, and only forgets which version it read', async () => {
+    // A curated list is not a lecture's scope. `pointTagsAtVariant` will point
+    // one at a version and would never put a drug on one, so deleting the
+    // version must not take the drug off Top Drugs 2026: the membership is
+    // still true, and only the reading is gone.
+    await seedTag('top-drugs-2026', 'Top Drugs 2026', 'top_list');
+    await seedTag('heme-onc-exam-3', 'Heme/Onc Exam 3', 'exam');
+    const drug = await seedDrug('prednisone', 'Prednisone');
+    await setDrugTags('prednisone', ['top-drugs-2026', 'heme-onc-exam-3'], ME);
+    await wordedBy(drug.id, 'heme-onc-exam-3', 'What the exam said');
+    await pointTagsAtVariant({
+      drugId: drug.id, variantSlug: 'heme-onc-exam-3', tagSlugs: ['top-drugs-2026'],
+    });
+
+    const result = await clearVariantLayer({
+      drugSlug: 'prednisone', variantSlug: 'heme-onc-exam-3',
+    });
+    expect(result).toEqual({ ok: true, untagged: ['heme-onc-exam-3'] });
+
+    expect(await slugsTagged('prednisone')).toEqual(['top-drugs-2026']);
+    const [list] = await db
+      .select({ named: drugTags.variantTagId })
+      .from(drugTags)
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .where(eq(tags.slug, 'top-drugs-2026'));
+    expect(list.named).toBeNull();
+  });
+
+  it('keeps a class that words the drug itself, and only drops its pointer', async () => {
+    // Two lectures: the class has wording of its own as well as a pointer at
+    // the exam's, which happens when one import points what a later one
+    // writes to. Dropping its membership would leave its layer stored and
+    // unreachable -- `variantOptionsFor` only offers a layer the drug is still
+    // tagged with -- so it stays, and only the pointer goes.
+    await seedTag('phrm-535', 'PHRM 535', 'course');
+    await seedTag('heme-onc-exam-3', 'Heme/Onc Exam 3', 'exam');
+    const drug = await seedDrug('prednisone', 'Prednisone');
+    await setDrugTags('prednisone', ['phrm-535', 'heme-onc-exam-3'], ME);
+    await wordedBy(drug.id, 'heme-onc-exam-3', 'What the exam said');
+    await pointTagsAtVariant({
+      drugId: drug.id, variantSlug: 'heme-onc-exam-3', tagSlugs: ['phrm-535'],
+    });
+    await wordedBy(drug.id, 'phrm-535', 'What the class said');
+
+    const result = await clearVariantLayer({
+      drugSlug: 'prednisone', variantSlug: 'heme-onc-exam-3',
+    });
+    expect(result).toEqual({ ok: true, untagged: ['heme-onc-exam-3'] });
+
+    expect(await slugsTagged('prednisone')).toEqual(['phrm-535']);
+    expect((await variantLayerFor(drug.id, 'phrm-535'))?.fields.moa.value)
+      .toBe('What the class said');
   });
 
   it('takes a drug’s versions with it, so clearing them first is needless', async () => {

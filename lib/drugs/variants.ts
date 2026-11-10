@@ -66,6 +66,18 @@ export type Result =
   | { ok: true }
   | { ok: false; message: string };
 
+/**
+ * Clearing a version says which memberships went with it.
+ *
+ * Named rather than counted, because the screen that reports it is a
+ * destructive one: *2 versions deleted* and nothing else would leave whoever
+ * just undid an import to go and find out for themselves which classes the
+ * drug came off. See `clearVariantLayer`.
+ */
+export type ClearResult =
+  | { ok: true; untagged: string[] }
+  | { ok: false; message: string };
+
 /** A save says how much this variant now holds of its own. */
 export type SaveResult =
   | { ok: true; overrides: number }
@@ -604,11 +616,42 @@ export async function saveVariantLayer(input: {
   return { ok: true, overrides: count };
 }
 
-/** The whole layer goes: this variant says nothing of its own after all. */
+/**
+ * The version goes, and the scope it arrived with goes too.
+ *
+ * This is the undo for an import, and its only caller is `/admin/remove`.
+ * What an import writes is a *version and its scope together* -- the lecture's
+ * class and exam are tagged onto the drug, the layer lands on the narrowest of
+ * them, and the others are pointed at it by `pointTagsAtVariant` -- so undoing
+ * one has to take the same three things back out. Dropping only the wording
+ * left the tags behind, and a tag with nothing left to read is read as the
+ * drug's own: a lecture deleted off cefuroxime still showed *PHRM 535* and
+ * *Heme/Onc Exam 3* on its profile, now claiming the drug's own words say what
+ * that class teaches. Nobody tagged it; an import did, and the import is what
+ * was being undone.
+ *
+ * **A list keeps its place.** A membership of any other kind -- `top_list`,
+ * `school_year`, `custom` -- is a curation decision that outlives any one
+ * lecture, so Top Drugs 2026 stays exactly as it was and only its pointer is
+ * nulled. Same split as `pointTagsAtVariant`, which will point a list at a
+ * version and never put a drug on one.
+ *
+ * **And a class that words this drug itself keeps its place too**, pointer
+ * nulled, because then it is a version in its own right rather than another
+ * name for the one being deleted -- and dropping its membership would leave its
+ * layer stored and unreachable, since `variantOptionsFor` only offers a layer
+ * the drug is still tagged with.
+ *
+ * A pointer left dangling would be the kind of stale that looks like nothing:
+ * the list goes on claiming a reading, every reader quietly falls back to the
+ * drug's own words, and the profile reports a version the drug has not got.
+ * Hence the null for the rows that stay -- the same reasoning migration 0016
+ * gives for `on delete set null` when the tag itself is deleted.
+ */
 export async function clearVariantLayer(input: {
   drugSlug: string;
   variantSlug: string;
-}): Promise<Result> {
+}): Promise<ClearResult> {
   const [drug] = await db
     .select({ id: drugs.id })
     .from(drugs)
@@ -627,19 +670,51 @@ export async function clearVariantLayer(input: {
     .delete(drugVariantValues)
     .where(and(eq(drugVariantValues.drugId, drug.id), eq(drugVariantValues.tagId, variant.id)));
 
-  // And nothing is left pointing at the wording that is gone. A membership
-  // naming a version it can no longer read is the kind of stale that looks
-  // like a bug rather than like nothing: the list goes on claiming a reading,
-  // every reader quietly falls back to the drug's own words, and the profile
-  // reports a version the drug has not got. Same reasoning as migration 0016's
-  // `on delete set null` for the tag itself -- the membership is still true,
-  // the reading is not.
+  // The rest of this version's scope: a class or an exam that was reading it
+  // and says nothing of its own. The left join is the "nothing of its own"
+  // half -- a layer for *that* tag, which this delete has not touched.
+  const scope = await db
+    .select({ tagId: drugTags.tagId, slug: tags.slug })
+    .from(drugTags)
+    .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .leftJoin(drugVariantValues, and(
+      eq(drugVariantValues.drugId, drugTags.drugId),
+      eq(drugVariantValues.tagId, drugTags.tagId),
+    ))
+    .where(and(
+      eq(drugTags.drugId, drug.id),
+      eq(drugTags.variantTagId, variant.id),
+      isVariantTag,
+      isNull(drugVariantValues.tagId),
+    ));
+
+  const slugOf = new Map([
+    [variant.id, input.variantSlug],
+    ...scope.map((row) => [row.tagId, row.slug] as const),
+  ]);
+
+  const dropped = await db
+    .delete(drugTags)
+    .where(and(
+      eq(drugTags.drugId, drug.id),
+      inArray(drugTags.tagId, [...slugOf.keys()]),
+    ))
+    .returning({ tagId: drugTags.tagId });
+
+  // Whatever still points at the version -- the lists, and any class with
+  // wording of its own -- reads the drug's own words from here.
   await db
     .update(drugTags)
     .set({ variantTagId: null })
     .where(and(eq(drugTags.drugId, drug.id), eq(drugTags.variantTagId, variant.id)));
 
-  return { ok: true };
+  return {
+    ok: true,
+    untagged: dropped
+      .map((row) => slugOf.get(row.tagId))
+      .filter((slug): slug is string => slug !== undefined)
+      .sort(),
+  };
 }
 
 /**

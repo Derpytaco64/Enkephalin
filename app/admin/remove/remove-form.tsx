@@ -289,6 +289,9 @@ export function RemoveForm({
             <>
               <strong>{drugPicks.length} drug{drugPicks.length === 1 ? '' : 's'}</strong> and{' '}
               <strong>{layersGoing} version{layersGoing === 1 ? '' : 's'}</strong> will be deleted.
+              {layersGoing > 0 && (
+                <> A version takes the class and exam tags that came with it; lists stay.</>
+              )}
               {goingAnyway > 0 && (
                 <> {goingAnyway} ticked version{goingAnyway === 1 ? '' : 's'} already{' '}
                   {goingAnyway === 1 ? 'goes' : 'go'} with its drug.</>
@@ -332,6 +335,20 @@ export function RemoveForm({
               {state.report.withTheDrug === 1 ? '' : 's'} went with{' '}
               {state.report.withTheDrug === 1 ? 'its' : 'their'} drug.
             </p>
+          )}
+          {/* A deletion nobody ticked, so it is said out loud and the
+              memberships are named -- see `RemoveReport.untagged`. */}
+          {state.report.untagged.length > 0 && (
+            <>
+              <p className="mt-1 text-[var(--muted)]">
+                {state.report.untagged.length} class or exam tag
+                {state.report.untagged.length === 1 ? '' : 's'} went with{' '}
+                {state.report.layers.length === 1 ? 'it' : 'them'}. Lists are untouched.
+              </p>
+              <p className="mt-1 font-mono text-xs text-[var(--muted)]">
+                {state.report.untagged.join(', ')}
+              </p>
+            </>
           )}
           {state.report.drugs.length > 0 && (
             <p className="mt-1 font-mono text-xs text-[var(--muted)]">

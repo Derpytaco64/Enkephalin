@@ -564,7 +564,7 @@ describe('which wording a tag reads the drug as', () => {
     expect((await readsOf()).get(COURSE)).toBeNull();
   });
 
-  it('stops naming a version once its wording is cleared', async () => {
+  it('stops naming a version once its wording is deleted', async () => {
     await pointTagsAtVariant({
       drugId: await drugId(), variantSlug: EXAM, tagSlugs: ['top-drugs-2026'],
     });
@@ -583,7 +583,12 @@ describe('which wording a tag reads the drug as', () => {
     // honoured, because what it names has no wording to read.
     const reads = await readsOf();
     expect(reads.get('top-drugs-2026')).toBeNull();
-    expect(reads.get(EXAM)).toBeNull();
+
+    // The exam tag is not on the drug at all any more: the version and the
+    // membership arrived together and `clearVariantLayer` takes both, so the
+    // list stays and the lecture's own tag goes. The list is the curated fact;
+    // the exam tag was the lecture.
+    expect(reads.has(EXAM)).toBe(false);
   });
 
   it('answers the same question for every version, not just the one on screen', async () => {

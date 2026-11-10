@@ -91,7 +91,9 @@ export default async function RemoveDrugsPage() {
       </div>
       <p className="mt-2 text-sm text-[var(--muted)]">
         For undoing an import. Deleting a drug takes its brands, its list memberships, its dosing
-        rows, its versions and every card and answer recorded against it — there is no undo, and{' '}
+        rows, its versions and every card and answer recorded against it. Deleting a version takes
+        the class and exam tags that arrived with it, and leaves the drug&rsquo;s lists alone. There
+        is no undo, and{' '}
         <Link href="/admin/data" className="underline">/admin/data</Link> exports the whole
         database as one file first.
       </p>
