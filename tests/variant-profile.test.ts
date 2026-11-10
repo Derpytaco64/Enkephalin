@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import {
-  drugVariantValues, drugTags, drugs, fieldDefs, studyCards, tags, users, type FieldValue,
+  drugVariantValues, drugTags, drugs, fieldDefs, studyCards, tags, userPreferences, users,
+  type FieldValue,
 } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
@@ -18,6 +19,7 @@ import {
   saveVariantLayer,
 } from '@/lib/drugs/variants';
 import { getDrugProfile } from '@/lib/drugs/profile';
+import { ALL_VARIANTS } from '@/lib/drugs/variant-kinds';
 import { loadCardSources } from '@/lib/study/sources';
 import { DEFAULT_CONFIG, cardKey, normalizeConfig, type StudyConfig } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
@@ -419,6 +421,98 @@ describe('the profile, read through a variant', () => {
     const profile = await getDrugProfile('levothyroxine', ME, 'other-class');
     expect(profile?.variant).toBeNull();
     expect(profile?.drug.fields.moa.value).toBe('Replaces T4');
+  });
+});
+
+/* ------------------------------------------- which fields a profile shows -- */
+
+/**
+ * `defaultVisible` is about an **empty** field, not about the field.
+ *
+ * It used to mean *never show this field*, which made the declutter switch a
+ * censor: unticking it to stop two hundred drugs printing "not recorded yet"
+ * also hid the twelve that had the fact, on every drug, with nothing anywhere
+ * to say the field existed. Decluttering and withholding are not the same
+ * instruction, and only one of them was asked for.
+ */
+describe('a field that only shows where there is something to show', () => {
+  const hideWhenEmpty = async (key: string) => {
+    await db.update(fieldDefs).set({ defaultVisible: false }).where(eq(fieldDefs.key, key));
+  };
+
+  const emptyDrug = async () => {
+    await db.update(drugs).set({ fields: {} }).where(eq(drugs.slug, 'levothyroxine'));
+  };
+
+  const keysOn = async (asked?: string) => {
+    const profile = await getDrugProfile('levothyroxine', ME, asked);
+    return (profile?.defs ?? []).map((def) => def.key);
+  };
+
+  it('shows it on the drug that has the fact', async () => {
+    await hideWhenEmpty('moa');
+    // The seeded drug has a mechanism, so hiding empty ones does not hide it.
+    expect(await keysOn()).toContain('moa');
+  });
+
+  it('hides it on the drug that has nothing under it', async () => {
+    await hideWhenEmpty('moa');
+    await emptyDrug();
+
+    expect(await keysOn()).not.toContain('moa');
+  });
+
+  it('shows it empty when the flag is on, which is the point of the flag', async () => {
+    await emptyDrug();
+    // A gap nobody can see is a gap nobody fills.
+    expect(await keysOn()).toContain('moa');
+  });
+
+  it('counts a blank that means none as something to show', async () => {
+    await hideWhenEmpty('moa');
+    await db.update(drugs).set({
+      fields: {
+        moa: { value: null, status: 'none', source: 'the sheet', updatedAt: '', updatedBy: null },
+      },
+    }).where(eq(drugs.slug, 'levothyroxine'));
+
+    // *There is nothing to record* is an answer, and the one most of the
+    // library gives on some fields -- see the `status` notes on `FieldValue`.
+    expect(await keysOn()).toContain('moa');
+  });
+
+  it('cannot hide a field whose blank already means none, because none is an answer', async () => {
+    await hideWhenEmpty('bbw');
+    await emptyDrug();
+
+    // `bbw` ships with `blankMeansNone`, so an empty one reads *no black box
+    // warning* rather than *not recorded*. There is no empty state for this
+    // flag to hide, and 147 of 237 drugs depend on that reading.
+    expect(await keysOn()).toContain('bbw');
+  });
+
+  it('shows it where a class fills what the drug leaves empty', async () => {
+    await hideWhenEmpty('moa');
+    await emptyDrug();
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: COURSE,
+      values: { moa: 'T4 analogue, converted peripherally to T3' },
+      source: 'PSCI 413', note: '', userId: ME,
+    });
+
+    // Read as the drug: nothing there, so nothing to show.
+    expect(await keysOn()).not.toContain('moa');
+    // Read as the class that wrote it: there it is.
+    expect(await keysOn(COURSE)).toContain('moa');
+    // And in the side-by-side, which was opened to compare exactly this.
+    expect(await keysOn(ALL_VARIANTS)).toContain('moa');
+  });
+
+  it('lets a reader of their own mind outrank both', async () => {
+    await db.insert(userPreferences).values({ userId: ME, fieldVisibility: { moa: false } });
+    // The drug has its mechanism and the field shows when empty; an explicit
+    // no from the person reading still means no.
+    expect(await keysOn()).not.toContain('moa');
   });
 });
 

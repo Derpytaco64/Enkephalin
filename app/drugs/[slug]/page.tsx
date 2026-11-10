@@ -260,6 +260,9 @@ export default async function DrugProfilePage({
 
   const {
     drug, brands, indications, tags, defs, siblings, variants, variant, overridden, layers,
+    // Core fields read from their own columns rather than the JSONB, resolved
+    // in `getDrugProfile` because its visibility rule reads them too.
+    coreValues,
   } = profile;
 
   /**
@@ -326,15 +329,6 @@ export default async function DrugProfilePage({
 
   const { colorAxis: axis, paletteOverrides } = await getPreferences(session.user.id);
   const color = colorFor(axis, { ...drug, tags: tags.map((tag) => tag.slug) }, paletteOverrides);
-
-  // Core fields read from their own columns; the rest come out of the JSONB.
-  const coreValues: Record<string, string | null> = {
-    generic: drug.genericName,
-    drug_class: drug.drugClass,
-    controlled: drug.schedule,
-    brand: brands.map((brand) => brand.name).join('\n'),
-    indication: indications.join('\n'),
-  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">

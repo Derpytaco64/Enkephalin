@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/lib/session';
 import { getDrugProfile } from '@/lib/drugs/profile';
+import { listFieldDefs } from '@/lib/fields/registry';
 import { variantLayerFor, VARIANT_KIND_LABELS } from '@/lib/drugs/variants';
 import { saveVariantLayerAction } from './actions';
 import { VariantForm, type VariantField } from './variant-form';
@@ -41,10 +42,16 @@ export default async function VariantProfileEditPage({ params }: Params) {
   if (!layer) notFound();
 
   // Every field a variant may differ on, in the order the registry sorts them.
-  // `isCore` is out because those live in their own columns -- a class
-  // claiming a different generic name is a different drug, not a variation --
-  // and so is a field somebody has hidden, since the profile would not show it.
-  const fields: VariantField[] = profile.defs
+  // `isCore` is out because those live in their own columns -- a class claiming
+  // a different generic name is a different drug, not a variation.
+  //
+  // The whole registry rather than `profile.defs`, which is the viewer's
+  // visible subset: a field set to show only where there is something to show
+  // is absent from a profile until something is written, and this is the screen
+  // that writes it. Leaving it out would make the only fields a class could
+  // speak about the ones it had already spoken about. Same reasoning as the
+  // drug editor, which has always read the registry direct.
+  const fields: VariantField[] = (await listFieldDefs())
     .filter((def) => !def.isCore)
     .map((def) => ({
       def,

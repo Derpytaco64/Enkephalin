@@ -125,7 +125,8 @@ export function FieldList({
         profile reads them. {FIELD_FLAGS.map((flag, at) => (
           <span key={flag.key}>
             {at > 0 ? ' · ' : ''}
-            <strong className="font-medium text-[var(--fg)]">{flag.short}</strong> {flag.label.toLowerCase()}
+            <strong className="font-medium text-[var(--fg)]">{flag.short}</strong>
+            {' '}&mdash; {flag.label.toLowerCase()}
           </span>
         ))}.
       </p>

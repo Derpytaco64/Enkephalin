@@ -45,9 +45,12 @@ export const FIELD_FLAGS = [
   },
   {
     key: 'defaultVisible',
-    short: 'show',
-    label: 'Visible on profiles by default',
-    hint: 'A reader can turn any field on or off for themselves; this is where everyone starts.',
+    short: 'empty',
+    label: 'Show on profiles even when empty',
+    hint: 'Ticked, the field has a row on every drug, including the ones with nothing in it — '
+      + 'which is how a gap gets noticed and filled. Unticked, it appears only on the drugs that '
+      + 'have something to say, so the rest are not padded with rows reading “not recorded '
+      + 'yet”. Either way a drug with a value shows it.',
     on: true,
   },
 ] as const;

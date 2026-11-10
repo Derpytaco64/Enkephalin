@@ -11,7 +11,8 @@ import {
   tags,
   userPreferences,
 } from '@/db/schema';
-import { listFieldDefs } from '@/lib/fields/registry';
+import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
+import { formatFieldValue } from '@/lib/fields/format';
 import { ALL_VARIANTS } from './variant-kinds';
 import {
   overlayFields, overriddenKeys, variantLayerFor, variantLayersForDrug, variantOptionsFor,
@@ -156,18 +157,74 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
     indications: indicationsByBrand.get(brand.id) ?? [],
   }));
 
-  // A field the user has hidden stays hidden; anything they have not chosen
-  // about falls back to the field's own default.
+  // Core fields read from their own columns; the rest come out of the JSONB.
+  // Built here rather than on the page because the visibility rule below has to
+  // ask the same question of them -- *has this drug anything to say under this
+  // field* -- and two answers to that would be two profiles.
+  const coreValues: Record<string, string | null> = {
+    generic: drug.genericName,
+    drug_class: drug.drugClass,
+    controlled: drug.schedule,
+    brand: brands.map((brand) => brand.name).join('\n'),
+    indication: indicationRows.map((row) => row.label).join('\n'),
+  };
+
+  const fields = variant ? overlayFields(drug.fields, variant.fields) : drug.fields;
+
+  /** Whether this drug says anything under this field, blank-as-an-answer included. */
+  const answered = (def: FieldDef) => {
+    const value = def.isCore
+      ? {
+          value: coreValues[def.key] ?? null,
+          status: 'ok' as const,
+          source: null,
+          updatedAt: '',
+          updatedBy: null,
+        }
+      : fields[def.key];
+    // The formatter already knows the difference between *nothing recorded* and
+    // *nothing to record*: `blankMeansNone` and a stored `none` are answers.
+    if (formatFieldValue(def, value).kind !== 'missing') return true;
+
+    // And in the side-by-side table, a field the drug is silent about but some
+    // class words is exactly what the table was opened to show. Without this
+    // the comparison would drop the row and the layer with it.
+    return layers !== null
+      && [...layers.values()].some(
+        (layer) => formatFieldValue(def, layer[def.key]).kind !== 'missing',
+      );
+  };
+
+  /**
+   * Which fields this profile shows.
+   *
+   * `defaultVisible` is about **empty** fields, not about the field. Ticked,
+   * the row appears on every drug, which is how a gap gets noticed and filled;
+   * unticked, it appears only where there is something to read. What it used to
+   * mean was *never show this field at all*, which made the declutter switch a
+   * censor: unticking it to stop two hundred drugs printing "not recorded yet"
+   * also hid the twelve that had the fact, on every drug, with nothing on any
+   * screen to say the field existed. Decluttering and withholding are not the
+   * same instruction.
+   *
+   * A reader's own choice still outranks both, in either direction -- and is
+   * only settable through a restored backup today, which is the other half of
+   * why the old meaning was so sharp: there was no way back.
+   */
   const visibility = prefs[0]?.fieldVisibility ?? {};
-  const visibleDefs = defs.filter((def) => visibility[def.key] ?? def.defaultVisible);
+  const visibleDefs = defs.filter(
+    (def) => visibility[def.key] ?? (def.defaultVisible || answered(def)),
+  );
 
   return {
     // The fields a reader sees. Through a variant this is the overlay, so
     // everything downstream -- the formatter, the flag button, the *from X*
     // line -- works on one shape and never has to ask which layer it got.
-    drug: variant ? { ...drug, fields: overlayFields(drug.fields, variant.fields) } : drug,
+    drug: variant ? { ...drug, fields } : drug,
     brands,
     indications: indicationRows.map((row) => row.label),
+    /** The five core fields as strings, the way a profile row wants them. */
+    coreValues,
     /** Each with the version it reads the drug as -- null for its own words. */
     tags: profileTags,
     defs: visibleDefs,

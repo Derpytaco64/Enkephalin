@@ -3068,6 +3068,49 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### *Visible by default* means *visible when empty* (2026-11-10)
+
+*Making it not show declutters, but right now if a drug does have info in that field and
+defaultVisible is unchecked, that info section isn't viewable on any drug, even the ones where it
+should be.*
+
+The flag was a censor dressed as a declutter switch. Unticking it to stop two hundred drugs printing
+*not recorded yet* also hid the twelve that had the fact -- on every drug, with nothing on any screen
+to say the field existed at all. Decluttering and withholding are not the same instruction and only
+one of them was ever wanted.
+
+So `defaultVisible` is now about the **empty** field rather than about the field:
+
+| | ticked | unticked |
+|---|---|---|
+| drug has a value | shows | **shows** |
+| drug has nothing | shows, as *not recorded yet* | hidden |
+
+Four things worth keeping from doing it:
+
+- **The formatter already knew the difference.** `formatFieldValue` distinguishes `missing` -- a gap
+  -- from `none`, which is an answer, so the test is one call and the rules that feed it
+  (`blankMeansNone`, a stored `status: 'none'`) need no second implementation. The corollary is
+  exact and worth stating: a field whose blank already means none has **no** empty state, so this
+  flag cannot hide it. `bbw` is that field, and 147 of 237 drugs depend on the reading.
+- **The emptiness test has to run against the overlay, and against the layers in the comparison.**
+  A field the drug is silent about but a class words is the thing *Compare all* was opened to show;
+  testing the drug's own values would have dropped the row and the layer with it.
+- **`coreValues` moved into `getDrugProfile`.** The filter has to ask the same question of the five
+  core fields as the page does, and two answers to *has this drug anything to say here* would be two
+  profiles. The page destructures it now instead of rebuilding it.
+- **The variant editor stopped reading `profile.defs`.** Its comment used to justify the narrowing
+  -- *a field somebody has hidden is out, since the profile would not show it* -- and under the new
+  rule that is exactly backwards: a hidden-when-empty field is absent until something is written,
+  and this is the screen that writes it. Leaving it out would make the only fields a class could
+  speak about the ones it had already spoken about. It reads the registry direct, like the drug
+  editor always has.
+
+A reader's own `fieldVisibility` still outranks both, in either direction. Worth recording that
+**nothing in the app sets it**: it is read here and carried through backups, and that is the other
+half of why the old meaning was so sharp -- the one switch that hid a field had no counterweight
+anywhere.
+
 ### The field list reorders itself, and ticks its own boxes (2026-11-10)
 
 *Drag to reorder appearance order, and put blank-means-none, can-be-quizzed and visible-by-default
