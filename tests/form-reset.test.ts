@@ -92,6 +92,53 @@ describe('a form action is a decision, not a default', () => {
   });
 });
 
+/**
+ * A submit button's name and value are contributed by the *submission*, not by
+ * the form's controls, so `new FormData(form)` leaves them out. A form whose
+ * action branches on which button was pressed therefore read no button at all
+ * and took its default branch every time -- which on the import screen meant
+ * *Import it* quietly previewing the file again, the failure mode with no error
+ * message to go on.
+ *
+ * Two assertions rather than one, because the fix has two halves that can drift
+ * apart: the helper has to pass the submitter, and a form with a deciding
+ * button has to be going through the helper to benefit.
+ */
+describe('a button that says what to do arrives with the data', () => {
+  /** Files with a `<button type="submit">` that carries a name. */
+  function decidesBySubmitter(): string[] {
+    return walk('app').filter((path) => {
+      const source = readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+      for (let at = source.indexOf('<button'); at >= 0; at = source.indexOf('<button', at + 1)) {
+        const tag = openingTag(source, at);
+        if (/type="submit"/.test(tag) && /\sname="/.test(tag)) return true;
+      }
+      return false;
+    });
+  }
+
+  it('hands the submitter to FormData, or no named button is ever read', () => {
+    const helper = readFileSync('app/_components/submit.ts', 'utf8');
+    expect(helper).toContain('new FormData(event.currentTarget, submitter)');
+  });
+
+  it('routes every form that branches on a button through the helper', () => {
+    const files = decidesBySubmitter();
+    // Not a fixed list: a new one is welcome, it just has to submit through the
+    // helper. An empty sweep would mean the scanner stopped finding anything,
+    // which is the way this guard could pass while guarding nothing.
+    expect(files.length).toBeGreaterThan(0);
+    for (const path of files) {
+      const source = readFileSync(path, 'utf8');
+      const viaHelper = source.includes('onSubmit={submitTo(');
+      const viaAction = Object.keys(ALLOWED).includes(path);
+      expect(viaHelper || viaAction, `${path} reads its own buttons`).toBe(true);
+    }
+  });
+});
+
 describe('every other form hands its data over itself', () => {
   const converted = [
     'app/settings/look-form.tsx',

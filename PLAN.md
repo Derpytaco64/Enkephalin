@@ -3068,6 +3068,69 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### Import it did nothing, and a submit button nobody read (2026-11-10)
+
+*The actual import button in the drug import isn't working.*
+
+It wasn't. The screen's two buttons post the same text and differ only by their own name and value
+-- `intent=plan` and `intent=apply` -- which is a deliberate design and written down as one: *what
+gets imported is always the text in the box rather than a plan held somewhere from a minute ago*.
+
+But a submit button's name and value are contributed by the **submission**, not by the form's
+controls, so `new FormData(form)` leaves them out. `submitTo` built its FormData that way, so
+`intent` was never in it, `String(null) !== 'apply'` took the default branch, and **Import it**
+planned the file again. The worst shape a bug can take: the button worked, the request succeeded, the
+preview reappeared, and nothing said anything was wrong -- because a fresh preview is exactly what
+`intent` being absent means.
+
+Fixed in the helper rather than in that form, by handing `FormData` the submitter. The import screen
+was the only form in the app that branches on which button was pressed, so it was the only one
+affected -- but the next one would have inherited the same silence, and the helper is where the
+reasoning about form submission already lives.
+
+The guard is static, like the one above it about form actions and for the same reason: the condition
+is *the helper passes the submitter*, which no node test can observe through a real DOM. It was
+checked by reverting the fix and watching it fail, which is the only thing that makes a static guard
+worth having.
+
+### Tags on the drug list, and several at once (2026-11-10)
+
+*The drug list page search filters should have one for tags like top drugs 2026, and should be able
+to && search with like top drugs 2026 && heme/onc.*
+
+There was a tag filter. It had never once been visible, which is the same thing as not having one.
+
+The rail hides a control whose options cannot narrow anything -- `options.length > 1` -- and that
+rule is right for schedule and for route, because those **partition** the drugs: if every drug in
+the database is `IV`, filtering by `IV` is a no-op and the control is noise. It is wrong for tags,
+because a tag **marks a subset**. The question is *which of these are on that list*, and it is worth
+asking of one tag as much as of ten. With exactly one tag in the database the control vanished.
+
+So tags show at `> 0`, like `blank` immediately above them, which marks a subset too.
+
+**The axis takes several, and means all of them.** Browse defaults to the intersection where the
+study screens default to the union, and the difference is the job rather than a slip: a study scope
+*collects* material to revise, where *Exam 2 and Exam 3* means both and an intersection can hand back
+an empty deck; a browse filter *narrows*, like every other control on the rail, and an over-wide
+filter is only a longer list to read. The operator is a button printed between the pills -- you read
+the filter as *Top Drugs 2026* **and** *Heme/Onc Exam 3* -- and it is named for the non-default
+(`tagsany`) so the default carries nothing in the URL and every `?tag=` link already out there still
+means what it did.
+
+Add-and-pill rather than a column of checkboxes, because the rail is 15rem wide and the list is
+sixty-seven long once the categories are seeded: the picked few belong on screen, the rest behind the
+select, and the select empties itself after each pick so it reads as *add*.
+
+The axis stays a comma-joined **string** rather than becoming an array, and that is the shape of the
+whole filter object rather than laziness: three loops walk it generically -- the URL sync, the *is
+anything on* check, the advanced-filter count -- and they only stay generic while every value is
+falsy when unset. An empty array is truthy, and would have left the rail permanently in its filtered
+state. A comma cannot collide with `[a-z0-9-]`.
+
+The predicate moved to `lib/tags/constants.ts` so it could be tested at all -- it was four lines
+inside a 600-line client component, reachable by no test -- and so the two screens that ask this
+question cannot drift into answering it differently.
+
 ### A route written either way, and what the guide got wrong (2026-11-10)
 
 The guide's field table called `route` a **list** and the worked example wrote it `"route": "IV"`.

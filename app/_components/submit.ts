@@ -28,6 +28,17 @@ import { startTransition, type FormEvent } from 'react';
  * when it is called inside one. Forms that track their own pending flag are
  * unaffected by being wrapped.
  *
+ * **The submitter is passed on purpose.** `new FormData(form)` leaves out the
+ * button that did the submitting -- per spec, a submit button's name and value
+ * are contributed by the submission, not by the form's controls. So a form with
+ * two buttons telling the action what to do (`name="intent"`, `value="plan"`
+ * and `value="apply"`) read as neither, and the action took its default branch
+ * every time: the import screen's *Import it* button previewed the file again
+ * instead of importing it, with no error to go on, because `plan` is what
+ * `intent` being absent looks like. Handing `FormData` the submitter is the
+ * whole fix, and it belongs here rather than in that one form -- the next form
+ * with two buttons would have inherited the same silence.
+ *
  * **A form action is still right where clearing the fields is the point** -- a
  * create form that should come back empty for the next one. `tests/form-reset.test.ts`
  * holds the list of those and fails on any form that joins it without a
@@ -36,7 +47,8 @@ import { startTransition, type FormEvent } from 'react';
 export function submitTo(run: (formData: FormData) => unknown) {
   return (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const { submitter } = event.nativeEvent as SubmitEvent;
+    const formData = new FormData(event.currentTarget, submitter);
     startTransition(() => { void run(formData); });
   };
 }

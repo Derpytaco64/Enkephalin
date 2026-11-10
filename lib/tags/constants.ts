@@ -41,3 +41,45 @@ export const TAG_KIND_GROUPS: { kind: TagKind; label: string }[] = [
   { kind: 'exam', label: 'Exams' },
   { kind: 'custom', label: 'Other' },
 ];
+
+/* ------------------------------------------------- filtering by several -- */
+
+/**
+ * The browse rail's tag axis, spelled as one URL parameter.
+ *
+ * Comma-joined rather than a repeated `?tag=a&tag=b` because the browser's
+ * filter state is a flat object of strings -- its URL sync, its *is anything
+ * on* check and its advanced-filter count all walk that object generically, and
+ * an array value is truthy when empty, which would leave the rail permanently
+ * in its filtered state. A comma cannot collide: a tag slug is `[a-z0-9-]` and
+ * cannot begin with a dash.
+ */
+export const tagList = (value: string) => value.split(',').filter(Boolean);
+
+/**
+ * Does this drug's tags satisfy the picked set?
+ *
+ * **All of them by default.** A browse filter narrows -- which is what every
+ * other control on that rail does, and what *Top Drugs 2026 and Heme/Onc Exam
+ * 3* asks for: the drugs on both lists. `any` is the opt-in, for the other real
+ * question (*Exam 2 or Exam 3*, revising two at once).
+ *
+ * The study screens default the other way round, and that is the job differing
+ * rather than an inconsistency: a study scope *collects* material, where an
+ * intersection can hand back an empty deck and a union never can, so there the
+ * loose reading is the safe one. Here an over-wide filter is merely a list you
+ * then have to read.
+ *
+ * Nothing picked matches everything, so the caller does not have to special-case
+ * an empty filter -- and `every` over an empty list would say so anyway.
+ */
+export function matchesTags(
+  rowTags: readonly string[],
+  picked: readonly string[],
+  mode: 'all' | 'any' = 'all',
+): boolean {
+  if (picked.length === 0) return true;
+  return mode === 'any'
+    ? picked.some((slug) => rowTags.includes(slug))
+    : picked.every((slug) => rowTags.includes(slug));
+}

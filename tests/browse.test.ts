@@ -8,6 +8,7 @@ import { syncDrugs, type SeedDrug } from '@/lib/content/sync';
 import { getDrugIndex } from '@/lib/drugs/browse';
 import { saveVariantLayer } from '@/lib/drugs/variants';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
+import { matchesTags, tagList } from '@/lib/tags/constants';
 
 beforeEach(async () => {
   await db.delete(brandIndications);
@@ -241,5 +242,62 @@ describe('a class’s own wording in the index', () => {
   it('gives a drug with no versions an empty list rather than nothing', async () => {
     const { rows } = await getDrugIndex();
     expect(rows.filter((row) => row.slug === 'lisinopril')[0].variants).toEqual([]);
+  });
+});
+
+describe('filtering the list by several tags', () => {
+  const TOP = 'top-drugs-2026';
+  const CLASS = 'phrm-535';
+  const EXAM = 'heme-onc-exam-3';
+
+  it('reads two tags as the drugs on both', () => {
+    // The ask, in the owner's words: "top drugs 2026 && heme/onc".
+    expect(matchesTags([TOP, EXAM], [TOP, EXAM])).toBe(true);
+    expect(matchesTags([TOP], [TOP, EXAM])).toBe(false);
+    expect(matchesTags([EXAM], [TOP, EXAM])).toBe(false);
+  });
+
+  it('takes either when asked for any of them', () => {
+    expect(matchesTags([TOP], [TOP, EXAM], 'any')).toBe(true);
+    expect(matchesTags([EXAM], [TOP, EXAM], 'any')).toBe(true);
+    expect(matchesTags([CLASS], [TOP, EXAM], 'any')).toBe(false);
+  });
+
+  it('means the same thing either way with one tag picked', () => {
+    // Which is what lets the default stay unspelled in the URL: every `?tag=x`
+    // link written before the axis went multiple still means what it did.
+    for (const mode of ['all', 'any'] as const) {
+      expect(matchesTags([TOP, CLASS], [TOP], mode)).toBe(true);
+      expect(matchesTags([CLASS], [TOP], mode)).toBe(false);
+    }
+  });
+
+  it('matches every drug when nothing is picked', () => {
+    expect(matchesTags([], [])).toBe(true);
+    expect(matchesTags([TOP], [], 'any')).toBe(true);
+  });
+
+  it('reads the comma spelling the URL carries, and tolerates its edges', () => {
+    expect(tagList(`${TOP},${EXAM}`)).toEqual([TOP, EXAM]);
+    expect(tagList(TOP)).toEqual([TOP]);
+    // An empty parameter and a trailing comma both arrive from the rail as a
+    // tag is removed, and neither is a filter.
+    expect(tagList('')).toEqual([]);
+    expect(tagList(`,${TOP},`)).toEqual([TOP]);
+  });
+
+  it('agrees with the index rows it filters', async () => {
+    // The predicate is only right if the slugs it compares are the slugs the
+    // rows actually carry, so this one goes through the real index rather than
+    // trusting two string arrays.
+    const { rows } = await getDrugIndex();
+    const tagged = rows.filter((row) => row.tags.length > 0);
+    expect(tagged.length).toBeGreaterThan(0);
+
+    for (const row of tagged) {
+      expect(matchesTags(row.tags, row.tags)).toBe(true);
+      expect(matchesTags(row.tags, [...row.tags, 'a-tag-nothing-carries'])).toBe(false);
+      expect(matchesTags(row.tags, [...row.tags, 'a-tag-nothing-carries'], 'any')).toBe(true);
+    }
   });
 });

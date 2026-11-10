@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import type { BrowseFacets, DrugIndexRow, VariantText } from '@/lib/drugs/browse';
 import { classLabel, isUncategorized } from '@/lib/drugs/drug-class';
+import { matchesTags, tagList } from '@/lib/tags/constants';
 import { colorFor, scheduleBadge, type ColorAxis } from '@/lib/theme/palette';
 
 const REVIEW_LABELS = {
@@ -14,6 +15,17 @@ const REVIEW_LABELS = {
   ok: 'Complete',
 } as const;
 
+/**
+ * Every filter is a string, and the three loops below are why.
+ *
+ * The URL sync, the *is anything on* check and the advanced-filter count all
+ * walk this object generically, and they only stay generic while every value is
+ * falsy when unset. So the tag axis -- which holds several slugs now -- is a
+ * comma-joined string rather than an array: an empty array is truthy and would
+ * have put the rail permanently in its filtered state. A comma is safe because
+ * a tag slug is `[a-z0-9-]`, and `?tag=top-drugs-2026,heme-onc-exam-3` is a
+ * readable, bookmarkable spelling of one filter holding two values.
+ */
 type Filters = {
   q: string;
   drugClass: string;
@@ -21,6 +33,19 @@ type Filters = {
   schedule: string;
   route: string;
   tag: string;
+  /**
+   * `'1'` to take a drug on **any** tag picked; empty to require **all** of
+   * them, which is the default.
+   *
+   * The study screens default the other way, and the difference is the job
+   * rather than an oversight: a scope *collects* material to revise, where
+   * *Exam 2 and Exam 3* means both and an intersection can hand back an empty
+   * deck; a browse filter *narrows*, like every other control on this rail, so
+   * *Top Drugs 2026 and Heme/Onc* means the drugs on both. Named for the
+   * non-default so the default carries nothing in the URL -- which also leaves
+   * every `?tag=` link already out there meaning what it used to.
+   */
+  tagsAny: string;
   review: string;
   blank: string;
   /** Which field the `fieldText` below has to appear in. */
@@ -35,6 +60,7 @@ const EMPTY: Filters = {
   schedule: '',
   route: '',
   tag: '',
+  tagsAny: '',
   review: '',
   blank: '',
   fieldKey: '',
@@ -48,6 +74,7 @@ const PARAM_NAMES: Record<keyof Filters, string> = {
   schedule: 'schedule',
   route: 'route',
   tag: 'tag',
+  tagsAny: 'tagsany',
   review: 'review',
   blank: 'blank',
   fieldKey: 'field',
@@ -124,6 +151,7 @@ export function DrugBrowser({
     schedule: searchParams.get('schedule') ?? '',
     route: searchParams.get('route') ?? '',
     tag: searchParams.get('tag') ?? '',
+    tagsAny: searchParams.get('tagsany') ?? '',
     review: searchParams.get('review') ?? '',
     blank: searchParams.get('blank') ?? '',
     fieldKey: searchParams.get('field') ?? '',
@@ -144,6 +172,14 @@ export function DrugBrowser({
     const query = params.toString();
     window.history.replaceState(null, '', query ? `?${query}` : window.location.pathname);
   }, [filters]);
+
+  // The tag axis, parsed once: the predicate, the select and the pills all read
+  // it, and three `split(',')` calls is three chances to disagree.
+  const pickedTags = useMemo(() => tagList(filters.tag), [filters.tag]);
+  const tagLabels = useMemo(
+    () => new Map(facets.tags.map((tag) => [tag.slug, tag.label])),
+    [facets.tags],
+  );
 
   const fuse = useMemo(
     () =>
@@ -256,7 +292,9 @@ export function DrugBrowser({
       if (filters.indication && !row.indications.some((text) => contains(text, filters.indication))) return false;
       if (filters.schedule && row.schedule !== filters.schedule) return false;
       if (filters.route && !splitRoutes(row.values.route).includes(filters.route)) return false;
-      if (filters.tag && !row.tags.includes(filters.tag)) return false;
+      // All of the picked tags by default: stacking tags narrows, the same way
+      // stacking a class onto an indication does.
+      if (!matchesTags(row.tags, pickedTags, filters.tagsAny ? 'any' : 'all')) return false;
       if (filters.review && row.review !== filters.review) return false;
       if (filters.blank && !row.missing.includes(filters.blank)) return false;
       // The precise form of the box above: this exact field, containing this
@@ -275,7 +313,7 @@ export function DrugBrowser({
       }
       return true;
     });
-  }, [ranked, filters]);
+  }, [ranked, filters, pickedTags]);
 
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((current) => ({ ...current, [key]: value }));
@@ -320,11 +358,21 @@ export function DrugBrowser({
     review: options.review.length > 1 || Boolean(filters.review),
     schedule: options.schedules.length > 1 || Boolean(filters.schedule),
     route: options.routes.length > 1 || Boolean(filters.route),
-    tag: options.tags.length > 1 || Boolean(filters.tag),
+    // `> 0`, unlike the facets above it, and the difference is real: a
+    // schedule or a route *partitions* the drugs, so the only value present
+    // narrows nothing and the control is noise. A tag *marks a subset* -- it is
+    // the question "which of these are on that list", which is worth asking of
+    // one tag as much as of ten, and the reason this control was missing from
+    // the rail entirely while the database held a single list.
+    tag: options.tags.length > 0 || Boolean(filters.tag),
   };
 
   const advancedKeys = [
     'drugClass', 'indication', 'schedule', 'route', 'tag', 'review', 'blank', 'fieldText',
+    // `tagsAny` is deliberately absent: it changes how the tag filter reads
+    // rather than being a filter of its own, and counting it would say "2
+    // filters" for one narrowing.
+
   ] as const;
   const advancedCount = advancedKeys.filter((key) => filters[key]).length;
   const [showMore, setShowMore] = useState(advancedCount > 0);
@@ -458,14 +506,29 @@ export function DrugBrowser({
 
             {show.tag && (
               <div>
-                <label htmlFor="tag" className="block text-sm font-medium">Tag</label>
-                {/* Grouped by kind: a drug list and a therapeutic category are
-                    two different questions, and after seeding the categories
-                    this was one flat list of sixty-seven. */}
-                <select id="tag" value={filters.tag} onChange={(e) => set('tag', e.target.value)} className={control}>
-                  <option value="">Any</option>
+                <label htmlFor="tag" className="block text-sm font-medium">Tags</label>
+                {/* Add-and-pill rather than a column of checkboxes: the rail is
+                    15rem wide and this list is sixty-seven long once the
+                    categories are seeded, so the picked few belong on screen
+                    and the rest behind the select. The select empties itself
+                    after each pick, which is what makes it read as *add*. */}
+                <select
+                  id="tag" value="" className={control}
+                  onChange={(event) => {
+                    const slug = event.target.value;
+                    if (slug) set('tag', [...pickedTags, slug].join(','));
+                  }}
+                >
+                  <option value="">
+                    {pickedTags.length > 0 ? 'Add another…' : 'Any'}
+                  </option>
+                  {/* Grouped by kind: a drug list and a therapeutic category are
+                      two different questions, and after seeding the categories
+                      this was one flat list of sixty-seven. */}
                   {TAG_GROUPS.map(({ kind, label }) => {
-                    const group = options.tags.filter((tag) => tag.kind === kind);
+                    const group = options.tags.filter(
+                      (tag) => tag.kind === kind && !pickedTags.includes(tag.slug),
+                    );
                     if (group.length === 0) return null;
                     return (
                       <optgroup key={kind} label={label}>
@@ -478,6 +541,39 @@ export function DrugBrowser({
                     );
                   })}
                 </select>
+
+                {pickedTags.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap items-center gap-1">
+                    {pickedTags.map((slug, at) => (
+                      <li key={slug} className="flex items-center gap-1">
+                        {/* The operator, printed where it applies rather than
+                            described in a legend: you read the filter as
+                            "Top Drugs 2026 and Heme/Onc Exam 3". */}
+                        {at > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => set('tagsAny', filters.tagsAny ? '' : '1')}
+                            title={filters.tagsAny
+                              ? 'On any of these tags. Press for drugs on all of them.'
+                              : 'On all of these tags. Press for drugs on any of them.'}
+                            className="pill pill-xs pill-soft pill-edge font-mono"
+                          >
+                            {filters.tagsAny ? 'or' : 'and'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => set('tag', pickedTags.filter((other) => other !== slug).join(','))}
+                          title={`Stop filtering by ${tagLabels.get(slug) ?? slug}`}
+                          className="pill pill-xs pill-on"
+                        >
+                          {tagLabels.get(slug) ?? slug}
+                          <span aria-hidden className="text-[var(--muted)]">&times;</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
