@@ -58,9 +58,17 @@ export async function importDrugsAction(formData: FormData): Promise<ImportState
   if (!parsed.ok) return { kind: 'problems', problems: parsed.problems };
 
   const chosen = String(formData.get('write') ?? '');
-  const withMode = (WRITE_MODES as readonly string[]).includes(chosen)
-    ? { ...parsed.file, write: chosen as WriteMode }
-    : parsed.file;
+  // The version to write to, which the planner checks against the file's own
+  // scopes rather than trusting the form -- the select is built from them, so
+  // anything else arriving here is not a choice a person made.
+  const target = String(formData.get('target') ?? '');
+  const withMode = {
+    ...parsed.file,
+    write: (WRITE_MODES as readonly string[]).includes(chosen)
+      ? chosen as WriteMode
+      : parsed.file.write,
+    target,
+  };
 
   // "<declaredKey>:<existingKey>" pairs; an empty target means create it.
   const map: Record<string, string> = {};

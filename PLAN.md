@@ -3068,6 +3068,87 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### Correcting a version instead of the drug (2026-11-10)
+
+*For "correct the drug itself", if a drug is going to be changed on import by it and the drug has
+variants, I want to choose what is being overwritten.*
+
+A drug with versions has more than one thing that can be wrong, and *Correct the drug itself* assumed
+it was always the drug. That assumption had a sharp edge: the correction landed on the drug's own
+profile while a class's own wording went on **outranking** it wherever it had any, so the profile
+read as fixed and studying that class still taught the old value. The mode most likely to be used on
+a drug three lectures have already touched was the mode least able to say which of them was wrong.
+
+So `base` now has a **target**, and the one concept it adds is *the version this import means*. The
+planner already had that idea -- `plan.variant`, hard-coded to the narrowest scope -- so the change
+is to let the screen name it instead, and to let `base` aim at it:
+
+| | aimed at the drug (default) | aimed at a version |
+|---|---|---|
+| where the values go | the drug's own profile | that version's layer |
+| the drug's own profile | overwritten | untouched |
+| class and schedule | corrected | never |
+
+Four decisions worth keeping:
+
+- **The target must be one of the file's own scopes.** A layer keyed to a class these drugs are not
+  tagged with is a layer no reader ever applies -- every one of them joins membership -- so it would
+  be a write that vanishes. Refused, not ignored: a correction aimed at the wrong thing must not land
+  somewhere else quietly.
+- **The identity is never corrected through a version.** A class cannot differ about what a drug
+  *is*, so correcting its wording is not a licence to rewrite the drug's class.
+- **A drug the app has never held still takes everything as its own**, which is the existing rule and
+  survives for the existing reason: there is no version of a drug that does not exist yet.
+- **`from` is read off the layer, not the drug.** A preview that printed the drug's own value as the
+  thing being replaced would be describing a different write from the one about to happen. Where the
+  layer has nothing, the drug's own value *is* what that version reads as today, so that is what is
+  shown.
+
+Its own query rather than `allVariantLayers`, and the reason is worth writing down because it looks
+like duplication: that reader joins membership on purpose, so no study session applies a layer the
+drug has left. Right there, wrong here -- this import is *about to* add its scope's tags, so a drug
+not yet tagged would have its layer hidden from the very preview meant to show it being overwritten.
+
+The target is also deliberately **not** in the file format. Like `write`, it is a decision about this
+database rather than a fact about the deck, and the file's author has no way to know this database
+holds three readings of nivolumab already.
+
+### A screen for undoing an import (2026-11-10)
+
+*I need a way to bulk delete drugs in the case of a bad import — probably an admin area with all the
+drugs and their variants listed as checks with a confirm.*
+
+`/admin/remove`. Every drug, every version, a tick box each, a typed `DELETE`.
+
+**Two kinds of thing on one list, because a bad import leaves two kinds of mess:** drugs that should
+never have been created, and a version's wording written over drugs that were fine. The second is the
+one nothing could fix before -- `/drugs/<slug>/edit` can delete a drug behind its own confirmation,
+which is right for retiring one on purpose and no use for undoing twenty-four, and could not clear a
+layer at all. `clearVariantLayer` had existed for months with nothing calling it; this is its caller,
+and the tests are about its behaviour rather than about it being reached, because an unexercised
+mutation is one nobody has checked.
+
+Decisions:
+
+- **A ticked version whose drug is also ticked is skipped**, and the screen says so. Deleting the
+  drug takes its layers with it, so clearing one of those is a write racing its own cascade.
+- **Clearing a version drops the wording and keeps the membership.** Two facts, and only one of them
+  was wrong -- the same reasoning migration 0016 gives for `on delete set null`.
+- **Tick every drug shown** is the control the screen exists for. Undoing a bad import means
+  filtering to the tag it created and taking all of them, and doing that by hand twenty-four times is
+  how the twenty-fifth gets missed.
+- **The count is over every tick, not the shown ones.** A filter changing is not a reason for a tick
+  to be forgotten, and a number that moved while you typed would be the one thing on a destructive
+  screen nobody could trust.
+- **One drug at a time, reporting per row.** `applyDrugImport` is not transactional either, and here
+  it is the better behaviour rather than a compromise: a stale row -- two admins, or a double submit
+  -- must not abandon the rest of the list, so each failure is named and the others still go.
+
+No soft delete, following `deleteDrug`'s existing reasoning: a `deleted_at` flag would have to be
+filtered out of browse, search, every study scope, the card builder and the quiz pool, and forgetting
+one means a deleted drug still being asked about. The safety net stays `/admin/data`, which exports
+the whole database as one file, and the screen says so above the list.
+
 ### The guide now asks for a capitalised drug name (2026-11-10)
 
 The guide said *the generic name, as the deck writes it: `"nivolumab"`*, and slide decks write generic

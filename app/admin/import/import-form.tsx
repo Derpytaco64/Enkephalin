@@ -1,11 +1,13 @@
 'use client';
 
-import { useActionState, type ReactNode } from 'react';
+import { useActionState, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { submitTo } from '@/app/_components/submit';
 import type { AskedField, ImportState } from './actions';
 import type { ImportPlan, PlannedDrug } from '@/lib/drugs/import';
-import { WRITE_MODES, WRITE_MODE_COPY, type ImportProblem } from '@/lib/drugs/import-format';
+import {
+  WRITE_MODES, WRITE_MODE_COPY, type ImportProblem, type WriteMode,
+} from '@/lib/drugs/import-format';
 
 const CARD = 'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4';
 
@@ -28,7 +30,9 @@ function Change({ from, to }: { from: string | null; to: string | null }) {
   );
 }
 
-function DrugRow({ drug, variant }: { drug: PlannedDrug; variant: string | null }) {
+function DrugRow({
+  drug, variant, correcting,
+}: { drug: PlannedDrug; variant: string | null; correcting: boolean }) {
   const toDrug = drug.writes.filter((write) => write.to === 'drug');
   const toVariant = drug.writes.filter((write) => write.to === 'variant');
   const same = drug.writes.filter((write) => write.to === 'unchanged').length;
@@ -75,9 +79,19 @@ function DrugRow({ drug, variant }: { drug: PlannedDrug; variant: string | null 
       {toVariant.length > 0 && (
         <div className="mt-2 rounded border border-[var(--border)] p-2">
           <p className="text-xs text-[var(--muted)]">
-            Said differently here, so it goes to{' '}
-            <span className="font-medium text-[var(--fg)]">{variant}</span> rather than over the
-            drug’s own:
+            {correcting ? (
+              <>
+                Overwriting what{' '}
+                <span className="font-medium text-[var(--fg)]">{variant}</span> says. The drug’s
+                own profile is left as it is:
+              </>
+            ) : (
+              <>
+                Said differently here, so it goes to{' '}
+                <span className="font-medium text-[var(--fg)]">{variant}</span> rather than over
+                the drug’s own:
+              </>
+            )}
           </p>
           <dl className="mt-1.5 space-y-1.5">
             {toVariant.map((write) => (
@@ -132,7 +146,10 @@ function Preview({ plan, declared }: { plan: ImportPlan; declared: ReactNode }) 
         <p className="text-sm">
           <strong>{plan.drugs.length} drugs</strong> — {fresh} new, {plan.drugs.length - fresh}{' '}
           already here. {toDrug} value{toDrug === 1 ? '' : 's'} onto the drugs themselves,{' '}
-          {toVariant} into {plan.variant?.label ?? 'no variant'}.
+          {toVariant}{' '}
+          {plan.correcting ? 'overwriting what' : 'into'}{' '}
+          {plan.variant?.label ?? 'no variant'}
+          {plan.correcting ? ' says' : ''}.
         </p>
         <p className="mt-2 text-xs text-[var(--muted)]">
           Every value will read <em>from {plan.provenance}</em> on the profile.
@@ -173,7 +190,12 @@ function Preview({ plan, declared }: { plan: ImportPlan; declared: ReactNode }) 
       <div className={CARD}>
         <ul className="divide-y divide-[var(--border)]">
           {plan.drugs.map((drug) => (
-            <DrugRow key={drug.slug} drug={drug} variant={plan.variant?.label ?? null} />
+            <DrugRow
+              key={drug.slug}
+              drug={drug}
+              variant={plan.variant?.label ?? null}
+              correcting={plan.correcting}
+            />
           ))}
         </ul>
       </div>
@@ -295,6 +317,26 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
     { kind: 'idle' },
   );
 
+  /**
+   * The chosen mode, held in state only so the target select can appear with
+   * *Correct the drug itself* and stay out of the way otherwise.
+   *
+   * Which version to overwrite is a question that only exists for a
+   * correction: the other two modes write what a class says, and that class is
+   * the file's own scope. Rendering it always would ask everyone a question
+   * that means nothing in two cases out of three.
+   */
+  const [mode, setMode] = useState<WriteMode>('fill');
+
+  /**
+   * The scopes this file names, read off whatever the last Check came back
+   * with. The file's own scope is the only honest set of options -- a layer for
+   * a class these drugs are not tagged with is a layer no reader applies -- and
+   * it is unknown until the file has been parsed, which is why the select
+   * appears after the first Check rather than beside the box from the start.
+   */
+  const scopes = state.kind === 'plan' ? state.plan.scope : [];
+
   return (
     <form onSubmit={submitTo(formAction)} className="mt-6">
       <label htmlFor="file" className="text-sm font-medium">The file</label>
@@ -308,16 +350,17 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
       <fieldset className="mt-4">
         <legend className="text-sm font-medium">For a drug the app already has</legend>
         <div className="mt-1 space-y-1">
-          {WRITE_MODES.map((mode) => (
-            <label key={mode} className="flex gap-2 text-sm">
+          {WRITE_MODES.map((option) => (
+            <label key={option} className="flex gap-2 text-sm">
               <input
-                type="radio" name="write" value={mode} defaultChecked={mode === 'fill'}
+                type="radio" name="write" value={option} checked={mode === option}
+                onChange={() => setMode(option)}
                 className="mt-1"
               />
               <span>
-                {WRITE_MODE_COPY[mode].label}
+                {WRITE_MODE_COPY[option].label}
                 <span className="block text-xs text-[var(--muted)]">
-                  {WRITE_MODE_COPY[mode].detail}
+                  {WRITE_MODE_COPY[option].detail}
                 </span>
               </span>
             </label>
@@ -328,6 +371,37 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
           nothing to differ from, and a new drug whose mechanism lived only in a class layer
           would read as an empty profile.
         </p>
+
+        {/* Which thing is wrong.
+
+            *Correct the drug itself* used to have nothing to say about a drug
+            with versions: it wrote over the drug, and a class's own wording
+            went on outranking the correction wherever it had any -- so the
+            profile looked fixed and studying that class still taught the old
+            value. The fix you want is often the class's, not the drug's, and
+            only the person looking knows which. */}
+        {mode === 'base' && scopes.length > 0 && (
+          <div className="mt-3 border-t border-[var(--border)] pt-3">
+            <label htmlFor="target" className="block text-sm font-medium">What to correct</label>
+            <select
+              id="target" name="target" defaultValue=""
+              className="mt-1 h-9 w-full rounded border border-[var(--border)]
+                bg-[var(--surface)] px-2 text-sm"
+            >
+              <option value="">The drug&rsquo;s own profile</option>
+              {scopes.map((scope) => (
+                <option key={scope.slug} value={scope.slug}>
+                  What {scope.label} says — its {scope.kind} version
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              A version here is overwritten and the drug is left alone, which is the correction to
+              make when it is the class that got it wrong. The drug&rsquo;s class and schedule are
+              never corrected this way — a class cannot differ about what a drug <em>is</em>.
+            </p>
+          </div>
+        )}
       </fieldset>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -61,6 +61,11 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
         title: 'Import drugs',
         blurb: 'A lecture’s worth of profiles from one file, previewed before it writes.',
       },
+      {
+        href: '/admin/remove',
+        title: 'Remove drugs',
+        blurb: 'Undo a bad import: every drug and every version, ticked and deleted together.',
+      },
     ],
   },
   {

@@ -185,6 +185,21 @@ Use `variant` when the lecture is deliberately a second reading of drugs the app
 (an endocrine course's own wording for levothyroxine). Use `base` only to correct the app, and only
 when you know the existing value is wrong.
 
+None of the three ever clears a field the file does not mention: a value is overwritten by a value,
+and a lecture silent about a field says nothing about it. To undo an import outright — the drugs it
+created, or a version's wording it wrote over drugs that were fine — use **Admin → Remove drugs**,
+which lists every drug and every version with a tick box each.
+
+**`base` can be aimed at a version instead of the drug.** A drug with versions has more than one
+thing that can be wrong, and *Correct the drug itself* used to assume it was the drug: it wrote over
+the drug's own profile while a class's own wording went on outranking the correction wherever it had
+any, so the profile looked fixed and studying that class still taught the old value. The import
+screen now asks **what to correct** — the drug's own profile, or what one of this file's scopes says.
+Aimed at a version, that version's layer is overwritten and the drug is left alone; the drug's class
+and schedule are never corrected that way, because a class cannot differ about what a drug *is*. The
+target has to be one of the file's own scopes, since a layer for a class these drugs are not tagged
+with is a layer no reader would apply.
+
 **The import screen shows these three as a choice and the person importing picks one**, starting on
 whichever your file names. You are telling them what you think the file is for; they are the one who
 knows what state their database is in. So set it to what the lecture actually is, and do not work

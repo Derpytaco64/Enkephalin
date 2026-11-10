@@ -918,3 +918,139 @@ describe('a lecture scoped to a class and its exam', () => {
     expect(await pointerFor('prednisone', 'phrm-535')).toBe('phrm-535');
   });
 });
+
+describe('correcting a version rather than the drug', () => {
+  /**
+   * *Correct the drug itself* had nothing to say about a drug with versions: it
+   * wrote over the drug, and a class's own wording went on outranking the
+   * correction wherever it had any -- so the profile looked fixed while
+   * studying that class still taught the old value. The screen now says which
+   * thing is wrong.
+   */
+  const seeded = async () => {
+    const [drug] = await db.insert(drugs).values({
+      slug: 'prednisone',
+      genericName: 'Prednisone',
+      drugClass: 'Corticosteroid',
+      fields: {
+        moa: {
+          value: 'Glucocorticoid receptor agonist', status: 'ok', source: 'the sheet',
+          updatedAt: new Date().toISOString(), updatedBy: ME,
+        },
+      },
+    }).returning();
+    return drug;
+  };
+
+  /** The same correction, aimed wherever the screen says. */
+  const aimed = (target: string, moa: string) => ({
+    ...read(file({
+      write: 'base',
+      drugs: [{ generic: 'Prednisone', class: 'Glucocorticoid', fields: { moa } }],
+    })),
+    target,
+  });
+
+  const applyWith = async (target: string, moa: string) => {
+    const result = await applyDrugImport(aimed(target, moa), ME);
+    if (!result.ok) throw new Error(`refused: ${JSON.stringify(result.problems)}`);
+    return result.report;
+  };
+
+  /**
+   * A wrong reading the class recorded for itself, put there the way one
+   * actually gets there: a `fill` import of the lecture, which sends a value
+   * disagreeing with the drug to the narrowest scope's layer. Going through the
+   * importer also means the tags exist, which is what a correction aimed at one
+   * of them needs.
+   */
+  const classSaid = async (drugId: string, value: string) => {
+    const report = await apply(file({
+      drugs: [{ generic: 'Prednisone', fields: { moa: value } }],
+    }));
+    expect(report.toVariant).toBe(1);
+    const layer = await variantLayerFor(drugId, 'heme-onc-exam-3');
+    expect(layer?.fields.moa.value).toBe(value);
+  };
+
+  it('writes over the drug when nothing is aimed at, as it always did', async () => {
+    await seeded();
+    const plan = await planDrugImport(aimed('', 'Lympholytic at high dose'));
+
+    expect(plan.correcting).toBe(false);
+    expect(plan.drugs[0].writes.map((write) => write.to)).toEqual(['drug']);
+
+    await applyWith('', 'Lympholytic at high dose');
+    const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
+    expect(after.fields.moa.value).toBe('Lympholytic at high dose');
+  });
+
+  it('writes over the version, and leaves the drug exactly as it was', async () => {
+    const drug = await seeded();
+    await classSaid(drug.id, 'Cytotoxic to lymphocytes');
+
+    const report = await applyWith('heme-onc-exam-3', 'Lympholytic at high dose');
+    expect(report.toVariant).toBe(1);
+    expect(report.toDrug).toBe(0);
+
+    const layer = await variantLayerFor(drug.id, 'heme-onc-exam-3');
+    expect(layer?.fields.moa.value).toBe('Lympholytic at high dose');
+
+    // Untouched, which is the whole point: the drug was not the thing wrong.
+    const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
+    expect(after.fields.moa.value).toBe('Glucocorticoid receptor agonist');
+  });
+
+  it('shows what the version said, not what the drug says', async () => {
+    const drug = await seeded();
+    await classSaid(drug.id, 'Cytotoxic to lymphocytes');
+
+    const plan = await planDrugImport(aimed('heme-onc-exam-3', 'Lympholytic at high dose'));
+    expect(plan.correcting).toBe(true);
+    expect(plan.variant?.slug).toBe('heme-onc-exam-3');
+    // `from` is what is being written over. Printing the drug's own value here
+    // would make the preview describe a write that is not the one happening.
+    expect(plan.drugs[0].writes[0]).toMatchObject({
+      to: 'variant', from: 'Cytotoxic to lymphocytes', value: 'Lympholytic at high dose',
+    });
+  });
+
+  it('falls back to the drug own value where the version has none', async () => {
+    await seeded();
+    const plan = await planDrugImport(aimed('heme-onc-exam-3', 'Lympholytic at high dose'));
+    // Nothing stored for that class yet, so what it reads as today *is* the
+    // drug's own -- which is the honest thing to show as replaced.
+    expect(plan.drugs[0].writes[0].from).toBe('Glucocorticoid receptor agonist');
+  });
+
+  it('never corrects the drug identity through a version', async () => {
+    await seeded();
+    const plan = await planDrugImport(aimed('heme-onc-exam-3', 'Lympholytic at high dose'));
+    // A class cannot differ about what a drug *is*, so a correction aimed at
+    // its wording is not a licence to rewrite the drug's class.
+    expect(plan.drugs[0].identity.drugClass).toBeNull();
+
+    const atDrug = await planDrugImport(aimed('', 'Lympholytic at high dose'));
+    expect(atDrug.drugs[0].identity.drugClass).toBe('Glucocorticoid');
+  });
+
+  it('refuses a version this file is not scoped to, and writes nothing', async () => {
+    await seeded();
+    const plan = await planDrugImport(aimed('cardio-301', 'Lympholytic at high dose'));
+    expect(plan.problems.map((problem) => problem.message).join(' '))
+      .toContain('not one of this file');
+
+    const result = await applyDrugImport(aimed('cardio-301', 'Lympholytic at high dose'), ME);
+    expect(result.ok).toBe(false);
+    const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
+    expect(after.fields.moa.value).toBe('Glucocorticoid receptor agonist');
+  });
+
+  it('still gives a drug the app has never held everything as its own', async () => {
+    // There is no version of a drug that does not exist yet, and a new drug
+    // whose mechanism lived only in a class layer reads as an empty profile.
+    const plan = await planDrugImport(aimed('heme-onc-exam-3', 'Lympholytic at high dose'));
+    expect(plan.drugs[0].exists).toBe(false);
+    expect(plan.drugs[0].writes.map((write) => write.to)).toEqual(['drug']);
+  });
+});

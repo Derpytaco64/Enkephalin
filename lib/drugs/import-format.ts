@@ -21,6 +21,23 @@ export const IMPORT_FORMAT = 'enkephalin.drugs/1';
 
 /** How a value reaches the database when the drug already holds one. */
 export const WRITE_MODES = ['fill', 'variant', 'base'] as const;
+
+/**
+ * Which version this import means: `''` for the drug's own, or a scope tag's
+ * slug.
+ *
+ * Not read out of the file, and set by the import screen -- the same division
+ * `write` already follows, and for the same reason: the file's author read a
+ * deck and cannot know that this database holds three readings of nivolumab
+ * already. Empty is *as the mode decides*: `fill` and `variant` put what
+ * differs on the narrowest scope, and `base` corrects the drug itself.
+ *
+ * Naming one changes what `base` **overwrites**. *Correct the drug itself* on a
+ * drug with versions had no way to say which thing was wrong, so correcting a
+ * class's bad wording meant correcting the drug and watching the class's
+ * version go on outranking it.
+ */
+export const TARGET_DRUG = '';
 export type WriteMode = (typeof WRITE_MODES)[number];
 
 /**
@@ -252,6 +269,8 @@ export type ImportFile = {
   scope: ImportScope[];
   source: { file: string; deck: string | null; pages: string | null; accessed: string | null };
   write: WriteMode;
+  /** See `TARGET_DRUG`. The screen's choice, not the file's. */
+  target: string;
   declare: ImportFieldDef[];
   drugs: ImportDrug[];
   regimens: ImportRegimen[];
@@ -728,6 +747,9 @@ export function parseDrugImport(raw: string): ParseResult {
         accessed: text(sourceRaw.accessed),
       },
       write: write as WriteMode,
+      // The screen's to set: a file names what it is, not what this database
+      // needs doing to it.
+      target: TARGET_DRUG,
       declare,
       drugs,
       regimens,

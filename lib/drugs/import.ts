@@ -24,7 +24,10 @@
  */
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { drugBrands, drugIndications, drugTags, drugs, indications, tags, type FieldValue } from '@/db/schema';
+import {
+  drugBrands, drugIndications, drugTags, drugVariantValues, drugs, indications, tags,
+  type FieldValue,
+} from '@/db/schema';
 import { createFieldDef } from '@/lib/fields/mutations';
 import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { createTag, tagSlug } from '@/lib/tags/mutations';
@@ -33,7 +36,7 @@ import {
 } from './mutations';
 import { patchVariantLayer, pointTagsAtVariant } from './variants';
 import {
-  likeliestField, noteOf, provenanceOf, regimenFieldFor,
+  likeliestField, noteOf, provenanceOf, regimenFieldFor, TARGET_DRUG,
   type ImportDrug, type ImportFile, type ImportProblem,
 } from './import-format';
 
@@ -70,8 +73,17 @@ export type ImportPlan = {
   scope: { kind: string; label: string; slug: string; exists: boolean }[];
   /** The line every value will carry: *PHRM 535 — 16.Melanoma.pdf*. */
   provenance: string;
-  /** The narrowest scope: where a differing value lands. */
+  /**
+   * The version this import writes to: the narrowest scope, or whichever one
+   * the screen named instead.
+   */
   variant: { slug: string; label: string } | null;
+  /**
+   * True when *Correct the drug itself* is aimed at a version rather than the
+   * drug -- so the preview can say whose wording is being overwritten, and the
+   * planner can leave the drug's own profile and its identity alone.
+   */
+  correcting: boolean;
   /**
    * The fields this file asks for, and whether each already exists.
    *
@@ -204,12 +216,57 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
   // The narrowest, which is last: `VARIANT_KINDS` order is course, then exam.
   const narrowest = scope[scope.length - 1] ?? null;
 
+  // The version named on the screen, which must be one of this file's own
+  // scopes. Anything else would write a layer for a class the import does not
+  // tag these drugs with -- a layer no reader would ever apply, because every
+  // one of them joins membership. Refused rather than ignored: a correction
+  // aimed at the wrong thing must not land somewhere else quietly.
+  const aimed = file.target === TARGET_DRUG
+    ? null
+    : scope.find((entry) => entry.slug === file.target) ?? null;
+  if (file.target !== TARGET_DRUG && aimed === null) {
+    problems.push({
+      where: 'the version to correct',
+      message: `"${file.target}" is not one of this file's scopes. Pick the drug's own profile, `
+        + `or one of: ${scope.map((entry) => entry.slug).join(', ') || 'none'}.`,
+    });
+  }
+
+  const destination = aimed ?? narrowest;
+  // `base` writes over whatever it is aimed at. Aimed at a version, that is the
+  // version's layer; aimed at the drug -- the default -- it is the drug.
+  const correcting = file.write === 'base' && aimed !== null;
+
   // Everything a declared field could be sent to instead: the live, non-core
   // fields. Core fields are excluded because they are written from the drug
   // entry's own keys, not from `fields`.
   const assignable = known.defs
     .filter((def) => !def.isCore && !def.deletedAt)
     .map((def) => ({ key: def.key, label: def.label, group: def.group }));
+
+  /**
+   * What the version being corrected holds today, keyed by drug id.
+   *
+   * Needed only to show what each value replaces -- the drug's own value would
+   * be the wrong thing to print as replaced, and a wrong *from* is how a
+   * preview stops being a preview.
+   *
+   * Its own query rather than `allVariantLayers`, which joins membership on
+   * purpose: a layer outlives the tag that created it and no study session
+   * should apply one the drug has left. That is the right rule there and the
+   * wrong one here, because this import is *about to* add its scope's tags, so
+   * a drug not yet tagged would have its layer hidden from the very preview
+   * meant to show it being overwritten.
+   */
+  const aimedLayers = new Map<string, Record<string, FieldValue>>();
+  if (correcting && destination) {
+    const rows = await db
+      .select({ drugId: drugVariantValues.drugId, fields: drugVariantValues.fields })
+      .from(drugVariantValues)
+      .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+      .where(eq(tags.slug, destination.slug));
+    for (const row of rows) aimedLayers.set(row.drugId, row.fields);
+  }
 
   const declare = file.declare.map((entry) => {
     const existing = known.keys.get(entry.key);
@@ -278,7 +335,12 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
         continue;
       }
 
-      const current = existing?.fields[key];
+      // Correcting a version asks about that version's wording, not the
+      // drug's: `current` is what would be overwritten, and where the layer
+      // says nothing it is the drug's own, because that is what the version
+      // reads as today.
+      const layer = existing ? aimedLayers.get(existing.id)?.[key] : undefined;
+      const current = correcting ? layer ?? existing?.fields[key] : existing?.fields[key];
       const from = current?.value ?? null;
 
       // A new drug has nothing to differ from, so everything it brings is its
@@ -286,7 +348,11 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       // mechanism into a class layer would leave its own profile blank, which
       // is a profile that looks broken rather than one that looks sourced.
       let to: PlannedWrite['to'];
-      if (!existing || file.write === 'base') to = 'drug';
+      // A drug the app has never held has no version to correct either, so it
+      // still takes everything as its own -- the same reason as below, and the
+      // reason this clause stays first.
+      if (!existing) to = 'drug';
+      else if (file.write === 'base') to = correcting ? 'variant' : 'drug';
       // A value the drug already holds, word for word, is **not an override**
       // -- whatever the mode asked for. This check used to sit below the
       // `variant` branch, which meant a `variant` import of a value that
@@ -321,10 +387,13 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       identity: {
         // Identity is filled, never corrected -- except in `base` mode, which
         // is the mode that says "the app is wrong".
-        drugClass: entry.drugClass && (!existing?.drugClass || file.write === 'base')
+        // Corrected in `base` mode -- but not when `base` is aimed at a
+        // version. A class cannot differ about what a drug *is*, so correcting
+        // its wording is not a licence to rewrite the drug's class.
+        drugClass: entry.drugClass && (!existing?.drugClass || (file.write === 'base' && !correcting))
           ? entry.drugClass
           : null,
-        schedule: entry.schedule && (!existing?.schedule || file.write === 'base')
+        schedule: entry.schedule && (!existing?.schedule || (file.write === 'base' && !correcting))
           ? entry.schedule
           : null,
       },
@@ -350,7 +419,8 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
     // trusts a value they did not type, and a wrong file name here is wrong on
     // two hundred values at once.
     provenance,
-    variant: narrowest ? { slug: narrowest.slug, label: narrowest.label } : null,
+    variant: destination ? { slug: destination.slug, label: destination.label } : null,
+    correcting,
     declare,
     assignable,
     drugs: planned,
@@ -570,7 +640,10 @@ export async function applyDrugImport(
     // pointer set only alongside a fresh write would never reach a drug
     // imported before this existed. `pointTagsAtVariant` checks the layer for
     // itself and does nothing where there is none.
-    if (plan.variant) {
+    // Not while correcting: a correction is a surgical fix to one version's
+    // wording, where a lecture import is the thing that says "these scopes are
+    // this version's tags". Repointing memberships is not part of fixing a typo.
+    if (plan.variant && !plan.correcting) {
       report.listsPointed += await pointTagsAtVariant({
         drugId: drug.id,
         variantSlug: plan.variant.slug,
