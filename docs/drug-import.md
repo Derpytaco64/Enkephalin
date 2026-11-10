@@ -252,22 +252,39 @@ Keys the app ships with. Use these before declaring anything new.
 | `moa` | markdown | How it works | nothing recorded |
 | `bbw` | markdown | Black box warning | **none** — `null` is a real answer here |
 | `regimen` | markdown | Named protocols it belongs to, and how the choice is made | **none** |
-| `route` | list | How it is given: `"IV"`, `"PO"` | nothing recorded |
+| `route` | list | How it is given. One route as `"IV"`, several as `["IV", "PO"]` | nothing recorded |
 | `controlled` | enum | Use the drug-level `schedule` instead | not controlled |
 
-Three ways to write a value:
+Four ways to write a value:
 
 ```json
 "fields": {
   "moa": "PD-1 inhibitor. Blocks PD-1 on T cells from binding PD-L1 on the tumour, restoring T cell recognition and attack.",
+  "route": ["IV", "PO"],
   "bbw": null,
   "dosing": { "value": "240 mg IV every 2 weeks or 480 mg IV every 4 weeks", "status": "flagged" }
 }
 ```
 
 - a **string** is the value,
+- a **list of strings** is a value with several items, for a `list` field like `route`,
 - `null` says this drug has **none** of that thing,
-- an **object** carries `value`, and optionally `status` and `source`.
+- an **object** carries `value`, and optionally `status` and `source`. Its `value` may itself be a
+  string or a list — `{ "value": ["IV", "PO"], "status": "flagged" }` is a flagged pair of routes.
+
+**A drug given more than one way:** write the routes as a list — `"route": ["PO", "IV"]` for
+dexamethasone, `["IV", "PO", "SL"]` for ondansetron. One route may be written either way:
+`"route": "IV"` and `"route": ["IV"]` are the same value, stored identically, so a file may be
+rewritten from one spelling to the other without the next import seeing a change.
+
+The list form is the one to reach for, because a single string has to carry its own separator and
+only two are read back: one item per line, or items separated by semicolons. `["IV", "PO"]` and
+`"IV; PO"` land on the same two items, but the list cannot be got subtly wrong — and a comma does
+not separate anything, so `"IV, PO"` is **one** route named "IV, PO".
+
+A type that is neither of these — a number, `true`, an empty list — is **refused**, naming the drug
+and the field: `drugs[3] (dabrafenib).fields.route`. Nothing is written until it is fixed, so a
+mistyped route can never leave an import that looks clean with the route missing from every drug.
 
 `"status": "flagged"` means *I am not sure of this*. It puts the value in the admin **Flagged**
 queue, where a person sees it beside the others and either fixes it or clears the flag. Flagging is
@@ -290,7 +307,7 @@ for it:
 |---|---|---|
 | `key` | **yes** | `snake_case`, permanent, keys the stored values |
 | `label` | **yes** | What a reader sees |
-| `type` | **yes** | `text`, `markdown`, `list`, `boolean` or `number` |
+| `type` | **yes** | `text`, `markdown`, `list`, `enum`, `number` or `bool`. A `list` field's values follow the same string-or-list rule as `route` |
 | `group` | no | Where it sits on the profile |
 | `prompt` | no | The question a flashcard asks. `{{generic}}` is the drug's name |
 

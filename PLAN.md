@@ -3068,6 +3068,41 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### A route written either way, and what the guide got wrong (2026-11-10)
+
+The guide's field table called `route` a **list** and the worked example wrote it `"route": "IV"`.
+Both were defensible and together they were a trap: `list` is the field's *type*, and the two core
+list-typed keys -- `brand` and `indication` -- genuinely are arrays in a file, because they are
+columns of their own named at the drug level. `route` is the only list-typed field that lives inside
+`fields`, where every value was a string. So the table implied a spelling the reader refused.
+
+**What the reader actually did, checked rather than assumed:** an array was *refused*, not dropped --
+`drugs[0] (nivolumab).fields.route: A value is a string, null, or an object with a "value"` -- and a
+single problem anywhere blocks the whole file, so nothing was written. Worth recording because the
+bug report said the opposite (every drug imported with no route), and the live database agreed with
+the code rather than the report: 236 of 236 drugs hold a route and there were no variant layers at
+all. The file never landed. A refusal that is read as a silent failure is still a reporting problem,
+but it is not the one it looks like.
+
+**An array is now accepted anywhere a value is**, folded to the one string the column holds. Joined
+with a newline, not `"; "`, and that was checked against the data rather than chosen: the drugs
+already in the database that are given more than one way store `IV\nIM` and `IV\nIM\nSubcutaneous`,
+because that is what the drug form's *one per line* textarea writes. So an imported route and a
+typed one are the same bytes. `["IV"]` and `"IV"` are byte-identical too, which is what lets a file
+be rewritten from one spelling to the other without the next import reporting an override.
+
+**The type cannot be checked at parse time, and that is deliberate rather than missing.** A parse has
+no database, and an existing field's type is known only once the plan reads it. So an array is taken
+for any field, the same latitude a string already has -- nothing has ever stopped `"IV; PO"` going
+into a markdown field. What *is* checked is the shape: every item a non-empty string, and the item
+number named when one is not; an empty list refused in the same words as an empty string, since both
+say neither *none* nor *not said*; and the refusal says what arrived (`This is a number.`) because
+the old message only said what it wanted.
+
+The guide also told people to declare a `boolean` field. The reader knows `bool`, and would have
+refused it -- a second contradiction in the same table, found while fixing the first. The refusal
+message already lists the real types, so the test now pins the wrong spelling to that message.
+
 ### Several lists at once, and which operator they mean (2026-11-09)
 
 *I'd like the ability to select multiple tags in the flashcard and quiz creation menu, so it's

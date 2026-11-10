@@ -8,7 +8,9 @@ import {
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
   applyFieldMap, IMPORT_FORMAT, parseDrugImport, regimenFieldFor, renderRegimen,
+  type ImportValue,
 } from '@/lib/drugs/import-format';
+import { formatFieldValue } from '@/lib/fields/format';
 import { applyDrugImport, planDrugImport } from '@/lib/drugs/import';
 import { variantLayerFor } from '@/lib/drugs/variants';
 
@@ -139,6 +141,94 @@ describe('reading a file', () => {
       .toContain('snake_case');
     expect(problems(file({ declare: [{ key: 'ae', label: 'AE', type: 'prose' }] })))
       .toContain('not a field type');
+    // "boolean" is the plausible wrong spelling, and the guide used to print
+    // it. The refusal lists the real types, so the fix is in the message.
+    const said = problems(file({ declare: [{ key: 'ae', label: 'AE', type: 'boolean' }] }));
+    expect(said).toContain('not a field type');
+    expect(said).toContain('bool');
+  });
+});
+
+/* --- a list-typed field, which the file may write either way --- */
+
+/** The one drug, with whatever this test puts in `route`. */
+const withRoute = (route: unknown) =>
+  file({ drugs: [{ generic: 'nivolumab', fields: { route } }] });
+
+const routeOf = (text: string) => read(text).drugs[0].fields.route;
+
+describe('a route, written as a string or as a list', () => {
+  // `route` is list-typed, and it is the only list-typed field that lives in
+  // `fields` -- `brand` and `indication` are columns of their own, which the
+  // file has always taken as arrays at the drug level. So this is the one place
+  // the two spellings could disagree, and the reason they no longer do.
+
+  it('takes a single route as a plain string', () => {
+    expect(routeOf(withRoute('IV'))).toEqual({ value: 'IV', status: 'ok', source: null });
+  });
+
+  it('takes a single route as a one-item list, and stores the same bytes', () => {
+    // Which is what lets a file be rewritten from one spelling to the other
+    // without the next import reporting an override. Identical, not merely
+    // equivalent.
+    expect(routeOf(withRoute(['IV']))).toEqual(routeOf(withRoute('IV')));
+  });
+
+  it('folds several routes into the one string the column holds', () => {
+    // Newline, because that is what the drug form writes when a person types a
+    // list by hand -- so an imported route and an authored one are the same
+    // value and the textarea shows it back unchanged.
+    expect(routeOf(withRoute(['IV', 'PO'])).value).toBe('IV\nPO');
+  });
+
+  it('reads back as a list of items either way', () => {
+    const def = { key: 'route', dataType: 'list', blankMeansNone: false } as never;
+    const shown = (value: ImportValue) =>
+      formatFieldValue(def, { ...value, updatedAt: '', updatedBy: null });
+
+    expect(shown(routeOf(withRoute(['IV', 'PO'])))).toEqual({ kind: 'list', items: ['IV', 'PO'] });
+    expect(shown(routeOf(withRoute('IV; PO')))).toEqual({ kind: 'list', items: ['IV', 'PO'] });
+  });
+
+  it('still says a drug has no route at all', () => {
+    expect(routeOf(withRoute(null))).toEqual({ value: null, status: 'none', source: null });
+  });
+
+  it('takes a list inside the envelope, with its status and source', () => {
+    expect(routeOf(withRoute({ value: ['IV', 'PO'], status: 'flagged', source: 'slide 12' })))
+      .toEqual({ value: 'IV\nPO', status: 'flagged', source: 'slide 12' });
+  });
+
+  it('refuses a type it cannot use, naming the drug and what arrived', () => {
+    // The refusal has to name the drug: a file holds twenty of them and "a
+    // value is the wrong type" would send the author looking through all of it.
+    for (const bad of [42, true]) {
+      const said = problems(withRoute(bad));
+      expect(said).toContain('(nivolumab).fields.route');
+      expect(said).toContain('a list of strings');
+    }
+    expect(problems(withRoute(42))).toContain('This is a number.');
+    expect(problems(withRoute({ value: 42 }))).toContain('(nivolumab).fields.route');
+  });
+
+  it('refuses an item that is not a string, saying which item', () => {
+    expect(problems(withRoute(['IV', 7]))).toContain('Item 2 of this list is a number');
+    expect(problems(withRoute(['IV', '  ']))).toContain('Item 2 of this list is an empty string');
+    expect(problems(withRoute(['IV', null]))).toContain('Item 2 of this list is null');
+  });
+
+  it('refuses an empty list the same way it refuses an empty string', () => {
+    // Both say neither "none" nor "not said", and the whole field system turns
+    // on telling those apart.
+    expect(problems(withRoute([]))).toContain('neither "none" nor "not said"');
+    expect(problems(withRoute(''))).toContain('neither "none" nor "not said"');
+  });
+
+  it('refuses a type it cannot use rather than dropping the field', () => {
+    // The point of the refusal: a bad route must not leave a file that imports
+    // cleanly with the route missing from every drug in it.
+    const parsed = parseDrugImport(withRoute(42));
+    expect(parsed.ok).toBe(false);
   });
 });
 

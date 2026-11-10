@@ -318,6 +318,58 @@ export function noteOf(file: ImportFile): string {
   return parts.join(' · ');
 }
 
+/** What arrived, for a refusal that can say so rather than only say what it wanted. */
+function describe(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'a list';
+  if (typeof value === 'object') return 'an object with no "value"';
+  if (typeof value === 'string') return 'an empty string';
+  return `a ${typeof value}`;
+}
+
+const VALUE_FORMS = 'A value is a string, a list of strings, null, '
+  + 'or an object with a "value".';
+
+/**
+ * A list written as an array, folded into the one string the column holds.
+ *
+ * `drugs.fields` stores every value as a string and `splitList` reads a list
+ * back out of it, newline first -- so an array is not a second kind of value,
+ * it is the same value written the way a list-typed field reads most naturally.
+ * Newline rather than "; " because that is what the drug form puts there when a
+ * person types a list by hand, so an imported value and an authored one are the
+ * same bytes and the textarea shows it back correctly.
+ *
+ * Which fields are list-typed cannot be checked here: a parse has no database,
+ * and an existing field's type is known only once the plan reads it. So an
+ * array is accepted for any field -- the same latitude a string already has,
+ * where nothing stops "IV; PO" being written into a markdown field.
+ */
+function readItems(raw: unknown[], where: string, problems: ImportProblem[]): string | null {
+  const items: string[] = [];
+  for (const [index, entry] of raw.entries()) {
+    const item = text(entry);
+    if (item === null) {
+      problems.push({
+        where,
+        message: `Item ${index + 1} of this list is ${describe(entry)}. `
+          + 'Every item is a non-empty string.',
+      });
+      return null;
+    }
+    items.push(item);
+  }
+  if (items.length === 0) {
+    problems.push({
+      where,
+      message: 'An empty list says neither "none" nor "not said". Use null for none, '
+        + 'or leave the key out entirely.',
+    });
+    return null;
+  }
+  return items.join('\n');
+}
+
 function readValue(raw: unknown, where: string, problems: ImportProblem[]): ImportValue | null {
   // `null` is the file saying *there is none of this*, which is a fact worth
   // storing and worth asking about -- the whole reason `status` exists.
@@ -335,8 +387,13 @@ function readValue(raw: unknown, where: string, problems: ImportProblem[]): Impo
     return { value: raw.trim(), status: 'ok', source: null };
   }
 
+  if (Array.isArray(raw)) {
+    const items = readItems(raw, where, problems);
+    return items === null ? null : { value: items, status: 'ok', source: null };
+  }
+
   if (!isObject(raw)) {
-    problems.push({ where, message: 'A value is a string, null, or an object with a "value".' });
+    problems.push({ where, message: `${VALUE_FORMS} This is ${describe(raw)}.` });
     return null;
   }
 
@@ -348,9 +405,17 @@ function readValue(raw: unknown, where: string, problems: ImportProblem[]): Impo
   }
   if (inner === null) return { value: null, status: 'none', source: text(raw.source) };
 
-  const value = text(inner);
+  // The envelope carries a list as readily as a string: a flagged route with a
+  // source is still a route, and the status is about the value, not its shape.
+  const value = Array.isArray(inner) ? readItems(inner, where, problems) : text(inner);
   if (value === null) {
-    problems.push({ where, message: 'This value has no text. Use null if the drug has none.' });
+    if (!Array.isArray(inner)) {
+      problems.push({
+        where,
+        message: `This value is ${describe(inner)}. A value is a string or a list of strings; `
+          + 'use null if the drug has none.',
+      });
+    }
     return null;
   }
 
