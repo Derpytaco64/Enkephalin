@@ -3068,6 +3068,32 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### The guide now asks for a capitalised drug name (2026-11-10)
+
+The guide said *the generic name, as the deck writes it: `"nivolumab"`*, and slide decks write generic
+names in lower case. So the Heme/Onc import created 24 drugs -- `ipilimumab`, `talimogene
+laherparepvec`, `interleukin-2` -- into a library whose other 236 all carry a leading capital. The
+browse list shows both, interleaved and visibly inconsistent.
+
+Nothing in the app was at fault: `createDrug` trims the name and stores it, and every screen prints
+it back. There is no case-tidying anywhere, which is the right call -- a drug name is not a sentence
+and no rule the code could apply knows that `"Fentanyl Transdermal Patch"` keeps three capitals while
+`"Mycophenolate mofetil"` keeps one. So the fix is the instruction, not a normaliser.
+
+The rule written down: capitalise the first word, leave the rest as the deck writes it, keep the
+capitals a name has earned and invent none. Matching is case-insensitive -- `lower()` on both sides --
+so getting it wrong never creates a duplicate drug; it only looks careless, which is exactly why a
+guide has to ask for it rather than a refusal catching it.
+
+Two places the examples had to follow, or the guide would contradict itself the way the `route` table
+did: every `"generic"` in the worked example, and every regimen `"drug"`. The second is not cosmetic
+-- `renderRegimen` prints a component's name **verbatim** into the Regimens field of every drug in
+the protocol, so one lowercase component reads as `- ipilimumab — 3 mg/kg IV…` on four profiles. The
+live database has exactly that.
+
+Left alone: the 24 names already written. Renaming is a data change nobody asked for, and the slug --
+which is what every URL and every card key is built on -- is derived from the name.
+
 ### A variant carries tags; a tag is not a variant (2026-11-10)
 
 *Variants are getting written incorrectly — when it applied the PHRM 535 and Heme/Onc tags to

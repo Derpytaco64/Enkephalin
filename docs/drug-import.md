@@ -123,7 +123,7 @@ time as a tag means two places that can disagree about the same drug with neithe
 put it in each drug's `indications`, where it belongs:
 
 ```json
-{ "generic": "nivolumab", "indications": ["Unresectable or metastatic melanoma"] }
+{ "generic": "Nivolumab", "indications": ["Unresectable or metastatic melanoma"] }
 ```
 
 Write them the way the course writes them. The slug is derived, and **same words, same digits, same
@@ -206,13 +206,22 @@ The class and the schedule are *filled* and never corrected, except in `base` mo
 
 | Key | Required | What it is |
 |---|---|---|
-| `generic` | **yes** | The generic name, as the deck writes it: `"nivolumab"` |
-| `aliases` | no | Other names the deck uses: `["T-VEC", "talimogene"]`. Used for matching only |
+| `generic` | **yes** | The generic name, **capitalised**: `"Nivolumab"`, `"Iron sucrose"` |
+| `aliases` | no | Other names the deck uses: `["T-VEC", "talimogene"]`. Used for matching only, so case does not matter here |
 | `brands` | no | Trade names: `["Opdivo"]`. Only ones the deck names |
 | `indications` | no | What it is used for, **as specifically as the deck says it** |
 | `class` | no | The pharmacologic class, if the deck gives one |
 | `schedule` | no | `CI`–`CV`, and only for a controlled substance |
 | `fields` | no | Everything else. See the field set below |
+
+**Capitalise the generic name.** The app stores it and shows it exactly as the file writes it — it
+does not tidy the case — and every drug already in the library carries a leading capital, so a
+lowercase name sits visibly wrong in the list beside them. Capitalise the first word and leave the
+rest as the deck writes it: `"Iron sucrose"`, `"Talimogene laherparepvec"`, `"Interleukin-2"`. Keep
+the capitals a name has earned — `"Fentanyl Transdermal Patch"`, a brand like `"Opdivo"`, an alias
+like `"T-VEC"` — and do not invent any: `"Mycophenolate mofetil"` has one word capitalised because
+only the first is a word that takes one. Matching ignores case, so getting this wrong does not create
+a duplicate drug; it only looks careless on the page.
 | `source` | no | Overrides the file's `source` for this drug |
 | `note` | no | One line for the importer's eyes. Stored nowhere |
 
@@ -341,8 +350,8 @@ level, and the app composes it onto the `regimen` field of **every drug in it**.
     "name": "Ipilimumab + nivolumab",
     "when": "Stage IV initial therapy, NCCN preferred. Any PD-L1 expression, any BRAF status.",
     "components": [
-      { "drug": "ipilimumab", "dose": "3 mg/kg IV every 3 weeks x 4 cycles" },
-      { "drug": "nivolumab", "dose": "1 mg/kg IV every 3 weeks x 4 cycles, then 240 mg IV every 2 weeks or 480 mg IV every 4 weeks until progression or toxicity" }
+      { "drug": "Ipilimumab", "dose": "3 mg/kg IV every 3 weeks x 4 cycles" },
+      { "drug": "Nivolumab", "dose": "1 mg/kg IV every 3 weeks x 4 cycles, then 240 mg IV every 2 weeks or 480 mg IV every 4 weeks until progression or toxicity" }
     ],
     "flow": "- High-volume symptomatic disease?\n  - Yes -> consider BRAF/MEK first if BRAF V600 positive\n  - No -> combination ICI first\n- Tolerating it?\n  - Grade 3 irAE -> hold, high-dose corticosteroid\n  - Grade 4 irAE -> stop permanently",
     "notes": "72.1 month median OS in CheckMate 067, against 36.9 for nivolumab alone. Highest irAE rate of the ICI options."
@@ -361,6 +370,10 @@ level, and the app composes it onto the `regimen` field of **every drug in it**.
 | `flow` | no | The decision that chooses or adjusts it. Nested list; see below |
 | `notes` | no | Outcomes, trial names, comparative toxicity |
 | `source` | no | Overrides the file's `source` |
+
+**Capitalise a component's name too.** It is matched case-insensitively but **printed verbatim**
+into the Regimens field of every drug in the protocol, so a lowercase `"drug": "ipilimumab"` reads as
+`- ipilimumab — 3 mg/kg IV…` on four profiles.
 
 **A component naming a drug that is neither in this file nor in the database is refused**, not
 invented. If the deck's regimen includes a drug it never teaches, add that drug to `drugs` with
@@ -465,7 +478,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
 
   "drugs": [
     {
-      "generic": "nivolumab",
+      "generic": "Nivolumab",
       "brands": ["Opdivo"],
       "indications": [
         "Unresectable or metastatic melanoma",
@@ -481,7 +494,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       }
     },
     {
-      "generic": "ipilimumab",
+      "generic": "Ipilimumab",
       "brands": ["Yervoy"],
       "indications": ["Unresectable or metastatic melanoma"],
       "class": "CTLA-4 blocking antibody",
@@ -492,7 +505,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       }
     },
     {
-      "generic": "dabrafenib",
+      "generic": "Dabrafenib",
       "brands": ["Tafinlar"],
       "indications": ["Unresectable or metastatic melanoma, BRAF V600E positive"],
       "class": "BRAF kinase inhibitor",
@@ -505,7 +518,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       }
     },
     {
-      "generic": "trametinib",
+      "generic": "Trametinib",
       "brands": ["Mekinist"],
       "indications": ["Unresectable or metastatic melanoma, BRAF V600E positive"],
       "class": "MEK inhibitor",
@@ -522,8 +535,8 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "name": "Ipilimumab + nivolumab",
       "when": "Stage IV initial therapy, NCCN preferred. Used regardless of PD-L1 expression and regardless of BRAF status.",
       "components": [
-        { "drug": "ipilimumab", "dose": "3 mg/kg IV every 3 weeks x 4 cycles" },
-        { "drug": "nivolumab", "dose": "1 mg/kg IV every 3 weeks x 4 cycles, then 240 mg IV every 2 weeks or 480 mg IV every 4 weeks until progression or toxicity" }
+        { "drug": "Ipilimumab", "dose": "3 mg/kg IV every 3 weeks x 4 cycles" },
+        { "drug": "Nivolumab", "dose": "1 mg/kg IV every 3 weeks x 4 cycles, then 240 mg IV every 2 weeks or 480 mg IV every 4 weeks until progression or toxicity" }
       ],
       "notes": "Median OS 72.1 months in CheckMate 067, against 36.9 for nivolumab alone and 19.9 for ipilimumab alone. The highest irAE burden of the first-line options."
     },
@@ -531,8 +544,8 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "name": "Dabrafenib + trametinib",
       "when": "BRAF V600E positive stage III adjuvant or stage IV disease. Consider first when disease is high-volume and symptomatic; otherwise ICI first, since the ICI-then-BRAF/MEK sequence gives longer response and overall survival.",
       "components": [
-        { "drug": "dabrafenib", "dose": "150 mg PO twice daily, with meals" },
-        { "drug": "trametinib", "dose": "2 mg PO once daily" }
+        { "drug": "Dabrafenib", "dose": "150 mg PO twice daily, with meals" },
+        { "drug": "Trametinib", "dose": "2 mg PO once daily" }
       ],
       "flow": "- BRAF V600E or V600K mutation?\n  - No -> immune checkpoint inhibitor, not this\n  - Yes -> either, and the sequence matters\n    - High-volume symptomatic disease -> BRAF/MEK first\n    - Otherwise -> ICI first, BRAF/MEK on progression\n- Pyrexia during treatment?\n  - Hold until it resolves, then restart at full dose\n  - Not resolving -> prednisone 10 mg PO daily, antipyretics, fluids",
       "notes": "Of the three BRAF/MEK pairs: this one crosses the blood-brain barrier and carries the greatest pyrexia risk; vemurafenib + cobimetinib has the highest overall AE rate; encorafenib + binimetinib has the least pyrexia. All three prolong QTc except dabrafenib + trametinib."
