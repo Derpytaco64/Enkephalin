@@ -3068,6 +3068,45 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### Spell an acronym out once per field (2026-11-10)
+
+A rule for the guide and **not** for the importer, which is the decision worth recording. The owner
+had passed two long specifications through without reading them and said so afterwards: *they should
+have just been rules for the drug import doc instead of system changes.* So the acronym rule is
+authoring guidance only -- no warning, no scan, no code -- and the semicolon warning built an hour
+earlier is left in place pending a decision rather than ripped out unasked, since removing working
+code is its own system change.
+
+The rule: the first time an acronym appears **in a field**, it is the full term with the acronym in
+brackets, and later uses in that field stay short. Per field, not per file, and that is the only
+part of it that needed an argument: a flashcard shows one field at a time, so an acronym spelled out
+in `pearl` is an acronym nobody has met in `moa`. An indication is read alone too -- in the drug
+list, in a filter, in a quiz stem -- so it explains itself the same way.
+
+Mechanics, in the guide because every one of them is a thing a deck gets wrong: capitalise the full
+term only where it starts a line, a bullet or a heading; square brackets where the acronym falls
+inside round ones, so brackets never nest; never two bracket groups back to back -- `(MRSA)
+(bacteremia)` is two fragments the reader has to join up, and the fix is a sentence. Then three
+lists: what stays short (routes, frequencies, everyday terms, body weights, pharmacodynamic ratios,
+electrolytes, enzyme and gene names), what is always written out with no acronym kept (`C. diff`,
+`incl.`, `FQ`, `2x/week`), and the coverage mnemonics, each followed directly by its letters.
+
+One row was extended past what was asked, because the guide's own examples needed it: the
+enzyme-and-gene row now covers a target, gene or pathway the deck names as such -- `PD-1`,
+`CTLA-4`, `BRAF`, `MEK`, `MAPK`. Spelling `BRAF` out teaches nobody what the deck meant by it, and
+without that row the worked example would have contradicted the new rule on its first line.
+
+Examples brought into line: `irAE`, `ICI`, `OS` and `NCCN` spelled out at first use in each field
+they appear in, `CNS` and `QTc` left short, `AE` written out as *adverse effects*, and
+`Raised ALT/AST 4%` reworded to `Raised transaminases (ALT/AST) 4%` -- the full term for the pair,
+which reads better than expanding both.
+
+Nothing stored was touched. A one-off scan says **90 stored values** use an acronym that is never
+spelled out in that value -- `ICI` 8, `REMS` 7, `ADHD` 6, `GERD` 5, `irAE` 4, `ALT`/`AST` 4 each,
+`COPD` 4, `NCCN` 3, `MOA` 3 -- counted after discarding receptor and enzyme names, trial names and
+capitalised English words, which a looser pass had put at 143. Left alone pending a decision, like
+the semicolons.
+
 ### Two rules of form: no semicolons, and a capital after every slash (2026-11-10)
 
 **No semicolon in a markdown value.** `lib/fields/prose.ts` reads a heading, a paragraph and a list,

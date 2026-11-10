@@ -418,13 +418,13 @@ level, and the app composes it onto the `regimen` field of **every drug in it**.
 "regimens": [
   {
     "name": "Ipilimumab + nivolumab",
-    "when": "Stage IV initial therapy, NCCN preferred. Any PD-L1 expression, any BRAF status.",
+    "when": "Stage IV initial therapy, National Comprehensive Cancer Network (NCCN) preferred. Any PD-L1 expression, any BRAF status.",
     "components": [
       { "drug": "Ipilimumab", "dose": "3 mg/kg IV every 3 weeks x 4 cycles" },
       { "drug": "Nivolumab", "dose": "1 mg/kg IV every 3 weeks x 4 cycles, then 240 mg IV every 2 weeks or 480 mg IV every 4 weeks until progression or toxicity" }
     ],
-    "flow": "- High-volume symptomatic disease?\n  - Yes -> consider BRAF/MEK first if BRAF V600 positive\n  - No -> combination ICI first\n- Tolerating it?\n  - Grade 3 irAE -> hold, high-dose corticosteroid\n  - Grade 4 irAE -> stop permanently",
-    "notes": "72.1 month median OS in CheckMate 067, against 36.9 for nivolumab alone. Highest irAE rate of the ICI options."
+    "flow": "- High-volume symptomatic disease?\n  - Yes -> consider BRAF/MEK first if BRAF V600 positive\n  - No -> combination immune checkpoint inhibitor (ICI) first\n- Tolerating it?\n  - Grade 3 immune-related adverse effect (irAE) -> hold, high-dose corticosteroid\n  - Grade 4 irAE -> stop permanently",
+    "notes": "72.1 month median overall survival (OS) in CheckMate 067, against 36.9 for nivolumab alone. The highest immune-related adverse effect (irAE) rate of the immune checkpoint inhibitor (ICI) options."
   }
 ]
 ```
@@ -514,12 +514,90 @@ A dosing flow, written the way it renders:
 
 ```
 - BRAF V600E or V600K mutation?
-  - No -> immune checkpoint inhibitor
+  - No -> immune checkpoint inhibitor (ICI)
     - Ipilimumab + nivolumab, or nivolumab + relatlimab
   - Yes -> either, and sequence matters
     - High-volume symptomatic disease -> BRAF/MEK inhibitor first
     - Otherwise -> ICI first, BRAF/MEK on progression
 - Renal or hepatic impairment -> no dose adjustment established
+```
+
+---
+
+## Acronyms
+
+**The first time an acronym appears in a field, write the full term with the acronym in brackets.**
+Later uses in that field stay short.
+
+```json
+"moa": "Binds penicillin-binding proteins (PBPs) and blocks peptidoglycan cross-linking. The PBPs a drug reaches are what set its spectrum."
+```
+
+**Every field explains its own acronyms.** A flashcard shows one field at a time — a card asking for
+the mechanism prints the mechanism and nothing else — so an acronym spelled out in `pearl` is an
+acronym nobody has met in `moa`. Spelling it out once per file is not enough; spell it out once per
+field. The same goes for an **indication**, which is read on its own in the drug list, in a filter
+and in a quiz stem.
+
+**Capitalise the full term only where it starts a line, a bullet or a heading**, and leave it
+lowercase mid-sentence:
+
+| | |
+|---|---|
+| start of a bullet | `- Methicillin-resistant S. aureus (MRSA)` |
+| mid-line | `Staph, methicillin-resistant S. aureus (MRSA)` |
+
+**Brackets never nest.** Where the acronym falls inside round brackets, put it in square ones:
+
+```
+(including methicillin-resistant S. aureus [MRSA])
+```
+
+**And never two bracket groups back to back.** `(MRSA) (bacteremia)` is two fragments the reader has
+to join up themselves. Reword it into the sentence:
+
+```
+Preferred for serious MRSA infections: bacteremia, endocarditis
+```
+
+### Short forms that stay short
+
+Nobody needs *twice daily (BID)*. These are read as words, and spelling them out makes a field
+longer without making it clearer:
+
+| | |
+|---|---|
+| Routes and frequency | `IV`, `PO`, `IM`, `BID`, `QID`, `q8h` and the like |
+| Everyday terms | `GI`, `CNS`, `DNA`, `RNA`, `HIV`, `FDA`, `QT`, `QTc` |
+| Body weights | `ABW`, `IBW`, `CBW` |
+| Pharmacodynamics | `AUC`, `MIC`, `AUC/MIC`, `AUC:MIC`, `T>MIC` |
+| Electrolytes and minerals | `Ca`, `Mg`, `Fe` |
+| Enzymes, genes and targets | `CYP3A4` and the other CYPs, `MT-RNR1` — and the same for a target, gene or pathway the deck names as such: `PD-1`, `PD-L1`, `CTLA-4`, `BRAF`, `MEK`, `MAPK` |
+
+A name on that last row is the drug's actual subject, not a shorthand for one: *B-Raf
+proto-oncogene serine/threonine kinase* teaches nobody anything the deck meant.
+
+### Short forms that are always written out
+
+No acronym kept, because the short form is an abbreviation of convenience rather than a name:
+
+| written as | write |
+|---|---|
+| `C. diff` | `C. difficile` |
+| `incl.` | `including` |
+| `FQ` | `fluoroquinolone` |
+| `2x/week` | `2 times/week` |
+
+### Coverage mnemonics
+
+A coverage mnemonic is followed **directly** by its letters in brackets, every time, because the
+mnemonic is only an aid to somebody who already has the list:
+
+```
+PEK (Proteus, E. coli, Klebsiella)
+HNPEK (Haemophilus, Neisseria, Proteus, E. coli, Klebsiella)
+HENPECKS (Haemophilus, Enterobacter, Neisseria, Proteus, E. coli, Citrobacter, Klebsiella, Serratia)
+APE (Acinetobacter, Pseudomonas, Enterococcus)
 ```
 
 ---
@@ -567,6 +645,9 @@ look for.
 - [ ] Every markdown value uses only paragraphs, nested bullets, numbered steps and headings.
 - [ ] **No markdown value contains a semicolon.** Each idea is on its own line — a bullet, or a
       sub-bullet under the one it qualifies. (A `list` field may still use `;` between items.)
+- [ ] **Every acronym is spelled out at its first use in each field**, and in each indication,
+      unless it is on the keep-short list — brackets never nested, never two groups back to back,
+      and every coverage mnemonic followed by its letters.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
 - [ ] Every combination product is written out in full, with **every component capitalised** —
       `"Amoxicillin/Clavulanate"`. The separator and the spacing do not matter to matching; a
@@ -615,7 +696,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
         "moa": "PD-1 inhibitor. PD-1 on T cells binds PD-L1 on the tumour and switches the T cell off late in the immune response. Blocking it restores T cell activation, recognition and attack.",
         "dosing": "240 mg IV every 2 weeks, or 480 mg IV every 4 weeks, until progression or toxicity.\n\nIn combination with ipilimumab the dose is lower — see Regimens.",
         "route": "IV",
-        "ae": "- Diarrhoea 19%, grade 3-4 2%\n- Rash 26%\n- Hypothyroidism 9%\n- Raised ALT/AST 4%\n- Colitis 1%\n\nirAEs are fewer and milder than on the ipilimumab combination.",
+        "ae": "- Diarrhoea 19%, grade 3-4 2%\n- Rash 26%\n- Hypothyroidism 9%\n- Raised transaminases (ALT/AST) 4%\n- Colitis 1%\n\nImmune-related adverse effects (irAEs) are fewer and milder than on the ipilimumab combination.",
         "bbw": null
       }
     },
@@ -659,22 +740,22 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
   "regimens": [
     {
       "name": "Ipilimumab + nivolumab",
-      "when": "Stage IV initial therapy, NCCN preferred. Used regardless of PD-L1 expression and regardless of BRAF status.",
+      "when": "Stage IV initial therapy, National Comprehensive Cancer Network (NCCN) preferred. Used regardless of PD-L1 expression and regardless of BRAF status.",
       "components": [
         { "drug": "Ipilimumab", "dose": "3 mg/kg IV every 3 weeks x 4 cycles" },
         { "drug": "Nivolumab", "dose": "1 mg/kg IV every 3 weeks x 4 cycles, then 240 mg IV every 2 weeks or 480 mg IV every 4 weeks until progression or toxicity" }
       ],
-      "notes": "Median OS 72.1 months in CheckMate 067, against 36.9 for nivolumab alone and 19.9 for ipilimumab alone. The highest irAE burden of the first-line options."
+      "notes": "Median overall survival (OS) 72.1 months in CheckMate 067, against 36.9 for nivolumab alone and 19.9 for ipilimumab alone. The highest immune-related adverse effect (irAE) burden of the first-line options."
     },
     {
       "name": "Dabrafenib + trametinib",
-      "when": "BRAF V600E positive stage III adjuvant or stage IV disease.\n- Consider first when disease is high-volume and symptomatic\n- Otherwise ICI first, since the ICI-then-BRAF/MEK sequence gives longer response and overall survival",
+      "when": "BRAF V600E positive stage III adjuvant or stage IV disease.\n- Consider first when disease is high-volume and symptomatic\n- Otherwise an immune checkpoint inhibitor (ICI) first, since the ICI-then-BRAF/MEK sequence gives longer response and overall survival",
       "components": [
         { "drug": "Dabrafenib", "dose": "150 mg PO twice daily, with meals" },
         { "drug": "Trametinib", "dose": "2 mg PO once daily" }
       ],
-      "flow": "- BRAF V600E or V600K mutation?\n  - No -> immune checkpoint inhibitor, not this\n  - Yes -> either, and the sequence matters\n    - High-volume symptomatic disease -> BRAF/MEK first\n    - Otherwise -> ICI first, BRAF/MEK on progression\n- Pyrexia during treatment?\n  - Hold until it resolves, then restart at full dose\n  - Not resolving -> prednisone 10 mg PO daily, antipyretics, fluids",
-      "notes": "Of the three BRAF/MEK pairs:\n- This one crosses the blood-brain barrier and carries the greatest pyrexia risk\n- Vemurafenib + cobimetinib has the highest overall AE rate\n- Encorafenib + binimetinib has the least pyrexia\n\nAll three prolong QTc except dabrafenib + trametinib."
+      "flow": "- BRAF V600E or V600K mutation?\n  - No -> immune checkpoint inhibitor (ICI), not this\n  - Yes -> either, and the sequence matters\n    - High-volume symptomatic disease -> BRAF/MEK first\n    - Otherwise -> ICI first, BRAF/MEK on progression\n- Pyrexia during treatment?\n  - Hold until it resolves, then restart at full dose\n  - Not resolving -> prednisone 10 mg PO daily, antipyretics, fluids",
+      "notes": "Of the three BRAF/MEK pairs:\n- This one crosses the blood-brain barrier and carries the greatest pyrexia risk\n- Vemurafenib + cobimetinib has the highest overall rate of adverse effects\n- Encorafenib + binimetinib has the least pyrexia\n\nAll three prolong QTc except dabrafenib + trametinib."
     }
   ],
 
