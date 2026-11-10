@@ -274,6 +274,48 @@ export default async function DrugProfilePage({
   const silent = variants.filter((option) => option.n === null);
   const isAdmin = session.user.role === 'admin';
 
+  /**
+   * The tags, grouped by **what reading each one gets you**.
+   *
+   * A tag is on the drug -- it has to be, because that is what makes a version
+   * readable at all: every reader of a layer joins membership -- but which
+   * wording a list means is per membership, and the card used to print all of
+   * them in one row whatever was on screen. So importing a lecture scoped to a
+   * class and its exam made the drug's own profile claim both of them, and
+   * swapping to the class's version showed the same row again: nothing on the
+   * page distinguished *this drug is on PHRM 532* from *what you are reading is
+   * what PHRM 532 says*.
+   *
+   * Grouped rather than filtered, because both halves are worth knowing: the
+   * drug really is on the top-200 list while you are reading the ID class's
+   * words, and that membership reads as the drug's own. The group that matches
+   * what is on screen is marked; the others link to the reading they give.
+   */
+  const comparing = layers !== null;
+  const reading = variant?.slug ?? null;
+  const labelOfVariant = new Map(variants.map((option) => [option.slug, option.label]));
+
+  const byReading = new Map<string | null, typeof tags>();
+  for (const tag of tags) {
+    byReading.set(tag.reads, [...(byReading.get(tag.reads) ?? []), tag]);
+  }
+
+  const tagGroups = [...byReading.entries()]
+    .map(([reads, inGroup]) => ({
+      key: reads ?? '',
+      tags: inGroup,
+      current: !comparing && reads === reading,
+      label: reads === null
+        ? 'The drug’s own words'
+        : `What ${labelOfVariant.get(reads) ?? reads} says`,
+      href: reads === null
+        ? (`/drugs/${drug.slug}` as const)
+        : (`/drugs/${drug.slug}?as=${encodeURIComponent(reads)}` as const),
+    }))
+    // What is on screen first, so the question *does this apply to what I am
+    // looking at* is answered by the top of the card.
+    .sort((a, b) => Number(b.current) - Number(a.current) || a.label.localeCompare(b.label));
+
   const { colorAxis: axis, paletteOverrides } = await getPreferences(session.user.id);
   const color = colorFor(axis, { ...drug, tags: tags.map((tag) => tag.slug) }, paletteOverrides);
 
@@ -636,16 +678,48 @@ export default async function DrugProfilePage({
             <section className={CARD}>
               <SectionHead>Tags</SectionHead>
               {/* A tag is the clearest chip in the app: it stands for a
-                  thing, not a place, and it was a stack of blue underlines. */}
-              <ul className="mt-3 flex flex-wrap gap-1">
-                {tags.map((tag) => (
-                  <li key={tag.slug}>
-                    <Link href={`/drugs?tag=${tag.slug}`} className="pill pill-xs pill-edge">
-                      {tag.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+                  thing, not a place, and it was a stack of blue underlines.
+                  Each still links to the list it stands for; what the heading
+                  above it says is which wording that list reads this drug as. */}
+              {tagGroups.map((group, at) => (
+                <div
+                  key={group.key}
+                  className={at > 0 ? 'mt-3 border-t border-[var(--border)] pt-3' : 'mt-3'}
+                >
+                  <p className="text-xs text-[var(--muted)]">
+                    {group.current ? (
+                      <>
+                        <span className="text-[var(--fg)]">{group.label}</span>
+                        {' '}&mdash; what is on screen
+                      </>
+                    ) : (
+                      <Link href={group.href} className="underline">
+                        {group.label}
+                      </Link>
+                    )}
+                  </p>
+                  <ul className="mt-1.5 flex flex-wrap gap-1">
+                    {group.tags.map((tag) => (
+                      <li key={tag.slug}>
+                        <Link
+                          href={`/drugs?tag=${tag.slug}`}
+                          title={group.current
+                            ? `${tag.label} reads this drug the way it is on screen`
+                            : `${tag.label} reads this drug as ${group.label.toLowerCase()}`}
+                          className={`pill pill-xs ${group.current ? 'pill-on' : 'pill-edge'}`}
+                        >
+                          {tag.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {comparing && (
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                  Every version at once, so no one of these is what is on screen.
+                </p>
+              )}
             </section>
           )}
 

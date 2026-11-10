@@ -6,7 +6,9 @@ import {
 } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
+  clearVariantLayer,
   numberedVariantsByDrug,
+  pointTagsAtVariant,
   variantLayerFor,
   variantOptionsFor,
   variantSlugsAmong,
@@ -417,6 +419,90 @@ describe('the profile, read through a variant', () => {
     const profile = await getDrugProfile('levothyroxine', ME, 'other-class');
     expect(profile?.variant).toBeNull();
     expect(profile?.drug.fields.moa.value).toBe('Replaces T4');
+  });
+});
+
+/* --------------------------------------------- which wording a tag reads -- */
+
+/**
+ * What each tag gets you, which is the question the profile's Tags card used to
+ * answer for the whole drug at once.
+ *
+ * The report that asked for this: an ID lecture scoped to a class and its exam
+ * was imported over an amoxicillin that was already on a top-200 list, and the
+ * profile printed all three tags whichever version was on screen -- so the
+ * drug's own words claimed the class's tags, and the class's version claimed
+ * the list's. The membership is real in both directions; what was missing was
+ * `reads`, which is per membership and not per drug.
+ */
+describe('which wording a tag reads the drug as', () => {
+  beforeEach(async () => {
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: EXAM,
+      values: { moa: 'Exam 3 wording' },
+      source: 'Heme/Onc Exam 3', note: '', userId: ME,
+    });
+  });
+
+  const readsOf = async (asked?: string) => {
+    const profile = await getDrugProfile('levothyroxine', ME, asked);
+    return new Map(profile?.tags.map((tag) => [tag.slug, tag.reads]));
+  };
+
+  it('reads a class with wording of its own as itself', async () => {
+    expect((await readsOf()).get(EXAM)).toBe(EXAM);
+  });
+
+  it('reads a list naming a version as that version, not as the drug', async () => {
+    // The membership says *on this list, read the drug as the exam words it*,
+    // which is what an import writes for the scopes it did not store the layer
+    // under -- see `pointTagsAtVariant`.
+    await pointTagsAtVariant({
+      drugId: await drugId(), variantSlug: EXAM, tagSlugs: ['top-drugs-2026'],
+    });
+
+    expect((await readsOf()).get('top-drugs-2026')).toBe(EXAM);
+  });
+
+  it('reads a list that names nothing as the drug’s own words', async () => {
+    expect((await readsOf()).get('top-drugs-2026')).toBeNull();
+    // And a class that has said nothing of its own is not a version to read.
+    expect((await readsOf()).get(COURSE)).toBeNull();
+  });
+
+  it('stops naming a version once its wording is cleared', async () => {
+    await pointTagsAtVariant({
+      drugId: await drugId(), variantSlug: EXAM, tagSlugs: ['top-drugs-2026'],
+    });
+    await clearVariantLayer({ drugSlug: 'levothyroxine', variantSlug: EXAM });
+
+    // Both halves of the fix. The pointer is nulled on the way out, so nothing
+    // in the database claims a reading that is not there --
+    const [row] = await db
+      .select({ named: drugTags.variantTagId })
+      .from(drugTags)
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .where(eq(tags.slug, 'top-drugs-2026'));
+    expect(row.named).toBeNull();
+
+    // -- and a pointer that survived some other way is ignored rather than
+    // honoured, because what it names has no wording to read.
+    const reads = await readsOf();
+    expect(reads.get('top-drugs-2026')).toBeNull();
+    expect(reads.get(EXAM)).toBeNull();
+  });
+
+  it('answers the same question for every version, not just the one on screen', async () => {
+    await pointTagsAtVariant({
+      drugId: await drugId(), variantSlug: EXAM, tagSlugs: ['top-drugs-2026'],
+    });
+
+    // The card groups by this, so what changes between readings is which group
+    // is marked -- never which tags the drug has. Both readings agree about
+    // every tag, which is the property that was missing.
+    const own = await readsOf();
+    const through = await readsOf(EXAM);
+    expect([...through.entries()]).toEqual([...own.entries()]);
   });
 });
 

@@ -3068,6 +3068,42 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### A tag reads the drug as something, and the page now says which (2026-11-10)
+
+*Swapping between variations shows both as having the tags when only one should. An ID lecture
+scoped to [PHRM 532] and [ID Exam 1] was imported over an amoxicillin already on a top-200 list, and
+both tags appeared on both versions.*
+
+The membership is not the bug, and it cannot be: a layer is only ever read through a tag the drug
+carries -- every reader joins `drug_tags` -- so the tag has to be on the drug for the ID version to
+be readable at all. What was missing is that **which wording a list means is per membership**, which
+`drug_tags.variant_tag_id` has recorded since migration 0016 and the profile's Tags card ignored. It
+printed every membership in one row whatever was on screen, so the drug's own profile claimed the
+class's tags and the class's version claimed the list's, and nothing on the page distinguished *this
+drug is on PHRM 532* from *what you are reading is what PHRM 532 says*.
+
+So `getDrugProfile` now answers that per tag, as `reads`, decided in this order:
+
+1. the version the membership names, where it names one **and that version still has wording**;
+2. the tag itself, where it is a class or exam that words this drug differently -- reading the drug
+   through it *is* reading its layer, which is what the version pills do;
+3. the drug's own words.
+
+The card groups by it and marks the group that is on screen. Grouped rather than filtered, because
+both halves are worth knowing: the drug really is on the top-200 list while you read the ID class's
+words, and that membership reads as the drug's own. The other groups link to the reading they give,
+which turns the card into the thing it was pretending to be -- *what do I get if I come at this drug
+from that list*. What never changes between readings is which tags the drug has; only the marking
+moves.
+
+**And a cleared version stops being named.** `clearVariantLayer` now nulls any membership pointing
+at the version it deleted, for the same reason migration 0016 nulls them when the tag itself goes:
+the membership is still true, the reading is not. That is the *even after deleting, the tags stuck*
+half of the report -- a pointer at wording that no longer exists, with every reader quietly falling
+back to the drug's own words while the page went on claiming a version the drug had not got. Rule 1
+above is the belt to that brace: a pointer that survives some other way is ignored rather than
+honoured.
+
 ### One address, four spellings: matching a combination product (2026-11-10)
 
 *A file had `"generic": "Amoxicillin/clavulanate"`; the app already held that drug; the import

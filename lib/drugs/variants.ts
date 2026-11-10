@@ -627,6 +627,18 @@ export async function clearVariantLayer(input: {
     .delete(drugVariantValues)
     .where(and(eq(drugVariantValues.drugId, drug.id), eq(drugVariantValues.tagId, variant.id)));
 
+  // And nothing is left pointing at the wording that is gone. A membership
+  // naming a version it can no longer read is the kind of stale that looks
+  // like a bug rather than like nothing: the list goes on claiming a reading,
+  // every reader quietly falls back to the drug's own words, and the profile
+  // reports a version the drug has not got. Same reasoning as migration 0016's
+  // `on delete set null` for the tag itself -- the membership is still true,
+  // the reading is not.
+  await db
+    .update(drugTags)
+    .set({ variantTagId: null })
+    .where(and(eq(drugTags.drugId, drug.id), eq(drugTags.variantTagId, variant.id)));
+
   return { ok: true };
 }
 

@@ -1,4 +1,5 @@
 import { and, asc, eq, isNotNull, ne } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import {
   brandIndications,
@@ -48,6 +49,8 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
   const [drug] = await db.select().from(drugs).where(eq(drugs.slug, slug));
   if (!drug) return null;
 
+  const variantTagOf = alias(tags, 'variant_tag');
+
   const [brandRows, indicationRows, linkRows, tagRows, defs, prefs, siblings] = await Promise.all([
     db.select().from(drugBrands).where(eq(drugBrands.drugId, drug.id)).orderBy(asc(drugBrands.sortOrder)),
     db
@@ -66,10 +69,19 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
       .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId))
       .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
       .where(eq(drugIndications.drugId, drug.id)),
+    // `named` is the version this membership says it means -- see
+    // `drug_tags.variant_tag_id`. Left-joined because most memberships name
+    // nothing, and the ones that do are the reason a tag is not a property of
+    // the whole drug: amoxicillin is on a top-200 list as itself and in an ID
+    // class as that class words it, and a page showing both to a reader of
+    // either is the thing this answers.
     db
-      .select({ slug: tags.slug, label: tags.label, kind: tags.kind })
+      .select({
+        slug: tags.slug, label: tags.label, kind: tags.kind, named: variantTagOf.slug,
+      })
       .from(drugTags)
       .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .leftJoin(variantTagOf, eq(variantTagOf.id, drugTags.variantTagId))
       .where(eq(drugTags.drugId, drug.id)),
     listFieldDefs(),
     userId
@@ -94,6 +106,36 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
     variantSlug && !wantsAll ? variantLayerFor(drug.id, variantSlug) : Promise.resolve(null),
     wantsAll ? variantLayersForDrug(drug.id) : Promise.resolve(null),
   ]);
+
+  /**
+   * What each tag gets you, which is not the same question as what the drug is
+   * tagged with.
+   *
+   * Three answers, in the order they are decided:
+   *
+   * - the version the membership names, where it names one and that version
+   *   still has wording of its own;
+   * - the tag itself, where the tag is a class or an exam that words this drug
+   *   differently -- reading the drug through it is reading its layer, which
+   *   is what the version pills above do;
+   * - the drug's own words, for everything else.
+   *
+   * A pointer at a version whose layer has since been cleared is ignored
+   * rather than honoured, for the same reason it is nulled on the way out in
+   * `clearVariantLayer`: what it names is not there to read, and every reader
+   * already falls back to the drug's own words. Printing it would be the page
+   * claiming a version the drug has not got.
+   */
+  const worded = new Set(variants.filter((option) => option.n !== null).map((o) => o.slug));
+  const profileTags = tagRows.map((row) => {
+    const named = row.named !== null && worded.has(row.named) ? row.named : null;
+    return {
+      slug: row.slug,
+      label: row.label,
+      kind: row.kind,
+      reads: named ?? (worded.has(row.slug) ? row.slug : null),
+    };
+  });
 
   const indicationsByBrand = new Map<string, string[]>();
   for (const link of linkRows) {
@@ -126,7 +168,8 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
     drug: variant ? { ...drug, fields: overlayFields(drug.fields, variant.fields) } : drug,
     brands,
     indications: indicationRows.map((row) => row.label),
-    tags: tagRows,
+    /** Each with the version it reads the drug as -- null for its own words. */
+    tags: profileTags,
     defs: visibleDefs,
     siblings,
     /** Every class and exam this drug is in, for the picker. */
