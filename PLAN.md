@@ -3068,6 +3068,55 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### What counts as a pearl, and keeping a field short (2026-11-10)
+
+Guide only, by instruction, and nothing in it needed the importer -- so nothing in the importer
+moved. (The semicolon warning from earlier the same day stays: asked and answered.)
+
+**`pearl` gets a test, because it is the field most often filled with something that belongs
+elsewhere.** A value is a pearl only if the slide labels it one, or it is unique and important for
+that drug and no other field is about that kind of fact. The part worth writing down is the second
+half of the first clause: **a slide labelled *Pearls* is still sorted by what it says.** A
+*Macrolides Drug Interaction/Pearls* slide listing CYP3A4 interactions is `interactions`;
+vancomycin's *General practice pearls* about when to draw a trough is `monitoring`. The label tells
+you the lecturer thought it mattered, not which field it belongs in -- and it does not go in `pearl`
+as well, because two copies of a fact are two things to keep in step.
+
+Three kinds of thing that are not pearls: a class fact repeated onto every drug in the class, which
+teaches it once and pads the rest; anything another field already says, which is one more place for
+the two to disagree; and trivia that goes stale, an approval year or an *approval being sought*, in
+a file that will be read for years by nobody who comes back to date-check it. Three good ones are
+given for calibration -- daptomycin's *inactivated by lung surfactant*, ceftriaxone's *not for
+neonates*, amikacin's *reserved for gentamicin- or tobramycin-resistant bugs* -- each of which would
+change what you do, is true of the drug rather than the class, and is in no other field. And most
+drugs have none, so the key is left out.
+
+**`notes` is now documented** as the field for a useful fact that fits no other field and is not a
+pearl: cross-reactivity as a plain statement with no percentages (the percentage moves with the
+study and with what counted as a reaction), resistance that changes which drug you pick, and which
+brand is which formulation. Both it and `pearl` are declared by files rather than shipped, which the
+section says, because an author who writes `notes` without declaring it gets a refusal.
+
+Worth recording from checking rather than assuming: a brand row **can** carry a route and a form --
+`drug_brands.route` -- but the import format has no way to set them, since `brands` is a list of
+names. So *Ceftin is PO, Zinacef is IV* genuinely has nowhere better to live than `notes`, and the
+guide says so rather than implying the field is a dumping ground.
+
+**A value is a bullet fragment, not a sentence**: *Renally adjust*, not *Adjust for renal function.*
+Shorter wording and never fewer facts -- every organism, dose, level, adverse effect and interaction
+the slide gives stays, because those numbers are the whole reason the lecture is worth importing.
+
+One clause of that is mine rather than asked for, and it is there to stop the guide contradicting
+itself: the rule bites hardest on the fields that are really lists, while a mechanism or a dosing
+paragraph may stay prose where the explanation *is* the content. The markdown chapter documents
+paragraphs as a supported construct and the worked example's `moa` values use them, so a flat *no
+sentences* would have condemned the guide's own examples on the page after it recommends them.
+
+The example's dabrafenib pearl mixed two facts -- *crosses the blood-brain barrier* and *metabolised
+by CYP2C8 and CYP3A4*. The first stays as the pearl; the second moved into a declared `pk` field
+rather than being deleted, since *keep every fact* is the other half of the same rule and an example
+that quietly drops one would teach the wrong lesson.
+
 ### Spell an acronym out once per field (2026-11-10)
 
 A rule for the guide and **not** for the importer, which is the decision worth recording. The owner

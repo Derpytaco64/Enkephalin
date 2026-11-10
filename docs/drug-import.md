@@ -408,6 +408,77 @@ off the two things that still matter:
 A key that already exists is left exactly as it is: an import never renames a field, never changes
 its type, and never revives a deleted one.
 
+### `pearl` — and what is not one
+
+Declared rather than shipped: this app has a *Clinical pearls* field because a lecture asked for one.
+It is the field most often filled with something that belongs elsewhere, so it has a test of its own.
+
+**A value is a pearl only if one of these is true:**
+
+1. **The slide labels it one** — *Pearls*, *Clinical pearls*, *Practice pearls*.
+2. **It is unique and important for that drug**, and no other field is about that kind of fact.
+
+**A slide labelled "pearls" is still sorted by what it says.** The label tells you the lecturer
+thought it was worth knowing. It does not tell you which field it belongs in — and where the pearl
+is really an interaction, a monitoring step or a dose, it goes in that field and **not in `pearl` as
+well**:
+
+| the slide | the field |
+|---|---|
+| *Macrolides Drug Interaction/Pearls*, listing CYP3A4 interactions | `interactions` |
+| vancomycin *General practice pearls*, on when to draw a trough | `monitoring` |
+
+Neither of those ships with the app, so a file that needs one declares it, exactly as above.
+
+**Not a pearl:**
+
+- **A class fact repeated on every drug in the class.** Allergy cross-reactivity across the
+  cephalosporins is a fact about the class; copying it onto each of them teaches it once and pads
+  the rest. Where it is worth saying per drug, `notes` is the field — below.
+- **Anything another field already says** — the indication, the class, the route, the spectrum. A
+  pearl that repeats another field is one more place for the two of them to disagree later.
+- **Trivia that goes stale.** An approval year, *approval being sought*, *new for 2026*. A file is
+  read for years and nobody comes back to date-check a pearl.
+
+**Good pearls**, for calibration:
+
+- *Inactivated by lung surfactant, so not for pneumonia* — daptomycin
+- *Not for neonates* — ceftriaxone
+- *Reserved for gentamicin- or tobramycin-resistant bugs* — amikacin
+
+Each one would change what you do, is true of that drug rather than its class, and is in no other
+field. The worked example at the end of this guide shows the trim: dabrafenib's pearl is *crosses
+the blood-brain barrier, so it is the pair to reach for with CNS metastases*, and the *metabolised by
+CYP2C8 and CYP3A4* it used to carry alongside has moved to a declared `pk` field, where it is one
+fact rather than half of two. Where the drug goes is a pearl; what the liver does to it is
+pharmacokinetics.
+
+**Leave `pearl` out when nothing qualifies**, which is most drugs in most lectures. No `pearl` key
+says nothing about the drug, and saying nothing is correct — see *absent, blank and none* at the top.
+
+### `notes` — additional notes
+
+Declared rather than shipped, like `pearl`:
+
+```json
+{ "key": "notes", "label": "Additional notes", "type": "markdown", "group": "Clinical",
+  "prompt": "What else is worth knowing about {{generic}}?" }
+```
+
+The field for a useful fact that **fits no other field and is not a pearl**. Three things that
+belong in it:
+
+- **Cross-reactivity**, as a plain statement with no percentages: `Cross-reactivity with
+  penicillins`, `Cross-reactivity with ceftazidime only`. The percentage moves with the study and
+  with what counted as a reaction; the statement is the part that gets used.
+- **Resistance that changes which drug you pick** — a positive D-zone test means macrolide
+  resistance carries over to clindamycin, so clindamycin is out.
+- **Which brand is which formulation or route** — `Ceftin is PO, Zinacef is IV`.
+
+That last one is here for a reason worth knowing: a brand row in this app *can* carry a route and a
+form, but the import format has no way to set them — `brands` is a list of names — so until it has,
+`notes` is where that reads.
+
 ## `regimens` — the combinations
 
 Oncology is where a dose stops being a property of one drug. Oxaliplatin is 85 mg/m² *in FOLFOX*;
@@ -602,6 +673,32 @@ APE (Acinetobacter, Pseudomonas, Enterococcus)
 
 ---
 
+## Keep every fact, and keep it short
+
+**A field value is a bullet fragment, not a sentence.** It is read on a profile beside thirty others
+and on a flashcard with nothing around it, and in both places the full stop and the run-up to it are
+noise:
+
+| not this | this |
+|---|---|
+| `"Adjust for renal function."` | `Renally adjust` |
+| a paragraph explaining side chains and which cephalosporins share them | `Cross-reactivity with penicillins` |
+
+**Shorter wording, not less content.** Every organism, dose, level, adverse effect and interaction
+the slide gives stays in the file — the trimming is of the words around them, never of the facts.
+A lecture's numbers are the whole reason it is worth importing.
+
+The rule bites hardest on the fields that are really lists: adverse effects, interactions,
+monitoring, cross-reactivity, pearls. A mechanism or a dosing paragraph may stay prose where the
+explanation *is* the content — `moa` earns its sentences — but it earns them by explaining
+something, not by working up to it.
+
+**And one fact in one field.** Do not repeat a fact across fields on the same drug: pick the field
+that is *about* it and leave the others alone. Two copies are not twice as memorable, they are two
+things to keep in step, and a quiz asking two fields gets the same answer twice.
+
+---
+
 ## What gets refused
 
 The importer refuses rather than guesses, and a refusal names the entry. Nothing is written until
@@ -648,6 +745,11 @@ look for.
 - [ ] **Every acronym is spelled out at its first use in each field**, and in each indication,
       unless it is on the keep-short list — brackets never nested, never two groups back to back,
       and every coverage mnemonic followed by its letters.
+- [ ] **Every `pearl` is a pearl**: the slide labelled it one, or it is unique to that drug and no
+      other field is about it. Nothing that another field already says, nothing true of the whole
+      class, and no approval years. Most drugs have none — leave the key out.
+- [ ] **Every value is a short fragment, and each fact is in exactly one field.** Shorter wording,
+      never fewer facts.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
 - [ ] Every combination product is written out in full, with **every component capitalised** —
       `"Amoxicillin/Clavulanate"`. The separator and the spacing do not matter to matching; a
@@ -680,7 +782,9 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
     { "key": "ae", "label": "Adverse effects", "type": "markdown", "group": "Clinical",
       "prompt": "What are the notable adverse effects of {{generic}}?" },
     { "key": "pearl", "label": "Clinical pearls", "type": "markdown", "group": "Clinical",
-      "prompt": "What is worth knowing about using {{generic}} that the other fields do not say?" }
+      "prompt": "What is worth knowing about using {{generic}} that the other fields do not say?" },
+    { "key": "pk", "label": "Pharmacokinetics", "type": "markdown", "group": "Clinical",
+      "prompt": "How is {{generic}} metabolised and eliminated?" }
   ],
 
   "drugs": [
@@ -721,7 +825,8 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
         "dosing": "150 mg PO twice daily. Take with meals.",
         "route": "PO",
         "ae": "- Pyrexia — the greatest risk of the three BRAF/MEK pairs\n  - Onset 2-4 weeks, median 9 days\n  - Hold until it resolves, then restart at full dose\n  - Add prednisone 10 mg PO daily if it does not settle\n- Cutaneous squamous cell carcinoma, 12%\n- Rash, photosensitivity, arthralgia, fatigue\n- Reduced ejection fraction, ocular toxicity",
-        "pearl": "Crosses the blood-brain barrier, so it is the pair to reach for with CNS metastases. Metabolised by CYP2C8 and CYP3A4."
+        "pearl": "Crosses the blood-brain barrier, so it is the pair to reach for with CNS metastases",
+        "pk": "Metabolised by CYP2C8 and CYP3A4"
       }
     },
     {
