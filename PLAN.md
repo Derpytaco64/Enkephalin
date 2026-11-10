@@ -3089,12 +3089,18 @@ So `getDrugProfile` now answers that per tag, as `reads`, decided in this order:
    through it *is* reading its layer, which is what the version pills do;
 3. the drug's own words.
 
-The card groups by it and marks the group that is on screen. Grouped rather than filtered, because
-both halves are worth knowing: the drug really is on the top-200 list while you read the ID class's
-words, and that membership reads as the drug's own. The other groups link to the reading they give,
-which turns the card into the thing it was pretending to be -- *what do I get if I come at this drug
-from that list*. What never changes between readings is which tags the drug has; only the marking
-moves.
+The card groups by it and shows **only the group that is on screen**. I built it grouped first, with
+the other readings greyed and linked, on the argument that both halves are worth knowing -- the drug
+really is on the top-200 list while you read the ID class's words. The owner's answer was to hide
+them, and it is the better call: a tag that reads this drug as some other version is not a fact about
+what you are looking at, and a card that lists them greyed is still a card listing them. Nothing is
+lost from the page, because the Versions card directly above is where the other readings live and is
+the control for getting to them -- the Tags card had been answering a question that card already
+answers, badly.
+
+*Compare all* is the exception and keeps every group, each linking to the reading it gives: every
+version is on screen at once there, so nothing is *the* reading and hiding on that basis would empty
+the card.
 
 **And a cleared version stops being named.** `clearVariantLayer` now nulls any membership pointing
 at the version it deleted, for the same reason migration 0016 nulls them when the tag itself goes:

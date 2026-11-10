@@ -286,10 +286,16 @@ export default async function DrugProfilePage({
    * page distinguished *this drug is on PHRM 532* from *what you are reading is
    * what PHRM 532 says*.
    *
-   * Grouped rather than filtered, because both halves are worth knowing: the
-   * drug really is on the top-200 list while you are reading the ID class's
-   * words, and that membership reads as the drug's own. The group that matches
-   * what is on screen is marked; the others link to the reading they give.
+   * Only the group that matches what is on screen is shown. A tag that reads
+   * this drug as some other version is not a fact about what you are looking
+   * at, and the owner's answer to being offered both was that it should not be
+   * there -- a card that lists them greyed is still a card listing them. The
+   * other readings are not lost from the page: the Versions card above is where
+   * they live, and that is the control for getting to them.
+   *
+   * The exception is *Compare all*, where every version is on screen at once
+   * and so every group is: nothing there is the one reading, and hiding on that
+   * basis would empty the card.
    */
   const comparing = layers !== null;
   const reading = variant?.slug ?? null;
@@ -315,6 +321,8 @@ export default async function DrugProfilePage({
     // What is on screen first, so the question *does this apply to what I am
     // looking at* is answered by the top of the card.
     .sort((a, b) => Number(b.current) - Number(a.current) || a.label.localeCompare(b.label));
+
+  const shownGroups = comparing ? tagGroups : tagGroups.filter((group) => group.current);
 
   const { colorAxis: axis, paletteOverrides } = await getPreferences(session.user.id);
   const color = colorFor(axis, { ...drug, tags: tags.map((tag) => tag.slug) }, paletteOverrides);
@@ -674,14 +682,14 @@ export default async function DrugProfilePage({
             </section>
           )}
 
-          {tags.length > 0 && (
+          {shownGroups.length > 0 && (
             <section className={CARD}>
               <SectionHead>Tags</SectionHead>
               {/* A tag is the clearest chip in the app: it stands for a
                   thing, not a place, and it was a stack of blue underlines.
                   Each still links to the list it stands for; what the heading
                   above it says is which wording that list reads this drug as. */}
-              {tagGroups.map((group, at) => (
+              {shownGroups.map((group, at) => (
                 <div
                   key={group.key}
                   className={at > 0 ? 'mt-3 border-t border-[var(--border)] pt-3' : 'mt-3'}
@@ -706,7 +714,7 @@ export default async function DrugProfilePage({
                           title={group.current
                             ? `${tag.label} reads this drug the way it is on screen`
                             : `${tag.label} reads this drug as ${group.label.toLowerCase()}`}
-                          className={`pill pill-xs ${group.current ? 'pill-on' : 'pill-edge'}`}
+                          className="pill pill-xs pill-edge"
                         >
                           {tag.label}
                         </Link>
