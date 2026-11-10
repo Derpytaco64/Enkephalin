@@ -1864,6 +1864,11 @@ backup, which is the same open question the audit log has above.
 
 ### A second section: imported sets — planned
 
+**Scrapped 2026-11-09.** The feature is gone — screens, parser, tables and all. This section is kept
+because it is the reasoning behind every identifier, and because a revival should start from it
+rather than from scratch; *Sets, re-cut for a static quiz* holds the second design, and *Scrapped:
+the imported sets section* holds what was removed and why.
+
 Asked for by the owner, 2026-11-08: *define a format for a second section, for importing generic
 flashcard sets for flashcarding and generic quiz generation.* The home page already promises it —
 *for the top-drugs list **and more*** — so this is the *and more*.
@@ -2150,6 +2155,9 @@ blocks, the priority weighting and the quiz cap.
 
 ### Sets you can actually study (2026-11-09)
 
+**Scrapped 2026-11-09**, with the rest of the section — see *Scrapped: the imported sets
+section*. Kept for the reasoning, which is the only thing left of it.
+
 Asked for by the owner: *make them so i can study*. Build items 2, 3, 4 and 7 above are done, and
 the section is reachable and usable end to end — import a file, browse the table, flashcard it,
 quiz it, and have the schedule and the score kept.
@@ -2286,6 +2294,9 @@ near-miss rule is the one thing holding question quality up.
 
 ### Nested decks (2026-11-09)
 
+**Scrapped 2026-11-09**, with the rest of the section — see *Scrapped: the imported sets
+section*. Kept for the reasoning, which is the only thing left of it.
+
 Asked for as *nested views and quizzing, like the spaced repetition plugin in Obsidian*. There, a
 deck is a path of nested tags and **every node of it is reviewable**: the parent holds its
 children's cards. That is the shape, and the thing worth noticing is that this app already had the
@@ -2353,6 +2364,9 @@ just never asked for them. One weighter, two sections.
 
 ### Deleting an imported set (2026-11-09)
 
+**Scrapped 2026-11-09**, with the rest of the section — see *Scrapped: the imported sets
+section*. Kept for the reasoning, which is the only thing left of it.
+
 Asked for straight after the nesting: a set could be imported and re-imported but never removed, so
 a mistaken import was permanent. `/admin/sets` now folds a delete under each row.
 
@@ -2386,6 +2400,795 @@ subqueries are table-qualified by hand now, with the reason written beside them,
 `tests/set-import.test.ts` pins the counts. The pattern is worth knowing before writing the next
 one: everywhere else in this codebase that does this aliases the inner table (`as other`) and
 qualifies through the alias, which is why only sets had the bug.
+
+### Deleting several at once (2026-11-09)
+
+**Scrapped 2026-11-09**, with the rest of the section — see *Scrapped: the imported sets
+section*. Kept for the reasoning, which is the only thing left of it.
+
+Asked for straight after the single delete: *a way to bulk delete imported sets instead of just
+individually, probably through selection in the admin screen.* The reason is the batch import one
+section up — lecture material arrives nine files at a time, so a bad batch is nine mistakes, and
+nine folds to open with nine checkboxes and nine confirmations inside them is the same work nine
+times.
+
+**Selection replaces the per-row delete rather than sitting beside it.** Ticking one row and
+pressing the button *is* the single-set path, and a second form with its own wording and its own
+confirmation is a second thing to keep in step — the kind of pair that drifts until two screens
+that do one job say it in two dialects, which is the mistake the deck quiz had already made and had
+to be walked back. So `/admin/sets` is now one form: a box per row, a select-all with the running
+count, and one danger zone that appears only once something is ticked.
+
+**`deleteSet` is a wrapper over `deleteSets`, not a second implementation.** Two code paths through
+the same cascade is two places for the counts to drift apart, and the counts are the whole
+confirmation. The single version keeps its name and its report shape, so the tests written for it
+still describe the behaviour rather than the old code.
+
+**One transaction, all of them or none.** A half-applied batch would leave the report describing a
+database nobody has: the banner naming nine sets while the list still shows four. And the four
+numbers are read inside that transaction before the delete, with **one grouped query per number for
+the whole batch** rather than four per set — the shape `setDeletePreviews` already uses for the
+list.
+
+**A slug that is already gone is not a refusal.** Somebody else deleting a set first — or a stale
+page — means the end state asked for is the end state reached, so the rest still go and the missing
+ones are *named in the report* (`missing`, said as *adrenal was already gone*). Refusing the whole
+batch there would mean a person who ticks ten and loses a race has to find which one and retry.
+Nothing found at all is still a refusal, because then there is no end state to reach and the
+message can name what was asked for.
+
+**`getAll('slug')`, not `get`** — the same trap the file picker next to it walks into. A list of
+checkboxes sharing a name sends one entry per tick, and `get` would delete the first and report
+success for all of them: a silent wrong answer rather than an error, which is the worst kind.
+
+**The ticks are dropped when the rows are.** A successful delete revalidates the page and the list
+arrives without what went, so the footer must not keep counting it — and the effect that prunes the
+selection returns the *same array reference* when nothing was stale, because `rows` is a fresh
+array on every render and a new reference there would loop. The report banner still lives above the
+list, for the reason the single delete put it there: a message held inside a row vanishes with the
+row it was reporting on.
+
+**Per-row cost is on screen while the box is ticked.** Each row now says its schedules and answers
+alongside its rows and columns when it has any — the two numbers nobody can re-import — so the
+decision does not need a fold to be made. The footer adds them up for what is ticked.
+
+**One audit row per set, not one per batch.** The audit screen reads a row as a thing that happened
+to a target, and a batch's only target would be the list somebody was looking at. Each row keeps
+the id and the diff the single delete wrote, plus `batch: n` **only when n > 1** — so every delete
+written before this change keeps its shape, and a reader can still tell a nine-set sweep from nine
+separate second thoughts.
+
+### Sets, re-cut for a static quiz — planned (2026-11-09)
+
+**Scrapped 2026-11-09**, with the rest of the section — see *Scrapped: the imported sets
+section*. Kept for the reasoning, which is the only thing left of it.
+
+Asked for by the owner, straight after the bulk delete: *redesign the bulk set system. The quiz
+system will be changed to static, so the workflow doc will have to make its own set of 3 false and
+1 correct with a distractor. The flashcards will remain the same. We won't have to worry about
+inter-set checking because they will be confined after this change, so a lot will be scrapped.*
+Supplied with it: **the Obsidian flashcard workflow doc** used for the ERGI-PD decks before this app
+existed — `Flashcard and Study Notes Workflow.md` — *to help narrow down information scope*.
+
+**The decision this overturns is the first one.** *A second section: imported sets* opens with it:
+*the one decision everything else follows from — a set is a small table, not a list of cards*, and
+the argument for it was entirely about the quiz. A table existed because a generated multiple-choice
+question needs **an axis shared across many subjects** to draw wrong answers from, and cards give
+you nothing but unrelated backs. Take the generation away and the axis has no job. So the table is
+not wrong-in-hindsight; it was load-bearing for a feature that is being removed, and what replaces
+it has to be re-derived rather than trimmed.
+
+**What *static* means here.** The file carries the questions, four options each: **one correct,
+three false, and one of the three named as the near miss.** Named rather than mixed in anonymously,
+for two reasons. It forces the author to write one — *three false answers* with no further
+instruction reliably produces three obviously-wrong ones, which is a free question. And it is
+reportable: *you picked the near miss* is the most useful thing a results screen can say, and it is
+what the five-rung generated ladder was spending its whole length trying to approximate.
+
+**Shuffled at serve time, not in the file.** `quiz_answers` already stores `choices` and
+`correct_index` per answer, so what is stored is the order the person actually saw and the file's
+own order never leaks a pattern.
+
+#### What gets scrapped, and why each one can go
+
+- **The `answers` vocabulary** (`lib/sets/vocabulary.ts`, 26 types) — its *only* job was to let two
+  sets pool wrong answers. Confined sets pool with nothing, so a closed vocabulary constrains
+  nothing and costs an import refusal nobody can act on.
+- **`group` as the near-miss axis** — the near miss is now written by the author, by name.
+- **`reversible`, and randomised stimulus for sets** — a question's direction is whatever its stem
+  says.
+- **`kind` / `kinds`** — these bounded the *identity* question (*which of these is methimazole?*,
+  answerable only by other drugs). Nothing generates an identity question any more.
+- **Rungs 3 and 4 of the distractor ladder** (build item 5, never built) and the second pool it
+  needed. This is the *inter-set checking* the owner is removing, and the whole of build item 6
+  (alias folding into `answerKey`) goes with it: aliases existed to stop two spellings of one thing
+  being offered as two options, which only a generator can do by accident.
+- **`sequence` + `order` as a question type** — *what follows organification* was a generated
+  question with a generated option set. A sequence that matters is now a question somebody wrote, or
+  a card; the ordering may stay as presentation on the set page.
+- **`recall_only`** — it existed to keep a fact that will not decompose out of the multiple-choice
+  pool. With cards and questions written separately, a card is simply not a question.
+- **`quiz_answers.distractor_rung`** — there are no rungs. It stays as a column until a migration
+  drops it, because rows written before today still mean something.
+- **The four-distinct-answers import report** — replaced by checks a file can actually fail: exactly
+  four options, all four distinct, and the correct answer not repeated among the wrong ones.
+- **Most of `lib/sets/scope.ts`** (312 lines) — a node deck merged *columns by key* and had to drop
+  any key two sets disagreed about the shape of. A node now concatenates its sets' cards and its
+  sets' questions. *Confined* is what makes that honest: nothing is pooled, so nothing can disagree.
+
+#### What stays, and is why this is a re-cut rather than a rewrite
+
+The four scope lines and the whole deck tree (`course` / `exam` / `unit` / `topic` — which is the
+Obsidian doc's own tag path, `#flashcards/<Course>/<Exam>/<Set>/<Topic>`, the same idea arrived at
+twice and a good sign); every node being studiable; the delete and the bulk delete above;
+**merge / replace** and the *a human's edit survives re-import* policy; **refuse rather than guess,
+whole-file, naming the row**; `<br>` as a presentational line break with the tag discarded rather
+than injected; SRS, cram blocks, the priority weighting, the quiz cap, both runners, and the compact
+running header both quiz screens now share. The backup gap stays a gap.
+
+#### The one fork, and it needs the owner's word
+
+*The flashcards will remain the same* reads two ways, and they build differently:
+
+- **(A) The table stays, for flashcards only.** Rows and columns as today, cards still generated per
+  column (*What is the mechanism of X?*), plus an authored `questions` block. Nothing about the
+  flashcard experience changes, `set_fields` / `set_items` / the table view / the column pick all
+  stand, and the scrap list above shrinks to the distractor machinery alone.
+- **(B) The file becomes a deck: authored cards plus authored questions.** What the Obsidian doc
+  describes, and what *narrow down information scope* most plainly asks for. The table goes, and the
+  column pick with it; a card's topic section becomes the thing you study a slice of.
+
+**Recommended: B**, for the reason the opening paragraph gives — the table was justified by
+generation and nothing else, and keeping a column model alive to synthesise prompts means keeping
+`set_fields`, the type-change refusal, the per-column merge policy and the unbuilt column editor
+(build item 1) for no remaining benefit. The Obsidian doc also makes a point the table cannot
+answer: a good card sometimes pairs two linked facts — *what is X's mechanism, and what is its boxed
+warning?* — which one row with two columns is structurally unable to ask, and that is the shape
+somebody writing for an exam actually wants. B keeps the part the owner called *the same*: a prompt,
+an answer, a grade, the same schedule.
+
+**Nothing imported today is lost under B**, which is what makes it safe: a v1 table is mechanically
+a set of cards — one per asked column per row, using the column's own prompt, which is what
+`buildCards` does at runtime now — so the conversion is a script run once, and the existing thyroid
+set keeps its rows as cards. Card keys change, so schedules on them fork; with eleven rows and one
+real set imported, that is a cost worth naming and not worth engineering around.
+
+#### Shape, if B
+
+```jsonc
+{
+  "format": "enkephalin.set/2",
+  "slug": "ergi-pd-thyroid",
+  "name": "Thyroid — Drugs to Know",
+
+  "course": "PSCI 413", "exam": "Exam 3", "unit": "Unit 5: Thyroid", "topic": "Hyperthyroidism",
+  "source": { "file": "14.Thyroid.pdf", "pages": "11-13" },
+
+  "cards": [
+    { "topic": "Thyroid axis and synthesis",
+      "front": "What regulates the thyroid axis?",
+      "back": "TRH to TSH to T4/T3; T3/T4 feed back to inhibit TRH and TSH" }
+  ],
+
+  "questions": [
+    { "topic": "Thioamides",
+      "stem": "What is the mechanism of methimazole?",
+      "correct": "Inhibits thyroid peroxidase, blocking organification",
+      "near_miss": "Inhibits peripheral 5-deiodinase, blocking T4 to T3",
+      "wrong": ["Destroys follicular cells by beta emission",
+                "Blocks iodide uptake at the sodium-iodide symporter"],
+      "because": "The peripheral deiodinase effect is PTU's, not methimazole's." }
+  ]
+}
+```
+
+- **`topic` on a card or a question is the Obsidian tag section**, and it is what you study a slice
+  of now that there are no columns. The doc's own rule comes with it as a warning rather than a
+  refusal: *every tag section has at least 2 cards — merge a one-card section into a neighbour.*
+- **Natural keys, as everywhere else in this project.** A card is keyed by its topic plus a slug of
+  its front, a question by a slug of its stem, with an optional `"id"` to pin identity — because
+  without one, rewording a front on re-import forks its schedule, and *reword for clarity* is the
+  most ordinary edit there is. The refusal list gains *two cards with the same front in one topic*.
+- **`because` is shown after answering**, never as an option. It is the Obsidian doc's *answer plus
+  one line of reasoning*, and it is what turns a missed question into something learned.
+- **Two new tables, `set_cards` and `set_questions`**, both set-scoped and cascading from `sets` the
+  way `set_items` does, so the bulk delete above keeps working untouched. `quiz_answers` grows a
+  third subject column — `question_id`, the check becoming
+  `num_nonnulls(drug_id, item_id, question_id) = 1` — and `questionWeights` coalesces three columns
+  instead of two, which is all the priority weighting needs to keep working. `study_cards` points at
+  `set_cards` instead of `set_items`. The nulls-are-distinct trap applies to both indexes again, and
+  the fix is migration 0010's and 0011's: coalesce over the zero uuid, hand-written, pinned by a
+  test that reads `pg_indexes`.
+
+#### What the Obsidian doc settles about scope
+
+It is the clearest statement of *how much* a set should carry, and the numbers belong in the
+authoring guide rather than left to a model's judgement: **20–35 cards for a single lecture**,
+140–200 for a whole study-guide deck, 35–55 for a quick-review pass, answers **one to two lines**.
+Its content rules survive intact, and some are already this project's: stick to the slides; mark
+anything added beyond them; use the correct value where a slide is wrong and list it under *slide
+issues to check*; mark an unofficial answer *verify in class*; escape gene star alleles; and **no
+semicolon runs**, which is the `<br>` rule this app already renders. Those issue lists and *verify
+in class* notes want somewhere to land: a `notes` block on the set, shown on its page, is the cheap
+answer.
+
+### A class, an exam, a topic (2026-11-09)
+
+**The topic came back out the same day — see *Not a topic, an indication*.** Everything below about
+stacking, the dropdown and the rename holds; there are two kinds now, not three, because what a
+lecture is about was already a field.
+
+The day-old course profile, generalised on the owner's own correction: *alternate profiles should be
+tagged like class/exam #/topic and be selectable in the standard flashcard and quizzing areas as a
+tag like top drugs. There should probably be a dropdown menu for swapping between alt profiles when
+looking at it on the drug profile or panel.*
+
+**Three kinds rather than one, because that is how the material is addressed.** A melanoma lecture
+is PHRM 535, and it is Heme/Onc Exam 3, and it is Melanoma — three true scopes, each of which
+somebody revises by. The morning's version allowed only `course`, which was the right first cut and
+the wrong vocabulary. So `tag_kind` grows `exam` and `topic`, `drug_course_values` becomes
+`drug_variant_values`, and the module, the route and the tests follow the name: a **variant** of a
+drug profile. Renaming a one-day-old uncommitted table is cheaper than living with
+`drug_course_values` holding a topic's wording, and migration 0015 is an `alter table rename`, which
+is correct whether or not 0014 was ever applied.
+
+**They stack, widest first, narrowest wins.** `VARIANT_KINDS = ['course', 'exam', 'topic']` is the
+order, and it is a rule about meaning rather than a preference about display, so every query sorts
+by it instead of by the tag's own sort order. A session scoped to an exam *and* a topic reads the
+exam's wording where the topic is silent, and the topic's where it speaks. `overlayFields` already
+applied layers in the order given; all that was missing was a function that puts them in the right
+one, which is `variantSlugsAmong` and is why it sorts rather than returning what it was handed.
+
+**A dropdown rather than the pill row it started as**, which is the owner's call and also the
+honest answer to the arithmetic: a drug in a class, on an exam, under a topic has four versions
+before anybody has typed a word, and a pill each turns the top of a profile into a second
+navigation bar. A `<select>` stays one control however many there are, groups them under *Class /
+Exam / Topic* so the kinds are visible rather than inferred, and says which is in force without a
+fill colour. It navigates rather than holding state — `?as=melanoma` — so the overlay stays on the
+server where `getDrugProfile` does it, and every version is linkable.
+
+**The count stays on each option** — *Melanoma — 3 of its own* — because *this one has its own
+wording for 3 fields* is the thing worth knowing before choosing it. A variant with none is still
+offered: the drug carries the tag, and "it says what the drug says" is a true answer to *what does
+my class say about this*.
+
+**What this cost outside the rename:** `lib/tags/constants.ts` had to learn the two new kinds, and
+that is worth a warning. `createTag` validates against `TAG_KINDS` and falls back to `custom` for
+anything else, so an import created a tag called *Melanoma* of kind `custom` — a variant nothing
+could ever read, with no error anywhere. The list a form may offer and the list a variant may use
+are two lists, and the second is `lib/drugs/variant-kinds.ts`; leaving a kind out of the first is
+how a tag becomes `custom` by accident.
+
+### Searching what a profile says, not just what it is called (2026-11-09)
+
+*Refresh the drug list search fields to match the drug fields a little better, maybe be able to
+search any field in the one spot and add filters in more filters.*
+
+**One box, two searches, and the order is the whole design.** The name, the brands, the class and
+the indications keep their fuzzy match — a near-miss spelling is exactly what Fuse is for. Field
+prose is matched on **substring** instead, and never fuzzily: fuzzy search over a paragraph of
+mechanism finds something for almost any three letters, and a rail that always has hits is a rail
+that never answers a question. Name hits rank first, so searching *dabrafenib* still puts dabrafenib
+at the top while searching *pyrexia* finds it by its adverse effects.
+
+**A row that matched on content says which field earned it**, with a window around the hit rather
+than the first ninety characters — the reason a drug matched *pyrexia* is halfway down its adverse
+effects, and a snippet from the start of the field shows none of it. Without that line, searching a
+toxicity returns a list of drugs with no visible reason to be in it, and a search box you cannot
+check is one you stop trusting.
+
+**The cost is in the payload**, and it is accepted for the same reason the index was one payload to
+begin with: every stored field's text, flattened to one line per field, is about 500 characters a
+drug and so roughly 120 KB over 236 of them. Flattened because searching does not care about
+paragraphs; a `Record` per field rather than one blob because the rail reports which field matched.
+`none` and `missing` contribute nothing, so searching *none* does not return every drug without a
+black box warning — *Still blank* is the way to ask that question.
+
+**In one field** is the precise form of the same thing, in *More filters*: pick a field, type text.
+It exists because the single box deliberately pools everything, and two fields can hold the same
+word — *melanoma* is an indication on one drug and a regimen's name on another. **Route** joined the
+rail too, read out of the `route` field's own list values rather than a column, with the usual
+caveat said out loud: a drug with no route recorded is not a drug with no route.
+
+### A regimen is a field, for now (2026-11-09)
+
+*The first test of this subsystem will be with cancer medications so we need to be sure there is a
+regimen field for specific drug combos that you see in cancer treatments like FOLFOX.*
+
+**Oncology is where a dose stops being a property of one drug.** Oxaliplatin is 85 mg/m² *in
+FOLFOX*; nivolumab is 1 mg/kg beside ipilimumab and 240 mg alone. The combination has to be sayable
+somewhere, and `dosing` cannot say it without lying about whose dose it is.
+
+**A field rather than a table, and the trade is deliberate.** A `regimens` table with member rows is
+the right shape for a pharmacy system and the wrong first move for a study app, where the thing
+being learned is the sentence *this drug appears in these protocols at these doses, chosen on these
+grounds*. A markdown field renders as the decision it is, is searchable by the protocol's name (see
+above), and is quizzable the day it exists — *which named regimens include nivolumab, and at what
+dose*. The duplication it costs is paid for by the importer **composing** the text rather than
+copying it: a re-import rebuilds every member's block from one declaration, so the two cannot drift.
+A table is still the better end state, and the field is what a table would have to be able to
+produce anyway.
+
+**`blankMeansNone`, and no year level.** Most drugs are in no named protocol, so a blank is an
+answer and not two hundred phantom gaps in the review queue. But no program year is responsible for
+it — the sheet has no regimen column — so a year preset must not tick a field that answers *none*
+for most of the list. Ticking it deliberately, which is what studying an oncology unit looks like,
+works as it does for every other field. That makes it the one entry in `tests/fields.test.ts`'s
+asked-fields list that the sheet does not define, which is why that test now names it explicitly.
+
+**Markdown grew a renderer**, `lib/fields/prose.ts`, because a regimen arrives nested and
+`formatFieldValue`'s paragraphs flatten it into unreadability. Three constructs: paragraphs, nested
+bullets (two spaces a level, three deep), numbered steps, plus a heading. Not a markdown subset
+waiting to grow into markdown — the import format tells authors to use exactly these, and anything
+else falls through as the plain text it is, which is why a table degrades into a line of pipes
+rather than vanishing. **Deliberately not mermaid**, despite a flowchart being what was asked for: a
+`graph TD` block needs a renderer, a renderer needs a CDN or a bundle, and this app runs on a box in
+a cupboard that may have neither. A nested list *is* the flowchart when the flowchart is six nodes
+deep, and it is the only form that still reads as itself in the raw text, in a backup file, and on a
+phone.
+
+### Importing what a lecture says about drugs (2026-11-09)
+
+*Do we already have an importable format like the study set one but for drug profiles?* No — there
+were three ways in and none of them was an authoring format: `data/drugs-seed.json` (the one-time
+sheet sync), the JSON backup (a whole-database dump, keyed for restore rather than for writing), and
+the bulk field set (one field, many drugs). So: `enkephalin.drugs/1`, with `docs/drug-import.md` as
+its authoring guide — and the guide is the real deliverable, because the file's author is another
+model handed that document, a slide deck, and nothing else.
+
+**The one rule the guide opens with is a scoping rule, and it comes straight from the owner:** *keep
+this just for drugs instead of ancillary study info for classes.* A melanoma deck is fifty-five
+slides and maybe eight of them are about a drug. The incidence, the ABCDE rule, the Breslow table,
+the staging, the irAE body maps are all real material and none of it has anywhere to go here.
+Leaving it out is correct rather than lossy, and saying so first is what stops a file arriving full
+of disease facts filed under whichever drug shared their slide.
+
+**Absent, none and blank are three different things**, and the format refuses the third. An omitted
+key means *this deck did not say*, and nothing is written. `null` means *this drug has none*, which
+is an answer and is quizzed. An empty string says neither, so it is refused rather than guessed at —
+the same distinction `blankMeansNone` exists for, enforced at the door.
+
+**Nothing is overwritten, by default.** `write: "fill"` puts a value on the drug itself where the
+drug has none, and sends a value that *differs* to the variant layer for the narrowest scope the
+file names. That is what makes importing a lecture safe over a profile somebody has been curating,
+and it is the rule that ties this feature to the one above it: a disagreement is not a correction,
+it is *what this class says*. `variant` sends everything to the layer; `base` overwrites, and exists
+for correcting the app. A drug the app has never held takes everything as its own whatever the mode
+says — there is nothing to differ from, and a new drug whose mechanism lived only in a class layer
+would read as an empty profile.
+
+**Two passes, and the first writes nothing.** The preview reports every field, where it would go,
+and *what it would replace* — the same thing the bulk field set screen shows, for the same reason.
+`applyDrugImport` re-plans against the database rather than trusting the plan from the screen: a
+preview is a screenshot, not a lock. And it refuses outright if any problem remains, because half an
+import across eleven drugs is the state nobody can reason about afterwards.
+
+**Everything is written through the editor's own writers** — `createDrug`, `setDrugField`,
+`setDrugTags`, `patchVariantLayer` — so an import is a stack of ordinary edits with an audit row
+each, with the same validation and the same provenance, rather than a second way into the database.
+Two of those needed something new:
+
+- **`patchVariantLayer`**, because `saveVariantLayer` writes the *whole* layer. That is right for
+  the form, which shows every field at once and reads an empty box as *clear it*; it is exactly
+  wrong for an import, where one lecture speaks about three fields and would silently wipe what
+  another had put there. Two writers, and the difference between them is the difference between a
+  form and a patch.
+- **The tag union.** `setDrugTags` replaces membership, so adding a lecture's tags had to be the
+  union with what the drug already carries — or importing a melanoma deck would quietly take
+  dacarbazine off *Top Drugs 2026*.
+
+**A lecture can declare the fields it needs**, which oncology forces immediately: the field set has
+no adverse effects, no monitoring, no interactions. A `declare` block creates them through
+`createFieldDef` with no year level, and a key that already exists is left exactly as it is — an
+import never renames or retypes a field. The failure mode here is three files inventing
+`adverse_effects`, `ae` and `toxicity` for one idea, so the guide's field table comes before its
+declaration section and says to reuse the shortest key already in use.
+
+**Matching is by generic name, then aliases, against both generic *and brand* names**, because a
+deck that says *Opdivo* and a database that says *nivolumab* are talking about the same drug, and
+creating a second one is the worst thing an import could do. A near-match is not guessed at.
+
+**Regimens are declared once at file level and composed onto every member**, each member's own line
+marked — the point of reading *Dabrafenib + trametinib* on dabrafenib's profile is to find
+dabrafenib's dose in it. A component naming a drug that is neither in the file nor in the database
+is refused rather than invented from a dose line, and a one-drug "regimen" is refused too: that is
+the drug's own dosing.
+
+**Flagging is offered as the alternative to guessing.** A value the author is unsure of carries
+`"status": "flagged"` and lands in the admin flagged queue, where it sits beside every other doubted
+value with its provenance attached. That makes the existing review path the import's review path,
+which is better than an import-specific notion of confidence that only one screen understands.
+
+**What is not in it, and would be worth having:** the file's `issues` list is shown and then
+discarded, where it could become a note on the drug; there is no way to import the *same* lecture
+twice and see what changed between the two readings; and nothing yet reads a PDF — the file is
+written by a model that read one, which is the division of labour the owner already had with the
+notes in `C:\Users\DT\Downloads\slides`.
+
+### The top bar at half a screen (2026-11-09)
+
+*Shrink the top bar a tiny bit so it fits half screen width without wrapping.*
+
+The wide layout measured about 690px — wordmark, five pills, avatar, *Sign out* — against the 683px
+a window gets at half of a 1366-wide screen, which is how this app is actually read: notes on one
+side, the drug on the other. Seven pixels over, and the row's only fallback is to wrap, which
+doubles the height of the chrome on **every** page.
+
+So `.pill-nav`, a notch smaller than `.pill` and set never to wrap its own label, plus a 28px mark
+and avatar in place of 32 and one step tighter gaps. About 75px, which is the difference between
+wrapping and not, and the bar still reads as the same bar. The size lives in `globals.css` beside
+the pill it modifies rather than as utilities in the header, which is what `tests/chrome.test.ts`
+has pinned since `.pill` stopped being this bar's private styling.
+
+### Not a topic, an indication (2026-11-09)
+
+Hours after the three kinds shipped, the owner cut one: *since we already have the tagging system
+lets just tag things more simply as class/exam # instead of topic, since those already exist as drug
+fields.*
+
+**And that is the right cut.** A topic is what a lecture is *about* — melanoma, heart failure — and
+what a drug is for is an **indication**, which this app has had as a field since the first week,
+with its own shared vocabulary, its own axis in the study scope and its own browse filter. Making
+it a tag as well meant one idea recorded in two places that could disagree about the same drug with
+neither being wrong: the melanoma *tag* says dabrafenib belongs to this lecture, the melanoma
+*indication* says dabrafenib treats it, and nothing kept them honest with each other.
+
+What is left is the two levels at which **wording** actually differs, which is all a variant ever
+was: a class, and an exam inside it. `VARIANT_KINDS` is `['course', 'exam']`, and the import refuses
+a `topic` scope rather than ignoring it — an author working from an older copy of the guide would
+otherwise watch a scope they wrote disappear without a word.
+
+**The enum value stays.** Dropping one from a postgres enum is a table rewrite for no gain, and an
+unoffered value costs nothing: `TAG_KINDS` no longer lists it, so nothing can create one, and
+`/admin/tags` still labels an existing one *Topic* rather than showing a raw enum. The distinction
+that made this cheap is the one already written down in `lib/tags/constants.ts` — the list a form may
+offer and the list the database holds are two different lists.
+
+### One provenance line, and it names the class (2026-11-09)
+
+*We should have all the variants just say "from [class title] content".*
+
+The import used to stamp every value with *PHRM 535 — 16.Melanoma.pdf*. Correct, and wrong for where
+it is read: a profile shows a source line **per field**, so fourteen fields from one lecture were
+fourteen copies of a file name — noise shaped like information, when the question a reader actually
+has is *whose words are these*. The class answers that. Which of their files answers a different
+question, and one asked far less often.
+
+So `provenanceOf` is now *from PHRM 535 content*, the widest scope and nothing else, and **the file
+name is recorded once** — `noteOf` puts the file, the deck, the pages and the date on the layer,
+where the editor already shows it and where somebody checking a value goes next. Nothing is lost; it
+stopped being repeated.
+
+The variant editor defaults its own source box to the same phrase, so a layer typed by hand and one
+written by an import read identically on a profile. A layer whose provenance differs per field is
+still possible — a drug entry can override it — but it is now the deliberate case rather than the
+accident.
+
+### The import asks what it should do (2026-11-09)
+
+*It should be an option in the import to decide if a drug creates an alternate profile or if it fills
+missing info then splits.*
+
+`write` already had the three behaviours; what it did not have was a person to ask. It was a key in
+the file, and **the file's author is a model that read a slide deck** — it knows what the lecture is,
+and nothing whatever about the state of this database. Whether a melanoma lecture should fill in
+gaps or stand up as its own version of twenty drugs depends entirely on what is already recorded,
+which only the person watching the preview can see.
+
+So the three are a radio on the import screen, in their own words — *fill the gaps, split where it
+differs* / *make an alternate profile, and only that* / *correct the drug itself* — starting on
+whichever the file names, defaulting to `fill`. Changing it re-reads the same text, so flipping the
+radio and pressing **Check it** shows both outcomes before either happens. The copy lives in
+`WRITE_MODE_COPY` beside the modes themselves, because the guide, the screen and the refusal message
+all describe the same three behaviours and three separate descriptions is how they stop matching.
+
+The guide now says this out loud, and tells its author not to work around it: there is no need to
+split a deck into two files to get two behaviours.
+
+### V-3, and which version a list means (2026-11-09)
+
+Two asks that turned out to be one feature. *The browse list should show a number for how many
+variants there are in an identifiable pill like "V-3".* And: *building flashcards and quizzes should
+default to the profile added for a drug, and the tag drug adder should have options for each drug
+variant origin like "amoxicillin [V-1] [Top Drugs 2026], amoxicillin [V-2] [Infectious Disease]".*
+
+**A drug's versions have no names of their own.** They are named after the classes that wrote them,
+and *amoxicillin as the Infectious Disease class words it* does not fit in a row of a 236-row list.
+So they get numbers: `numberedVariantsByDrug` sorts a drug's layers into overlay order and numbers
+them from 1, the browse row shows the count as `V-3`, and the list builder offers *amoxicillin [V-2]
+Infectious Disease*. Same set, same order, so V-2 means the same thing in both places — and
+recomputed rather than stored, so a new class appearing above it renumbers rather than lying.
+
+The pill is bordered and monospaced rather than coloured. It is a **count, not a state**: nothing is
+wrong with a drug that has three versions, and the badges either side of it — *flagged*, *needs
+review* — both mean "look at this". Only layers that actually say something are counted, which is why
+it reads the layer table and not membership: a class that words nothing its own way is not another
+version of anything.
+
+**Then the second half, which needed a column.** `drug_tags` gains `variant_tag_id`: a list can say
+*hold amoxicillin as Infectious Disease words it*, and studying that list reads that wording by
+default. Migration 0016, nullable, `on delete set null` — deleting a class drops the pointer and
+leaves the drug on the list, because membership and wording are two facts and only one of them is
+about that class.
+
+**Two sources of "which version", ordered rather than ranked.** A list's choice is standing, made
+when the list was built; a scope's is deliberate, made just now. The standing one is applied first
+and the deliberate one last, so the deliberate one wins — the same rule that makes an exam beat the
+class it sits in, and the same reason the overlay order is a list rather than a preference.
+
+Three things this had to not break, all pinned by `tests/list-variant.test.ts`:
+
+- **The card is still one card.** A drug studied as its class words it has the same `card_key` and
+  the same schedule as the drug's own, because `card_key` is built from field keys and nothing else.
+  This is the invariant that the whole variant feature exists inside.
+- **The drug editor must not reset it.** Its tag section is about membership and has no version
+  control on it, so `setDrugTags` now reads the existing pointers and writes them back. Without
+  that, ticking a box on a drug would quietly undo a choice made on a list.
+- **A version that is not a class or exam is refused**, not ignored. Silently reading the drug's own
+  profile when the list says otherwise is the kind of wrong nobody notices.
+
+What was still missing when this shipped: the study session did not say *whose words* it was asking.
+Closed the same evening — see *The card says whose words these are*, which is where the V-n
+numbering earns its keep.
+
+### Declaring a field is a request, not a decision (2026-11-09)
+
+*Should we allow the import creation doc to make fields for important info, then we can decide on
+import if we create a new field or assign it to an existing one in the database? That way things
+can't be creating duplicate categories.*
+
+The failure this prevents was already written into the guide as a plea: *reuse the shortest key
+already in use*, said to an author who **cannot see the field set**. A model reading a slide deck
+knows the lecture has adverse effects in it and has no way to know this database calls that
+`adverse_effects`, or `toxicity`, or nothing at all. Three lectures left to themselves produce three
+fields for one idea, and merging fields after the fact means rewriting values across hundreds of
+drugs.
+
+So the declaration stays in the file and **the decision moves to the screen.** Each field a file
+asks for appears beside the existing set with a dropdown: create it, or send its values to a field
+that already means that. The author's job is to say *this lecture has adverse effects in it*; the
+database's job is to say what that is called here.
+
+**Done as a rewrite of the file rather than as an argument threaded through the planner.**
+`applyFieldMap` takes the file and the map and hands back a file with the keys renamed and the
+mapped declarations dropped — so a mapped file is simply a file that was written with the right keys
+in it, and every refusal, preview line and writer downstream works unchanged and cannot disagree
+with the mapping. The alternative, a `fieldMap` parameter threaded into plan and apply, would have
+put the same decision in two places and invited them to drift.
+
+**The suggestion is deliberately dim.** Word overlap on label and key, noise words dropped, and it
+only fills in a dropdown's default. A wrong suggestion sitting visibly beside the real field set
+costs a click; a clever one that silently folds a lecture's toxicity notes into somebody's black box
+warning costs a field nobody can untangle afterwards. Same reason the default where nothing
+resembles it is **create**: a duplicate field is recoverable, a merge is not.
+
+Two refusals the mapping needed of its own. Two of a file's fields sent to one existing field is
+refused rather than letting the later one win — half a lecture's wording would vanish silently. And
+mapping onto a core field is refused, because `parseDrugImport` already refuses core keys inside
+`fields` and a remap must not be a way around a rule.
+
+**One subtlety that was a bug for ten minutes:** a mapped field is no longer declared, so it drops
+out of `plan.declare` — and the dropdown that did the mapping would have disappeared from the screen
+on the next *Check it*, taking the choice with it between checking and importing. So the state
+carries `asked` (what the file wanted, before the map) and `map` (what was chosen) alongside the
+plan. The control that makes a decision has to still be on screen showing that decision.
+
+### The card says whose words these are (2026-11-09)
+
+The gap named in the last round, closed on the owner's instruction: *we can add the variant number
+and origin pills to the answers and questions, just not the drug name in case that reveals the
+answer.*
+
+**The constraint is the interesting part.** A flashcard can be asked either way round, and in
+`fields_to_drug` the drug *is* the answer — so a pill reading *amoxicillin [V-2]* on the question
+side hands it over, and the obvious implementation of "label the card with its variant" is wrong in
+exactly the direction nobody would notice until the quiz felt suspiciously easy. The number and the
+class are safe on both sides: *V-2 · PHRM 535* says whose wording is being asked about, and the
+number is only meaningful beside a drug you have already been told. `CardVariant` holds those three
+fields and no name, and the type's own doc comment says why.
+
+**Per field, not per card, and then per card from its fields.** A class that rewords the dosing has
+not reworded the mechanism, so `loadCardSources` records which version supplied each *key* —
+`wordedBy` — and `buildCards` folds that down to the versions behind the keys a given card actually
+asks about. A pill naming a class whose value did not win would be worse than no pill at all; a
+mechanism card in a dosing-only class correctly shows nothing.
+
+The overlay and the record are built from **one function** (`layersFor`), because they have to agree
+about both the set of layers and their order. Two loops over the same slugs is how a pill ends up
+naming the wrong class after somebody adds a layer kind.
+
+Shown above the question as well as on the answer, because it changes what the question *means*:
+*what is the mechanism* and *what does PHRM 535 say the mechanism is* have different right answers.
+On the quiz it is one pill — a question asks about exactly one field, so at most one class's wording
+is in play.
+
+Numbered by `numberedVariantsByDrug`, the same function the browse pill and the list builder use, so
+**V-2 means the same thing everywhere**. That is the whole argument for numbering them at all: the
+versions have no names of their own, and a number that differs between two screens would be worse
+than none.
+
+### The bar had already lost the button (2026-11-09)
+
+*The class sets button in the top bar should be gone since that whole system doesn't exist anymore.*
+
+It was, already — `{ href: '/sets', label: 'Class sets' }` came out with the routes it pointed at,
+which is most of why the bar fits half a screen now. It was still on screen because the running
+container is the image built before any of this, which is the standing hazard of developing against
+a built image: **the app you are looking at is a release, not the working tree.** Worth recording
+because it will happen again and the answer is always the same one line of compose.
+
+### Scrapped: the imported sets section (2026-11-09)
+
+Owner's call, the same day the re-cut above was written up: *scrap the whole imported set feature,
+it's not worth finishing at this rate.* So it is gone — the screens, the parser, the importer, the
+adapter, the tables, the nav item, the authoring guide, and the bulk delete built an hour earlier.
+What is left of it is this record and the migration that takes the database back.
+
+**Why it is the right call, said plainly.** The section was two days old and had already been
+redesigned once before it was finished: a table model justified entirely by generated distractors,
+then a static-quiz re-cut that scrapped most of that justification, then a fork about what
+flashcards even are. Three designs and one real imported set is a feature paying rent in decisions
+rather than in studying. The drug section — 236 drugs, the dosing bench, the pairing queue — is the
+thing being used, and the honest reading of *at this rate* is that attention spent on a second body
+of material was being taken from the first.
+
+**What went.** `app/sets/` and `app/admin/sets/` (nine files), `lib/sets/` (ten modules, ~2,100
+lines), `docs/set-format.md`, and nine test files — `set-batch`, `set-delete`, `set-format`,
+`set-import`, `set-render`, `set-scope`, `set-study`, `set-tree`, `study-subject` — which were 178
+of the suite's 1,069 tests. The suite is 47 files and 891 tests, green.
+
+**Migration 0013 takes the database back**, reversing 0011 and 0012. It is hand-written because the
+order matters and two steps throw data away:
+
+- A schedule or an answer **about a set item is deleted**, because it has nothing left to point at
+  once the rows are gone. This is the one irreversible step in the whole removal.
+- `study_cards.drug_id` and `quiz_answers.drug_id` go back to `not null`, which is only possible
+  after that delete, and the one-subject check constraints go.
+- `item_id` goes from both, and `distractor_rung` from `quiz_answers` — there is no ladder to record
+  a rung of.
+- `study_cards_unique` goes back to the plain `(user_id, drug_id, card_key)`. 0011 had to write it
+  by hand as a coalesce over the zero uuid, because nulls are distinct in Postgres and a nullable
+  `drug_id` would have stopped the index constraining anything; with `drug_id` not-null again the
+  coalesce protects against nothing, and Drizzle can express the index itself. Dropping `item_id`
+  usually takes the old index with it, since the index is over that column — hence `if exists`.
+- `set_items`, `set_fields` and `sets` are dropped, children first by hand rather than with
+  `cascade`, so a reference added since would break loudly instead of being quietly swept up.
+
+**A past attempt keeps its score**, exactly as the single-set delete already decided: the person did
+sit the paper, and deleting attempts that merely touched a set would take a mixed paper's drug
+questions with it. **The audit log keeps its `set.import`, `set.reimport` and `set.delete` rows** —
+they are a record of things that happened, and `target_type` is text, so nothing dangles.
+
+**Verified on a seeded scratch database rather than only on a fresh one**, which matters because the
+test database migrates from zero and so never exercises the two deletes: a container at 0012 with a
+set, a column, a row, one drug card, one set card, one drug answer and one set answer. After 0013 —
+one card, one answer, the attempt still scoring 5, no set tables, no `item_id`, no `distractor_rung`,
+both `drug_id` columns `NOT NULL`, and `study_cards_unique` back to three plain columns.
+
+**What the engine keeps, and it is the one thing worth keeping.** `StudySubject` / `DRUG_SUBJECT` in
+`cards.ts` stay. They were written so a set of hormones could ask *Which hormone?*, but what they
+actually did was give a name to the place the engine knew it was about drugs — the identity column,
+the identity question, and the sharper question the brand/generic pair wants. One value now, and the
+optional overrides are gone from `buildCards` and `QuizOptions`; the shape stays because it is where
+that wording is written down. `priority.ts` keeps `subjectId` rather than `drugId`, which is honest
+either way: that file is arithmetic over a history and does not need to know what the id names.
+
+**Everything else reverted.** `recordGrade` and `recordAttempt` lost their `subject: 'drug' | 'item'`
+parameter; `questionWeights` stopped coalescing two columns; `lib/data/backup.ts` lost the two
+skip-and-say-so branches, so the export's *sets are not in this file yet* gap is closed by there
+being no sets; `SessionRunner` lost the `onGrade` and `emptyHint` props that existed only so a set
+page could pass its own; the *Class sets* nav item and the `/admin/sets` admin card are gone; the
+home page no longer promises *and more*; `tests/chrome.test.ts` lost its six set screens; the README
+lost the section and the two tree lines.
+
+**If it ever comes back**, the design is not lost: *A second section: imported sets* has the
+reasoning for every identifier, and *Sets, re-cut for a static quiz* has the static-quiz design and
+the fork it was waiting on. The thyroid set's own file is still wherever it was authored, and git
+holds every deleted module. What would be lost on a revival is the SRS history, which this
+migration deletes — a handful of schedules on eleven rows.
+
+### A course says it differently (2026-11-09)
+
+**Generalised the same day — see *A class, an exam, a topic*.** Every argument below still holds; the
+names moved. A course is one of three kinds of scope that can carry one of these, the table is
+`drug_variant_values`, the module is `lib/drugs/variants.ts`, the route is
+`/drugs/[slug]/variant/[variant]`, and the pill row described at the end is a dropdown.
+
+Asked for straight after the scrap, and it is the same need arriving from the other side: *keep this
+just for drugs instead of ancillary study info for classes. To achieve that, add a subclass type to
+drug profiles so I can have variations of a drug profile for different classes. They are likely to
+have the same info, but they will be specific class sourced.*
+
+**The word "class" is already taken, twice, and the one that wins is the one already in the
+database.** `drugs.drug_class` is the FDA Established Pharmacologic Class — the colour axis, the
+near-miss axis, `scope.classes`. What the owner means by a class is a course they are taking, and
+`tags.kind` has had a `course` value since migration 0000. So the code and the screens say
+**course** throughout, and nothing collides.
+
+**That decision is most of the feature.** A class is a `course` tag, which means membership is
+`drug_tags`, the browse filter already groups courses as their own axis, and the study scope's list
+dropdown already offers every non-system tag. None of that needed a line. What was missing is the
+only genuinely new idea: a course's own **values**.
+
+**A layer, not a copy** — `drug_course_values`, one row per (drug, course), holding only the fields
+that course says differently. This is the whole design and it follows directly from *they are likely
+to have the same info*: a copy of 236 drugs' profiles per class means every correction made twice,
+and the second one forgotten. A layer means fixing the base profile fixes every class's view of it,
+and `tests/course-profile.test.ts` pins that as a test rather than a hope — improve the drug's black
+box warning and read it back through a class that never mentioned it.
+
+So the reading rule, in `lib/drugs/course-values.ts`, is per **key**:
+
+- A key the course does not mention is not blank, it is **the same**.
+- A key whose stored value is null is skipped rather than applied, or *this class does not mention
+  it* would quietly **erase** the drug's value — the one bug that would make the whole thing
+  untrustworthy, and a test of its own.
+- `status: 'none'` *does* apply, because "nothing to record" is an answer rather than a gap, which is
+  the rule the sheet's `blankMeansNone` fields already follow one table over.
+- Layers apply in the order given, so the last wins. Only reachable by studying two courses at once;
+  written down rather than left to `Object.assign`'s accident.
+
+**Same `FieldValue` envelope as `drugs.fields`**, and that is what makes the profile need almost no
+new code: the formatter, the flag button and the *from …* provenance line all work unchanged, so a
+course value says *from PSCI 413 — 14.Thyroid.pdf* on the page without the page learning anything.
+One `source` for the whole layer rather than one per field, because the answer to *which class, and
+from what* is the same for every fact read off the same deck.
+
+**Core fields cannot be overridden, and that is a boundary rather than a gap.** `generic`, `brand`,
+`indication`, `drug_class` and `controlled` live in their own columns and link rows, and a course
+claiming a different generic name is not a variation of a drug, it is a different drug. Brands and
+indications are entities with their own pairing rules, so a class differing on those is a larger
+change, deliberately not this one. A core key in the payload **refuses the save** rather than being
+dropped quietly: it can only come from a bug in the form, and a form that writes nine of ten fields
+and says nothing is worse than one that stops.
+
+**It changes the values, never the card.** `card_key` is built from field keys, so a mechanism
+studied through a class is the *same card with the same schedule* as the drug's own. That is the
+decision worth defending: the alternative is a second kind of study subject, which this database had
+for exactly one day and dropped in migration 0013. Pinned by a test comparing the two card keys.
+What the course changes is what the card says.
+
+**The screens.**
+
+- **The profile grows a pill row** — *Drug profile*, then one pill per course, each with the number
+  of fields that course says differently, because *this class has its own wording for 3 fields* is
+  the thing worth knowing before clicking. Shown only where the drug is in a course; a row holding
+  one pill called *Drug profile* is a control that does nothing. Reading through a course marks each
+  overridden row with the course's name, since a course profile and the drug's own otherwise look
+  identical and seeing the difference is the entire point of opening it.
+- **`/drugs/[slug]/course/[course]` edits one class's version**, and is a screen of its own rather
+  than a layer switch inside the drug editor. That form owns the drug — its brands, its indications,
+  its dosing prose and the regimens parsed out of it — and none of those can be differed on, so this
+  is a list of exactly the fields that can be: the drug's own value shown quietly beside a box for
+  what this class says instead. **An empty box clears the override**, which is the only reading that
+  makes the fall-through work, and the screen says so. A box typed identical to the drug's own value
+  gets a nudge rather than a refusal — a class really can source the same sentence separately.
+- **Both study screens say what picking a course does**, in one line under the list dropdown. The
+  dropdown already offered courses and silently studied the sheet's wording, which is the kind of
+  thing nobody discovers.
+
+**It joins the backup**, unlike the sets section ever did. A course layer is hand-typed off a slide
+deck, so it is exactly what a backup is for — nothing re-derives it. Keyed by the course's tag slug,
+like every other natural key in that format, and the restore replaces a drug's layers wholesale
+rather than merging field by field, for the reason the regimens already do: a layer is one statement
+about one drug, and half of two versions is a profile neither file described. **Absent is not
+empty** — a file written before today says nothing about courses and must not wipe layers typed
+since, while an empty array *is* an instruction and clears them. Both pinned.
+
+**Found while building it, and worth the warning.** `CORE_FIELD_DEFS` is the whole sheet field set —
+mechanism, dosing, the black box warning — and only five of its rows are `isCore`. Building the
+"cannot be overridden" set from all of it made *every* field unoverridable, and the symptom was a
+save that reported success and stored nothing. The name reads like it means the core ones; it means
+*the defs the sheet defines*.
+
+**Verified:** `tsc` clean, `next build` clean, and the suite at **48 files / 923 tests**, of which 28
+are new in `tests/course-profile.test.ts` and 4 in `tests/backup.test.ts`. Not yet exercised in a
+browser — it needs `docker compose up -d --build` to be visible at all.
+
+**Still worth doing, and small:** a screen listing everything one course says of its own (the
+`drug_course_values_tag_idx` index is there for it), so a class's work can be reviewed in one place
+rather than a drug at a time; and the browse list showing a course's own values when a course filter
+is on, which today shows the drug's.
 
 ### The dosing review bench (2026-11-03)
 
@@ -3345,11 +4148,10 @@ taking part in the look:
   password, flagged a value. A separate screen from the audit log, deliberately; asked for
   2026-11-04 and **for later, after 1.0**. See [Two logs, not one](#two-logs-not-one--planned) for
   the split, what the schema already covers, and the three events nothing records yet.
-- **Imported sets** — a second section beside the drugs, studied by the same engine: import a table
-  of subjects and columns, get flashcards and multiple-choice over it. Asked for 2026-11-08 and
-  **for later, after 1.0**. See [A second section: imported
-  sets](#a-second-section-imported-sets--planned) for the format, the adapter onto `CardSource`, and
-  the four things that genuinely need building.
+- ~~**Imported sets**~~ — a second section beside the drugs, studied by the same engine. Asked for
+  2026-11-08, built 2026-11-09, **scrapped 2026-11-09** at the owner's call: three designs and one
+  imported set in two days was a feature paying rent in decisions rather than in studying. See
+  [Scrapped: the imported sets section](#scrapped-the-imported-sets-section-2026-11-09).
 
 ---
 
@@ -3395,7 +4197,7 @@ The three decisions in it worth having here rather than only there:
 3. **Moving the database and seeding it are different jobs.** `npm run seed` fills a fresh server
    from the committed `data/drugs-seed.json`. Carrying over real work is `pg_dump -Fc`, because the
    JSON backup deliberately will not create accounts (`lib/data/backup.ts` matches progress to
-   users by email and reports an email it cannot find) and does not model imported sets yet.
+   users by email and reports an email it cannot find).
 
 **`deploy/zimaos/` is a second compose file, not a copy of the first.** ZimaOS and CasaOS install
 an app by *pulling an image*, so `build: .` cannot work there and nothing interpolates `${VAR}`
@@ -3934,8 +4736,10 @@ see [An answer that belongs to nine drugs](#an-answer-that-belongs-to-nine-drugs
   of these four screens is a study feature.** They are the tools that keep the content honest — a
   queue for doubted values, an editor for an assertion that could not be corrected, a safe way to
   record a fact 180 times, and a readable history of all of it. The studying was already built. What
-  comes next is the thing that was actually wanted: [imported
-  sets](#a-second-section-imported-sets--planned), which is where new material gets in.
+  comes next was going to be [imported
+  sets](#a-second-section-imported-sets--planned), which was where new material would have got in;
+  that was built and then scrapped on 2026-11-09, so what comes next is whatever the drug section
+  still needs.
 
 
 0. **Read the URL the form produces, not the one you typed** (2026-11-02). Both study pages parsed

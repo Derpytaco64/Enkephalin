@@ -10,7 +10,15 @@ export type MemberDrug = {
   generic: string;
   drugClass: string | null;
   brands: string[];
+  /**
+   * The alternate profiles this drug has, numbered V-1, V-2 in overlay order.
+   * Empty for most drugs, and the control is not rendered for those.
+   */
+  variants: { slug: string; label: string; n: number; overrides: number }[];
 };
+
+/** What this list currently reads each drug as, by drug id. */
+export type MemberVariants = Record<string, string>;
 
 const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm';
 
@@ -28,23 +36,32 @@ const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--sur
  * sight, but a ticked one stays, so what the form is about to submit is always
  * visible. Submitting sends the ticked ids, and the server replaces the
  * membership with exactly those.
+ *
+ * A ticked drug that has alternate profiles also gets a version select --
+ * *amoxicillin [V-2] Infectious Disease*. That is this list saying which
+ * wording it means, and studying the list reads that version by default. Only
+ * on a ticked drug, because the choice is part of being on the list, and only
+ * where a version exists, because a dropdown with one option is furniture.
  */
 export function MemberPicker({
   action,
   tag,
   drugs,
   members,
+  readAs,
 }: {
   action: (formData: FormData) => Promise<Result>;
   tag: { slug: string; label: string; kind: string };
   drugs: MemberDrug[];
   members: string[];
+  readAs: MemberVariants;
 }) {
   const [state, formAction, pending] = useActionState(
     async (_previous: Result | null, formData: FormData) => action(formData),
     null,
   );
   const [chosen, setChosen] = useState<string[]>(members);
+  const [versions, setVersions] = useState<MemberVariants>(readAs);
   const [filter, setFilter] = useState('');
   const [onlyMembers, setOnlyMembers] = useState(false);
 
@@ -128,20 +145,52 @@ export function MemberPicker({
       ) : (
         <div className="mt-3 grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((drug) => (
-            <label key={drug.id} className="flex items-baseline gap-2 py-0.5 text-sm">
-              <input
-                type="checkbox" name="drug" value={drug.id}
-                checked={chosen.includes(drug.id)}
-                onChange={() => toggle(drug.id)}
-                className="mt-1"
-              />
-              <span className="truncate" title={drug.brands.join(', ') || undefined}>
-                {drug.generic}
-                {drug.drugClass && (
-                  <span className="ml-1 text-xs text-[var(--muted)]">· {drug.drugClass}</span>
-                )}
-              </span>
-            </label>
+            <div key={drug.id} className="py-0.5 text-sm">
+              <label className="flex items-baseline gap-2">
+                <input
+                  type="checkbox" name="drug" value={drug.id}
+                  checked={chosen.includes(drug.id)}
+                  onChange={() => toggle(drug.id)}
+                  className="mt-1"
+                />
+                <span className="truncate" title={drug.brands.join(', ') || undefined}>
+                  {drug.generic}
+                  {drug.variants.length > 0 && (
+                    <span className="ml-1 font-mono text-[0.6875rem] text-[var(--muted)]">
+                      V-{drug.variants.length}
+                    </span>
+                  )}
+                  {drug.drugClass && (
+                    <span className="ml-1 text-xs text-[var(--muted)]">· {drug.drugClass}</span>
+                  )}
+                </span>
+              </label>
+
+              {chosen.includes(drug.id) && drug.variants.length > 0 && (
+                <>
+                  {/* Paired with the id, so the server can tell which drug a
+                      choice belongs to without relying on field order. */}
+                  <input type="hidden" name="read_as" value={`${drug.id}:${versions[drug.id] ?? ''}`} />
+                  <select
+                    value={versions[drug.id] ?? ''}
+                    onChange={(event) => setVersions((current) => (
+                      { ...current, [drug.id]: event.target.value }
+                    ))}
+                    aria-label={`Which version of ${drug.generic} this list means`}
+                    className="ml-6 mt-0.5 w-[calc(100%-1.5rem)] rounded border border-[var(--border)]
+                      bg-[var(--surface)] px-1.5 py-0.5 text-xs"
+                  >
+                    <option value="">{drug.generic} — its own profile</option>
+                    {drug.variants.map((variant) => (
+                      <option key={variant.slug} value={variant.slug}>
+                        {drug.generic} [V-{variant.n}] {variant.label} — {variant.overrides} field
+                        {variant.overrides === 1 ? '' : 's'} its own way
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
           ))}
         </div>
       )}

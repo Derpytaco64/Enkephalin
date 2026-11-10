@@ -6,11 +6,12 @@
  * one that wrote a row per question would leave half-attempts everywhere; so
  * the attempt is written once, at the end, from what the runner collected.
  */
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { quizAnswers, quizAttempts } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { loadCardSources } from './sources';
+import { membershipVariants, variantSlugsAmong } from '@/lib/drugs/variants';
 import type { StudyConfig } from './config';
 import {
   wasMissed, weightsFromHistory, type QuestionWeights,
@@ -50,8 +51,16 @@ export type QuizDraw = {
 export async function loadQuiz(config: StudyConfig, draw: QuizDraw = {}): Promise<QuizPaper> {
   const { direction = 'random', weightFor = null } = draw;
 
+  // See `loadDeck`: a class in scope is studied in its own words, and the
+  // two surfaces must agree about that or a quiz would ask what the deck
+  // never taught.
+  const [variants, byMembership] = await Promise.all([
+    variantSlugsAmong(config.scope.tags),
+    membershipVariants(config.scope.tags),
+  ]);
+
   const [sources, defs, weights] = await Promise.all([
-    loadCardSources(),
+    loadCardSources(variants, byMembership),
     listFieldDefs(),
     weightFor === null ? null : questionWeights(weightFor),
   ]);
@@ -82,9 +91,7 @@ const HISTORY_LIMIT = 20_000;
 export async function questionWeights(userId: string): Promise<QuestionWeights> {
   const rows = await db
     .select({
-      // One subject per answer, drug or set item, and weighting does not care
-      // which -- so it is coalesced here rather than branched on downstream.
-      subjectId: sql<string>`coalesce(${quizAnswers.drugId}, ${quizAnswers.itemId})`,
+      subjectId: quizAnswers.drugId,
       fieldKey: quizAnswers.fieldKey,
       wasCorrect: quizAnswers.wasCorrect,
     })
@@ -115,10 +122,8 @@ export async function recordAttempt(input: {
   config: StudyConfig;
   questions: QuizQuestion[];
   answers: SubmittedAnswer[];
-  /** Which sort of thing each question's id names. See `recordGrade`. */
-  subject?: 'drug' | 'item';
 }): Promise<{ attemptId: string; score: number; total: number }> {
-  const { userId, config, questions, answers, subject = 'drug' } = input;
+  const { userId, config, questions, answers } = input;
   const chosenById = new Map(answers.map((answer) => [answer.questionId, answer.chosenIndex]));
 
   const graded = questions.map((question) => {
@@ -142,9 +147,7 @@ export async function recordAttempt(input: {
   if (graded.length > 0) {
     await db.insert(quizAnswers).values(graded.map((row) => ({
       attemptId: attempt.id,
-      ...(subject === 'item'
-        ? { itemId: row.question.drugId }
-        : { drugId: row.question.drugId }),
+      drugId: row.question.drugId,
       questionKey: row.question.questionKey,
       fieldKey: row.question.fieldKey,
       prompt: { text: row.question.prompt, generic: row.question.generic, slug: row.question.slug },

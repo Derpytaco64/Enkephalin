@@ -56,6 +56,11 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
         title: 'Bulk field set',
         blurb: 'One value across many drugs, with what it would overwrite shown first.',
       },
+      {
+        href: '/admin/import',
+        title: 'Import drugs',
+        blurb: 'A lecture’s worth of profiles from one file, previewed before it writes.',
+      },
     ],
   },
   {
@@ -95,11 +100,6 @@ const GROUPS: { heading: string; areas: Area[] }[] = [
         href: '/admin/audit',
         title: 'Audit log',
         blurb: 'Every change anyone has made, and what it was before.',
-      },
-      {
-        href: '/admin/sets',
-        title: 'Imported sets',
-        blurb: 'Study material that is not the top-drugs list: import a set, or see what is here.',
       },
     ],
   },

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { submitTo } from '@/app/_components/submit';
+import { TAG_KIND_GROUPS } from '@/lib/tags/constants';
 import type { FieldValue } from '@/db/schema';
 import { activesOf, parseDosing } from '@/lib/dosing/parse';
 import { indicationSlug, nearestIndication } from '@/lib/drugs/indications';
@@ -18,12 +19,6 @@ const NEWLINE = String.fromCharCode(10);
 export type EditableField = { def: FieldDef; value: FieldValue | undefined };
 export type AssignableTag = { slug: string; label: string; kind: string };
 
-const KIND_LABELS: Record<string, string> = {
-  top_list: 'Drug lists',
-  school_year: 'Years',
-  course: 'Courses',
-  custom: 'Custom',
-};
 
 /**
  * Three states, because that is all a value can be: recorded, doubted, or
@@ -284,12 +279,13 @@ export function DrugForm({
   const [generic, setGeneric] = useState(drug?.genericName ?? '');
   const dosingUnique = drug?.dosingUnique ?? false;
 
-  const byKind = new Map<string, AssignableTag[]>();
-  for (const tag of allTags) {
-    const list = byKind.get(tag.kind);
-    if (list) list.push(tag);
-    else byKind.set(tag.kind, [tag]);
-  }
+  // Grouped and ordered by TAG_KIND_GROUPS rather than by whatever order the
+  // tags arrived in, so a kind added later shows up here with a heading
+  // instead of its raw enum value -- which is what happened to `exam` and
+  // `topic` the first time, on the one screen where membership is granted.
+  const byKind = TAG_KIND_GROUPS
+    .map(({ kind, label }) => ({ label, kindTags: allTags.filter((tag) => tag.kind === kind) }))
+    .filter(({ kindTags }) => kindTags.length > 0);
 
   return (
     <form onSubmit={submitTo(formAction)} className="mt-8 space-y-8">
@@ -370,9 +366,9 @@ export function DrugForm({
       {allTags.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">Tags</h2>
-          {[...byKind].map(([kind, kindTags]) => (
-            <fieldset key={kind}>
-              <legend className="text-xs text-[var(--muted)]">{KIND_LABELS[kind] ?? kind}</legend>
+          {byKind.map(({ label, kindTags }) => (
+            <fieldset key={label}>
+              <legend className="text-xs text-[var(--muted)]">{label}</legend>
               <div className="mt-1 grid gap-x-4 gap-y-1 sm:grid-cols-2">
                 {kindTags.map((tag) => (
                   <label key={tag.slug} className="flex items-center gap-2 text-sm">

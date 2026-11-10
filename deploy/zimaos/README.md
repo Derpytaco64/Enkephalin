@@ -34,7 +34,7 @@ docker push dt64/enkephalin:latest
 
 `docker login` first if the box is not already logged in. Note the branch:
 **`indication-scope`**, not `main` — `main` is 58 commits behind as of
-2026-11-09, missing dosing-by-indication and imported sets entirely.
+2026-11-09, missing dosing-by-indication entirely.
 
 The build wants **~2 GB of free RAM**; `next build` is the hungry step, not the
 running app. If it dies without a clear error, that was the memory — add swap,
@@ -181,8 +181,7 @@ is never used — `lib/bootstrap.ts` seeds an admin only when none exists.
 
 The JSON backup (`npm run export`) is the other route, and the wrong one here:
 it matches progress to accounts **by email** and will not create a login out of
-a file, and it does not model imported sets yet. It is for merging content, not
-for moving a database.
+a file. It is for merging content, not for moving a database.
 
 To start from the course sheet instead, the source clone from step 1 is still
 on the box, so the seed can run in a throwaway container — the host needs no

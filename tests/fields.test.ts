@@ -62,7 +62,9 @@ describe('listFieldDefs', () => {
 
     const keys = (await listFieldDefs()).map((d) => d.key);
     expect(keys).not.toContain('dosing');
-    expect(keys).toEqual(['generic', 'brand', 'indication', 'drug_class', 'controlled', 'route', 'moa', 'bbw']);
+    expect(keys).toEqual([
+      'generic', 'brand', 'indication', 'drug_class', 'controlled', 'route', 'regimen', 'moa', 'bbw',
+    ]);
   });
 
   it('can include soft-deleted fields, and the definition survives an undelete', async () => {
@@ -156,21 +158,32 @@ describe('formatFieldValue', () => {
 
 describe('what is study material', () => {
   /**
-   * The class sheet's own columns are the syllabus, and only they are asked.
-   * Drug class comes from RxNorm and route is read out of the name and dosing
-   * text, so neither is something the course teaches as a column -- they earn
-   * their place as filters, as colour coding, and as distractor support.
+   * What is asked, and nothing else.
+   *
+   * The class sheet's own seven columns are the syllabus. Drug class comes
+   * from RxNorm and route is read out of the name and dosing text, so neither
+   * is something a course teaches as a column -- they earn their place as
+   * filters, as colour coding, and as distractor support, and they are not
+   * asked.
+   *
+   * `regimen` joined them on 2026-11-09 and is the one entry here the sheet
+   * does not define: a named combination is taught by a lecture rather than by
+   * the sheet, and it is asked because "which protocols is this drug part of,
+   * and at what dose" is exactly the kind of question an oncology exam is. It
+   * carries no year level for that reason -- see `lib/fields/core-fields.ts`.
    *
    * Pinned because it is quiet to break: a re-seed or an admin edit flips a
    * checkbox, and a field nobody is taught starts appearing in decks.
    */
-  const SHEET_COLUMNS = ['generic', 'brand', 'indication', 'dosing', 'controlled', 'moa', 'bbw'];
+  const ASKED = [
+    'generic', 'brand', 'indication', 'dosing', 'controlled', 'moa', 'bbw', 'regimen',
+  ];
 
-  it('asks about the sheet columns and nothing else', async () => {
+  it('asks about the sheet columns, the regimens, and nothing else', async () => {
     const defs = await listFieldDefs();
 
     expect(defs.filter((def) => def.isQuizzable).map((def) => def.key).sort())
-      .toEqual([...SHEET_COLUMNS].sort());
+      .toEqual([...ASKED].sort());
   });
 
   it('keeps class and route as data rather than as questions', async () => {

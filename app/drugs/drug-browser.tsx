@@ -19,9 +19,13 @@ type Filters = {
   drugClass: string;
   indication: string;
   schedule: string;
+  route: string;
   tag: string;
   review: string;
   blank: string;
+  /** Which field the `fieldText` below has to appear in. */
+  fieldKey: string;
+  fieldText: string;
 };
 
 const EMPTY: Filters = {
@@ -29,9 +33,12 @@ const EMPTY: Filters = {
   drugClass: '',
   indication: '',
   schedule: '',
+  route: '',
   tag: '',
   review: '',
   blank: '',
+  fieldKey: '',
+  fieldText: '',
 };
 
 const PARAM_NAMES: Record<keyof Filters, string> = {
@@ -39,9 +46,12 @@ const PARAM_NAMES: Record<keyof Filters, string> = {
   drugClass: 'class',
   indication: 'indication',
   schedule: 'schedule',
+  route: 'route',
   tag: 'tag',
   review: 'review',
   blank: 'blank',
+  fieldKey: 'field',
+  fieldText: 'has',
 };
 
 /** Tag kinds in the order the filter lists them, with a heading each. */
@@ -49,12 +59,34 @@ const TAG_GROUPS = [
   { kind: 'top_list', label: 'Drug lists' },
   { kind: 'system', label: 'Categories' },
   { kind: 'school_year', label: 'Year' },
-  { kind: 'course', label: 'Courses' },
+  // The two that can carry a profile variant, widest first -- the same order
+  // they overlay in. See lib/drugs/variant-kinds.ts.
+  { kind: 'course', label: 'Classes' },
+  { kind: 'exam', label: 'Exams' },
   { kind: 'custom', label: 'Other' },
 ] as const;
 
 const contains = (haystack: string, needle: string) =>
   haystack.toLowerCase().includes(needle.trim().toLowerCase());
+
+/** The `route` field is a list, and the rail filters on one route at a time. */
+const splitRoutes = (raw: string | undefined) =>
+  (raw ?? '').split(';').map((part) => part.trim()).filter(Boolean);
+
+/**
+ * Enough of the matched text to see *why* a row is in the list.
+ *
+ * A window around the hit rather than the first 90 characters: the reason a
+ * drug matched "pyrexia" is halfway down its adverse effects, and a snippet
+ * that starts at the beginning of the field shows the reader none of it.
+ */
+function snippet(text: string, lower: string): string {
+  const at = text.toLowerCase().indexOf(lower);
+  if (at < 0) return text.slice(0, 90);
+  const from = Math.max(0, at - 30);
+  const to = Math.min(text.length, at + lower.length + 60);
+  return `${from > 0 ? '…' : ''}${text.slice(from, to).trim()}${to < text.length ? '…' : ''}`;
+}
 
 export function DrugBrowser({
   rows,
@@ -83,9 +115,12 @@ export function DrugBrowser({
     drugClass: searchParams.get('class') ?? '',
     indication: searchParams.get('indication') ?? '',
     schedule: searchParams.get('schedule') ?? '',
+    route: searchParams.get('route') ?? '',
     tag: searchParams.get('tag') ?? '',
     review: searchParams.get('review') ?? '',
     blank: searchParams.get('blank') ?? '',
+    fieldKey: searchParams.get('field') ?? '',
+    fieldText: searchParams.get('has') ?? '',
   }));
 
   // The URL trails the state rather than driving it, so typing stays instant
@@ -110,6 +145,7 @@ export function DrugBrowser({
           { name: 'generic', weight: 3 },
           { name: 'brands', weight: 2 },
           { name: 'drugClass', weight: 1 },
+          { name: 'indications', weight: 1 },
         ],
         threshold: 0.35,
         ignoreLocation: true,
@@ -117,10 +153,65 @@ export function DrugBrowser({
     [rows],
   );
 
-  const results = useMemo(() => {
-    const searched = filters.q.trim() ? fuse.search(filters.q.trim()).map((hit) => hit.item) : rows;
+  /**
+   * Every field's text, lower-cased once, so the box below can search all of
+   * it on every keystroke.
+   *
+   * Fuzzy matching stays where it belongs -- on the name, the brands, the class
+   * and the indications, where a near-miss spelling is the whole point. Field
+   * prose is matched on **substring** instead, deliberately: fuzzy search over
+   * a paragraph of mechanism finds something for almost any three letters, and
+   * a rail that always has hits is a rail that never answers a question.
+   */
+  const fieldIndex = useMemo(
+    () =>
+      new Map(
+        rows.map((row) => [
+          row.slug,
+          Object.entries(row.values).map(([key, text]) => ({ key, text, lower: text.toLowerCase() })),
+        ]),
+      ),
+    [rows],
+  );
 
-    return searched.filter((row) => {
+  const fieldLabels = useMemo(
+    () => new Map(facets.fields.map((field) => [field.key, field.label])),
+    [facets.fields],
+  );
+
+  /**
+   * One box, two searches, in order: the name-ish fuzzy hits first, then the
+   * drugs whose *content* contains what was typed.
+   *
+   * The order is the point. Searching "pyrexia" should find the BRAF
+   * inhibitors by their adverse effects, and searching "dabrafenib" must still
+   * put dabrafenib first -- so a content hit never outranks a name hit, and
+   * `matchedIn` below says which field earned a row its place when its name
+   * did not.
+   */
+  const { ranked, matchedIn } = useMemo(() => {
+    const query = filters.q.trim();
+    if (!query) return { ranked: rows, matchedIn: new Map<string, { label: string; text: string }>() };
+
+    const named = fuse.search(query).map((hit) => hit.item);
+    const seen = new Set(named.map((row) => row.slug));
+    const lower = query.toLowerCase();
+    const found = new Map<string, { label: string; text: string }>();
+    const byContent: DrugIndexRow[] = [];
+
+    for (const row of rows) {
+      if (seen.has(row.slug)) continue;
+      const hit = fieldIndex.get(row.slug)?.find((field) => field.lower.includes(lower));
+      if (!hit) continue;
+      byContent.push(row);
+      found.set(row.slug, { label: fieldLabels.get(hit.key) ?? hit.key, text: snippet(hit.text, lower) });
+    }
+
+    return { ranked: [...named, ...byContent], matchedIn: found };
+  }, [rows, fuse, fieldIndex, fieldLabels, filters.q]);
+
+  const results = useMemo(() => {
+    return ranked.filter((row) => {
       // Class and indication match on substring rather than equality, so a
       // half-typed "beta" narrows the list before you pick a suggestion.
       if (filters.drugClass) {
@@ -133,12 +224,19 @@ export function DrugBrowser({
       }
       if (filters.indication && !row.indications.some((text) => contains(text, filters.indication))) return false;
       if (filters.schedule && row.schedule !== filters.schedule) return false;
+      if (filters.route && !splitRoutes(row.values.route).includes(filters.route)) return false;
       if (filters.tag && !row.tags.includes(filters.tag)) return false;
       if (filters.review && row.review !== filters.review) return false;
       if (filters.blank && !row.missing.includes(filters.blank)) return false;
+      // The precise form of the box above: this exact field, containing this
+      // text. A field chosen with nothing typed is not a filter yet -- it is
+      // half of one -- so it narrows nothing until there is something to find.
+      if (filters.fieldKey && filters.fieldText.trim()) {
+        if (!contains(row.values[filters.fieldKey] ?? '', filters.fieldText)) return false;
+      }
       return true;
     });
-  }, [rows, fuse, filters]);
+  }, [ranked, filters]);
 
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((current) => ({ ...current, [key]: value }));
@@ -149,6 +247,7 @@ export function DrugBrowser({
     const blank = new Map<string, number>();
     const review = new Map<string, number>();
     const schedule = new Map<string, number>();
+    const route = new Map<string, number>();
     const tag = new Map<string, number>();
     const bump = (map: Map<string, number>, key: string) => map.set(key, (map.get(key) ?? 0) + 1);
 
@@ -156,9 +255,10 @@ export function DrugBrowser({
       for (const key of row.missing) bump(blank, key);
       bump(review, row.review);
       if (row.schedule) bump(schedule, row.schedule);
+      for (const name of splitRoutes(row.values.route)) bump(route, name);
       for (const slug of row.tags) bump(tag, slug);
     }
-    return { blank, review, schedule, tag };
+    return { blank, review, schedule, route, tag };
   }, [rows]);
 
   // A filter that cannot narrow anything is noise: options nothing matches are
@@ -171,18 +271,22 @@ export function DrugBrowser({
       ([value]) => (counts.review.get(value) ?? 0) > 0,
     );
     const schedules = facets.schedules.filter((value) => (counts.schedule.get(value) ?? 0) > 0);
+    const routes = facets.routes.filter((value) => (counts.route.get(value) ?? 0) > 0);
     const tags = facets.tags.filter((tag) => (counts.tag.get(tag.slug) ?? 0) > 0);
-    return { blank, review, schedules, tags };
+    return { blank, review, schedules, routes, tags };
   }, [facets, counts]);
 
   const show = {
     blank: options.blank.length > 0 || Boolean(filters.blank),
     review: options.review.length > 1 || Boolean(filters.review),
     schedule: options.schedules.length > 1 || Boolean(filters.schedule),
+    route: options.routes.length > 1 || Boolean(filters.route),
     tag: options.tags.length > 1 || Boolean(filters.tag),
   };
 
-  const advancedKeys = ['drugClass', 'indication', 'schedule', 'tag', 'review', 'blank'] as const;
+  const advancedKeys = [
+    'drugClass', 'indication', 'schedule', 'route', 'tag', 'review', 'blank', 'fieldText',
+  ] as const;
   const advancedCount = advancedKeys.filter((key) => filters[key]).length;
   const [showMore, setShowMore] = useState(advancedCount > 0);
 
@@ -199,8 +303,17 @@ export function DrugBrowser({
           <label htmlFor="q" className="block text-sm font-medium">Find a drug</label>
           <input
             id="q" value={filters.q} onChange={(event) => set('q', event.target.value)}
-            placeholder="generic or brand" className={control} autoComplete="off"
+            placeholder="name, brand, or anything recorded" className={control} autoComplete="off"
           />
+          {/* Worth saying once: the box searches the *contents* of a profile
+              as well as its name, which is not what a search box in a list
+              usually does and is the only way to find a drug by a toxicity
+              you half remember. */}
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Searches the name, brands, class and indications — and the text of
+            every field, so a mechanism, a warning or a regimen name finds its
+            drug. Use <em>In one field</em> below to be exact about where.
+          </p>
         </div>
 
         {/* Collapsed by default so the rail is one box until you want more,
@@ -252,6 +365,55 @@ export function DrugBrowser({
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+
+            {show.route && (
+              <div>
+                <label htmlFor="route" className="block text-sm font-medium">Route</label>
+                <select id="route" value={filters.route} onChange={(e) => set('route', e.target.value)} className={control}>
+                  <option value="">Any</option>
+                  {options.routes.map((option) => (
+                    <option key={option} value={option}>
+                      {option} ({counts.route.get(option) ?? 0})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Read out of the drug&rsquo;s own name and dosing text. A drug with no route
+                  recorded is not a drug with no route — it is one the source never said.
+                </p>
+              </div>
+            )}
+
+            {/* The exact form of the search box: this field, this text. The
+                box above searches every field at once, which is what you want
+                when you half remember a fact and not what you want when two
+                fields could both hold the word -- "melanoma" is an indication
+                on one drug and a regimen's name on another. */}
+            {facets.fields.length > 0 && (
+              <div>
+                <label htmlFor="field" className="block text-sm font-medium">In one field</label>
+                <select
+                  id="field" value={filters.fieldKey}
+                  onChange={(e) => set('fieldKey', e.target.value)} className={control}
+                >
+                  <option value="">Any field</option>
+                  {facets.fields.map((field) => (
+                    <option key={field.key} value={field.key}>{field.label}</option>
+                  ))}
+                </select>
+                <input
+                  value={filters.fieldText}
+                  onChange={(event) => set('fieldText', event.target.value)}
+                  placeholder={filters.fieldKey
+                    ? `text in ${fieldLabels.get(filters.fieldKey) ?? 'that field'}`
+                    : 'pick a field first'}
+                  disabled={!filters.fieldKey}
+                  aria-label="Text that field must contain"
+                  className={`${control} disabled:opacity-60`}
+                  autoComplete="off"
+                />
               </div>
             )}
 
@@ -377,6 +539,24 @@ export function DrugBrowser({
                       {row.schedule}
                     </span>
                   )}
+                  {/* How many alternate profiles this drug has. Bordered and
+                      monospaced rather than coloured: it is a count, not a
+                      state -- nothing is wrong with a drug that has three, and
+                      the badges either side of it both mean "look at this".
+                      The identifier is the point, so it matches the [V-2]
+                      labels in the list builder, where you pick which one a
+                      list reads. */}
+                  {row.variants > 0 && (
+                    <Link
+                      href={`/drugs/${row.slug}`}
+                      title={`${row.variants} alternate profile${row.variants === 1 ? '' : 's'}`
+                        + ' — a class or exam that words this drug its own way'}
+                      className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono
+                        text-[0.6875rem] leading-none text-[var(--muted)]"
+                    >
+                      V-{row.variants}
+                    </Link>
+                  )}
                   {row.review === 'flagged' && (
                     <span className="text-xs text-[var(--flagged)]">flagged</span>
                   )}
@@ -390,6 +570,17 @@ export function DrugBrowser({
                 <span className="text-sm text-[var(--muted)] md:text-right">
                   {classLabel(row.drugClass)}
                 </span>
+
+                {/* Only for a row the *name* did not match: without it, a
+                    search for a toxicity returns a list of drugs with no
+                    visible reason to be in it, and a search box you cannot
+                    check is a search box you stop trusting. */}
+                {matchedIn.has(row.slug) && (
+                  <p className="text-xs text-[var(--muted)] md:col-span-3">
+                    <span className="font-medium">{matchedIn.get(row.slug)!.label}:</span>{' '}
+                    {matchedIn.get(row.slug)!.text}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

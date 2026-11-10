@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from 'react';
 import type { StudyConfig } from '@/lib/study/config';
 import type { QuizQuestion } from '@/lib/study/quiz';
 import { LookupPanel, LookupTrigger, type LookupTarget } from '../_components/lookup-panel';
+import { VariantPills } from '../_components/variant-pills';
 import type { FinishState } from './actions';
 
 type Answer = { chosenIndex: number | null };
@@ -427,7 +428,11 @@ export function QuizRunner({
       </div>
 
       <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-        <p className="whitespace-pre-line text-lg">{question.prompt}</p>
+        {/* Whose wording is being asked about, above the question because it
+            changes which answer is right. Never the drug's name: asked the
+            other way round, the drug is the answer. */}
+        <VariantPills variants={question.variant ? [question.variant] : []} />
+        <p className="mt-2 whitespace-pre-line text-lg">{question.prompt}</p>
 
         <ul className="mt-6 space-y-2">
           {question.options.map((option, optionIndex) => {

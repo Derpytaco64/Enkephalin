@@ -11,6 +11,9 @@ import {
   userPreferences,
 } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
+import {
+  overlayFields, overriddenKeys, variantLayerFor, variantOptionsFor,
+} from './variants';
 
 export type ProfileBrand = {
   id: string;
@@ -25,7 +28,22 @@ export type ProfileBrand = {
   indications: string[];
 };
 
-export async function getDrugProfile(slug: string, userId?: string) {
+/**
+ * One drug, as a page wants it -- optionally **as one class or exam
+ * teaches it**.
+ *
+ * `variantSlug` picks that version of the profile: its values where it has
+ * them, the drug's everywhere else. The overlay happens here rather than in the
+ * page so that every reader of a profile sees the same thing, and so the page's
+ * *from X* provenance line needs no special case -- an overridden value carries
+ * the variant's own `source`, which is what a reader needs to know about it.
+ *
+ * A variant the drug is not tagged with reads as no variant at all: `variant`
+ * comes back null and the base profile is returned. That keeps the picker on
+ * the page in agreement with the tag filter in the browser, which both read
+ * `drug_tags`.
+ */
+export async function getDrugProfile(slug: string, userId?: string, variantSlug?: string) {
   const [drug] = await db.select().from(drugs).where(eq(drugs.slug, slug));
   if (!drug) return null;
 
@@ -65,6 +83,11 @@ export async function getDrugProfile(slug: string, userId?: string) {
       : Promise.resolve([]),
   ]);
 
+  const [variants, variant] = await Promise.all([
+    variantOptionsFor(drug.id),
+    variantSlug ? variantLayerFor(drug.id, variantSlug) : Promise.resolve(null),
+  ]);
+
   const indicationsByBrand = new Map<string, string[]>();
   for (const link of linkRows) {
     const list = indicationsByBrand.get(link.brandId);
@@ -90,11 +113,20 @@ export async function getDrugProfile(slug: string, userId?: string) {
   const visibleDefs = defs.filter((def) => visibility[def.key] ?? def.defaultVisible);
 
   return {
-    drug,
+    // The fields a reader sees. Through a variant this is the overlay, so
+    // everything downstream -- the formatter, the flag button, the *from X*
+    // line -- works on one shape and never has to ask which layer it got.
+    drug: variant ? { ...drug, fields: overlayFields(drug.fields, variant.fields) } : drug,
     brands,
     indications: indicationRows.map((row) => row.label),
     tags: tagRows,
     defs: visibleDefs,
     siblings,
+    /** Every class and exam this drug is in, for the picker. */
+    variants,
+    /** The variant being read through, or null for the drug's own profile. */
+    variant,
+    /** Which keys this variant speaks about, so the page can mark them. */
+    overridden: variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>(),
   };
 }

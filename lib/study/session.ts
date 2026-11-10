@@ -4,6 +4,7 @@ import { studyCards } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { buildCards, type StudyCardSpec } from './cards';
 import { loadCardSources } from './sources';
+import { membershipVariants, variantSlugsAmong } from '@/lib/drugs/variants';
 import { sessionRules, type StudyConfig } from './config';
 import { review, reviewWithoutRescheduling, type Grade } from './srs';
 
@@ -42,7 +43,19 @@ function capped(cards: StudyCardSpec[], inScope: number, config: StudyConfig): S
 }
 
 export async function loadDeck(userId: string, config: StudyConfig): Promise<SessionDeck> {
-  const [sources, defs] = await Promise.all([loadCardSources(), listFieldDefs()]);
+  // A class or exam in scope studies *its* wording. Asked here rather
+  // than in the loader because the scope's list axis holds every kind of tag
+  // -- a sheet edition, a year, a class -- and only a query knows which.
+  const [variants, byMembership] = await Promise.all([
+    variantSlugsAmong(config.scope.tags),
+    // And the version each list in scope holds each drug as, which is the
+    // default the scope above can still override.
+    membershipVariants(config.scope.tags),
+  ]);
+  const [sources, defs] = await Promise.all([
+    loadCardSources(variants, byMembership),
+    listFieldDefs(),
+  ]);
   const all = buildCards(sources, defs, config);
   const rules = sessionRules(config);
 
@@ -67,27 +80,24 @@ export async function loadDeck(userId: string, config: StudyConfig): Promise<Ses
 /**
  * Writes one answer. In review the schedule moves; in cram it does not, and
  * only the fact that the card was seen is recorded.
- *
- * `subject` says which sort of thing `card.drugId` names. The study engine
- * threads one id through untouched -- the set adapter puts an item id there on
- * purpose -- but the *write* has to know, because `study_cards` keeps two
- * columns and a check constraint rather than one column and a convention.
  */
 export async function recordGrade(input: {
   userId: string;
   card: Pick<StudyCardSpec, 'drugId' | 'cardKey' | 'fieldKeys'>;
   config: StudyConfig;
   grade: Grade;
-  subject?: 'drug' | 'item';
 }) {
-  const { userId, card, config, grade, subject = 'drug' } = input;
+  const { userId, card, config, grade } = input;
   const rules = sessionRules(config);
-  const column = subject === 'item' ? studyCards.itemId : studyCards.drugId;
 
   const [existing] = await db
     .select()
     .from(studyCards)
-    .where(and(eq(studyCards.userId, userId), eq(column, card.drugId), eq(studyCards.cardKey, card.cardKey)));
+    .where(and(
+      eq(studyCards.userId, userId),
+      eq(studyCards.drugId, card.drugId),
+      eq(studyCards.cardKey, card.cardKey),
+    ));
 
   const current = existing ?? {
     ease: 2.5,
@@ -117,7 +127,7 @@ export async function recordGrade(input: {
 
   await db.insert(studyCards).values({
     userId,
-    ...(subject === 'item' ? { itemId: card.drugId } : { drugId: card.drugId }),
+    drugId: card.drugId,
     cardKey: card.cardKey,
     mode: config.mode,
     direction: config.direction,

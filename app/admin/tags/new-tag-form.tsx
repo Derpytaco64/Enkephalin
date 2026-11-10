@@ -9,7 +9,8 @@ const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--sur
 const KIND_LABELS: Record<string, string> = {
   top_list: 'Drug list — a sheet edition or a top-200',
   school_year: 'Year — P1, P2, P3',
-  course: 'Course',
+  course: 'Class — a course you are taking',
+  exam: 'Exam — one exam within a class',
   custom: 'Custom',
 };
 

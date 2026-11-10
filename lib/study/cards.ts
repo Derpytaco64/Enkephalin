@@ -42,7 +42,27 @@ export type CardSource = {
   /** Shown as a to-do on the profile; it does not hold cards back. */
   needsPairingReview: boolean;
   values: Record<string, FieldValue | undefined>;
+  /**
+   * Which version supplied each value, for the keys a variant spoke about.
+   *
+   * Only the keys it actually overrode: everything else came from the drug and
+   * has nothing to say about whose words it is. Optional because most callers
+   * -- and every fixture -- have no variants in play at all, and an absent
+   * record and an empty one mean the same thing: the drug's own words.
+   */
+  wordedBy?: Record<string, CardVariant>;
 };
+
+/**
+ * A version of a profile, as a card has to show it: the number and whose it is.
+ *
+ * **Never the drug's name**, which is the whole constraint here -- on a
+ * `drug_to_fields` card the drug *is* the answer, so a pill reading
+ * *amoxicillin [V-2]* on the question side would give it away. The number and
+ * the class are safe: *V-2 · PHRM 535* says whose wording you are being asked
+ * about without saying what the drug is.
+ */
+export type CardVariant = { n: number; label: string; slug: string };
 
 export type CardFace = { key: string; label: string; text: string };
 
@@ -56,6 +76,15 @@ export type StudyCardSpec = {
   prompt: string;
   /** What the reveal shows. */
   faces: CardFace[];
+  /**
+   * The versions whose wording this card is asking about, deduplicated.
+   *
+   * Usually empty, often one, and more than one only where a card groups
+   * several fields that different classes worded. Shown as pills on both sides
+   * of the card, because the question *and* the answer are that class's -- see
+   * `CardVariant` for why the drug's name is not in them.
+   */
+  variants: CardVariant[];
 };
 
 /**
@@ -110,10 +139,11 @@ export function inScope(source: CardSource, config: StudyConfig) {
 /**
  * What sort of thing is being studied.
  *
- * This is the one place the engine genuinely knew it was about drugs, and an
- * imported set of hormones or receptors needs it not to. Everything below reads
- * the subject rather than a constant, and the default *is* the drug section, so
- * nothing about the top-drugs list changes.
+ * One value, `DRUG_SUBJECT` -- this was written as a parameter when a second
+ * section was going to pass a different one, and it is kept as a shape rather
+ * than folded back into constants because it is where the identity wording
+ * lives: what the subject's own name column is called, how the identity
+ * question is asked, and the sharper question the brand/generic pair wants.
  *
  * A subject's own name is never one of the things asked about. Going
  * subject -> facts it is the stimulus, so a card made of it alone asks "Which
@@ -130,8 +160,8 @@ export type StudySubject = {
   /**
    * A field that *pairs* with the identity, where naming the pair is sharper
    * than the general question: shown Xanax, what is wanted is the generic name
-   * and not "which drug" in some looser sense. Drugs have one; a set does not,
-   * and leaving it unset simply uses the general question.
+   * and not "which drug" in some looser sense. Leaving it unset uses the
+   * general question.
    */
   pairKey?: string;
   /** The pair question, in a quiz. */
@@ -186,8 +216,8 @@ export function buildCards(
   sources: CardSource[],
   defs: FieldDef[],
   config: StudyConfig,
-  subject: StudySubject = DRUG_SUBJECT,
 ): StudyCardSpec[] {
+  const subject = DRUG_SUBJECT;
   const byKey = new Map(defs.map((def) => [def.key, def]));
   const selected = config.fields
     .map((key) => byKey.get(key))
@@ -197,6 +227,23 @@ export function buildCards(
   if (selected.length === 0) return [];
 
   const cards: StudyCardSpec[] = [];
+
+  /**
+   * The versions behind a card's field keys, in overlay order, each once.
+   *
+   * Derived from the keys the card actually asks about rather than from
+   * everything the drug has: a mechanism card studied in a class that only
+   * rewords the dosing is the drug's own mechanism, and saying otherwise would
+   * be a lie told by a pill.
+   */
+  const variantsOf = (source: CardSource, fieldKeys: string[]): CardVariant[] => {
+    const seen = new Map<string, CardVariant>();
+    for (const key of fieldKeys) {
+      const variant = source.wordedBy?.[key];
+      if (variant) seen.set(variant.slug, variant);
+    }
+    return [...seen.values()];
+  };
 
   for (const source of sources) {
     if (!inScope(source, config)) continue;
@@ -228,6 +275,7 @@ export function buildCards(
           faces: config.direction === 'fields_to_drug'
             ? [{ key: subject.identityKey, label: subject.identityLabel, text: source.generic }]
             : [face],
+          variants: variantsOf(source, fieldKeys),
         });
       }
       continue;
@@ -247,6 +295,7 @@ export function buildCards(
         config.direction === 'fields_to_drug'
           ? [{ key: subject.identityKey, label: subject.identityLabel, text: source.generic }]
           : answered,
+      variants: variantsOf(source, fieldKeys),
     });
   }
 

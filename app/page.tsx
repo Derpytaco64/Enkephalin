@@ -50,7 +50,7 @@ export default async function Home() {
           {settings?.siteName ?? FALLBACK_SITE_NAME}
         </h1>
         <p className="mt-3 text-[var(--muted)]">
-          Drug profiles, flashcards and quizzes for the top-drugs list and more. All self-hosted.
+          Drug profiles, flashcards and quizzes for the top-drugs list. All self-hosted.
         </p>
         <Link
           href="/login"

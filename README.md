@@ -29,19 +29,37 @@ box warning — and *generates* the cards. Which means:
 
 ## What is in it
 
-**Browse and profiles** — `/drugs`, filterable by list, category, indication,
-route and schedule, colour-coded by class; a profile page per drug with every
-field, its brands, and where each value came from.
+**Browse and profiles** — `/drugs`, with one search box that reaches the
+*contents* of a profile as well as its name, so a half-remembered toxicity
+finds its drug and the row says which field matched. Filterable by list,
+category, indication, route and schedule, or by text in one named field;
+colour-coded by class. A profile page per drug with every field, its brands,
+the protocols it belongs to, and where each value came from.
 
 **Study** — `/study/flashcards` and `/study/quiz`. Cram (everything, schedule
 untouched) or review (what is due). Binary grading when cramming, four-point when reviewing. Saved setups
 at `/study/setups`, so a configuration you liked is one click away.
 
-**Imported sets** — `/sets`. Lecture material that is not a drug table:
-hormones, lab values, pathways, anything with a shared axis. A JSON file per set
-(`docs/set-format.md` is the authoring guide, written to be handed to a model
-along with your slides), imported at `/admin/sets`, then studied by the *same*
-engine — sets needed an adapter, not a second engine.
+**Profile variants** — a drug can carry a **class's own version** of itself:
+the same drug, with the fields that class says differently sourced to its
+slides. A layer rather than a copy, so a correction to the drug improves every
+class's view of it, and a dropdown on the profile switches between them. A class
+and an exam within it can each hold one, and they stack narrowest-wins; the
+browse list marks a drug that has them with a `V-3` pill. Picking either in the
+study scope studies the drug in that scope's words — and a drug list can name
+which version *it* means, per drug, so *Top Drugs 2026* can hold amoxicillin as
+the infectious disease class words it. Cards and quiz questions carry a `V-2 ·
+PHRM 535` pill saying whose wording they are asking about, never the drug's own
+name. All of them are tags, so membership and filtering were already there.
+
+**Importing a lecture** — `/admin/import` takes one JSON file describing what a
+lecture says about the drugs in it: profiles, named regimens like FOLFOX or
+ipilimumab + nivolumab, and the fields a course needs that the app has not got
+yet — and for each of those you either create it or point it at the field you
+already have, so one idea does not become three. **Nothing is overwritten** — a gap is filled on the drug itself, a
+disagreement becomes what that class says — and the whole file is previewed
+field by field before it writes. [`docs/drug-import.md`](docs/drug-import.md)
+is the authoring guide, written to be the only thing its author needs.
 
 **Editing** — every field is editable in the app, with an on-demand lookup panel
 that queries DailyMed, RxNorm and openFDA and lets you pull one value into one
@@ -134,16 +152,16 @@ make a dosing decision from a flashcard app.
 ## Where things live
 
 ```
-app/            routes -- (auth), drugs, study, sets, admin, account
+app/            routes -- (auth), drugs, study, admin, account
 lib/            the logic, by area:
   study/          card and question builders, SRS, priority weighting
-  sets/           parser, importer, and the adapter onto the study engine
+  drugs/          profiles, merges, indications, variants, import
   fields/         the field registry
   data/           backup and restore
   content/        the one-time sheet sync
 db/             schema.ts, migrations/, migrate.ts
 tests/          vitest, against real Postgres -- not mocks
-docs/           set-format.md (authoring guide), deploy.md
+docs/           deploy.md, drug-import.md
 deploy/zimaos/  compose file + guide for ZimaOS/CasaOS
 PLAN.md         the canonical record of what was decided and why
 ```

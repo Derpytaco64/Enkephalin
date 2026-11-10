@@ -56,7 +56,7 @@ be reversed.
 
 The simplest route, and updating later is `git pull`. **Mind the branch**: the
 work lives on `indication-scope`, which as of 2026-11-09 is 58 commits ahead of
-`main` — everything from the dosing-by-indication change through imported sets.
+`main` — everything from the dosing-by-indication change onwards.
 Clone it explicitly, or merge it into `main` first and clone the default:
 
 ```bash
@@ -244,7 +244,7 @@ overwrites a hand-verified value without `--force`.
 ### Move the database you already have
 
 Use this if you want your real work — edits, study schedules, quiz history,
-imported sets, users — on the server rather than a fresh copy of the sheet.
+users — on the server rather than a fresh copy of the sheet.
 
 **The whole database, exactly.** No Node needed on either end, and it carries
 everything including sessions and tables the backup format does not model:
@@ -288,11 +288,6 @@ progress to accounts by email and will not invent a login out of a file, so an
 email it does not find is reported as skipped — which is also why a `pg_dump`
 move needs no admin seeding at all: the accounts come with it, passwords
 included, and `ADMIN_PASSWORD` in the server's `.env` never gets used.
-
-One caveat, deliberate and documented in `lib/data/backup.ts`: imported **sets**
-are not in the backup format yet, so set-item progress is skipped. Re-import the
-set files (`docs/set-format.md`) on the server, or use `pg_dump` if you have
-sets you care about keeping.
 
 ## Updating after a change
 

@@ -4,6 +4,7 @@ import { db } from '@/db';
 import {
   accounts,
   brandIndications,
+  drugVariantValues,
   dosingRegimens,
   drugBrands,
   drugIndications,
@@ -26,6 +27,7 @@ const USER = 'user-admin';
 const EMAIL = 'admin@example.test';
 
 async function wipe() {
+  await db.delete(drugVariantValues);
   await db.delete(brandIndications);
   await db.delete(dosingRegimens);
   await db.delete(drugTags);
@@ -176,6 +178,89 @@ describe('exportBackup', () => {
     expect(json).not.toContain('password');
     expect(json).not.toContain('accounts');
     expect(json).not.toContain('sessions');
+  });
+});
+
+describe('what a class says differently', () => {
+  /** The class tag, the membership, and one field this class says differently. */
+  async function seedVariantLayer() {
+    const [course] = await db
+      .insert(tags)
+      .values({ slug: 'psci-413', label: 'PSCI 413', kind: 'course' })
+      .returning({ id: tags.id });
+    const [drug] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+
+    await db.insert(drugTags).values({ drugId: drug.id, tagId: course.id });
+    await db.insert(drugVariantValues).values({
+      drugId: drug.id,
+      tagId: course.id,
+      fields: {
+        moa: {
+          value: 'Dual GIP/GLP-1 agonist, as the class teaches it',
+          status: 'ok', source: 'PSCI 413 — 09.Incretins.pdf',
+          updatedAt: '2026-11-09T00:00:00.000Z', updatedBy: USER,
+        },
+      },
+      note: 'Exam 2 only.',
+    });
+  }
+
+  it('is carried in the file, keyed by the tag slug', async () => {
+    await seedVariantLayer();
+    const backup = await exportBackup();
+
+    const entry = backup.drugs.find((drug) => drug.slug === 'tirzepatide');
+    expect(entry?.variants).toEqual([{
+      variant: 'psci-413',
+      fields: {
+        moa: {
+          value: 'Dual GIP/GLP-1 agonist, as the class teaches it',
+          status: 'ok', source: 'PSCI 413 — 09.Incretins.pdf',
+          updatedAt: '2026-11-09T00:00:00.000Z', updatedBy: USER,
+        },
+      },
+      note: 'Exam 2 only.',
+    }]);
+  });
+
+  it('comes back on a restore, after the layer is gone', async () => {
+    await seedVariantLayer();
+    const backup = await exportBackup();
+
+    await db.delete(drugVariantValues);
+    await restoreBackup(backup, 'merge');
+
+    const [layer] = await db.select().from(drugVariantValues);
+    expect(layer.fields.moa.value).toBe('Dual GIP/GLP-1 agonist, as the class teaches it');
+    expect(layer.note).toBe('Exam 2 only.');
+  });
+
+  it('leaves layers alone when the file predates them', async () => {
+    await seedVariantLayer();
+    const backup = await exportBackup();
+
+    // A file written before profile variants existed says nothing about them,
+    // and absent is not empty: restoring one must not wipe work typed since.
+    const older = {
+      ...backup,
+      drugs: backup.drugs.map(({ variants: _ignored, ...drug }) => drug),
+    } as Backup;
+
+    await restoreBackup(older, 'merge');
+    expect(await db.select().from(drugVariantValues)).toHaveLength(1);
+  });
+
+  it('clears them when the file says there are none', async () => {
+    await seedVariantLayer();
+    const backup = await exportBackup();
+    const emptied = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => ({ ...drug, variants: [] })),
+    } as Backup;
+
+    // An empty array *is* an instruction, unlike an absent key.
+    await restoreBackup(emptied, 'merge');
+    expect(await db.select().from(drugVariantValues)).toHaveLength(0);
   });
 });
 

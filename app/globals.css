@@ -402,6 +402,24 @@ body {
 
 .pill-edge:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--btn-edge); }
 
+/* The top bar's own form: a notch smaller than a pill and a notch larger than
+   `.pill-xs`, and set to never wrap its own label.
+
+   The bar has a fixed job -- a wordmark, five destinations, an avatar and Sign
+   out -- and at `.pill` sizing that run measured about 690px, so a window at
+   half of a 1366-wide screen tipped the pill row onto a second line. The
+   second line is not a graceful fallback here: it doubles the height of the
+   chrome on every page. Shaving the pills, the mark and the gaps takes the
+   whole bar to about 615px, which clears a half screen with room to spare and
+   still reads as the same bar. */
+.pill-nav {
+  gap: 0.25rem;
+  padding: 0.3125rem 0.625rem;
+  font-size: var(--text-xs);
+  line-height: 1.125rem;
+  white-space: nowrap;
+}
+
 /* The small form, for a pill inside a row of controls or beside a field. */
 .pill-xs {
   gap: 0.25rem;

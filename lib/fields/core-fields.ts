@@ -108,6 +108,40 @@ export const CORE_FIELD_DEFS: NewFieldDef[] = [
     promptTemplate: 'How is {{generic}} dosed?',
   },
   {
+    key: 'regimen',
+    label: 'Regimens',
+    group: 'Clinical',
+    dataType: 'markdown',
+    sortOrder: 65,
+    /**
+     * Named multi-drug protocols this drug is a component of, and what it
+     * contributes to each: FOLFOX, ipilimumab + nivolumab, dabrafenib +
+     * trametinib. Oncology is where a dose stops being a property of one drug
+     * -- oxaliplatin is 85 mg/m2 *in FOLFOX*, and nivolumab is 1 mg/kg beside
+     * ipilimumab and 240 mg alone -- so the combination has to be sayable
+     * somewhere, and `dosing` cannot say it without lying about whose dose it
+     * is.
+     *
+     * Markdown rather than its own table, deliberately, and the trade is
+     * written down in PLAN.md: a table of regimens with member rows is the
+     * right shape for a pharmacy system and the wrong first move for a study
+     * app, where the thing being learned is the sentence *this drug appears in
+     * these protocols at these doses, chosen on these grounds*. A nested list
+     * renders as the decision it is, and a regimen named the same way on two
+     * drugs is found by searching the field.
+     */
+    blankMeansNone: true,
+    /**
+     * No year, which is not an oversight: the sheet has no regimen column, so
+     * there is no program year responsible for it, and a year preset must not
+     * tick a field that answers "none" for two hundred of the drugs in it.
+     * Ticking it deliberately -- which is what studying an oncology unit looks
+     * like -- works exactly as it does for every other field.
+     */
+    yearLevels: [],
+    promptTemplate: 'Which named regimens include {{generic}}, and at what dose?',
+  },
+  {
     key: 'moa',
     label: 'Mechanism of action',
     group: 'Clinical',

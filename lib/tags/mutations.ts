@@ -10,6 +10,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { auditLog, drugTags, drugs, tags } from '@/db/schema';
 import { isUniqueViolation } from '@/lib/db-errors';
+import { VARIANT_KINDS } from '@/lib/drugs/variant-kinds';
 import type { Result } from '@/lib/drugs/mutations';
 import { TAG_KINDS, type TagKind } from './constants';
 
@@ -95,9 +96,15 @@ export async function deleteTag(slug: string, actorId: string): Promise<Result> 
  * rather than adds. Unknown ids are refused rather than ignored: a stale form
  * should not quietly empty a list.
  */
+/**
+ * One member of a list: the drug, and optionally which version of it the list
+ * means -- a class or exam slug, or null for the drug's own profile.
+ */
+export type TagMember = { drugId: string; variant: string | null };
+
 export async function setTagDrugs(
   slug: string,
-  drugIds: string[],
+  members: (string | TagMember)[],
   actorId: string,
 ): Promise<Result<{ added: number; removed: number }>> {
   const [tag] = await db.select().from(tags).where(eq(tags.slug, slug));
@@ -109,7 +116,15 @@ export async function setTagDrugs(
     };
   }
 
-  const wanted = [...new Set(drugIds)];
+  // Plain ids still work -- most callers only decide membership -- and a
+  // caller that cares about wording passes objects instead.
+  const asked = members.map((member) => (
+    typeof member === 'string' ? { drugId: member, variant: null } : member
+  ));
+  const chosen = new Map<string, string | null>();
+  for (const member of asked) chosen.set(member.drugId, member.variant);
+  const wanted = [...chosen.keys()];
+
   if (wanted.length > 0) {
     const known = await db.select({ id: drugs.id }).from(drugs).where(inArray(drugs.id, wanted));
     if (known.length !== wanted.length) {
@@ -117,8 +132,29 @@ export async function setTagDrugs(
     }
   }
 
+  // The versions named, resolved once. A slug that is not a class or an exam
+  // is refused rather than ignored: silently reading the drug's own profile
+  // when the list says otherwise is the kind of wrong nobody notices.
+  const variantSlugs = [...new Set([...chosen.values()].filter((v): v is string => v !== null))];
+  const variantIds = new Map<string, string>();
+  if (variantSlugs.length > 0) {
+    const rows = await db
+      .select({ id: tags.id, slug: tags.slug })
+      .from(tags)
+      .where(and(inArray(tags.slug, variantSlugs), inArray(tags.kind, [...VARIANT_KINDS])));
+    for (const row of rows) variantIds.set(row.slug, row.id);
+
+    const unknown = variantSlugs.filter((wantedSlug) => !variantIds.has(wantedSlug));
+    if (unknown.length > 0) {
+      return {
+        ok: false,
+        message: `Not a class or exam whose version a list can name: ${unknown.join(', ')}.`,
+      };
+    }
+  }
+
   const current = await db
-    .select({ drugId: drugTags.drugId })
+    .select({ drugId: drugTags.drugId, variantTagId: drugTags.variantTagId })
     .from(drugTags)
     .where(eq(drugTags.tagId, tag.id));
   const have = new Set(current.map((row) => row.drugId));
@@ -130,8 +166,25 @@ export async function setTagDrugs(
   if (toAdd.length > 0) {
     await db
       .insert(drugTags)
-      .values(toAdd.map((drugId) => ({ drugId, tagId: tag.id })))
+      .values(toAdd.map((drugId) => ({
+        drugId,
+        tagId: tag.id,
+        variantTagId: variantIds.get(chosen.get(drugId) ?? '') ?? null,
+      })))
       .onConflictDoNothing();
+  }
+
+  // The version a kept member is read as, where it changed. Done row by row
+  // because only the rows that moved should carry a new value, and because a
+  // bulk update would have to name every drug anyway.
+  for (const row of current) {
+    if (!want.has(row.drugId)) continue;
+    const next = variantIds.get(chosen.get(row.drugId) ?? '') ?? null;
+    if (next === row.variantTagId) continue;
+    await db
+      .update(drugTags)
+      .set({ variantTagId: next })
+      .where(and(eq(drugTags.tagId, tag.id), eq(drugTags.drugId, row.drugId)));
   }
   if (toRemove.length > 0) {
     await db.delete(drugTags).where(and(eq(drugTags.tagId, tag.id), inArray(drugTags.drugId, toRemove)));

@@ -15,9 +15,6 @@ export async function SiteHeader() {
 
   const items: NavItem[] = [
     { href: '/drugs', label: 'Drugs' },
-    // Beside Drugs rather than under Flashcards: it is the other body of
-    // material, not another way to study the same one.
-    { href: '/sets', label: 'Class sets' },
     { href: '/study/flashcards', label: 'Flashcards' },
     { href: '/study/quiz', label: 'Quiz' },
     { href: '/settings', label: 'Settings' },
@@ -37,24 +34,33 @@ export async function SiteHeader() {
           Narrow: back to a wrapping flex row, centred. Signed in as an admin
           this holds the wordmark, five pills, the avatar and Sign out, which
           does not fit on a phone -- and without a wrap it did not shrink, it
-          overflowed the page sideways. */}
+          overflowed the page sideways.
+
+          Sized so the wide layout clears a window at **half a 1366-wide
+          screen**, which is how this app is actually read: notes on one side,
+          the drug on the other. At full `.pill` sizing the row measured about
+          690px against the 683px it had, so it wrapped -- and a wrap here is
+          not a graceful degradation, it doubles the height of the chrome on
+          every page. The pills carry `.pill-nav`, the mark and the avatar are
+          28px rather than 32, and the gaps are a step tighter; together that
+          is about 75px, which is the difference between wrapping and not. */}
       <nav
-        className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-4 gap-y-2
-          px-4 py-3 sm:grid sm:grid-cols-[1fr_auto_1fr]"
+        className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-3 gap-y-2
+          px-4 py-2.5 sm:grid sm:grid-cols-[1fr_auto_1fr]"
       >
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <Link href="/" className="flex items-center gap-1.5 font-semibold tracking-tight">
           {/* Decorative, so alt is empty: the word beside it already says the
               name, and alt="Enkephalin" would have a screen reader read the
               wordmark twice. Width and height are set so the row does not
               shift as the image arrives.
 
-              8 rather than 6: at 24px the box read as a bullet beside the
-              word. 32px is as far as it goes without setting the bar's
-              height -- it matches the avatar at the other end, and the pills
-              between them are 30px tall. */}
+              7 rather than 6: at 24px the box read as a bullet beside the
+              word. It matches the avatar at the other end, and came down from
+              32px with the rest of the bar so the wide layout fits a half
+              screen. */}
           <img
             src="/enkephalin.webp" alt="" width={256} height={256}
-            className="mark h-8 w-8 shrink-0"
+            className="mark h-7 w-7 shrink-0"
           />
           {siteName}
         </Link>
@@ -65,7 +71,7 @@ export async function SiteHeader() {
 
             {/* The far end, and last in the source as well as on screen, so
                 tabbing reaches the destinations before the account. */}
-            <div className="flex items-center gap-3 sm:justify-self-end">
+            <div className="flex items-center gap-2 sm:justify-self-end">
               {/* The email used to sit here as text, which spent a third of
                   the bar saying something the reader already knows. The
                   circle is the same information when you want it -- it is the
@@ -87,13 +93,13 @@ export async function SiteHeader() {
                   hover:ring-2 hover:ring-[var(--btn-edge)]
                   focus-visible:ring-2 focus-visible:ring-[var(--btn-edge)]"
               >
-                <Avatar user={session.user} size={32} />
+                <Avatar user={session.user} size={28} />
               </Link>
               <SignOutButton />
             </div>
           </>
         ) : (
-          <Link href="/login" className="pill pill-edge sm:col-start-3 sm:justify-self-end">
+          <Link href="/login" className="pill pill-nav pill-edge sm:col-start-3 sm:justify-self-end">
             Sign in
           </Link>
         )}

@@ -337,6 +337,18 @@ export async function setDrugTags(slug: string, tagSlugs: string[], actorId: str
     return { ok: false, message: `Not a tag you can assign here: ${unknown.join(', ')}.` };
   }
 
+  // Which version each list already read this drug as, so ticking a box on the
+  // drug editor does not quietly reset a choice made in the list builder. This
+  // screen is about membership; the version a list means is that list's own
+  // business, and it is not on this form to be preserved from.
+  const kept = new Map(
+    (await db
+      .select({ tagId: drugTags.tagId, variantTagId: drugTags.variantTagId })
+      .from(drugTags)
+      .where(eq(drugTags.drugId, drug.id)))
+      .map((row) => [row.tagId, row.variantTagId] as const),
+  );
+
   await db.delete(drugTags).where(
     and(
       eq(drugTags.drugId, drug.id),
@@ -350,7 +362,11 @@ export async function setDrugTags(slug: string, tagSlugs: string[], actorId: str
   if (rows.length > 0) {
     await db
       .insert(drugTags)
-      .values(rows.map((row) => ({ drugId: drug.id, tagId: row.id })))
+      .values(rows.map((row) => ({
+        drugId: drug.id,
+        tagId: row.id,
+        variantTagId: kept.get(row.id) ?? null,
+      })))
       .onConflictDoNothing();
   }
 

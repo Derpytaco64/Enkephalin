@@ -19,7 +19,10 @@ import {
   type FieldValue,
 } from '@/db/schema';
 import { toSig } from '@/lib/dosing/sig';
-import type { CardSource } from './cards';
+import {
+  allVariantLayers, numberedVariantsByDrug, overlayFields, overriddenKeys,
+} from '@/lib/drugs/variants';
+import type { CardSource, CardVariant } from './cards';
 
 /**
  * Core fields wrapped in the same envelope as the stored ones, so the card
@@ -29,8 +32,41 @@ function sheetValue(value: string | null): FieldValue {
   return { value, status: 'ok', source: 'class sheet', updatedAt: '', updatedBy: null };
 }
 
-export async function loadCardSources(): Promise<CardSource[]> {
-  const [drugRows, brandRows, indicationRows, tagRows, regimenRows] = await Promise.all([
+/**
+ * @param variantSlugs Classes or exams whose own wording to study,
+ *   narrowest last.
+ * @param byMembership The version each drug is *on a list* as, per drug --
+ *   `membershipVariants`. Applied first, so it is the default a scoped class
+ *   can still override.
+ *
+ * Studying a class studies **that class's version** of each drug: its values
+ * where it has them, the drug's everywhere else. Passed in rather than read
+ * from the config here, because the scope's list dropdown holds every kind of
+ * tag and only the caller has already asked which of them can carry a variant.
+ *
+ * Two sources of "which version", and they are ordered rather than ranked
+ * against each other. A list can say *hold amoxicillin as the ID class words
+ * it*, which is a standing choice made when the list was built; a scope can
+ * say *study this as PHRM 535 teaches it*, which is a decision made just now.
+ * The standing choice goes on first and the deliberate one last, so the
+ * deliberate one wins -- for the same reason an exam beats the class it is in.
+ *
+ * It changes the *values*, never the card: `cardKey` is built from field keys,
+ * so a mechanism studied through two different classes is one card with one
+ * schedule. That is deliberate -- the alternative is a second kind of study
+ * subject, which this database had and dropped in migration 0013.
+ */
+export async function loadCardSources(
+  variantSlugs: string[] = [],
+  byMembership: Map<string, string[]> = new Map(),
+): Promise<CardSource[]> {
+  // Every layer the session might read: the ones the scope named, plus the
+  // ones individual lists named for individual drugs.
+  const layersWanted = [
+    ...new Set([...variantSlugs, ...[...byMembership.values()].flat()]),
+  ];
+  const [drugRows, brandRows, indicationRows, tagRows, regimenRows, variantLayers, numbered] =
+    await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db
       .select({ drugId: drugBrands.drugId, name: drugBrands.name })
@@ -56,6 +92,10 @@ export async function loadCardSources(): Promise<CardSource[]> {
     db
       .select().from(dosingRegimens)
       .orderBy(asc(dosingRegimens.alternative), asc(dosingRegimens.step)),
+    allVariantLayers(layersWanted),
+    // Every drug's versions, numbered the way the browse list and the list
+    // builder number them -- so V-2 on a card is the same V-2 everywhere else.
+    numberedVariantsByDrug(),
   ]);
 
   const indicationLabelByLink = new Map(indicationRows.map((row) => [row.linkId, row.label]));
@@ -129,9 +169,38 @@ export async function loadCardSources(): Promise<CardSource[]> {
   const indicationSlugsByDrug = group(indicationRows, 'slug');
   const tagsByDrug = group(tagRows, 'slug');
 
+  /**
+   * The layers that apply to one drug, in order, each with the version it is.
+   *
+   * One function so the overlay and the "whose words" record cannot disagree
+   * about either the set or the order -- a pill naming a class whose value did
+   * not win would be worse than no pill.
+   */
+  const layersFor = (drugId: string) =>
+    [...(byMembership.get(drugId) ?? []), ...variantSlugs].map((slug) => {
+      const found = (numbered.get(drugId) ?? []).find((entry) => entry.slug === slug);
+      return {
+        fields: variantLayers.get(drugId)?.get(slug) ?? {},
+        // Narrowed to the three things a card may show, rather than passed
+        // through whole: the kind and the override count are no business of a
+        // card, and this payload is sent to the browser for every card in the
+        // deck.
+        variant: found ? { n: found.n, label: found.label, slug: found.slug } : null,
+      };
+    });
+
   return drugRows.map((drug) => {
     const brands = brandsByDrug.get(drug.id) ?? [];
     const indicationLabels = indicationsByDrug.get(drug.id) ?? [];
+
+    // Who worded each field, in the order the layers apply -- so the last one
+    // to speak about a key is the one recorded, which is the one whose value
+    // the overlay above kept.
+    const wordedBy: Record<string, CardVariant> = {};
+    for (const layer of layersFor(drug.id)) {
+      if (!layer.variant) continue;
+      for (const key of overriddenKeys(layer.fields)) wordedBy[key] = layer.variant;
+    }
     const routeValue = drug.fields.route?.value ?? '';
 
     return {
@@ -148,8 +217,15 @@ export async function loadCardSources(): Promise<CardSource[]> {
       dosingSig: sigByDrug.get(drug.id) ?? null,
       dosingBranches: [...(branchesByDrug.get(drug.id)?.values() ?? [])],
       needsPairingReview: drug.needsPairingReview,
+      wordedBy,
       values: {
-        ...drug.fields,
+        // The variant layers first, so a class's own wording is what the card
+        // asks about. In the order the caller gave them, which is the order
+        // `variantSlugsAmong` sorted the tags in: course, then exam.
+        ...overlayFields(
+          drug.fields,
+          ...layersFor(drug.id).map(({ fields }) => fields),
+        ),
         generic: sheetValue(drug.genericName),
         brand: sheetValue(brands.join('\n') || null),
         indication: sheetValue(indicationLabels.join('\n') || null),

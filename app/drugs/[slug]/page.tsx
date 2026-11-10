@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Prose } from '@/app/_components/prose';
+import { VariantPicker } from './variant-picker';
 import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
@@ -104,11 +106,11 @@ function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefine
         </ul>
       );
     case 'markdown':
-      return (
-        <div className="space-y-2 leading-relaxed">
-          {formatted.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-        </div>
-      );
+      // The raw text rather than the formatter's paragraphs: a regimen arrives
+      // as a nested decision and `Prose` is the one reader that keeps the
+      // nesting. Everything else -- cards, search, bulk previews -- wants the
+      // flat paragraphs, which is why the formatter still produces them.
+      return <Prose text={value?.value ?? ''} />;
     case 'bool':
       return <p>{formatted.value ? 'Yes' : 'No'}</p>;
     case 'enum':
@@ -120,13 +122,27 @@ function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefine
   }
 }
 
-export default async function DrugProfilePage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function DrugProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ as?: string | string[] }>;
+}) {
+  const [{ slug }, search] = await Promise.all([params, searchParams]);
   const session = await requireUser();
-  const profile = await getDrugProfile(slug, session.user.id);
+
+  // One version at a time on a profile. Reading a drug *through* two classes at
+  // once is a question nobody asks -- you are revising for one of them. (A
+  // study session is the opposite case and does stack them: see
+  // `variantSlugsAmong`.)
+  const asked = Array.isArray(search.as) ? search.as[0] : search.as;
+  const profile = await getDrugProfile(slug, session.user.id, asked);
   if (!profile) notFound();
 
-  const { drug, brands, indications, tags, defs, siblings } = profile;
+  const {
+    drug, brands, indications, tags, defs, siblings, variants, variant, overridden,
+  } = profile;
   const isAdmin = session.user.role === 'admin';
 
   const { colorAxis: axis, paletteOverrides } = await getPreferences(session.user.id);
@@ -201,6 +217,40 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
           )}
         </div>
       </header>
+
+      {/* Which version of this profile to read, where there is more than one
+          to read. Shown only where the drug is tagged with a class or an exam
+          -- a dropdown holding one option called *The drug's own profile* is a
+          control that does nothing. */}
+      {variants.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <VariantPicker
+            slug={drug.slug}
+            variants={variants}
+            current={variant?.slug ?? null}
+          />
+          {isAdmin && variant !== null && (
+            <Link
+              href={`/drugs/${drug.slug}/variant/${encodeURIComponent(variant.slug)}`}
+              className="pill pill-xs pill-edge"
+            >
+              Edit what {variant.label} says
+            </Link>
+          )}
+        </div>
+      )}
+
+      {variant !== null && (
+        <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--muted)]">
+          Reading this drug as <span className="font-medium text-[var(--fg)]">{variant.label}</span>{' '}
+          teaches it.{' '}
+          {overridden.size === 0
+            ? 'It has nothing of its own recorded yet, so every value below is the drug’s own.'
+            : `${overridden.size} field${overridden.size === 1 ? '' : 's'} below ${
+              overridden.size === 1 ? 'is' : 'are'} its own wording; the rest are the drug’s.`}
+          {variant.note && <> {variant.note}</>}
+        </p>
+      )}
 
       {drug.needsPairingReview && (
         <p className="mt-4 rounded-xl border border-[var(--unverified)] bg-[var(--surface)] p-4 text-sm">
@@ -314,6 +364,16 @@ export default async function DrugProfilePage({ params }: { params: Promise<{ sl
                           {def.label}
                         </span>
                         {value && !def.isCore && <StatusMarker status={value.status} />}
+                        {/* Which layer this line came from, said where the
+                            provenance already is. Without it a class's version
+                            is indistinguishable from the drug's own, and the
+                            whole point of opening it is to see what the class
+                            says differently. */}
+                        {overridden.has(def.key) && (
+                          <span className="text-xs font-medium text-[var(--accent)]">
+                            {variant?.label}
+                          </span>
+                        )}
                         {value?.source && (
                           <span className="text-xs text-[var(--muted)]">from {value.source}</span>
                         )}

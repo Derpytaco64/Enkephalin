@@ -37,6 +37,7 @@ import {
   auditLog,
   brandIndications,
   drugBrands,
+  drugVariantValues,
   drugIndications,
   drugTags,
   drugs,
@@ -115,6 +116,23 @@ export type BackupDrug = {
   regimens: BackupRegimen[];
   /** Tag slugs, categories included -- the seeder will rebuild those anyway. */
   tags: string[];
+  /**
+   * What each of this drug's classes and exams says differently
+   * about it.
+   *
+   * Optional, so a file written before profile variants existed still restores.
+   * Keyed by the variant's tag slug, which is a natural key like everything
+   * else in this format -- and only the overridden fields are in it, because
+   * that is all the table holds.
+   */
+  variants?: BackupVariantLayer[];
+};
+
+export type BackupVariantLayer = {
+  /** The tag's slug: a class or an exam. */
+  variant: string;
+  fields: Record<string, FieldValue>;
+  note: string | null;
 };
 
 export type BackupFieldDef = {
@@ -288,7 +306,7 @@ function group<T extends { drugId: string }>(rows: T[]) {
 export async function exportBackup(): Promise<Backup> {
   const [
     drugRows, indicationRows, brandRows, linkRows, regimenRows,
-    tagRows, drugTagRows, defRows, settingsRows,
+    tagRows, drugTagRows, variantValueRows, defRows, settingsRows,
     userRows, prefRows, presetRows, cardRows, attemptRows, answerRows,
   ] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.slug)),
@@ -312,6 +330,18 @@ export async function exportBackup(): Promise<Backup> {
     db.select().from(tags).orderBy(asc(tags.slug)),
     db.select({ drugId: drugTags.drugId, slug: tags.slug })
       .from(drugTags).innerJoin(tags, eq(tags.id, drugTags.tagId)),
+    // A class's own wording for a drug. Hand-typed off a slide deck, so it
+    // is exactly the kind of content a backup is for -- nothing re-derives it.
+    db
+      .select({
+        drugId: drugVariantValues.drugId,
+        variant: tags.slug,
+        fields: drugVariantValues.fields,
+        note: drugVariantValues.note,
+      })
+      .from(drugVariantValues)
+      .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+      .orderBy(asc(tags.slug)),
     db.select().from(fieldDefs).orderBy(asc(fieldDefs.sortOrder)),
     db.select().from(siteSettings),
     db.select({ id: users.id, email: users.email }).from(users),
@@ -362,6 +392,7 @@ export async function exportBackup(): Promise<Backup> {
   const brandsByDrug = group(brandRows);
   const regimensByDrug = group(regimenRows);
   const tagsByDrug = group(drugTagRows);
+  const variantsByDrug = group(variantValueRows);
 
   const indicationsByBrand = new Map<string, string[]>();
   for (const link of linkRows) {
@@ -418,6 +449,11 @@ export async function exportBackup(): Promise<Backup> {
       source: regimen.source,
     })),
     tags: (tagsByDrug.get(drug.id) ?? []).map((row) => row.slug).sort(),
+    variants: (variantsByDrug.get(drug.id) ?? []).map((layer) => ({
+      variant: layer.variant,
+      fields: layer.fields,
+      note: layer.note,
+    })),
   }));
 
   const prefsByUser = new Map(prefRows.map((row) => [row.userId, row]));
@@ -447,9 +483,6 @@ export async function exportBackup(): Promise<Backup> {
           startedAt: attempt.startedAt!,
           finishedAt: attempt.finishedAt,
           answers: (answersByAttempt.get(attempt.id) ?? []).flatMap((answer) => {
-            // An answer about an imported set's item rather than a drug. Sets
-            // are not in this file yet -- see the sets plan.
-            if (!answer.drugId) return [];
             const drugSlug = slugById.get(answer.drugId);
             // An answer whose drug has been deleted has nothing to point at.
             // The attempt keeps its score, which is the number that mattered.
@@ -471,10 +504,6 @@ export async function exportBackup(): Promise<Backup> {
       cards: cardRows
         .filter((row) => row.userId === user.id)
         .flatMap((row) => {
-          // A card about an imported set's item rather than a drug. Sets are
-          // not in this file yet -- see the sets plan -- so their progress is
-          // skipped rather than written half-resolved.
-          if (!row.drugId) return [];
           const drugSlug = slugById.get(row.drugId);
           // A schedule whose drug is gone has nothing to attach to.
           if (!drugSlug) return [];
@@ -893,6 +922,31 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
       .filter((id): id is string => Boolean(id))
       .map((tagId) => ({ drugId, tagId }));
     if (links.length > 0) await db.insert(drugTags).values(links).onConflictDoNothing();
+
+    // What each class says differently, replaced wholesale like the regimens
+    // above: a layer is one statement about one drug, and merging two versions
+    // of it field by field would produce a profile neither file described.
+    //
+    // `variants` is absent in a file written before profile variants existed,
+    // and absent is not empty -- an older backup must not wipe layers typed
+    // since. An empty array *is* an instruction, and clears them.
+    if (drug.variants) {
+      await db.delete(drugVariantValues).where(eq(drugVariantValues.drugId, drugId));
+      const layers = drug.variants
+        .map((layer) => ({ layer, tagId: tagIdBySlug.get(layer.variant) }))
+        // A tag the file does not also carry: skipped rather than invented,
+        // the same rule the tag links above follow.
+        .filter((row): row is { layer: typeof row.layer; tagId: string } => Boolean(row.tagId))
+        .map((row) => ({
+          drugId,
+          tagId: row.tagId,
+          fields: row.layer.fields,
+          note: row.layer.note,
+        }));
+      if (layers.length > 0) {
+        await db.insert(drugVariantValues).values(layers).onConflictDoNothing();
+      }
+    }
   }
 
   if (backup.siteSettings) {

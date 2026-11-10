@@ -54,9 +54,8 @@ export const FLOOR = 0.5;
 /**
  * One answer, as the history query returns it: newest first.
  *
- * `subjectId` rather than `drugId`: a subject is a drug or an imported set's
- * item, and nothing about weighting cares which. This file is pure arithmetic
- * over a history and is the right place for the distinction to already be gone.
+ * `subjectId` rather than `drugId`: this file is pure arithmetic over a
+ * history and does not need to know what the id names.
  */
 export type AnsweredRow = {
   subjectId: string;

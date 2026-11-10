@@ -1,0 +1,586 @@
+/**
+ * A class's or an exam's own version of a drug profile.
+ *
+ * **A layer, not a copy**, and that is the whole design. A class teaches
+ * levothyroxine too, says mostly the same facts about it, and sources them from
+ * its own slides. So a variant stores only the fields it says differently and
+ * everything else falls through to `drugs.fields` -- which means a correction
+ * to the base profile improves every variant's view of it, where a copy would
+ * mean the same correction made twice and the second one forgotten.
+ *
+ * **A variant is a tag that already exists.** Membership is `drug_tags`, the
+ * browse filter already groups by tag kind, and the study scope's list dropdown
+ * already offers every non-system tag. So this file is the only new idea:
+ * per-variant values, and the rule for reading them.
+ *
+ * Two kinds of tag can carry one -- `course` and `exam` -- because that
+ * is how the material is addressed: *PHRM 535*, *Heme and Onc Exam 3*,
+ * *Melanoma*. They stack in that order, widest first, so the narrowest scope
+ * wins: an exam's wording for a drug beats the
+ * course's. That is the one thing about the order worth saying out loud, and
+ * `VARIANT_KINDS` is where it is said.
+ *
+ * Core fields are deliberately not overridable -- see `overridable` below.
+ */
+import { and, asc, eq, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
+import { db } from '@/db';
+import { drugVariantValues, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
+import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
+import { KIND_RANK, VARIANT_KINDS, type VariantKind } from './variant-kinds';
+
+export * from './variant-kinds';
+
+export type VariantLayer = {
+  tagId: string;
+  slug: string;
+  label: string;
+  kind: VariantKind;
+  fields: Record<string, FieldValue>;
+  note: string | null;
+  updatedAt: Date;
+};
+
+/** A variant a drug is in, and whether it says anything of its own. */
+export type VariantOption = {
+  tagId: string;
+  slug: string;
+  label: string;
+  kind: VariantKind;
+  /** How many fields it overrides. 0 means the drug is merely tagged with it. */
+  overrides: number;
+};
+
+export type Result =
+  | { ok: true }
+  | { ok: false; message: string };
+
+/** A save says how much this variant now holds of its own. */
+export type SaveResult =
+  | { ok: true; overrides: number }
+  | { ok: false; message: string };
+
+// `isCore`, not every entry: `CORE_FIELD_DEFS` is the whole sheet field set --
+// mechanism, dosing, the black box warning -- and only five of its rows are
+// backed by their own column. Reading it as "all of these are core" is a quiet
+// way to make every field unoverridable, which is what it did once.
+const CORE_KEYS = new Set(
+  CORE_FIELD_DEFS.filter((def) => def.isCore).map((def) => def.key),
+);
+
+/**
+ * Whether a field can carry a variant's own value.
+ *
+ * The core fields cannot, and not as an omission: `generic`, `brand`,
+ * `indication`, `drug_class` and `controlled` are columns and link rows rather
+ * than entries in `drugs.fields`, and a class claiming a different generic
+ * name is not a variation of a drug, it is a different drug. Brands and
+ * indications are entities with their own tables and their own pairing rules,
+ * so a class wanting to differ on those is a bigger change than this one and
+ * deliberately out of it.
+ */
+export function overridable(key: string): boolean {
+  return !CORE_KEYS.has(key);
+}
+
+/**
+ * The reading rule, and the only piece of this worth testing on its own.
+ *
+ * Per **key**, not per drug: an absent key is not a blank, it is *the same as
+ * the drug's*. Layers apply in the order given, so the last one wins -- which is
+ * `VARIANT_KINDS` order, narrowest last, written down rather than left to
+ * Object.assign's accident.
+ */
+export function overlayFields(
+  base: Record<string, FieldValue>,
+  ...layers: Record<string, FieldValue>[]
+): Record<string, FieldValue> {
+  const merged = { ...base };
+
+  for (const layer of layers) {
+    for (const [key, value] of Object.entries(layer)) {
+      // A layer may only speak about fields that can be overridden, and may
+      // only speak about a key at all if it has something to say: an empty
+      // value in a layer would otherwise *erase* the base value, which is not
+      // what "this class does not mention it" means.
+      if (!overridable(key)) continue;
+      if (value.value === null && value.status !== 'none') continue;
+      merged[key] = value;
+    }
+  }
+
+  return merged;
+}
+
+/** Which of these keys the layer actually speaks about, for the UI's count. */
+export function overriddenKeys(layer: Record<string, FieldValue>): string[] {
+  return Object.keys(layer).filter(
+    (key) => overridable(key)
+      && (layer[key].value !== null || layer[key].status === 'none'),
+  );
+}
+
+/* ----------------------------------------------------------------- read ---- */
+
+/** The SQL fragment for "a tag that can carry a variant". */
+const isVariantTag = inArray(tags.kind, [...VARIANT_KINDS]);
+
+/** Course, then exam; alphabetical inside a kind. */
+function byOverlayOrder<T extends { kind: string; label: string }>(a: T, b: T): number {
+  const rank = (KIND_RANK.get(a.kind) ?? 9) - (KIND_RANK.get(b.kind) ?? 9);
+  return rank !== 0 ? rank : a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+}
+
+/** Every variant this drug is tagged with, in overlay order, with its count. */
+export async function variantOptionsFor(drugId: string): Promise<VariantOption[]> {
+  const [member, layers] = await Promise.all([
+    db
+      .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
+      .from(drugTags)
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .where(and(eq(drugTags.drugId, drugId), isVariantTag)),
+    db
+      .select({ tagId: drugVariantValues.tagId, fields: drugVariantValues.fields })
+      .from(drugVariantValues)
+      .where(eq(drugVariantValues.drugId, drugId)),
+  ]);
+
+  const countByTag = new Map(
+    layers.map((layer) => [layer.tagId, overriddenKeys(layer.fields).length]),
+  );
+
+  return member
+    .map((variant) => ({
+      ...variant,
+      kind: variant.kind as VariantKind,
+      overrides: countByTag.get(variant.tagId) ?? 0,
+    }))
+    .sort(byOverlayOrder);
+}
+
+/**
+ * One variant's layer for one drug, or null.
+ *
+ * Returns null for a tag the drug does not carry as well as for one that has
+ * nothing stored: a layer on a drug that has since left the class is not a
+ * profile anybody asked to see, and quietly showing it would make the picker on
+ * the profile disagree with the tag filter in the browser.
+ */
+export async function variantLayerFor(
+  drugId: string,
+  variantSlug: string,
+): Promise<VariantLayer | null> {
+  const [variant] = await db
+    .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
+    .from(drugTags)
+    .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .where(and(
+      eq(drugTags.drugId, drugId),
+      eq(tags.slug, variantSlug),
+      isVariantTag,
+    ));
+
+  if (!variant) return null;
+
+  const [stored] = await db
+    .select()
+    .from(drugVariantValues)
+    .where(and(eq(drugVariantValues.drugId, drugId), eq(drugVariantValues.tagId, variant.tagId)));
+
+  return {
+    tagId: variant.tagId,
+    slug: variant.slug,
+    label: variant.label,
+    kind: variant.kind as VariantKind,
+    fields: stored?.fields ?? {},
+    note: stored?.note ?? null,
+    updatedAt: stored?.updatedAt ?? new Date(0),
+  };
+}
+
+/**
+ * Every variant layer for every drug, keyed `drugId` then tag slug.
+ *
+ * One query for the whole table, because the caller is the study loader: it
+ * reads all 236 drugs at once, and 236 round trips to decide whose mechanism
+ * came from which slide deck would be the one slow thing in a session.
+ */
+export async function allVariantLayers(
+  variantSlugs: string[],
+): Promise<Map<string, Map<string, Record<string, FieldValue>>>> {
+  const wanted = variantSlugs.filter(Boolean);
+  if (wanted.length === 0) return new Map();
+
+  const rows = await db
+    .select({
+      drugId: drugVariantValues.drugId,
+      slug: tags.slug,
+      fields: drugVariantValues.fields,
+    })
+    .from(drugVariantValues)
+    .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+    .where(and(isVariantTag, inArray(tags.slug, wanted)));
+
+  const byDrug = new Map<string, Map<string, Record<string, FieldValue>>>();
+  for (const row of rows) {
+    const held = byDrug.get(row.drugId) ?? new Map();
+    byDrug.set(row.drugId, held);
+    held.set(row.slug, row.fields);
+  }
+
+  return byDrug;
+}
+
+/**
+ * Which of these tag slugs can carry a variant, **in overlay order**.
+ *
+ * The order is the point of the function. A session scoped to both a class and
+ * one of its exams reads them in that order, so the exam's wording wins -- and
+ * it wins for the same reason on every screen, because every caller asks this.
+ */
+export async function variantSlugsAmong(slugs: string[]): Promise<string[]> {
+  const wanted = slugs.filter(Boolean);
+  if (wanted.length === 0) return [];
+
+  const rows = await db
+    .select({ slug: tags.slug, label: tags.label, kind: tags.kind })
+    .from(tags)
+    .where(and(isVariantTag, inArray(tags.slug, wanted)));
+
+  return rows.sort(byOverlayOrder).map((row) => row.slug);
+}
+
+/**
+ * Every drug's variants that actually say something, numbered **V-1, V-2** in
+ * overlay order.
+ *
+ * The number is an identifier a person can use. A drug's versions have no
+ * names of their own -- they are named after the classes that wrote them, and
+ * *amoxicillin as Infectious Disease words it* does not fit on a row -- so the
+ * browse list shows the count as `V-3` and the list builder offers
+ * *amoxicillin [V-2] Infectious Disease*. Same set, same order, so V-2 means
+ * the same thing in both places.
+ *
+ * Only variants with stored values are counted, which is why this reads the
+ * layer table rather than membership: a class that says nothing of its own is
+ * not another version of the drug, and offering it would be offering a choice
+ * that changes nothing.
+ */
+export type NumberedVariant = {
+  slug: string;
+  label: string;
+  kind: VariantKind;
+  /** 1-based, in overlay order: the `n` in V-n. */
+  n: number;
+  /** How many fields this version words its own way. */
+  overrides: number;
+};
+
+export async function numberedVariantsByDrug(): Promise<Map<string, NumberedVariant[]>> {
+  const rows = await db
+    .select({
+      drugId: drugVariantValues.drugId,
+      slug: tags.slug,
+      label: tags.label,
+      kind: tags.kind,
+      fields: drugVariantValues.fields,
+    })
+    .from(drugVariantValues)
+    .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+    .where(isVariantTag);
+
+  const byDrug = new Map<string, NumberedVariant[]>();
+  for (const row of rows) {
+    const list = byDrug.get(row.drugId) ?? [];
+    list.push({
+      slug: row.slug,
+      label: row.label,
+      kind: row.kind as VariantKind,
+      n: 0,
+      overrides: overriddenKeys(row.fields).length,
+    });
+    byDrug.set(row.drugId, list);
+  }
+
+  // Numbered after sorting, never before: V-2 is "the second of this drug's
+  // versions in overlay order", so it has to survive a new class being added
+  // above it -- which it does, by being recomputed rather than stored.
+  for (const list of byDrug.values()) {
+    list.sort(byOverlayOrder);
+    list.forEach((variant, at) => { variant.n = at + 1; });
+  }
+
+  return byDrug;
+}
+
+/**
+ * The version each drug is **on a list as**, for the lists in scope.
+ *
+ * A list can name which wording it means -- see `drug_tags.variant_tag_id` --
+ * and this is how a study session honours it. Returned per drug rather than as
+ * one list of slugs, because the whole point is that it differs by drug: a
+ * top-200 list might hold amoxicillin as the ID class words it and warfarin as
+ * the drug's own.
+ *
+ * Only the tags actually in scope are read, so a choice recorded on a list you
+ * are not studying has no effect on anything.
+ */
+export async function membershipVariants(tagSlugs: string[]): Promise<Map<string, string[]>> {
+  const wanted = tagSlugs.filter(Boolean);
+  if (wanted.length === 0) return new Map();
+
+  const listTag = alias(tags, 'list_tag');
+  const variantTag = alias(tags, 'variant_tag');
+
+  const rows = await db
+    .select({
+      drugId: drugTags.drugId,
+      list: listTag.slug,
+      slug: variantTag.slug,
+      label: variantTag.label,
+      kind: variantTag.kind,
+    })
+    .from(drugTags)
+    .innerJoin(listTag, eq(listTag.id, drugTags.tagId))
+    .innerJoin(variantTag, eq(variantTag.id, drugTags.variantTagId))
+    .where(and(inArray(listTag.slug, wanted), inArray(variantTag.kind, [...VARIANT_KINDS])));
+
+  const byDrug = new Map<string, string[]>();
+  for (const row of rows.sort(byOverlayOrder)) {
+    const list = byDrug.get(row.drugId) ?? [];
+    // Deduplicated: two lists in scope can name the same version, and applying
+    // a layer twice is the same as applying it once but reads as a bug.
+    if (!list.includes(row.slug)) list.push(row.slug);
+    byDrug.set(row.drugId, list);
+  }
+
+  return byDrug;
+}
+
+/* ---------------------------------------------------------------- write ---- */
+
+/**
+ * Writes one variant's whole layer for one drug.
+ *
+ * The whole layer rather than one field at a time, because the screen is one
+ * form over every field: you read down the class's slides once and type what
+ * it says differently. **An empty box clears the override** rather than storing
+ * a blank -- it means *this variant says what the drug says*, which is the only
+ * reading that makes the fall-through work.
+ *
+ * A value whose text has not changed keeps its old envelope, so `updatedAt`
+ * goes on meaning *when this changed* rather than *when the form was last
+ * submitted*.
+ */
+export async function saveVariantLayer(input: {
+  drugSlug: string;
+  variantSlug: string;
+  /** Field key to the text this variant gives it. Empty text clears it. */
+  values: Record<string, string>;
+  /** Where this variant's version comes from. Defaults to the tag's label. */
+  source: string;
+  note: string;
+  userId: string;
+}): Promise<SaveResult> {
+  const [drug] = await db
+    .select({ id: drugs.id })
+    .from(drugs)
+    .where(eq(drugs.slug, input.drugSlug));
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const [variant] = await db
+    .select({ tagId: tags.id, label: tags.label })
+    .from(drugTags)
+    .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .where(and(
+      eq(drugTags.drugId, drug.id),
+      eq(tags.slug, input.variantSlug),
+      isVariantTag,
+    ));
+
+  // Not tagged with it, or the tag is not one that can carry a variant. One
+  // message, because both mean the same thing to whoever is looking at the
+  // screen: this drug has no such version to differ in.
+  if (!variant) {
+    return {
+      ok: false,
+      message: `This drug is not in a class or exam called "${input.variantSlug}". `
+        + 'Tag it first, in the drug editor.',
+    };
+  }
+
+  const [stored] = await db
+    .select()
+    .from(drugVariantValues)
+    .where(and(eq(drugVariantValues.drugId, drug.id), eq(drugVariantValues.tagId, variant.tagId)));
+
+  const held = stored?.fields ?? {};
+  const source = input.source.trim() || variant.label;
+  const note = input.note.trim() || null;
+  const now = new Date().toISOString();
+
+  const fields: Record<string, FieldValue> = {};
+  const refused: string[] = [];
+
+  for (const [key, raw] of Object.entries(input.values)) {
+    if (!overridable(key)) {
+      refused.push(key);
+      continue;
+    }
+    const text = raw.trim();
+    if (text === '') continue;
+
+    const before = held[key];
+    fields[key] = before && before.value === text && before.source === source
+      ? before
+      : { value: text, status: 'ok', source, updatedAt: now, updatedBy: input.userId };
+  }
+
+  // A core field in the payload is a bug in the form rather than a typo in a
+  // box, so it refuses the save instead of quietly dropping one field.
+  if (refused.length > 0) {
+    return {
+      ok: false,
+      message: `${refused.join(', ')} ${refused.length === 1 ? 'is a core field' : 'are core fields'}`
+        + ' — they live in their own columns, and a class saying something different about one'
+        + ' would be a different drug rather than a variation. Nothing was saved.',
+    };
+  }
+
+  const count = Object.keys(fields).length;
+
+  // Nothing of its own and nothing to say about why: the row goes, so the
+  // picker stops offering a version that holds nothing.
+  if (count === 0 && note === null) {
+    if (stored) {
+      await db
+        .delete(drugVariantValues)
+        .where(and(
+          eq(drugVariantValues.drugId, drug.id),
+          eq(drugVariantValues.tagId, variant.tagId),
+        ));
+    }
+    return { ok: true, overrides: 0 };
+  }
+
+  if (stored) {
+    await db
+      .update(drugVariantValues)
+      .set({ fields, note, updatedAt: new Date(), updatedBy: input.userId })
+      .where(and(eq(drugVariantValues.drugId, drug.id), eq(drugVariantValues.tagId, variant.tagId)));
+  } else {
+    await db.insert(drugVariantValues).values({
+      drugId: drug.id,
+      tagId: variant.tagId,
+      fields,
+      note,
+      updatedBy: input.userId,
+    });
+  }
+
+  return { ok: true, overrides: count };
+}
+
+/** The whole layer goes: this variant says nothing of its own after all. */
+export async function clearVariantLayer(input: {
+  drugSlug: string;
+  variantSlug: string;
+}): Promise<Result> {
+  const [drug] = await db
+    .select({ id: drugs.id })
+    .from(drugs)
+    .where(eq(drugs.slug, input.drugSlug));
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  const [variant] = await db
+    .select({ id: tags.id })
+    .from(tags)
+    .where(and(eq(tags.slug, input.variantSlug), isVariantTag));
+  if (!variant) {
+    return { ok: false, message: `No class or exam called "${input.variantSlug}".` };
+  }
+
+  await db
+    .delete(drugVariantValues)
+    .where(and(eq(drugVariantValues.drugId, drug.id), eq(drugVariantValues.tagId, variant.id)));
+
+  return { ok: true };
+}
+
+/**
+ * Merges a few fields into a variant's layer, leaving the rest alone.
+ *
+ * The form above writes the **whole** layer, because it shows every field at
+ * once and a box left empty there means *clear it*. An import is the opposite
+ * shape: one lecture speaks about three fields and says nothing at all about
+ * the others, so the same call would silently wipe whatever another lecture
+ * had put there. Hence two writers, and the difference between them is exactly
+ * the difference between a form and a patch.
+ *
+ * Core keys are refused the same way, and for the same reason.
+ */
+export async function patchVariantLayer(input: {
+  drugId: string;
+  variantSlug: string;
+  /** Only the keys this caller means to set. Absent keys are left as they are. */
+  values: Record<string, FieldValue>;
+  /** Replaces the layer's note when given. */
+  note?: string | null;
+  userId: string;
+}): Promise<SaveResult> {
+  const [variant] = await db
+    .select({ tagId: tags.id })
+    .from(drugTags)
+    .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .where(and(
+      eq(drugTags.drugId, input.drugId),
+      eq(tags.slug, input.variantSlug),
+      isVariantTag,
+    ));
+
+  if (!variant) {
+    return {
+      ok: false,
+      message: `This drug is not in a class or exam called "${input.variantSlug}".`,
+    };
+  }
+
+  const refused = Object.keys(input.values).filter((key) => !overridable(key));
+  if (refused.length > 0) {
+    return {
+      ok: false,
+      message: `${refused.join(', ')} cannot be overridden: core fields live in their own columns.`,
+    };
+  }
+
+  const [stored] = await db
+    .select()
+    .from(drugVariantValues)
+    .where(and(
+      eq(drugVariantValues.drugId, input.drugId),
+      eq(drugVariantValues.tagId, variant.tagId),
+    ));
+
+  const fields = { ...(stored?.fields ?? {}), ...input.values };
+  const note = input.note === undefined ? stored?.note ?? null : input.note;
+
+  if (stored) {
+    await db
+      .update(drugVariantValues)
+      .set({ fields, note, updatedAt: new Date(), updatedBy: input.userId })
+      .where(and(
+        eq(drugVariantValues.drugId, input.drugId),
+        eq(drugVariantValues.tagId, variant.tagId),
+      ));
+  } else {
+    await db.insert(drugVariantValues).values({
+      drugId: input.drugId,
+      tagId: variant.tagId,
+      fields,
+      note,
+      updatedBy: input.userId,
+    });
+  }
+
+  return { ok: true, overrides: overriddenKeys(fields).length };
+}

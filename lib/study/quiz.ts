@@ -22,7 +22,9 @@ import type { FieldValue } from '@/db/schema';
 import { indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
-import { answerText, DRUG_SUBJECT, inScope, type CardSource, type StudySubject } from './cards';
+import {
+  answerText, DRUG_SUBJECT, inScope, type CardSource, type CardVariant, type StudySubject,
+} from './cards';
 import type { StudyConfig, StudyDirection } from './config';
 import { weightOf, type QuestionWeights } from './priority';
 
@@ -45,6 +47,15 @@ export type QuizQuestion = {
    * wrong option -- it is not wrong.
    */
   acceptable: string[];
+  /**
+   * The version this question's field is worded by, where one is.
+   *
+   * One rather than a list: a question asks about exactly one field, so there
+   * is at most one class whose wording is in play. Shown as a pill on the
+   * question and on the review -- never with the drug's name in it, because
+   * asked the other way round the drug *is* the answer.
+   */
+  variant: CardVariant | null;
   /** Which drug each option came from, for the review screen. */
   fromSlug: (string | null)[];
   /** That drug's name, so a wrong answer can be told what it belongs to. */
@@ -77,10 +88,7 @@ export type QuizQuestion = {
 };
 
 /** The drug's own name is the stimulus or the answer, never a thing asked about. */
-// The drug section's subject, which is the default. See `StudySubject` in
-// cards.ts: the engine reads what sort of thing it is teaching rather than
-// assuming, so a set of hormones asks "Which hormone?".
-const DEFAULT_SUBJECT = DRUG_SUBJECT;
+const SUBJECT = DRUG_SUBJECT;
 
 /** The line break inside a bundled option, spelled so no tool can eat it. */
 const NEWLINE = String.fromCharCode(10);
@@ -213,8 +221,6 @@ export type QuizOptions = {
   optionCount?: number;
   /** Defaults to the config's own direction. */
   direction?: QuizDirection;
-  /** What sort of thing is being asked about. Defaults to drugs. */
-  subject?: StudySubject;
 };
 
 /**
@@ -287,7 +293,7 @@ export function buildQuiz(
   const rng = options.rng ?? Math.random;
   const optionCount = options.optionCount ?? 4;
   const direction = options.direction ?? config.direction;
-  const subject = options.subject ?? DEFAULT_SUBJECT;
+  const subject = SUBJECT;
 
   const byKey = new Map(defs.map((def) => [def.key, def]));
   const selected = config.fields
@@ -506,6 +512,7 @@ function factQuestion(
     questionKey: `drug_to_fields:${def.key}${branch}`,
     fieldKey: def.key,
     fieldLabel: def.label,
+    variant: asked.wordedBy?.[def.key] ?? null,
     direction: 'drug_to_fields',
     prompt: qualify(
       def.promptTemplate
@@ -594,6 +601,7 @@ function nameQuestion(
     questionKey: `fields_to_drug:${def.key}${branch}`,
     fieldKey: def.key,
     fieldLabel: def.label,
+    variant: asked.wordedBy?.[def.key] ?? null,
     direction: 'fields_to_drug',
     prompt: `${asking}\n\n${def.label}: ${clue}`,
     options: laid.map((option) => option.text),

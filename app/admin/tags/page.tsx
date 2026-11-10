@@ -12,7 +12,11 @@ export const dynamic = 'force-dynamic';
 const KIND_LABELS: Record<string, string> = {
   top_list: 'Drug list',
   school_year: 'Year',
-  course: 'Course',
+  course: 'Class',
+  exam: 'Exam',
+  // Still labelled, though nothing offers the kind any more: a tag made while
+  // it was on offer should read as what it is rather than as a raw enum value.
+  topic: 'Topic',
   system: 'Category',
   custom: 'Custom',
 };

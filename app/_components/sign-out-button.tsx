@@ -15,7 +15,7 @@ export function SignOutButton() {
       // hover used to lift the edge to `--accent`, which the seasons never
       // move -- `.pill-edge` takes it to `--btn-edge` instead, so it warms
       // with the rest of the bar.
-      className="pill pill-edge"
+      className="pill pill-nav pill-edge"
     >
       Sign out
     </button>

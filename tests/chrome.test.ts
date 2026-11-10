@@ -162,7 +162,11 @@ describe('the pill that says where you are', () => {
   it('is drawn from the shared pill rather than its own utilities', () => {
     // One definition. Two would drift, and the bar is the one place where the
     // pill's states are all visible at once.
-    expect(NAV).toContain("className={`pill ${here ? 'pill-on' : 'pill-soft'}`}");
+    //
+    // `.pill-nav` is the bar's own size on top of that shared shape -- a notch
+    // smaller, and the reason the wide layout fits a window at half of a
+    // 1366-wide screen without the pill row wrapping to a second line.
+    expect(NAV).toContain("className={`pill pill-nav ${here ? 'pill-on' : 'pill-soft'}`}");
     expect(NAV).not.toContain('bg-[var(--');
   });
 
@@ -312,16 +316,19 @@ describe('the pill, for everything that is not a button', () => {
       'app/admin/flagged/page.tsx': 'the drug named in each flagged value',
       'app/admin/pairing/page.tsx': 'the drug named above each brand grid',
 
-      // The set section, where the accent marks the thing itself: a set's own
-      // name in a list, and the two links that start studying it. The links
-      // are the page's whole purpose rather than chrome around it, which is
-      // the same argument the drug browser already won.
-      'app/sets/page.tsx': 'each set named, and the links that start it',
-      'app/sets/_components/tree.tsx': 'each node and set named in the deck tree',
-      'app/sets/_components/deck-view.tsx': 'the deck named in the crumb, and the links that start it',
-      'app/sets/_components/quiz-view.tsx': 'the crumb back to the deck, and the flashcard offer',
-      'app/admin/sets/set-list.tsx': 'each imported set named in the list, and its two study links',
-      'app/admin/sets/import-form.tsx': 'the set just imported, named, and the links that start it',
+      // Which layer a value came from, which is the one thing a profile
+      // variant exists to show: the drug's own wording and a class's read
+      // identically otherwise, so the class's name beside a field is the
+      // mark that answers "is this the bit my class says differently".
+      'app/drugs/[slug]/page.tsx': 'the class named beside each value it supplies',
+      'app/drugs/[slug]/variant/[variant]/variant-form.tsx':
+        'the rows this class has its own wording for',
+
+      // An import preview, where accent marks the three things that are new
+      // rather than changed: a drug the app has never held, a tag about to be
+      // created, a field about to be declared. The row's own words are the
+      // information; the colour says "this one did not exist".
+      'app/admin/import/import-form.tsx': 'what this file would create rather than change',
 
       // Not text at all, and not a button: the initials circle, where a
       // filled accent reads as an identity chip. Pinned again below.

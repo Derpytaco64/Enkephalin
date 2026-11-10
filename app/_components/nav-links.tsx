@@ -21,6 +21,11 @@ import type { Route } from 'next';
  * -- so the pill now takes the season with it, and `--fg` on it measures 11:1
  * at worst across both themes and all four tints (tests/seasons.test.ts).
  *
+ * `.pill-nav` is the bar's own size, a notch smaller than a pill elsewhere:
+ * five of these at full size plus the wordmark and the account end did not fit
+ * a window at half of a 1366-wide screen, and the row's fallback is to wrap,
+ * which doubles the height of the chrome on every page.
+ *
  * The shape itself lives in `globals.css` as `.pill`, which this used to own
  * privately and now shares with every other target in the app -- a back link,
  * a tag, a saved setup, the colour-axis switcher. `.pill-soft` is what keeps
@@ -50,7 +55,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             key={item.href}
             href={item.href}
             aria-current={here ? 'page' : undefined}
-            className={`pill ${here ? 'pill-on' : 'pill-soft'}`}
+            className={`pill pill-nav ${here ? 'pill-on' : 'pill-soft'}`}
           >
             {item.label}
           </Link>

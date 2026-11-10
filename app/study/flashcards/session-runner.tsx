@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import {
-  type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState,
+  type CSSProperties, useCallback, useEffect, useMemo, useState,
 } from 'react';
 import type { StudyCardSpec } from '@/lib/study/cards';
+import { VariantPills } from '../_components/variant-pills';
 import { sessionRules, type StudyConfig } from '@/lib/study/config';
 import {
   blockProgress,
@@ -53,28 +54,12 @@ export function SessionRunner({
   config,
   inScope,
   available,
-  onGrade = gradeCardAction,
-  emptyHint,
 }: {
   cards: StudyCardSpec[];
   config: StudyConfig;
   inScope: number;
   /** What the scope offered after the due filter, before the session cap. */
   available: number;
-  /**
-   * Where a grade is written. Defaults to the drug action; an imported set
-   * passes its own, because the id on a card looks the same either way and
-   * only the server knows which column it belongs in.
-   */
-  onGrade?: (input: {
-    drugId: string;
-    cardKey: string;
-    fieldKeys: string[];
-    grade: Grade;
-    config: StudyConfig;
-  }) => Promise<void>;
-  /** What to say when the deck is empty, where the drug wording would be wrong. */
-  emptyHint?: ReactNode;
 }) {
   const byId = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const [session, setSession] = useState(() => createSession(cards.map((card) => card.id), config.blockSize));
@@ -92,7 +77,7 @@ export function SessionRunner({
 
       // Fire and forget: the queue should not stall on a round-trip, and a
       // failed write is a lost grade rather than a lost session.
-      void onGrade({
+      void gradeCardAction({
         drugId: card.drugId,
         cardKey: card.cardKey,
         fieldKeys: card.fieldKeys,
@@ -103,7 +88,7 @@ export function SessionRunner({
       setRevealed(false);
       setSession((current) => gradeSession(current, grade));
     },
-    [card, config, onGrade],
+    [card, config],
   );
 
   // Space flips, 1-4 grade: on a laptop the whole session should be keyboard.
@@ -136,8 +121,7 @@ export function SessionRunner({
         <p className="font-medium">Nothing to study.</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           {inScope === 0
-            ? emptyHint
-              ?? 'No cards match this scope. Try picking more fields, or widening the class and tag filters.'
+            ? 'No cards match this scope. Try picking more fields, or widening the class and tag filters.'
             : `All ${inScope} cards in scope are scheduled for later. Switch to cram to go through them anyway.`}
         </p>
       </div>
@@ -174,13 +158,24 @@ export function SessionRunner({
       </div>
 
       <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-        <p className="whitespace-pre-line text-lg">{card.prompt}</p>
+        {/* Above the question, because it changes what the question means:
+            *what is the mechanism* and *what does PHRM 535 say the mechanism
+            is* have different right answers. */}
+        <VariantPills variants={card.variants} />
+        <p className="mt-2 whitespace-pre-line text-lg">{card.prompt}</p>
 
         {revealed ? (
           <dl className="mt-6 space-y-4 border-t border-[var(--border)] pt-4">
             {card.faces.map((face) => (
               <div key={face.key}>
-                <dt className="text-xs uppercase tracking-wide text-[var(--muted)]">{face.label}</dt>
+                <dt className="flex flex-wrap items-baseline gap-2 text-xs uppercase tracking-wide
+                  text-[var(--muted)]">
+                  {face.label}
+                  {/* Again on the answer: this is whose words these are, and
+                      the reveal is where somebody decides whether they got it
+                      right. */}
+                  <span className="normal-case"><VariantPills variants={card.variants} /></span>
+                </dt>
                 <dd className="mt-1 whitespace-pre-line">{face.text}</dd>
               </div>
             ))}

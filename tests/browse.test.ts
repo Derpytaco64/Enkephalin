@@ -159,14 +159,15 @@ describe('getDrugIndex', () => {
     expect(facets.tags.map((tag) => tag.slug)).toEqual(['top-drugs-2026']);
     // Only the stored fields can be missing, so core fields stay out of the
     // missing-field filter.
-    expect(facets.fields.map((field) => field.key)).toEqual(['route', 'dosing', 'moa', 'bbw']);
+    expect(facets.fields.map((field) => field.key))
+      .toEqual(['route', 'dosing', 'regimen', 'moa', 'bbw']);
   });
 
   it('leaves a soft-deleted field out of the facets and the gap count', async () => {
     await db.update(fieldDefs).set({ deletedAt: new Date() }).where(eq(fieldDefs.key, 'moa'));
 
     const { rows, facets } = await getDrugIndex();
-    expect(facets.fields.map((field) => field.key)).toEqual(['route', 'dosing', 'bbw']);
+    expect(facets.fields.map((field) => field.key)).toEqual(['route', 'dosing', 'regimen', 'bbw']);
     expect(rows.find((row) => row.slug === 'lisinopril')!.missing).toEqual([]);
   });
 

@@ -31,7 +31,27 @@ export async function saveTagMembersAction(formData: FormData): Promise<Result> 
   const renamed = await renameTag(slug, text(formData, 'label'), session.user.id);
   if (!renamed.ok) return renamed;
 
-  const result = await setTagDrugs(slug, formData.getAll('drug').map(String), session.user.id);
+  // "<drugId>:<variantSlug>" pairs, one per ticked drug that has versions to
+  // choose from; an empty slug means the drug's own profile. Paired rather
+  // than two parallel lists, so a drug filtered out of view between render and
+  // submit cannot shift every choice by one.
+  const readAs = new Map<string, string | null>();
+  for (const entry of formData.getAll('read_as').map(String)) {
+    const at = entry.indexOf(':');
+    if (at < 1) continue;
+    const drugId = entry.slice(0, at);
+    const variant = entry.slice(at + 1);
+    readAs.set(drugId, variant === '' ? null : variant);
+  }
+
+  const result = await setTagDrugs(
+    slug,
+    formData.getAll('drug').map(String).map((drugId) => ({
+      drugId,
+      variant: readAs.get(drugId) ?? null,
+    })),
+    session.user.id,
+  );
   if (!result.ok) return result;
 
   revalidatePath('/admin/tags');

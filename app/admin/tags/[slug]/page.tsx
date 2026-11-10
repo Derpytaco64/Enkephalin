@@ -5,7 +5,8 @@ import { db } from '@/db';
 import { drugBrands, drugTags, drugs, tags } from '@/db/schema';
 import { requireAdmin } from '@/lib/session';
 import { deleteTagAction, saveTagMembersAction } from '../actions';
-import { MemberPicker, type MemberDrug } from './member-picker';
+import { numberedVariantsByDrug } from '@/lib/drugs/variants';
+import { MemberPicker, type MemberDrug, type MemberVariants } from './member-picker';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
   const [tag] = await db.select().from(tags).where(eq(tags.slug, slug));
   if (!tag) notFound();
 
-  const [drugRows, brandRows, memberRows] = await Promise.all([
+  const [drugRows, brandRows, memberRows, variantsByDrug] = await Promise.all([
     db
       .select({ id: drugs.id, slug: drugs.slug, generic: drugs.genericName, drugClass: drugs.drugClass })
       .from(drugs)
@@ -25,7 +26,14 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
       .select({ drugId: drugBrands.drugId, name: drugBrands.name })
       .from(drugBrands)
       .orderBy(asc(drugBrands.sortOrder)),
-    db.select({ drugId: drugTags.drugId }).from(drugTags).where(eq(drugTags.tagId, tag.id)),
+    db
+      .select({ drugId: drugTags.drugId, variantTagId: drugTags.variantTagId })
+      .from(drugTags)
+      .where(eq(drugTags.tagId, tag.id)),
+    // Every drug's alternate profiles, numbered -- so an option can say
+    // *amoxicillin [V-2] Infectious Disease* and mean the same V-2 the browse
+    // list shows.
+    numberedVariantsByDrug(),
   ]);
 
   const brandsByDrug = new Map<string, string[]>();
@@ -38,8 +46,23 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
   const roster: MemberDrug[] = drugRows.map((drug) => ({
     ...drug,
     brands: brandsByDrug.get(drug.id) ?? [],
+    variants: (variantsByDrug.get(drug.id) ?? []).map(({ slug: variantSlug, label, n, overrides }) => ({
+      slug: variantSlug, label, n, overrides,
+    })),
   }));
   const members = memberRows.map((row) => row.drugId);
+
+  // Which version this list already reads each drug as. The row stores a tag
+  // id; the form speaks in slugs, because that is what it will send back and
+  // the picker should not have to know ids at all.
+  const tagSlugByTagId = new Map(
+    (await db.select({ id: tags.id, slug: tags.slug }).from(tags)).map((row) => [row.id, row.slug]),
+  );
+  const readAs: MemberVariants = {};
+  for (const row of memberRows) {
+    const slugOfVariant = row.variantTagId ? tagSlugByTagId.get(row.variantTagId) : null;
+    if (slugOfVariant) readAs[row.drugId] = slugOfVariant;
+  }
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -82,6 +105,7 @@ export default async function TagMembersPage({ params }: { params: Promise<{ slu
             tag={{ slug: tag.slug, label: tag.label, kind: tag.kind }}
             drugs={roster}
             members={members}
+            readAs={readAs}
           />
 
           <form action={deleteTagAction} className="mt-10 border-t border-[var(--border)] pt-4">
