@@ -261,6 +261,17 @@ export default async function DrugProfilePage({
   const {
     drug, brands, indications, tags, defs, siblings, variants, variant, overridden, layers,
   } = profile;
+
+  /**
+   * The versions, and the classes that are not versions.
+   *
+   * `variants` is every class and exam this drug is tagged with, which is
+   * membership, not wording. A version is one that has said something of its
+   * own -- the same rule the browse count and the study pills use, where `n`
+   * comes from.
+   */
+  const worded = variants.filter((option) => option.n !== null);
+  const silent = variants.filter((option) => option.n === null);
   const isAdmin = session.user.role === 'admin';
 
   const { colorAxis: axis, paletteOverrides } = await getPreferences(session.user.id);
@@ -529,7 +540,7 @@ export default async function DrugProfilePage({
 
               Links, not a control: every version is a URL, so this needs no
               JavaScript and `?as=` stays the whole of the memory. */}
-          {variants.length > 0 && (
+          {(worded.length > 0 || (isAdmin && silent.length > 0)) && (
             <section className={CARD}>
               <SectionHead>Versions</SectionHead>
               <ul className="mt-3 flex flex-wrap gap-1">
@@ -542,13 +553,11 @@ export default async function DrugProfilePage({
                     The drug&rsquo;s own
                   </Link>
                 </li>
-                {variants.map((option) => (
+                {worded.map((option) => (
                   <li key={option.slug}>
                     <Link
                       href={`/drugs/${drug.slug}?as=${encodeURIComponent(option.slug)}`}
-                      title={option.overrides > 0
-                        ? `${option.overrides} field${option.overrides === 1 ? '' : 's'} its own way`
-                        : 'Nothing of its own yet — reads as the drug’s own profile'}
+                      title={`${option.overrides} field${option.overrides === 1 ? '' : 's'} its own way`}
                       className={`pill pill-xs pill-soft ${
                         variant?.slug === option.slug ? 'pill-on' : 'pill-edge'}`}
                     >
@@ -560,7 +569,7 @@ export default async function DrugProfilePage({
                     </Link>
                   </li>
                 ))}
-                {variants.some((option) => option.n !== null) && (
+                {worded.length > 0 && (
                   <li>
                     <Link
                       href={`/drugs/${drug.slug}?as=${ALL_VARIANTS}`}
@@ -571,10 +580,12 @@ export default async function DrugProfilePage({
                   </li>
                 )}
               </ul>
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                A class or exam is read in <em>its own words</em> where it has them, and the
-                drug&rsquo;s everywhere else.
-              </p>
+              {worded.length > 0 && (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  A class or exam is read in <em>its own words</em> where it has them, and the
+                  drug&rsquo;s everywhere else.
+                </p>
+              )}
               {isAdmin && variant !== null && (
                 <Link
                   href={`/drugs/${drug.slug}/variant/${encodeURIComponent(variant.slug)}`}
@@ -582,6 +593,41 @@ export default async function DrugProfilePage({
                 >
                   Edit what {variant.label} says
                 </Link>
+              )}
+
+              {/* The classes this drug is in that have said nothing of their
+                  own, offered to admins only and as *write one*, not as a
+                  version to read.
+
+                  They used to sit in the row above as ordinary version pills,
+                  which is what made two tags look like two copies of the drug:
+                  importing a lecture scoped to a class and an exam tagged
+                  ipilimumab twice, and the profile answered with two versions
+                  where the lecture had worded nothing differently at all. A
+                  class with nothing of its own is not another version -- which
+                  is the rule `numberedVariantsByDrug` has always applied to the
+                  browse count and the study pills, written down in
+                  `lib/drugs/browse.ts`, and this card was the one place
+                  disagreeing with it. */}
+              {isAdmin && silent.length > 0 && (
+                <div className={worded.length > 0 ? 'mt-3 border-t border-[var(--border)] pt-3' : ''}>
+                  <p className="text-xs text-[var(--muted)]">
+                    {worded.length > 0 ? 'Nothing of their own yet' : 'No class words this drug differently'}
+                  </p>
+                  <ul className="mt-1.5 flex flex-wrap gap-1">
+                    {silent.map((option) => (
+                      <li key={option.slug}>
+                        <Link
+                          href={`/drugs/${drug.slug}/variant/${encodeURIComponent(option.slug)}`}
+                          title={`Write what ${option.label} says about ${drug.genericName}`}
+                          className="pill pill-xs pill-edge"
+                        >
+                          {option.label} +
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </section>
           )}

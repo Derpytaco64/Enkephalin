@@ -374,6 +374,10 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
             {state.report.tagsCreated.length > 0 && (
               <> New tags: {state.report.tagsCreated.join(', ')}.</>
             )}
+            {state.report.listsPointed > 0 && (
+              <> {state.report.listsPointed} membership
+                {state.report.listsPointed === 1 ? '' : 's'} now read this version.</>
+            )}
           </p>
           {state.report.created.length > 0 && (
             <ul className="mt-2 flex flex-wrap gap-1">

@@ -31,7 +31,7 @@ import { createTag, tagSlug } from '@/lib/tags/mutations';
 import {
   createDrug, drugSlug, setDrugBrands, setDrugField, setDrugIndications, setDrugTags,
 } from './mutations';
-import { patchVariantLayer } from './variants';
+import { patchVariantLayer, pointTagsAtVariant } from './variants';
 import {
   likeliestField, noteOf, provenanceOf, regimenFieldFor,
   type ImportDrug, type ImportFile, type ImportProblem,
@@ -371,6 +371,11 @@ export type ImportReport = {
   toVariant: number;
   unchanged: number;
   tagsCreated: string[];
+  /**
+   * Memberships now reading this lecture's version -- the file's other scope
+   * tags pointed at the one layer it wrote. See `pointTagsAtVariant`.
+   */
+  listsPointed: number;
   fieldsDeclared: string[];
   /** Anything that went wrong on the way. An empty list is a clean import. */
   problems: ImportProblem[];
@@ -394,7 +399,7 @@ export async function applyDrugImport(
 
   const report: ImportReport = {
     created: [], updated: [], toDrug: 0, toVariant: 0, unchanged: 0,
-    tagsCreated: [], fieldsDeclared: [], problems: [],
+    tagsCreated: [], listsPointed: 0, fieldsDeclared: [], problems: [],
   };
 
   /* --------------------------------------------------- the fields it needs -- */
@@ -554,6 +559,23 @@ export async function applyDrugImport(
       });
       if (patched.ok) report.toVariant += Object.keys(layer).length;
       else report.problems.push({ where: `drugs (${entry.generic})`, message: patched.message });
+    }
+
+    // The file's scope is this version's tags: whichever of them the layer did
+    // not land on is told to read it, so the same lecture does not teach two
+    // different things depending on whether you study the class or its exam.
+    //
+    // Outside the block above on purpose. A second import of the same lecture
+    // writes no values at all -- every one of them is already identical -- so a
+    // pointer set only alongside a fresh write would never reach a drug
+    // imported before this existed. `pointTagsAtVariant` checks the layer for
+    // itself and does nothing where there is none.
+    if (plan.variant) {
+      report.listsPointed += await pointTagsAtVariant({
+        drugId: drug.id,
+        variantSlug: plan.variant.slug,
+        tagSlugs: scopeSlugs,
+      });
     }
   }
 

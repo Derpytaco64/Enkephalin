@@ -3068,6 +3068,68 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### A variant carries tags; a tag is not a variant (2026-11-10)
+
+*Variants are getting written incorrectly — when it applied the PHRM 535 and Heme/Onc tags to
+ipilimumab at import, it split them into a single copy per tag. It is meant to be that variants have
+their own applied tags, not tags each constituting a variant.*
+
+The **write** side was already right, which is worth stating first because it narrows the bug:
+checked against the live database, the whole import produced exactly **one** layer -- prednisone, on
+`heme-onc-exam-3`, the narrowest scope -- and ipilimumab got none, because the lecture worded nothing
+about it differently. No copies were written.
+
+**What was wrong was the profile.** `variantOptionsFor` returns one option per course or exam tag the
+drug is tagged with, which is *membership*, and the Versions card printed every one of them as a
+version. So ipilimumab, correctly tagged with the class and the exam, answered with two versions of
+itself for a lecture that had agreed with the drug about everything.
+
+And the rule it was breaking was **already written down twice in this codebase**, which is what makes
+this an inconsistency rather than a design question:
+
+- `numberedVariantsByDrug`: *a class that says nothing of its own is not another version of the drug,
+  and offering it would be offering a choice that changes nothing.*
+- `lib/drugs/browse.ts`: *only variants with stored values appear, so a drug merely tagged with a
+  class is not a drug with another version.*
+
+The browse count and the study pills had always obeyed it. The profile sidebar was the one place that
+did not -- it already had `n` to tell the two apart, and used it only to decide whether to print a
+number. So versions are now the ones that have said something, and the classes that have not are
+offered to **admins only**, below a rule, as *write one* rather than as a version to read. A reader
+with no admin rights sees no Versions card on a drug no class words differently, which is the honest
+answer: there are none.
+
+### The other half: the file's scope is the version's tags (2026-11-10)
+
+Fixing the display alone would have left the deeper half of the owner's sentence unimplemented. A
+lecture scoped to a class **and** an exam writes one layer, on the narrowest -- so studying Heme/Onc
+Exam 3 read the lecture's wording while studying PHRM 535, the very class the lecture belongs to, read
+the drug's own. One import, two answers to *what does this class teach*.
+
+`drug_tags.variant_tag_id` is the column for this and has been since migration 0016 -- *on this list,
+read the drug as that class words it* -- and `membershipVariants` already consumes it, so the study
+path needed no new code. Only the importer was never setting it. It now points every other scope tag
+at the layer it wrote, which is precisely *the variant having tags applied to it*.
+
+Three decisions inside that:
+
+- **Scope tags only.** Not `top-drugs-2026`: a curated syllabus must not have its wording hijacked by
+  whichever lecture was imported last. The variant's tags are the ones the file declared as its scope.
+- **Only where nothing is pointed yet.** A pointer set by hand on the tag screen is a curation
+  decision, and re-running a lecture must not quietly undo it.
+- **Set because the layer exists, not alongside writing it.** A second import of the same lecture
+  writes no values -- they are all identical already -- so a pointer set next to a fresh write would
+  never reach a drug imported before this existed. `pointTagsAtVariant` checks the layer itself and
+  does nothing where there is none, which makes it safe to call for every drug and makes the import
+  converge instead of only working the first time.
+
+One thing found and left alone: re-importing a lecture whose wording genuinely differs from the drug
+reports `toVariant` again each run, because `unchanged` compares against the drug's **own** value and
+the lecture still disagrees with it. Nothing changes -- `patchVariantLayer` keeps the envelope of a
+value whose text is the same -- so it is the report overstating a no-op rather than a write. Recorded
+rather than fixed, because the fix is a second comparison against the layer and nobody has asked for
+the count to be exact.
+
 ### Import it did nothing, and a submit button nobody read (2026-11-10)
 
 *The actual import button in the drug import isn't working.*

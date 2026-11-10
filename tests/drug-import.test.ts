@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   drugBrands, drugIndications, drugTags, drugVariantValues, drugs, fieldDefs, indications,
@@ -12,7 +12,9 @@ import {
 } from '@/lib/drugs/import-format';
 import { formatFieldValue } from '@/lib/fields/format';
 import { applyDrugImport, planDrugImport } from '@/lib/drugs/import';
-import { variantLayerFor } from '@/lib/drugs/variants';
+import {
+  membershipVariants, numberedVariantsByDrug, variantLayerFor, variantOptionsFor,
+} from '@/lib/drugs/variants';
 
 /**
  * Importing what a lecture says about drugs.
@@ -782,5 +784,137 @@ describe('the same lecture imported again', () => {
     // class: the exam is the more specific claim about whose words these are.
     const layer = await variantLayerFor(trametinib.id, 'heme-onc-exam-3');
     expect(layer?.fields.moa.value).toBe('MEK inhibitor');
+  });
+});
+
+describe('a lecture scoped to a class and its exam', () => {
+  /**
+   * One lecture is one version of a drug, and the file's two scope tags are
+   * **that version's tags** -- not two versions, one per tag.
+   *
+   * The layer lands on the narrowest scope, which is right and deliberate. What
+   * was missing is the other half: the class the lecture belongs to has to read
+   * the same wording, or the same import teaches two different things depending
+   * on whether you study PHRM 535 or Heme/Onc Exam 3.
+   */
+  const pointerFor = async (drugSlug: string, listSlug: string) => {
+    const [row] = await db
+      .select({ variantTagId: drugTags.variantTagId })
+      .from(drugTags)
+      .innerJoin(drugs, eq(drugs.id, drugTags.drugId))
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .where(and(eq(drugs.slug, drugSlug), eq(tags.slug, listSlug)));
+    if (!row?.variantTagId) return null;
+    const [variant] = await db.select({ slug: tags.slug }).from(tags)
+      .where(eq(tags.id, row.variantTagId));
+    return variant?.slug ?? null;
+  };
+
+  /** The drug exists already and says something the lecture disagrees with. */
+  const seeded = async () => {
+    await db.insert(drugs).values({
+      slug: 'prednisone',
+      genericName: 'prednisone',
+      fields: {
+        moa: {
+          value: 'Glucocorticoid receptor agonist', status: 'ok', source: 'the sheet',
+          updatedAt: new Date().toISOString(), updatedBy: ME,
+        },
+      },
+    });
+  };
+
+  it('points the class at the exam’s layer, so both read the lecture', async () => {
+    await seeded();
+    const report = await apply(file({
+      drugs: [{ generic: 'prednisone', fields: { moa: 'Lympholytic at high dose' } }],
+    }));
+
+    expect(report.toVariant).toBe(1);
+    // The layer itself is on the narrowest scope, unchanged.
+    expect(await variantLayerFor(
+      (await db.select().from(drugs).where(eq(drugs.slug, 'prednisone')))[0].id,
+      'heme-onc-exam-3',
+    )).not.toBeNull();
+    // And the class now reads it.
+    expect(await pointerFor('prednisone', 'phrm-535')).toBe('heme-onc-exam-3');
+    expect(report.listsPointed).toBe(1);
+  });
+
+  it('studies the same wording whether the class or the exam is in scope', async () => {
+    // The whole point of the pointer, asserted through the thing that consumes
+    // it rather than through the column.
+    await seeded();
+    await apply(file({
+      drugs: [{ generic: 'prednisone', fields: { moa: 'Lympholytic at high dose' } }],
+    }));
+
+    const byList = await membershipVariants(['phrm-535']);
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
+    expect(byList.get(drug.id)).toEqual(['heme-onc-exam-3']);
+  });
+
+  it('converges on a second import, which writes no values at all', async () => {
+    // A pointer set only alongside a fresh write would never reach a drug
+    // imported before this existed, because the second run finds every value
+    // identical and writes nothing.
+    await seeded();
+    const text = file({
+      drugs: [{ generic: 'prednisone', fields: { moa: 'Lympholytic at high dose' } }],
+    });
+    await apply(text);
+    await db.update(drugTags).set({ variantTagId: null });
+
+    const again = await apply(text);
+    // The layer is rewritten with the same value, because `unchanged` compares
+    // against the drug's *own* wording and the lecture still disagrees with it.
+    // Nothing actually changes -- `patchVariantLayer` keeps the envelope of a
+    // value whose text is the same -- so the count is the report overstating a
+    // no-op, not a write. What matters here is that the pointer is restored
+    // either way: it is not set alongside the write, it is set because the
+    // layer exists.
+    expect(again.toVariant).toBe(1);
+    expect(await pointerFor('prednisone', 'phrm-535')).toBe('heme-onc-exam-3');
+  });
+
+  it('leaves a drug the lecture worded no differently with no version at all', async () => {
+    // The symptom the owner reported: ipilimumab came back as two copies, one
+    // per scope tag, where the lecture had said nothing of its own about it.
+    const report = await apply(file({
+      drugs: [{ generic: 'ipilimumab', fields: { moa: 'CTLA-4 inhibitor' } }],
+    }));
+
+    expect(report.toVariant).toBe(0);
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'ipilimumab'));
+
+    // Tagged with both, as it should be -- membership is a fact.
+    const member = await db.select({ slug: tags.slug }).from(drugTags)
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .where(eq(drugTags.drugId, drug.id));
+    expect(member.map((row) => row.slug).sort()).toEqual(['heme-onc-exam-3', 'phrm-535']);
+
+    // And no version: nothing was worded differently, so there is nothing to
+    // be another version of.
+    expect(await numberedVariantsByDrug()).toEqual(new Map());
+    expect((await variantOptionsFor(drug.id)).every((option) => option.n === null)).toBe(true);
+    expect(report.listsPointed).toBe(0);
+    expect(await pointerFor('ipilimumab', 'phrm-535')).toBeNull();
+  });
+
+  it('does not overwrite a pointer somebody set by hand', async () => {
+    // A pointer on the tag screen is a curation decision about how one list
+    // reads, and re-running a lecture must not quietly undo it.
+    await seeded();
+    const text = file({
+      drugs: [{ generic: 'prednisone', fields: { moa: 'Lympholytic at high dose' } }],
+    });
+    await apply(text);
+
+    const [course] = await db.select().from(tags).where(eq(tags.slug, 'phrm-535'));
+    await db.update(drugTags).set({ variantTagId: course.id });
+    const again = await apply(text);
+
+    expect(again.listsPointed).toBe(0);
+    expect(await pointerFor('prednisone', 'phrm-535')).toBe('phrm-535');
   });
 });

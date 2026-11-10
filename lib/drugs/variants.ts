@@ -22,7 +22,7 @@
  *
  * Core fields are deliberately not overridable -- see `overridable` below.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { drugVariantValues, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
@@ -418,6 +418,69 @@ export async function membershipVariants(tagSlugs: string[]): Promise<Map<string
 }
 
 /* ---------------------------------------------------------------- write ---- */
+
+/**
+ * Point a drug's other memberships at the version one of them wrote.
+ *
+ * **A variant carries tags; a tag is not a variant.** A lecture arrives scoped
+ * to a class *and* an exam, and the one layer it writes lands on the narrowest
+ * of them. Without this, that import leaves two different answers to *what does
+ * this class teach*: study Heme/Onc Exam 3 and you read the lecture's wording,
+ * study PHRM 535 -- the same lecture -- and you read the drug's own.
+ *
+ * `drug_tags.variant_tag_id` is the column for exactly this, and it reads as the
+ * sentence it is: *on this list, read the drug as that class words it*. So the
+ * file's scope becomes the variant's tags, which is the other half of a tag no
+ * longer constituting a version by itself.
+ *
+ * **Only where nothing is pointed yet.** A pointer set by hand on the tag screen
+ * is a curation decision about how one list reads, and re-running a lecture must
+ * not quietly undo it. Returns how many memberships it set, so the import can
+ * report a number rather than imply one.
+ */
+export async function pointTagsAtVariant(input: {
+  drugId: string;
+  variantSlug: string;
+  tagSlugs: string[];
+}): Promise<number> {
+  // The variant's own membership is skipped rather than pointed at itself: the
+  // scope path already finds that layer directly, and "read Heme/Onc Exam 3 as
+  // Heme/Onc Exam 3 words it" is a true sentence that says nothing.
+  const others = [...new Set(input.tagSlugs)].filter((slug) => slug !== input.variantSlug);
+  if (others.length === 0) return 0;
+
+  // The version has to exist before a list can be told to read it. Checked here
+  // rather than by the caller so that calling this is always safe, which is
+  // what lets an import call it for every drug it touched -- including the ones
+  // whose layer it wrote on an earlier run and left untouched on this one. A
+  // second import of the same lecture writes no values and must still converge
+  // on the same pointers.
+  const [variant] = await db
+    .select({ id: tags.id })
+    .from(drugVariantValues)
+    .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+    .where(and(
+      eq(drugVariantValues.drugId, input.drugId),
+      eq(tags.slug, input.variantSlug),
+      isVariantTag,
+    ));
+  if (!variant) return 0;
+
+  const rows = await db.select({ id: tags.id }).from(tags).where(inArray(tags.slug, others));
+  if (rows.length === 0) return 0;
+
+  const pointed = await db
+    .update(drugTags)
+    .set({ variantTagId: variant.id })
+    .where(and(
+      eq(drugTags.drugId, input.drugId),
+      inArray(drugTags.tagId, rows.map((row) => row.id)),
+      isNull(drugTags.variantTagId),
+    ))
+    .returning({ tagId: drugTags.tagId });
+
+  return pointed.length;
+}
 
 /**
  * Writes one variant's whole layer for one drug.
