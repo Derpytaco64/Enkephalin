@@ -3,15 +3,18 @@
 import { useActionState, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { submitTo } from '@/app/_components/submit';
+import { matchesTags, TAG_KIND_GROUPS } from '@/lib/tags/constants';
 import type { RemoveState } from './actions';
 
 export type RemovableDrug = {
   slug: string;
   generic: string;
-  tags: string[];
-  tagSlugs: string[];
+  /** Every tag it carries, labelled: a class and an exam, not only lists. */
+  tags: { slug: string; label: string }[];
   variants: { slug: string; label: string; fields: number }[];
 };
+
+export type FacetTag = { slug: string; label: string; kind: string; count: number };
 
 const CARD = 'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4';
 const control = 'mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm';
@@ -43,7 +46,7 @@ export function RemoveForm({
   action,
 }: {
   rows: RemovableDrug[];
-  facetTags: { slug: string; label: string }[];
+  facetTags: FacetTag[];
   action: (formData: FormData) => Promise<RemoveState>;
 }) {
   const [state, formAction, pending] = useActionState<RemoveState, FormData>(
@@ -52,17 +55,38 @@ export function RemoveForm({
   );
 
   const [query, setQuery] = useState('');
-  const [tag, setTag] = useState('');
+  /**
+   * The tags filtered on, several at a time and `all` of them by default.
+   *
+   * A class is a tag like any other here, which is the point: an import tags
+   * what it touches with a course *and* an exam, so *PHRM 535 and Heme/Onc Exam
+   * 3* is the exact slice a bad one left behind, and a single-select could only
+   * ever show one half of it. Same control and same default as the drug list's
+   * tag filter -- `matchesTags` is the shared rule -- because this screen asks
+   * the same question of the same data, and narrowing rather than collecting
+   * matters more here than anywhere else: this list is what gets deleted.
+   */
+  const [tagPicks, setTagPicks] = useState<string[]>([]);
+  const [tagsAny, setTagsAny] = useState(false);
   const [onlyVersions, setOnlyVersions] = useState(false);
   const [drugPicks, setDrugPicks] = useState<string[]>([]);
   const [layerPicks, setLayerPicks] = useState<string[]>([]);
 
   const shown = useMemo(() => rows.filter((row) => {
-    if (tag && !row.tagSlugs.includes(tag)) return false;
+    const held = row.tags.map((entry) => entry.slug);
+    if (!matchesTags(held, tagPicks, tagsAny ? 'any' : 'all')) return false;
     if (onlyVersions && row.variants.length === 0) return false;
     if (query.trim() && !contains(row.generic, query) && !contains(row.slug, query)) return false;
     return true;
-  }), [rows, query, tag, onlyVersions]);
+  }), [rows, query, tagPicks, tagsAny, onlyVersions]);
+
+  const tagLabels = useMemo(
+    () => new Map(facetTags.map((entry) => [entry.slug, entry.label])),
+    [facetTags],
+  );
+
+  const addTag = (slug: string) =>
+    setTagPicks((picks) => (picks.includes(slug) ? picks : [...picks, slug]));
 
   const toggle = (list: string[], value: string) =>
     list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
@@ -95,16 +119,67 @@ export function RemoveForm({
             />
           </div>
           <div>
-            <label htmlFor="tag" className="block text-sm font-medium">On a list</label>
+            <label htmlFor="tag" className="block text-sm font-medium">Tags</label>
+            {/* Add-and-pill, the same device the drug list uses: the picked few
+                on screen, the rest behind the select, and the select empties
+                itself after each pick so it reads as *add*. Grouped by kind,
+                because a drug list and a class are two different questions --
+                and because a course tag sitting in a box labelled *on a list*
+                told the person undoing an import that what they were looking
+                for was not here. */}
             <select
-              id="tag" value={tag} onChange={(event) => setTag(event.target.value)}
-              className={control}
+              id="tag" value="" className={control}
+              onChange={(event) => { if (event.target.value) addTag(event.target.value); }}
             >
-              <option value="">Any</option>
-              {facetTags.map((entry) => (
-                <option key={entry.slug} value={entry.slug}>{entry.label}</option>
-              ))}
+              <option value="">{tagPicks.length > 0 ? 'Add another…' : 'Any'}</option>
+              {TAG_KIND_GROUPS.map(({ kind, label }) => {
+                const group = facetTags.filter(
+                  (entry) => entry.kind === kind && !tagPicks.includes(entry.slug),
+                );
+                if (group.length === 0) return null;
+                return (
+                  <optgroup key={kind} label={label}>
+                    {group.map((entry) => (
+                      <option key={entry.slug} value={entry.slug}>
+                        {entry.label} ({entry.count})
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
+
+            {tagPicks.length > 0 && (
+              <ul className="mt-2 flex flex-wrap items-center gap-1">
+                {tagPicks.map((slug, at) => (
+                  <li key={slug} className="flex items-center gap-1">
+                    {/* The operator where it applies, so the filter reads as
+                        "PHRM 535 and Heme/Onc Exam 3". */}
+                    {at > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setTagsAny(!tagsAny)}
+                        title={tagsAny
+                          ? 'On any of these tags. Press for drugs on all of them.'
+                          : 'On all of these tags. Press for drugs on any of them.'}
+                        className="pill pill-xs pill-soft pill-edge font-mono"
+                      >
+                        {tagsAny ? 'or' : 'and'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTagPicks(tagPicks.filter((other) => other !== slug))}
+                      title={'Stop filtering by ' + (tagLabels.get(slug) || slug)}
+                      className="pill pill-xs pill-on"
+                    >
+                      {tagLabels.get(slug) ?? slug}
+                      <span aria-hidden className="text-[var(--muted)]">&times;</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className="flex items-end">
             <label className="flex items-center gap-2 text-sm">
@@ -158,9 +233,21 @@ export function RemoveForm({
                 <Link href={`/drugs/${row.slug}`} className="text-xs text-[var(--muted)] underline">
                   look
                 </Link>
-                {row.tags.length > 0 && (
-                  <span className="text-xs text-[var(--muted)]">{row.tags.join(', ')}</span>
-                )}
+                {/* Each tag adds itself to the filter, because that is the
+                    motion this screen is for: you find one drug an import
+                    should not have touched, and what you want next is every
+                    other drug it tagged the same way. */}
+                {row.tags.map((entry) => (
+                  <button
+                    key={entry.slug} type="button" onClick={() => addTag(entry.slug)}
+                    title={'Show everything tagged ' + entry.label}
+                    className={tagPicks.includes(entry.slug)
+                      ? 'pill pill-xs pill-on'
+                      : 'pill pill-xs pill-edge'}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
               </div>
 
               {row.variants.length > 0 && (

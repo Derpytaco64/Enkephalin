@@ -28,7 +28,9 @@ export default async function RemoveDrugsPage() {
       .from(drugs)
       .orderBy(asc(drugs.genericName)),
     db
-      .select({ drugId: drugTags.drugId, slug: tags.slug, label: tags.label })
+      .select({
+        drugId: drugTags.drugId, slug: tags.slug, label: tags.label, kind: tags.kind,
+      })
       .from(drugTags)
       .innerJoin(tags, eq(tags.id, drugTags.tagId)),
     db
@@ -42,9 +44,12 @@ export default async function RemoveDrugsPage() {
       .innerJoin(tags, eq(tags.id, drugVariantValues.tagId)),
   ]);
 
-  const tagsByDrug = new Map<string, { slug: string; label: string }[]>();
+  const tagsByDrug = new Map<string, RemovableDrug['tags']>();
   for (const row of tagRows) {
-    tagsByDrug.set(row.drugId, [...(tagsByDrug.get(row.drugId) ?? []), row]);
+    tagsByDrug.set(row.drugId, [
+      ...(tagsByDrug.get(row.drugId) ?? []),
+      { slug: row.slug, label: row.label },
+    ]);
   }
 
   const layersByDrug = new Map<string, RemovableDrug['variants']>();
@@ -58,14 +63,25 @@ export default async function RemoveDrugsPage() {
   const rows: RemovableDrug[] = drugRows.map((drug) => ({
     slug: drug.slug,
     generic: drug.generic,
-    tags: (tagsByDrug.get(drug.id) ?? []).map((tag) => tag.label),
-    tagSlugs: (tagsByDrug.get(drug.id) ?? []).map((tag) => tag.slug),
+    tags: (tagsByDrug.get(drug.id) ?? []).sort((a, b) => a.label.localeCompare(b.label)),
     variants: (layersByDrug.get(drug.id) ?? []).sort((a, b) => a.label.localeCompare(b.label)),
   }));
 
+  /**
+   * Every tag anything is on, with how many drugs carry it.
+   *
+   * A course and an exam are the two an import creates, so they are what
+   * undoing one has to be able to filter by -- the count beside each is the
+   * size of the mistake, and the first thing you want to see before ticking
+   * two hundred boxes.
+   */
+  const counted = new Map<string, number>();
+  for (const row of tagRows) counted.set(row.slug, (counted.get(row.slug) ?? 0) + 1);
   const facetTags = [...new Map(tagRows.map((row) => [row.slug, row])).values()]
     .sort((a, b) => a.label.localeCompare(b.label))
-    .map((row) => ({ slug: row.slug, label: row.label }));
+    .map((row) => ({
+      slug: row.slug, label: row.label, kind: row.kind, count: counted.get(row.slug) ?? 0,
+    }));
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">

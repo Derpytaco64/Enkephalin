@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
@@ -153,5 +154,47 @@ describe('undoing a bad import', () => {
       drugSlug: 'warfarin', variantSlug: 'top-drugs-2026',
     });
     expect(result.ok).toBe(false);
+  });
+});
+
+/* ------------------------------------------------- finding what to delete -- */
+
+/**
+ * The panel's tag filter, which is a filter and not a list of lists.
+ *
+ * An import tags what it touches with a course and an exam, so those are the
+ * tags undoing one has to be able to filter by -- and the first cut offered a
+ * single select labelled *On a list*, which told anyone looking for PHRM 535
+ * that it was not there. It was: the facet is built from every membership. The
+ * label and the shape were the whole bug.
+ *
+ * Static, because the filtering is client state and there is no DOM in this
+ * suite. What is worth pinning is not that it works -- `matchesTags` is tested
+ * against real rows in `browse.test.ts` -- but that this screen keeps using the
+ * shared rule. A deletion list quietly filtering by *any* while the drug list
+ * filters by *all* would mean ticking every drug shown and taking more than
+ * was meant.
+ */
+describe('the deletion panel filters by tag the way the drug list does', () => {
+  const form = readFileSync('app/admin/remove/remove-form.tsx', 'utf8');
+  const page = readFileSync('app/admin/remove/page.tsx', 'utf8');
+
+  it('asks the shared rule rather than writing its own', () => {
+    expect(form).toContain("matchesTags(held, tagPicks, tagsAny ? 'any' : 'all')");
+    expect(form).toContain("from '@/lib/tags/constants'");
+  });
+
+  it('takes several tags, and narrows by default', () => {
+    // `all` is the default both here and on the drug list: see `matchesTags`.
+    expect(form).toContain('const [tagPicks, setTagPicks] = useState<string[]>([]);');
+    expect(form).toContain('const [tagsAny, setTagsAny] = useState(false);');
+  });
+
+  it('groups every kind of tag, a class beside a list', () => {
+    expect(form).toContain('TAG_KIND_GROUPS');
+    // No kind is left out of the facet: the course and exam an import creates
+    // are the two it most has to offer.
+    expect(page).not.toMatch(/tags\.kind\s*,\s*'/);
+    expect(page).toContain('kind: tags.kind');
   });
 });

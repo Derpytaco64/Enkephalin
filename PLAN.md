@@ -3171,6 +3171,26 @@ Decisions:
   it is the better behaviour rather than a compromise: a stale row -- two admins, or a double submit
   -- must not abandon the rest of the list, so each failure is named and the others still go.
 
+**A class is a tag like any other on it** (same day, after the first cut). The filter was a single
+select labelled *On a list*, and PHRM 535 was in it -- the facet is built from every membership, of
+every kind -- but a course tag sitting in a box that says *list* tells the person undoing an import
+that what they came for is not there. Worse, one at a time: an import tags what it touches with a
+course **and** an exam, so *PHRM 535 and Heme/Onc Exam 3* is the exact slice a bad one left behind,
+and a single select could only ever show half of it.
+
+So it is the drug list's control, not a second design: add-and-pill, grouped by `TAG_KIND_GROUPS`,
+an `and`/`or` toggle printed between the pills, and `matchesTags` as the shared rule -- `all` by
+default here for the same reason as there, except that it matters more, because this list is what
+gets deleted. Each tag on a row is also a button that adds itself to the filter, which is the motion
+the screen is for: you find one drug an import should not have touched, and what you want next is
+every other drug it tagged the same way. The count beside each option (*PHRM 535 (25)*) is the size
+of the mistake, which is the thing to see before ticking two hundred boxes.
+
+The guard is static, because the filtering is client state and this suite has no DOM. What it pins is
+not that filtering works -- `matchesTags` is tested against real rows in `browse.test.ts` -- but that
+this screen keeps asking the shared rule: a deletion list quietly filtering by *any* while the drug
+list filters by *all* would mean pressing **Tick every drug shown** and taking more than was meant.
+
 No soft delete, following `deleteDrug`'s existing reasoning: a `deleted_at` flag would have to be
 filtered out of browse, search, every study scope, the card builder and the quiz pool, and forgetting
 one means a deleted drug still being asked about. The safety net stays `/admin/data`, which exports
