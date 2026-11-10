@@ -1,8 +1,9 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import {
-  drugBrands, drugIndications, drugTags, drugVariantValues, drugs, indications, tags,
+  drugBrands, drugIndications, drugTags, drugs, indications, tags,
 } from '@/db/schema';
+import { allVariantLayers, numberedVariantsByDrug } from '@/lib/drugs/variants';
 import { UNCATEGORIZED } from '@/lib/drugs/drug-class';
 import { formatFieldValue, splitList, type FormattedField } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
@@ -35,6 +36,23 @@ function flatten(formatted: FormattedField): string {
   }
 }
 
+/**
+ * One alternate profile, flattened for search the way the drug's own values
+ * are.
+ *
+ * `values` holds only the keys this version words its own way -- the same
+ * subset the overlay would apply -- so a match in here means *this class says
+ * this*, which is a different claim from the drug saying it, and the row says
+ * which.
+ */
+export type VariantText = {
+  slug: string;
+  label: string;
+  /** 1-based, in overlay order: the `n` in V-n. */
+  n: number;
+  values: Record<string, string>;
+};
+
 export type DrugIndexRow = {
   slug: string;
   generic: string;
@@ -59,19 +77,28 @@ export type DrugIndexRow = {
   /** Field keys with no value and no "none" meaning: genuine gaps. */
   missing: string[];
   /**
-   * How many alternate profiles this drug has: the **V-3** pill on its row.
+   * This drug's alternate profiles -- the **V-3** pill on its row, and the text
+   * that makes a class's wording findable.
    *
-   * The count rather than the layers themselves, because the list is a list --
-   * 236 rows holding every class's wording for every field would be a payload
-   * several times over, and the question a row can usefully answer is "is
-   * there another version of this?". The versions themselves are one click
-   * away, in the dropdown on the profile.
+   * Carrying the text was a deliberate reversal. The row used to hold the
+   * count alone, on the reasoning that the list is a list and the versions are
+   * one click away on the profile. That was right about the pill and wrong
+   * about the search box: one box over every field's text that could not see a
+   * variant meant a lecture could write 76 values and none of them were
+   * findable by what they said. Searching is exactly the case where "one click
+   * away" fails, because you do not know which drug to click.
    *
-   * Counted from `drug_variant_values`, so a drug merely *tagged* with a class
-   * does not count: a layer that says nothing of its own is not another
-   * version of anything.
+   * The payload cost is smaller than it looks, because a layer stores **only
+   * the fields it words differently** -- that is the whole design of the
+   * feature. A class with its own mechanism for twenty drugs adds twenty short
+   * strings, not twenty profiles.
+   *
+   * Numbered by `numberedVariantsByDrug`, the same source as the list builder
+   * and the study pills, so V-2 means the same thing on every screen. Only
+   * variants with stored values appear, so a drug merely *tagged* with a class
+   * is not a drug with another version.
    */
-  variants: number;
+  variants: VariantText[];
   /**
    * What a browse filter can usefully sort on now that nothing waits to be
    * verified: `flagged` is a value someone doubts, `gaps` is a field nobody has
@@ -97,7 +124,7 @@ export type BrowseFacets = {
  * only way a filter rail feels instant.
  */
 export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: BrowseFacets }> {
-  const [drugRows, brandRows, indicationRows, tagRows, defs, variantRows] = await Promise.all([
+  const [drugRows, brandRows, indicationRows, tagRows, defs, numbered] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db.select({ drugId: drugBrands.drugId, name: drugBrands.name }).from(drugBrands).orderBy(asc(drugBrands.sortOrder)),
     db
@@ -110,9 +137,14 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
       .from(drugTags)
       .innerJoin(tags, eq(tags.id, drugTags.tagId)),
     listFieldDefs(),
-    // One row per layer, not per value: `count` would need a group-by and this
-    // table is small -- one row per drug per class that says anything.
-    db.select({ drugId: drugVariantValues.drugId }).from(drugVariantValues),
+    numberedVariantsByDrug(),
+  ]);
+
+  // The layers' own values, fetched by the slugs the numbering just found --
+  // rather than a second query shaped like the first -- so the text and the
+  // number cannot end up disagreeing about which version is V-2.
+  const layers = await allVariantLayers([
+    ...new Set([...numbered.values()].flatMap((list) => list.map((v) => v.slug))),
   ]);
 
   const brandsByDrug = new Map<string, string[]>();
@@ -134,11 +166,6 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
     const list = tagsByDrug.get(tag.drugId);
     if (list) list.push(tag.slug);
     else tagsByDrug.set(tag.drugId, [tag.slug]);
-  }
-
-  const variantsByDrug = new Map<string, number>();
-  for (const row of variantRows) {
-    variantsByDrug.set(row.drugId, (variantsByDrug.get(row.drugId) ?? 0) + 1);
   }
 
   // Core fields live in their own columns, so only the stored ones can be
@@ -166,6 +193,23 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
       if (text) values[def.key] = text;
     }
 
+    // Every version's wording, flattened the same way the drug's own values
+    // are -- same `formatFieldValue`, same `flatten`, so a markdown mechanism
+    // searches identically whoever wrote it.
+    const variants: VariantText[] = (numbered.get(drug.id) ?? []).map((variant) => {
+      const stored = layers.get(drug.id)?.get(variant.slug) ?? {};
+      const values: Record<string, string> = {};
+
+      for (const def of storedDefs) {
+        const value = stored[def.key];
+        if (!value) continue;
+        const text = flatten(formatFieldValue(def, value));
+        if (text) values[def.key] = text;
+      }
+
+      return { slug: variant.slug, label: variant.label, n: variant.n, values };
+    });
+
     return {
       slug: drug.slug,
       generic: drug.genericName,
@@ -176,7 +220,7 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
       indications: indicationsByDrug.get(drug.id) ?? [],
       values,
       missing,
-      variants: variantsByDrug.get(drug.id) ?? 0,
+      variants,
       // Flagged outranks a gap: a wrong answer in a deck costs more than a
       // missing one, which simply produces no card.
       review: flagged ? 'flagged' : missing.length > 0 ? 'gaps' : 'ok',

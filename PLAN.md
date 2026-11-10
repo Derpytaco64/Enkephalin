@@ -3007,6 +3007,44 @@ Numbered by `numberedVariantsByDrug`, the same function the browse pill and the 
 versions have no names of their own, and a number that differs between two screens would be worse
 than none.
 
+### The search box can see a class's wording (2026-11-09)
+
+One box over every field's text, shipped before variants existed, and it indexed the drug's own
+values only. So a lecture could write seventy-six values and **none of them were findable by what
+they said** — the feature that exists to record a class's wording had made that wording the one text
+in the app search could not reach.
+
+The row used to carry the *count* of versions and nothing else, on an argument that reads well and
+was wrong: the list is a list, the versions are one click away on the profile. True of the `V-3`
+pill, false of the box. Searching is precisely the case where "one click away" fails, because the
+click you need is the one you cannot identify yet — if you knew which drug to open you would not be
+searching.
+
+So the row now carries each version's text as well. **The payload argument it was holding out
+against turns out to be weak**, because a layer stores only the fields it words differently: a class
+with its own mechanism for twenty drugs adds twenty short strings, not twenty profiles. The feature
+that makes variants cheap to store makes them cheap to search.
+
+**The part that matters more than the indexing: the hit says whose words it was.** A match in a
+layer with no label is a trap — you click through to a profile that does not contain the word you
+typed, because the class that wrote it is behind a dropdown and nothing told you to look there. So
+the match line carries a `V-2 PHRM 535` pill when the drug's own profile was not what matched, and
+no pill when it was. That distinction is a real one: *the drug says this* and *one class says this*
+are different claims, and a search that collapses them is worse than one that misses.
+
+Three tiers now, in order: the name-ish fuzzy hits, the drugs whose own values contain it, then the
+drugs where only a version does. Same reasoning as the existing two — a drug that says something
+itself outranks one where a single class's wording does — and the last tier is still a real answer
+rather than a consolation.
+
+**The precise field filter sees versions too.** Having the loose box find a row and the exact form
+of the same question lose it would be two different ideas of what this app knows about a drug, and
+the looser control cannot be the more capable one.
+
+One thing deliberately left: `flatten` keeps markdown markers, so no search of any kind matches
+across a `**`. That is shared with the drug's own values rather than new here, and stripping markers
+is a change to what every search does — worth doing on its own, not smuggled in on this.
+
 ### The bar had already lost the button (2026-11-09)
 
 *The class sets button in the top bar should be gone since that whole system doesn't exist anymore.*

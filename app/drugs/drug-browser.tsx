@@ -4,7 +4,7 @@ import Fuse from 'fuse.js';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import type { BrowseFacets, DrugIndexRow } from '@/lib/drugs/browse';
+import type { BrowseFacets, DrugIndexRow, VariantText } from '@/lib/drugs/browse';
 import { classLabel, isUncategorized } from '@/lib/drugs/drug-class';
 import { colorFor, scheduleBadge, type ColorAxis } from '@/lib/theme/palette';
 
@@ -65,6 +65,13 @@ const TAG_GROUPS = [
   { kind: 'exam', label: 'Exams' },
   { kind: 'custom', label: 'Other' },
 ] as const;
+
+/**
+ * Why a row is in the list when its name is not what matched: the field, the
+ * text around the hit, and -- where it was a class's wording rather than the
+ * drug's own -- which version.
+ */
+type MatchReport = { label: string; text: string; variant: VariantText | null };
 
 const contains = (haystack: string, needle: string) =>
   haystack.toLowerCase().includes(needle.trim().toLowerCase());
@@ -162,13 +169,28 @@ export function DrugBrowser({
    * prose is matched on **substring** instead, deliberately: fuzzy search over
    * a paragraph of mechanism finds something for almost any three letters, and
    * a rail that always has hits is a rail that never answers a question.
+   *
+   * **The drug's own values first, then each version's.** Order carries
+   * meaning here: `find` below takes the first hit, so a drug that says
+   * something itself is reported as saying it, and a version is only named
+   * when the drug's own profile does not contain what was typed. Within the
+   * versions it is overlay order, which is the order the numbers are in.
    */
   const fieldIndex = useMemo(
     () =>
       new Map(
         rows.map((row) => [
           row.slug,
-          Object.entries(row.values).map(([key, text]) => ({ key, text, lower: text.toLowerCase() })),
+          [
+            ...Object.entries(row.values).map(([key, text]) => ({
+              key, text, lower: text.toLowerCase(), variant: null as VariantText | null,
+            })),
+            ...row.variants.flatMap((variant) =>
+              Object.entries(variant.values).map(([key, text]) => ({
+                key, text, lower: text.toLowerCase(), variant,
+              })),
+            ),
+          ],
         ]),
       ),
     [rows],
@@ -191,23 +213,32 @@ export function DrugBrowser({
    */
   const { ranked, matchedIn } = useMemo(() => {
     const query = filters.q.trim();
-    if (!query) return { ranked: rows, matchedIn: new Map<string, { label: string; text: string }>() };
+    if (!query) return { ranked: rows, matchedIn: new Map<string, MatchReport>() };
 
     const named = fuse.search(query).map((hit) => hit.item);
     const seen = new Set(named.map((row) => row.slug));
     const lower = query.toLowerCase();
-    const found = new Map<string, { label: string; text: string }>();
+    const found = new Map<string, MatchReport>();
     const byContent: DrugIndexRow[] = [];
+    const byVariant: DrugIndexRow[] = [];
 
     for (const row of rows) {
       if (seen.has(row.slug)) continue;
       const hit = fieldIndex.get(row.slug)?.find((field) => field.lower.includes(lower));
       if (!hit) continue;
-      byContent.push(row);
-      found.set(row.slug, { label: fieldLabels.get(hit.key) ?? hit.key, text: snippet(hit.text, lower) });
+      // A drug whose own profile says it outranks one where only a class's
+      // wording does -- same reasoning as a name hit outranking a content hit.
+      // The last tier is still a real answer: it is the only way to find what
+      // a lecture wrote.
+      (hit.variant ? byVariant : byContent).push(row);
+      found.set(row.slug, {
+        label: fieldLabels.get(hit.key) ?? hit.key,
+        text: snippet(hit.text, lower),
+        variant: hit.variant,
+      });
     }
 
-    return { ranked: [...named, ...byContent], matchedIn: found };
+    return { ranked: [...named, ...byContent, ...byVariant], matchedIn: found };
   }, [rows, fuse, fieldIndex, fieldLabels, filters.q]);
 
   const results = useMemo(() => {
@@ -232,7 +263,15 @@ export function DrugBrowser({
       // text. A field chosen with nothing typed is not a filter yet -- it is
       // half of one -- so it narrows nothing until there is something to find.
       if (filters.fieldKey && filters.fieldText.trim()) {
-        if (!contains(row.values[filters.fieldKey] ?? '', filters.fieldText)) return false;
+        // Versions count here as well. Having the box find a row by a class's
+        // wording and then the precise form of the same question lose it would
+        // be two different ideas of what this app knows about a drug -- and
+        // the looser control cannot be the more capable one.
+        const inBase = contains(row.values[filters.fieldKey] ?? '', filters.fieldText);
+        const inVariant = row.variants.some(
+          (variant) => contains(variant.values[filters.fieldKey] ?? '', filters.fieldText),
+        );
+        if (!inBase && !inVariant) return false;
       }
       return true;
     });
@@ -546,15 +585,15 @@ export function DrugBrowser({
                       The identifier is the point, so it matches the [V-2]
                       labels in the list builder, where you pick which one a
                       list reads. */}
-                  {row.variants > 0 && (
+                  {row.variants.length > 0 && (
                     <Link
                       href={`/drugs/${row.slug}`}
-                      title={`${row.variants} alternate profile${row.variants === 1 ? '' : 's'}`
-                        + ' — a class or exam that words this drug its own way'}
+                      title={`${row.variants.map((v) => `V-${v.n} ${v.label}`).join(', ')}`
+                        + ' — words this drug its own way'}
                       className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono
                         text-[0.6875rem] leading-none text-[var(--muted)]"
                     >
-                      V-{row.variants}
+                      V-{row.variants.length}
                     </Link>
                   )}
                   {row.review === 'flagged' && (
@@ -577,7 +616,19 @@ export function DrugBrowser({
                     check is a search box you stop trusting. */}
                 {matchedIn.has(row.slug) && (
                   <p className="text-xs text-[var(--muted)] md:col-span-3">
-                    <span className="font-medium">{matchedIn.get(row.slug)!.label}:</span>{' '}
+                    <span className="font-medium">{matchedIn.get(row.slug)!.label}</span>
+                    {/* Which version said it, where the drug's own profile did
+                        not. Without this the row is a trap: you click through
+                        to a profile that does not contain the word you typed,
+                        because the class that wrote it is behind the dropdown
+                        and nothing told you to look there. */}
+                    {matchedIn.get(row.slug)!.variant && (
+                      <span className="ml-1 rounded border border-[var(--border)] px-1 py-px
+                        font-mono text-[0.625rem]">
+                        V-{matchedIn.get(row.slug)!.variant!.n} {matchedIn.get(row.slug)!.variant!.label}
+                      </span>
+                    )}
+                    <span className="font-medium">:</span>{' '}
                     {matchedIn.get(row.slug)!.text}
                   </p>
                 )}

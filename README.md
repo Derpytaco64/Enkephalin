@@ -31,7 +31,8 @@ box warning — and *generates* the cards. Which means:
 
 **Browse and profiles** — `/drugs`, with one search box that reaches the
 *contents* of a profile as well as its name, so a half-remembered toxicity
-finds its drug and the row says which field matched. Filterable by list,
+finds its drug and the row says which field matched -- and, where it was a
+class's own wording rather than the drug's, which version said it. Filterable by list,
 category, indication, route and schedule, or by text in one named field;
 colour-coded by class. A profile page per drug with every field, its brands,
 the protocols it belongs to, and where each value came from.

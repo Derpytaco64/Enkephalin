@@ -1,9 +1,12 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
-import { brandIndications, drugBrands, drugIndications, drugTags, drugs, fieldDefs, tags } from '@/db/schema';
+import {
+  brandIndications, drugBrands, drugIndications, drugTags, drugs, fieldDefs, tags, users,
+} from '@/db/schema';
 import { syncDrugs, type SeedDrug } from '@/lib/content/sync';
 import { getDrugIndex } from '@/lib/drugs/browse';
+import { saveVariantLayer } from '@/lib/drugs/variants';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 
 beforeEach(async () => {
@@ -171,4 +174,72 @@ describe('getDrugIndex', () => {
     expect(rows.find((row) => row.slug === 'lisinopril')!.missing).toEqual([]);
   });
 
+});
+
+/* ------------------------------------------- what a class words differently -- */
+
+describe('a class’s own wording in the index', () => {
+  const CLASS = 'phrm-535';
+  const ME = 'admin-id';
+
+  beforeEach(async () => {
+    await db.delete(users);
+    await db.insert(users).values({ id: ME, email: 'me@example.test', role: 'admin' });
+
+    const [tag] = await db
+      .insert(tags)
+      .values({ slug: CLASS, label: 'PHRM 535', kind: 'course' })
+      .returning({ id: tags.id });
+    const [alprazolam] = await db.select().from(drugs).where(eq(drugs.slug, 'alprazolam'));
+    await db.insert(drugTags).values({ drugId: alprazolam.id, tagId: tag.id });
+
+    await saveVariantLayer({
+      drugSlug: 'alprazolam',
+      variantSlug: CLASS,
+      values: { moa: 'Enhances GABAergic inhibition, causing **pyrexia** rarely' },
+      source: '',
+      note: '',
+      userId: ME,
+    });
+  });
+
+  it('carries the layer’s text, so the search box can reach it', async () => {
+    const { rows } = await getDrugIndex();
+    const [alprazolam] = rows.filter((row) => row.slug === 'alprazolam');
+
+    expect(alprazolam.variants).toHaveLength(1);
+    const [variant] = alprazolam.variants;
+    expect(variant).toMatchObject({ slug: CLASS, label: 'PHRM 535', n: 1 });
+    // Flattened by the same `formatFieldValue` and `flatten` the drug's own
+    // values go through, markdown markers and all -- so a word is findable
+    // whoever wrote it, and neither is findable across a `**`.
+    expect(variant.values.moa).toContain('pyrexia');
+    expect(variant.values.moa).toBe('Enhances GABAergic inhibition, causing **pyrexia** rarely');
+  });
+
+  it('carries only the fields that version words its own way', async () => {
+    const { rows } = await getDrugIndex();
+    const [variant] = rows.filter((row) => row.slug === 'alprazolam')[0].variants;
+
+    // The class said nothing about the black box warning, so the layer holds
+    // nothing for it -- an absent key is "the same as the drug's", and copying
+    // the drug's text in would make every search hit look like the class's.
+    expect(Object.keys(variant.values)).toEqual(['moa']);
+    expect(rows.filter((row) => row.slug === 'alprazolam')[0].values.bbw)
+      .toContain('concomitant opioid');
+  });
+
+  it('leaves the drug’s own values alone', async () => {
+    const { rows } = await getDrugIndex();
+    const [alprazolam] = rows.filter((row) => row.slug === 'alprazolam');
+
+    // The whole promise of a layer: the drug still says what it said, so a
+    // search for the curated wording still finds it as the drug's own.
+    expect(alprazolam.values.moa).toBe('GABA-A positive allosteric modulator');
+  });
+
+  it('gives a drug with no versions an empty list rather than nothing', async () => {
+    const { rows } = await getDrugIndex();
+    expect(rows.filter((row) => row.slug === 'lisinopril')[0].variants).toEqual([]);
+  });
 });

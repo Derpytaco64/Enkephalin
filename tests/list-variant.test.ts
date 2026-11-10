@@ -125,12 +125,13 @@ describe('numbering a drug’s versions', () => {
     expect(byDrug.get(drugIds.amoxicillin)?.map((variant) => variant.slug)).toEqual([CLASS, OTHER]);
   });
 
-  it('is the same count the browse list shows as V-n', async () => {
+  it('is the same numbering the browse list shows as V-n', async () => {
     const { rows } = await getDrugIndex();
     const bySlug = Object.fromEntries(rows.map((row) => [row.slug, row]));
 
-    expect(bySlug.amoxicillin.variants).toBe(2);
-    expect(bySlug.warfarin.variants).toBe(0);
+    expect(bySlug.amoxicillin.variants.map((variant) => [variant.n, variant.slug]))
+      .toEqual([[1, CLASS], [2, OTHER]]);
+    expect(bySlug.warfarin.variants).toEqual([]);
   });
 });
 
