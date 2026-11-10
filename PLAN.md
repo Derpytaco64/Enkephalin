@@ -3068,6 +3068,33 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### A declared field's label is Title Case (2026-11-10)
+
+*Additional notes should be capitalized in the drug import doc, new tags should follow that rule:
+"Additional Notes".*
+
+The guide's own examples were sentence-cased -- `"label": "Additional notes"`, `"Adverse effects"`,
+`"Clinical pearls"` -- so every field a lecture has ever asked for arrived that way. A label is the
+name of a section on a profile and the heading on a flashcard, read beside every other field's
+label, so one sentence-cased among them is the odd one out.
+
+Written down with the same wrinkles as the class rule, so the guide has one idea about capitals
+rather than two: every word takes a capital, a joining word does not (`Dosing in Renal Impairment`),
+an acronym keeps its own case (`CYP Interactions`), and a hyphen behaves as it does in a class
+(`Non-renal Clearance`). The `key` is untouched and stays `snake_case` -- it is the address and is
+never shown, which is the whole reason the two are separate.
+
+Both example blocks and the `notes` heading now read that way, for the reason the generic-name entry
+gives: a guide whose example contradicts its rule teaches the example.
+
+**One thing this does not reach, and it is the owner's call.** The ten fields the app *ships* are
+sentence-cased in `lib/fields/core-fields.ts` -- *Mechanism of action*, *Black box warning*, *Drug
+class*, *Brand names* -- and an import never renames a field, so the fields already declared keep
+the labels they were created with too. Follow this rule and a new *Additional Notes* sits beside an
+existing *Mechanism of action*: the guide is consistent with itself and the profile is not, until
+somebody decides to retitle the shipped set and the stored `field_defs` rows. Recorded here rather
+than done, because it is a change to what every screen prints and nobody has asked for it yet.
+
 ### A version's tags go out with it (2026-11-10)
 
 *When a variant with a tag the main drug doesn't have is deleted from the database, the tags get
