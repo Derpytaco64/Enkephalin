@@ -3119,6 +3119,44 @@ The screen says what it did. `removeAction` reports the memberships it dropped, 
 stay* before you type DELETE, and the page's intro says it too. A deletion nobody ticked is one the
 screen has to admit to.
 
+### The guide now asks for a capitalised drug class (2026-11-10)
+
+*I want to make it so the drug import doc capitalizes drug classes, right now its showing
+"Second-generation cephalosporin" and that looks bad.*
+
+Same shape as [the guide now asks for a capitalised drug
+name](#the-guide-now-asks-for-a-capitalised-drug-name-2026-11-10), and the same fix: the
+instruction, not a normaliser.
+`drugs.drug_class` holds an FDA Established Pharmacologic Class name -- the one class vocabulary
+this project trusts, per `lib/drugs/drug-class.ts` -- and all 119 values the sheet brought in are
+RxNorm's own spelling of one: `Xanthine Oxidase Inhibitor`, `Cephalosporin Antibacterial`,
+`HMG-CoA Reductase Inhibitor`. A lecture writes the class as lecture prose, so an import drops
+`Second-generation cephalosporin` into a column where everything else is title case.
+
+The rule written down, with the wrinkles taken from values already stored rather than invented:
+capitalise every word; a joining word stays lowercase (`Serotonin and Norepinephrine Reuptake
+Inhibitor`); after a hyphen a qualifier stays lowercase (`Anti-epileptic Agent`, `Thiazide-like
+Diuretic`, and so `Second-generation Cephalosporin`) while two hyphenated nouns both take a capital
+(`Sodium-Glucose Cotransporter 2 Inhibitor`); a Greek letter or stereochemical prefix stays
+lowercase wherever it falls (`beta-Adrenergic Blocker`, `5-alpha Reductase Inhibitor`,
+`l-Thyroxine`); and an acronym keeps its own case and is **not** spelled out, because the acronym
+rule is about fields read as prose and `Glucagon-Like Peptide-1 (GLP-1) Receptor Agonist` is not
+the name of anything.
+
+**It is not only looks**, which is the part worth having in the guide. The class is stored verbatim
+and compared as a whole string -- the browse rail's class filter, the colour-by-class axis and
+`sameClass` distractor sampling in `lib/study/quiz.ts` all group by the exact value -- so two
+spellings are two classes with one name, each a smaller group than the lecture meant, and the same
+class with two colours.
+
+The worked example's four classes were lower case and are now not, for the reason the generic-name
+entry gives: a guide whose example contradicts its rule teaches the example.
+
+Left alone, and worth deciding on separately: the classes already stored by the Heme/Onc import.
+The class is *filled and never corrected* outside `base` mode, so no re-import will tidy them --
+unlike a drug name, though, nothing is derived from the class, so a rename is cheap whenever
+somebody wants it.
+
 ### *Visible by default* means *visible when empty* (2026-11-10)
 
 *Making it not show declutters, but right now if a drug does have info in that field and

@@ -232,7 +232,7 @@ The class and the schedule are *filled* and never corrected, except in `base` mo
 | `aliases` | no | Other names the deck uses: `["T-VEC", "Talimogene"]`. Matching only, so case changes nothing — capitalise them the same way regardless |
 | `brands` | no | Trade names: `["Opdivo"]`. Only ones the deck names |
 | `indications` | no | What it is used for, **as specifically as the deck says it** |
-| `class` | no | The pharmacologic class, if the deck gives one |
+| `class` | no | The pharmacologic class, if the deck gives one, **capitalised**: `"Cephalosporin Antibacterial"` |
 | `schedule` | no | `CI`–`CV`, and only for a controlled substance |
 | `fields` | no | Everything else. See the field set below |
 | `source` | no | Overrides the file's `source` for this drug |
@@ -266,6 +266,43 @@ Matching ignores case here too, so a file spelling a component in lower case sti
 still creates no duplicate. And **an import never renames a drug it matched**: the name on the page
 stays whatever the app already holds, so a file cannot tidy the library's spelling and does not need
 to try. Fixing a stored name is an edit, not an import.
+
+**Capitalise the class the way the library writes it.** `class` holds an FDA Established
+Pharmacologic Class name — the one class vocabulary this project trusts — and every class the
+library came with is RxNorm's own spelling of one: `Xanthine Oxidase Inhibitor`, `Proton Pump
+Inhibitor`, `Cephalosporin Antibacterial`. A deck writes the same class as lecture prose, and beside
+those a `"second-generation cephalosporin"` reads as a mistake. So **capitalise every word**:
+
+| the deck says | write |
+|---|---|
+| `second-generation cephalosporin` | `"Second-generation Cephalosporin"` |
+| `BRAF kinase inhibitor` | `"BRAF Kinase Inhibitor"` |
+| `proton pump inhibitor` | `"Proton Pump Inhibitor"` |
+
+Four details, each of them a value the library already holds:
+
+- **A joining word stays lowercase**: `"Serotonin and Norepinephrine Reuptake Inhibitor"`.
+- **After a hyphen, a qualifier stays lowercase** — `"Anti-epileptic Agent"`, `"Non-narcotic
+  Antitussive"`, `"Thiazide-like Diuretic"`, `"Potassium-sparing Diuretic"`, and so
+  `"Second-generation Cephalosporin"`. Two nouns hyphenated together both take a capital:
+  `"Sodium-Glucose Cotransporter 2 Inhibitor"`.
+- **A Greek letter or a stereochemical prefix stays lowercase, first word or not**:
+  `"beta-Adrenergic Blocker"`, `"alpha-1 Adrenergic Agonist"`, `"5-alpha Reductase Inhibitor"`,
+  `"l-Thyroxine"`, `"gamma-Aminobutyric Acid A Receptor Positive Modulator"`.
+- **An acronym keeps its own case, and is never spelled out here**: `"GLP-1 Receptor Agonist"`,
+  `"PCSK9 Inhibitor"`, `"P2Y12 Platelet Inhibitor"`, `"HMG-CoA Reductase Inhibitor"`. The acronym
+  rule further down is about fields that are read as prose; a class is a name, and `"Glucagon-Like
+  Peptide-1 (GLP-1) Receptor Agonist"` is not the name of anything.
+
+**It matters more than it looks.** The class is stored as written and compared as a whole string, so
+the browse rail's class filter, the colour-by-class axis and the quiz's same-class distractors all
+group by the exact value. `Second-generation Cephalosporin` and `second-generation cephalosporin`
+would be two classes with one name, each a smaller group than the lecture meant — and the colour
+coding would give the same class two colours.
+
+**And the class is filled, never corrected** — see `write` above. Where the app already holds a
+class, the file's value is ignored outside `base` mode, so the capitals that stick are the ones a
+drug is created with. There is no pass that tidies them later.
 
 **Matching, first by name.** A drug is matched by `generic`, then by each of its `aliases`, against
 the generic names **and the brand names** of every drug the app holds. The comparison is the whole
@@ -751,6 +788,9 @@ look for.
 - [ ] **Every value is a short fragment, and each fact is in exactly one field.** Shorter wording,
       never fewer facts.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
+- [ ] **Every `class` is capitalised the way the library writes it** — `"Cephalosporin
+      Antibacterial"`, `"Second-generation Cephalosporin"`. Every word takes a capital, except a
+      joining word and a qualifier after a hyphen; an acronym keeps its own case.
 - [ ] Every combination product is written out in full, with **every component capitalised** —
       `"Amoxicillin/Clavulanate"`. The separator and the spacing do not matter to matching; a
       different name does, so any short form the deck uses (`"Amox/Clav"`) is in `aliases`, with
@@ -795,7 +835,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
         "Unresectable or metastatic melanoma",
         "Adjuvant treatment of resected stage IIB-IV melanoma"
       ],
-      "class": "PD-1 blocking antibody",
+      "class": "PD-1 Blocking Antibody",
       "fields": {
         "moa": "PD-1 inhibitor. PD-1 on T cells binds PD-L1 on the tumour and switches the T cell off late in the immune response. Blocking it restores T cell activation, recognition and attack.",
         "dosing": "240 mg IV every 2 weeks, or 480 mg IV every 4 weeks, until progression or toxicity.\n\nIn combination with ipilimumab the dose is lower — see Regimens.",
@@ -808,7 +848,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "generic": "Ipilimumab",
       "brands": ["Yervoy"],
       "indications": ["Unresectable or metastatic melanoma"],
-      "class": "CTLA-4 blocking antibody",
+      "class": "CTLA-4 Blocking Antibody",
       "fields": {
         "moa": "CTLA-4 inhibitor. CTLA-4 on regulatory T cells limits T cell activity early in the immune response. Blocking it lets the response get started.",
         "route": "IV",
@@ -819,7 +859,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "generic": "Dabrafenib",
       "brands": ["Tafinlar"],
       "indications": ["Unresectable or metastatic melanoma, BRAF V600E positive"],
-      "class": "BRAF kinase inhibitor",
+      "class": "BRAF Kinase Inhibitor",
       "fields": {
         "moa": "BRAF inhibitor. BRAF V600E holds the MAPK pathway (RAS-BRAF-MEK-ERK) always on. Inhibiting it stops the signal. Resistance develops through MEK, which is why it is given with a MEK inhibitor.",
         "dosing": "150 mg PO twice daily. Take with meals.",
@@ -833,7 +873,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "generic": "Trametinib",
       "brands": ["Mekinist"],
       "indications": ["Unresectable or metastatic melanoma, BRAF V600E positive"],
-      "class": "MEK inhibitor",
+      "class": "MEK Inhibitor",
       "fields": {
         "moa": "MEK inhibitor. Given with a BRAF inhibitor to delay the MEK-mediated resistance that BRAF inhibition alone runs into, which also increases efficacy.",
         "dosing": "2 mg PO once daily.",
