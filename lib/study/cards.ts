@@ -117,10 +117,17 @@ export function answerText(def: FieldDef, value: FieldValue | undefined): string
 
 export function inScope(source: CardSource, config: StudyConfig) {
   const { scope } = config;
-  // Each axis narrows the one before it. Two lists mean either list, but a
-  // list and a category mean the drugs in both: "Top Drugs 2026 +
+  // Each axis narrows the one before it. Within an axis it is *any*, so two
+  // exams mean revising both; across axes it is *all*, so "Top Drugs 2026 +
   // Anticonvulsants" is the anticonvulsants within that list.
-  if (scope.tags.length > 0 && !scope.tags.some((tag) => source.tags.includes(tag))) return false;
+  //
+  // Lists are the one axis that can be asked the other way, because they hold
+  // four kinds of thing: *Top Drugs 2026 and PHRM 535* means the drugs on
+  // both, and `tagsAll` is how the screen says so.
+  if (scope.tags.length > 0) {
+    const held = scope.tags.filter((tag) => source.tags.includes(tag));
+    if (scope.tagsAll ? held.length !== scope.tags.length : held.length === 0) return false;
+  }
   if (scope.categories.length > 0 && !scope.categories.some((tag) => source.tags.includes(tag))) {
     return false;
   }

@@ -25,6 +25,15 @@ export type StudyScope = {
   /** Drug lists, such as the sheet edition: `top-drugs-2026`. */
   tags: string[];
   /**
+   * Whether a drug must be on **every** list picked rather than any of them.
+   *
+   * Default false, which is the rule every other axis follows and the one that
+   * can never return nothing. True is the intersection -- *Top Drugs 2026 and
+   * PHRM 535* -- which is a question only this axis raises, because only this
+   * axis holds several kinds of list at once. See `ScopePicker`'s `all`.
+   */
+  tagsAll: boolean;
+  /**
    * Therapeutic categories -- anticonvulsants, beta blockers -- held as tags
    * of kind `system` and so drawn from the same `drug_tags` table as the
    * lists above.
@@ -101,7 +110,8 @@ export function sessionRules(config: StudyConfig) {
 export const DEFAULT_CONFIG: StudyConfig = {
   sessionMode: 'review',
   scope: {
-    tags: [], categories: [], indications: [], classes: [], schedules: [], routes: [],
+    tags: [], tagsAll: false,
+    categories: [], indications: [], classes: [], schedules: [], routes: [],
     dueOnly: true,
   },
   yearLevel: null,

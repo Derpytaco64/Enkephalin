@@ -37,7 +37,10 @@ category, indication, route and schedule, or by text in one named field;
 colour-coded by class. A profile page per drug with every field, its brands,
 the protocols it belongs to, and where each value came from.
 
-**Study** — `/study/flashcards` and `/study/quiz`. Cram (everything, schedule
+**Study** — `/study/flashcards` and `/study/quiz`. Scoped by drug list, year,
+class or exam (several at once, as either the union or the overlap), by
+category, indication, route and schedule; fields a lecture added fold into
+their own section so the sheet's own columns stay the default. Cram (everything, schedule
 untouched) or review (what is due). Binary grading when cramming, four-point when reviewing. Saved setups
 at `/study/setups`, so a configuration you liked is one click away.
 

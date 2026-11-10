@@ -39,6 +39,26 @@ export function FieldPicker({
     setActiveYear('');
   }
 
+  // The sheet's own columns, and everything an import brought with it. A year
+  // is responsible for each of the former and for none of the latter, which is
+  // the only honest line between them the data draws.
+  const sheet = fields.filter((field) => field.yearLevels.length > 0);
+  const extra = fields.filter((field) => field.yearLevels.length === 0);
+
+  const box = (field: PickerField) => (
+    <label key={field.key} className="flex items-center gap-2 text-sm">
+      <input
+        type="checkbox" name="fields" value={field.key}
+        checked={chosen.includes(field.key)}
+        onChange={() => toggle(field.key)}
+      />
+      {field.label}
+      {field.yearLevels.length > 0 && (
+        <span className="text-xs text-[var(--muted)]">{field.yearLevels.join('·')}</span>
+      )}
+    </label>
+  );
+
   return (
     <>
       <div>
@@ -80,20 +100,41 @@ export function FieldPicker({
             : `${chosen.length} selected. How they become cards depends on the card shape.`}
         </p>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-          {fields.map((field) => (
-            <label key={field.key} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox" name="fields" value={field.key}
-                checked={chosen.includes(field.key)}
-                onChange={() => toggle(field.key)}
-              />
-              {field.label}
-              {field.yearLevels.length > 0 && (
-                <span className="text-xs text-[var(--muted)]">{field.yearLevels.join('·')}</span>
-              )}
-            </label>
-          ))}
+          {sheet.map(box)}
         </div>
+
+        {/* Everything a lecture added, folded away.
+
+            The sheet's columns are the thing this app is for and there are six
+            of them. Fields arrive from imported lectures -- adverse effects,
+            monitoring, pearls -- and a flat row mixes *what are the top drugs*
+            with *what did one class say about twenty of them*, which is two
+            different study sessions. Told apart by `yearLevels`: a program year
+            is responsible for every column of the sheet, and for nothing a
+            lecture declared.
+
+            A closed `<details>` still submits the boxes inside it, so folding
+            this away can never silently drop a field from the deck -- which is
+            also why the summary counts the ticked ones, and why it opens itself
+            when any are. */}
+        {extra.length > 0 && (
+          <details open={extra.some((field) => chosen.includes(field.key))} className="mt-3">
+            <summary className="cursor-pointer text-sm">
+              Added by a class
+              <span className="ml-2 text-xs text-[var(--muted)]">
+                {(() => {
+                  const on = extra.filter((field) => chosen.includes(field.key)).length;
+                  return on === 0
+                    ? `${extra.length} more`
+                    : `${on} of ${extra.length} selected`;
+                })()}
+              </span>
+            </summary>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+              {extra.map(box)}
+            </div>
+          </details>
+        )}
       </fieldset>
     </>
   );

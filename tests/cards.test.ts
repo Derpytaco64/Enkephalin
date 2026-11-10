@@ -239,6 +239,49 @@ describe('buildCards', () => {
     expect(cards.map((card) => card.slug)).toEqual(['topiramate']);
   });
 
+  it('takes either list when several are picked', () => {
+    // Two exams mean revising both, which is the sensible default and the one
+    // that can never hand back an empty deck.
+    const exam2 = source({ slug: 'warfarin', generic: 'Warfarin', tags: ['exam-2'] });
+    const exam3 = source({ slug: 'nivolumab', generic: 'Nivolumab', tags: ['heme-onc-exam-3'] });
+    const neither = source({ slug: 'lisinopril', generic: 'Lisinopril', tags: ['top-drugs-2026'] });
+
+    const cards = buildCards([exam2, exam3, neither], defs, config({
+      scope: { ...DEFAULT_CONFIG.scope, tags: ['exam-2', 'heme-onc-exam-3'] },
+    }));
+
+    expect(cards.map((card) => card.slug).sort()).toEqual(['nivolumab', 'warfarin']);
+  });
+
+  it('takes only the drugs on every list when asked for all of them', () => {
+    // The other question the lists axis can be asked, and the reason it has a
+    // control the other axes do not: "Top Drugs 2026 and PHRM 535" is the
+    // overlap, not the union.
+    const onBoth = source({ slug: 'warfarin', generic: 'Warfarin', tags: ['top-drugs-2026', 'phrm-535'] });
+    const listOnly = source({ slug: 'lisinopril', generic: 'Lisinopril', tags: ['top-drugs-2026'] });
+    const classOnly = source({ slug: 'nivolumab', generic: 'Nivolumab', tags: ['phrm-535'] });
+
+    const cards = buildCards([onBoth, listOnly, classOnly], defs, config({
+      scope: {
+        ...DEFAULT_CONFIG.scope, tags: ['top-drugs-2026', 'phrm-535'], tagsAll: true,
+      },
+    }));
+
+    expect(cards.map((card) => card.slug)).toEqual(['warfarin']);
+  });
+
+  it('means the same thing either way when only one list is picked', () => {
+    const onList = source({ slug: 'warfarin', generic: 'Warfarin', tags: ['top-drugs-2026'] });
+    const off = source({ slug: 'nivolumab', generic: 'Nivolumab', tags: ['phrm-535'] });
+
+    for (const tagsAll of [false, true]) {
+      const cards = buildCards([onList, off], defs, config({
+        scope: { ...DEFAULT_CONFIG.scope, tags: ['top-drugs-2026'], tagsAll },
+      }));
+      expect(cards.map((card) => card.slug)).toEqual(['warfarin']);
+    }
+  });
+
   it('takes either category when several are picked', () => {
     const anticonvulsant = source({ slug: 'topiramate', generic: 'Topiramate', tags: ['anticonvulsants'] });
     const statin = source({ slug: 'atorvastatin', generic: 'Atorvastatin', tags: ['statins'] });

@@ -3068,6 +3068,57 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### Several lists at once, and which operator they mean (2026-11-09)
+
+*I'd like the ability to select multiple tags in the flashcard and quiz creation menu, so it's
+something like top drugs && cephalosporin antibiotics.*
+
+The example already worked, and that is worth saying first: therapeutic categories are their own
+axis, and across axes the rule has always been **and** -- *Top Drugs 2026* plus the *Cephalosporins*
+category is the cephalosporins within that list. What did not work was the literal ask, because the
+lists axis was a single `<select>` while `scope.tags` had been `string[]` all along.
+
+So the axis became a `ScopePicker` like the two beside it, which brought the filter box, the count
+summary and the *N picked -- up to M drugs* line with it for free. `ScopePicker` gained **groups** to
+make it work: *Top Drugs 2026*, *P2*, *PHRM 535* and *Heme/Onc Exam 3* are four different questions
+and a flat list of sixty reads as one. Grouped by a Map in the caller's order rather than by sorting,
+so the headings stay widest-first instead of alphabetical.
+
+**The operator is the real decision, and it is a control rather than a guess.** Within an axis the
+rule is *any*; across axes it is *all*. That holds everywhere else because a drug has one class and
+one list of uses, so *any* is the only reading that makes sense. It breaks on lists, which now hold
+four kinds of thing at once:
+
+- *Exam 2 and Exam 3* means the union -- you are revising both.
+- *Top Drugs 2026 and PHRM 535* means the overlap -- the class's drugs that are also on the syllabus.
+
+One fixed operator is wrong half the time, so the axis says which it is: a checkbox reading **only
+drugs on every one picked**, visible next to the boxes, because an operator you cannot see is worse
+than one you cannot change. It appears only once two are ticked -- with one pick the readings agree,
+and a control that changes nothing is a control you have to think about for no reason.
+
+Default `false`, which is load-bearing rather than arbitrary: saved setups are stored as JSON and one
+written last week has no `tagsAll` in it, so the default *is* the behaviour of every setup already
+saved. A single `tag=` still parses, so old links keep working too.
+
+### A lecture's fields fold away (2026-11-09)
+
+*Are additional fields showing up in their own collapsible dropdown so they don't clutter up the top
+drugs specific information?*
+
+They were not -- one flat row of checkboxes, the sheet's columns and anything an import declared
+side by side. Which mixes two different study sessions: *what are the top drugs* and *what did one
+class say about twenty of them*.
+
+Told apart by `yearLevels`, which turns out to be the honest line the data already draws: a program
+year is responsible for every column of the sheet, and for nothing a lecture declared -- the importer
+sets `yearLevels: []` deliberately, and said why at the time. So *Added by a class* holds `regimen`
+today and every imported field hereafter, folded shut.
+
+A closed `<details>` still submits the boxes inside it, which is what makes folding safe -- the same
+property the scope axes rely on. The summary counts the ticked ones and the section opens itself when
+any are, so a folded field can never be a card in the deck you cannot see.
+
 ### The versions moved to the right, as pills (2026-11-09)
 
 *Put the variants and compare on the right where the associated tags are displayed, in the same

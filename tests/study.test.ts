@@ -13,6 +13,7 @@ import {
   fieldsForYear,
   normalizeConfig,
   sessionRules,
+  type StudyConfig,
 } from '@/lib/study/config';
 import {
   GRADE_BUTTONS,
@@ -266,5 +267,20 @@ describe('blocks', () => {
 
     expect(session.finished).toBe(true);
     expect(guard).toBeLessThan(100);
+  });
+});
+
+describe('a setup saved before the lists axis went multiple', () => {
+  it('still reads as one list, taken loosely', () => {
+    // Saved configs are stored as JSON, so one written last week has no
+    // `tagsAll` in it at all. The default has to be the old behaviour or every
+    // saved setup changes meaning the day the field is added -- and with one
+    // tag the two readings agree anyway, which is what makes `false` safe
+    // rather than merely convenient.
+    const saved = { scope: { tags: ['top-drugs-2026'] } } as Partial<StudyConfig>;
+    const config = normalizeConfig(saved);
+
+    expect(config.scope.tags).toEqual(['top-drugs-2026']);
+    expect(config.scope.tagsAll).toBe(false);
   });
 });

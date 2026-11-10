@@ -25,9 +25,10 @@ export const metadata = { title: 'Quiz' };
 export const dynamic = 'force-dynamic';
 
 type Search = {
-  year?: string; max?: string; dir?: string; tag?: string; set?: string; pri?: string;
+  year?: string; max?: string; dir?: string; tag?: string | string[]; set?: string; pri?: string;
   /** Repeated once per ticked box, so these arrive as arrays. */
   fields?: string | string[];
+  tagsall?: string;
   cat?: string | string[];
   ind?: string | string[];
 };
@@ -59,7 +60,10 @@ function configFromSearch(search: Search, defs: Awaited<ReturnType<typeof listFi
     scope: {
       ...DEFAULT_CONFIG.scope,
       dueOnly: false,
-      tags: search.tag ? [search.tag] : [],
+      tags: manyParam(search.tag),
+      // A single `tag=` still parses, so every saved setup and every link
+      // written before the axis went multiple keeps working unchanged.
+      tagsAll: search.tagsall === '1',
       categories: manyParam(search.cat),
       indications: manyParam(search.ind),
     },
@@ -294,34 +298,32 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
             </div>
 
             {listRows.length > 0 && (
-              <div>
-                <label htmlFor="tag" className="block text-sm font-medium">Drug list</label>
-                <select id="tag" name="tag" defaultValue={config.scope.tags[0] ?? ''} className={control}>
-                  <option value="">Every drug</option>
-                  {/* Grouped by kind, because the axis holds five different
-                      questions now: which drugs are on a syllabus, which year
-                      teaches them, and the three scopes that can also teach a
-                      drug in their own words. */}
-                  {TAG_KIND_GROUPS.map(({ kind, label }) => {
-                    const group = listRows.filter((tag) => tag.kind === kind);
-                    if (group.length === 0) return null;
-                    return (
-                      <optgroup key={kind} label={label}>
-                        {group.map((tag) => (
-                          <option key={tag.slug} value={tag.slug}>
-                            {tag.label} — {tag.count} drug{tag.count === 1 ? '' : 's'}
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  A class or exam here is studied in <em>its own words</em>: where it
-                  has its own wording for a drug, that is what the quiz asks. Everything else is
-                  the drug&rsquo;s own, and the narrowest one in scope wins.
+              <>
+                <ScopePicker
+                  name="tag"
+                  legend="Drug lists"
+                  description="A syllabus, a year, a class or an exam. Pick several for the drugs on any of them."
+                  filterLabel="Filter lists"
+                  options={listRows.map((tag) => ({
+                    slug: tag.slug,
+                    label: tag.label,
+                    count: Number(tag.count),
+                    group: TAG_KIND_GROUPS.find((entry) => entry.kind === tag.kind)?.label,
+                  }))}
+                  selected={config.scope.tags}
+                  control={control}
+                  all={{
+                    name: 'tagsall',
+                    checked: config.scope.tagsAll,
+                    label: 'Only drugs on every one picked',
+                  }}
+                />
+                <p className="-mt-2 text-xs text-[var(--muted)] sm:col-span-2">
+                  A class or exam here is studied in <em>its own words</em>: where it has its own
+                  wording for a drug, that is what the quiz asks. Everything else is the
+                  drug&rsquo;s own, and the narrowest one in scope wins.
                 </p>
-              </div>
+              </>
             )}
 
             <div>
