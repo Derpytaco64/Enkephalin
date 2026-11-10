@@ -434,7 +434,7 @@ drug exists.
 
 ---
 
-## Markdown, and the three things it may contain
+## Markdown, and the four things it may contain
 
 Every markdown field — `dosing`, `moa`, `regimen`, `flow`, anything you declare — is rendered by
 `lib/fields/prose.ts`, which understands exactly three constructs:
@@ -448,6 +448,26 @@ Nothing else. No tables, no bold, no links, no images, and **no mermaid**: a `gr
 a renderer this app does not ship, and a nested list *is* the flowchart when the flowchart is six
 nodes deep. Anything unsupported is shown as the plain text it is, which is why a table degrades
 into an unreadable run of pipes — so turn a table into a list, one bullet per row.
+
+**A run of items is a list, not one long line with semicolons in it.** No prose field splits on
+anything — only a `list` field does, and only where there is no line break — so
+
+```json
+"ae": "Nausea; vomiting; rash; hepatotoxicity; QTc prolongation; infusion reactions"
+```
+
+renders as exactly the one long line it is, and somebody scanning for one of the six has to read all
+six. One bullet each, which is what a card and a profile are built to show:
+
+```json
+"ae": "- Nausea\n- Vomiting\n- Rash\n- Hepatotoxicity\n- QTc prolongation\n- Infusion reactions"
+```
+
+Keep the semicolon for what it is for — joining two clauses of one thought, as in *hold until it
+resolves; restart at full dose* — and never as a separator somebody is expected to read past. The
+same is true of a `list` field even though `;` *is* read there: `["IV", "PO", "SL"]` or one item per
+line, rather than a long `"IV; PO; SL"`. The stored value is identical either way, so the only thing
+the choice changes is whether the file can be read and corrected by the person importing it.
 
 A dosing flow, written the way it renders:
 
@@ -504,6 +524,8 @@ look for.
 - [ ] Anything ambiguous is `"status": "flagged"` rather than omitted or guessed.
 - [ ] Nothing is declared twice for one idea, and nothing is declared that the field table already has.
 - [ ] Every markdown value uses only paragraphs, nested bullets, numbered steps and headings.
+- [ ] No field is a run of items joined with `;` on one line — a run of items is bullets, one
+      per line, and a `list` field is a list.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
 - [ ] Every combination product is written out in full — the separator and the spacing do not
       matter, `"Amox/clav"` does — and any short form the deck uses is in `aliases`, with the brand
