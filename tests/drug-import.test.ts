@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
@@ -378,44 +379,79 @@ describe('a drug the app has never held', () => {
     expect(tagSlugs.sort()).toEqual(['heme-onc-exam-3', 'phrm-535']);
   });
 
-  it('is refused where its name misses and its address is already taken', async () => {
-    // The failure as it happened, with the names it happened to. The app holds
-    // a space after the slash and the file does not, so no spelling in the
-    // entry matches anything -- and every spelling of it reduces to the slug
-    // that drug already occupies.
+  it('finds a combination product spelled with the punctuation the other way', async () => {
+    // The failure that asked for this, with the names it happened to: the app
+    // holds a space after the slash and the file does not, so no name in the
+    // entry matches anything. Every spelling of it reduces to the address that
+    // drug already occupies, and that is the match.
     await db.insert(drugs).values({
       slug: 'amoxicillin-clavulanate', genericName: 'Amoxicillin/ Clavulanate',
     });
 
     const text = file({
-      drugs: [
-        {
-          generic: 'Amoxicillin/clavulanate',
-          aliases: ['Amoxicillin-clavulanate', 'Amox/clav'],
-          fields: { moa: 'Beta-lactam with a beta-lactamase inhibitor' },
-        },
-        { generic: 'Cefepime', fields: { moa: 'Fourth-generation cephalosporin' } },
-      ],
+      drugs: [{
+        generic: 'Amoxicillin/clavulanate',
+        aliases: ['Amoxicillin-clavulanate', 'Amox/clav'],
+        fields: { moa: 'Beta-lactam with a beta-lactamase inhibitor' },
+      }],
     });
 
     const plan = await planDrugImport(read(text));
-    expect(plan.drugs[0].exists).toBe(false);
-    expect(plan.drugs[0].slug).toBe('amoxicillin-clavulanate');
+    expect(plan.drugs[0].exists).toBe(true);
+    expect(plan.drugs[0].generic).toBe('Amoxicillin/ Clavulanate');
 
+    // An ordinary update, with the lecture's provenance on it -- where before
+    // this the whole entry was refused for standing on its own address.
     const report = await apply(text);
-    expect(report.problems).toEqual([{
-      where: 'drugs (Amoxicillin/clavulanate)',
-      message: 'A drug already exists at /drugs/amoxicillin-clavulanate.',
-    }]);
-    // The rest of the file lands, which the report's *Nothing was written* --
-    // the planner's wording, reused for a report -- hides. The guide says so.
-    expect(report.created).toEqual(['cefepime']);
+    expect(report.problems).toEqual([]);
+    expect(report.created).toEqual([]);
+    expect(report.updated).toEqual(['amoxicillin-clavulanate']);
 
-    // And nothing of the refused entry reached the drug it collided with: it
-    // was never matched to it, so it was never an update.
     const [held] = await db
       .select().from(drugs).where(eq(drugs.slug, 'amoxicillin-clavulanate'));
-    expect(held.fields.moa).toBeUndefined();
+    expect(held.fields.moa.value).toBe('Beta-lactam with a beta-lactamase inhibitor');
+    expect(held.fields.moa.source).toBe('from PHRM 535 content');
+    // Matched, not renamed: the app's own spelling is the one on the page.
+    expect(held.genericName).toBe('Amoxicillin/ Clavulanate');
+  });
+
+  it('prefers a name it holds exactly over one that only reduces to the same', async () => {
+    await db.insert(drugs).values({
+      slug: 'amoxicillin-clavulanate', genericName: 'Amoxicillin/ Clavulanate',
+    });
+
+    // The generic reduces onto the combination; the alias names dacarbazine
+    // outright. Every name gets its exact try before any of them falls back,
+    // so the one actually named wins.
+    const plan = await planDrugImport(read(file({
+      drugs: [{
+        generic: 'Amoxicillin/clavulanate',
+        aliases: ['dacarbazine'],
+        fields: { moa: 'Alkylates DNA' },
+      }],
+    })));
+
+    expect(plan.drugs[0].generic).toBe('Dacarbazine');
+  });
+
+  it('still refuses a second entry in the same file reaching one address', async () => {
+    // What is left of the collision once matching falls back to the address:
+    // the first entry creates the drug, and the second cannot have matched it,
+    // because everything matching is compared against was read before either
+    // was written. Named, skipped, and the rest of the file still lands.
+    const report = await apply(file({
+      drugs: [
+        { generic: 'Amoxicillin/clavulanate', fields: { moa: 'Beta-lactam' } },
+        { generic: 'Amoxicillin-clavulanate', fields: { moa: 'Beta-lactam' } },
+        { generic: 'Cefepime', fields: { moa: 'Fourth-generation cephalosporin' } },
+      ],
+    }));
+
+    expect(report.problems).toEqual([{
+      where: 'drugs (Amoxicillin-clavulanate)',
+      message: 'A drug already exists at /drugs/amoxicillin-clavulanate.',
+    }]);
+    expect(report.created).toEqual(['amoxicillin-clavulanate', 'cefepime']);
   });
 
   it('is matched by a brand name rather than created twice', async () => {
@@ -1150,5 +1186,39 @@ describe('correcting a version rather than the drug', () => {
     const plan = await planDrugImport(aimed('heme-onc-exam-3', 'Lympholytic at high dose'));
     expect(plan.drugs[0].exists).toBe(false);
     expect(plan.drugs[0].writes.map((write) => write.to)).toEqual(['drug']);
+  });
+});
+
+/* --------------------------------------------- what the screen claims of it -- */
+
+/**
+ * A report is not a refusal, and the box they share used to say it was.
+ *
+ * `Problems` is rendered for a plan and for a report, and the two mean opposite
+ * things by a problem: a refusal found while checking stops the import, while a
+ * problem in the report is one entry that did not land out of a file that
+ * otherwise did -- the slug collision above, for instance. The box told both of
+ * them *Nothing was written*, so a file that half-landed reported that it had
+ * not, which is the reading somebody re-imports on.
+ *
+ * Static because this is copy in a client component and the suite has no DOM.
+ * The assertion is narrow on purpose: the planner's wording is correct for the
+ * planner and stays.
+ */
+describe('the import screen does not claim more than happened', () => {
+  const form = readFileSync('app/admin/import/import-form.tsx', 'utf8');
+
+  it('says nothing was written only where nothing was', () => {
+    const report = form.slice(form.indexOf('state.report.problems.length > 0'));
+    expect(report).toContain('Everything else in the file was.');
+    expect(report).not.toContain('Nothing was written.');
+  });
+
+  it('still says so for a refusal found while checking', () => {
+    const plan = form.slice(
+      form.indexOf("state.kind === 'problems'"),
+      form.indexOf('state.report.problems.length > 0'),
+    );
+    expect(plan).toContain('Nothing was written.');
   });
 });

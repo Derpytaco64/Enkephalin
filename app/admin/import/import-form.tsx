@@ -116,12 +116,21 @@ function DrugRow({
   );
 }
 
-function Problems({ problems }: { problems: ImportProblem[] }) {
+/**
+ * The things to fix, and what that means for the file.
+ *
+ * `note` is a parameter because the two callers mean opposite things by a
+ * problem and this box used to say *Nothing was written* to both of them. A
+ * refusal found while checking stops the whole import; a problem in the report
+ * is one entry that did not land out of a file that otherwise did -- a slug
+ * collision, say. Telling somebody nothing was written when most of it was is
+ * worse than saying nothing, because they re-import on the strength of it.
+ */
+function Problems({ problems, note }: { problems: ImportProblem[]; note: string }) {
   return (
     <div className="mt-6 rounded-lg border border-[var(--danger)] bg-[var(--surface)] p-4">
       <p className="text-sm font-medium">
-        {problems.length === 1 ? 'One thing' : `${problems.length} things`} to fix. Nothing was
-        written.
+        {problems.length === 1 ? 'One thing' : `${problems.length} things`} to fix. {note}
       </p>
       <ul className="mt-2 space-y-1.5 text-sm">
         {problems.map((problem, at) => (
@@ -451,12 +460,14 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
         <Link href="/drugs" className="pill">Drugs</Link>
       </div>
 
-      {state.kind === 'problems' && <Problems problems={state.problems} />}
+      {state.kind === 'problems' && (
+        <Problems problems={state.problems} note="Nothing was written." />
+      )}
 
       {state.kind === 'plan' && (
         <>
           {state.plan.problems.length > 0
-            ? <Problems problems={state.plan.problems} />
+            ? <Problems problems={state.plan.problems} note="Nothing was written." />
             : (
               <Preview
                 plan={state.plan}
@@ -499,7 +510,17 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
               ))}
             </ul>
           )}
-          {state.report.problems.length > 0 && <Problems problems={state.report.problems} />}
+          {/* The one place a problem does not mean the file stopped: these
+              entries did not land and the rest of it did, which is what the
+              numbers above are counting. */}
+          {state.report.problems.length > 0 && (
+            <Problems
+              problems={state.report.problems}
+              note={state.report.problems.length === 1
+                ? 'That entry was not written. Everything else in the file was.'
+                : 'Those entries were not written. Everything else in the file was.'}
+            />
+          )}
         </div>
       )}
     </form>

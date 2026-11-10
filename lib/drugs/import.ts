@@ -120,11 +120,34 @@ function holdsAnAnswer(value: FieldValue | undefined): boolean {
   return value.value !== null || value.status === 'none';
 }
 
+type KnownDrug = {
+  id: string;
+  slug: string;
+  generic: string;
+  drugClass: string | null;
+  schedule: string | null;
+  fields: Record<string, FieldValue>;
+};
+
 type Known = {
   defs: FieldDef[];
   /** Every field key the database has, soft-deleted ones included. */
   keys: Map<string, FieldDef>;
-  byName: Map<string, { id: string; slug: string; generic: string; drugClass: string | null; schedule: string | null; fields: Record<string, FieldValue> }>;
+  byName: Map<string, KnownDrug>;
+  /**
+   * The same drugs again, keyed by what their names reduce to: `drugSlug` of
+   * every generic and brand name, plus each drug's own stored slug.
+   *
+   * The second chance a combination product needs. `Amoxicillin/ Clavulanate`
+   * and `Amoxicillin/clavulanate` are different strings and the same address,
+   * and before this index the second one matched nothing, was treated as a new
+   * drug, and was refused for asking to live where the first one already did.
+   *
+   * Safe to match on because the app cannot hold two drugs at one address: the
+   * slug column is unique. So a name whose address is taken is a name for the
+   * drug that holds it -- there is no second candidate it could mean.
+   */
+  bySlug: Map<string, KnownDrug>;
   brandsByDrug: Map<string, string[]>;
   indicationsByDrug: Map<string, string[]>;
   tagsByDrug: Map<string, string[]>;
@@ -153,16 +176,26 @@ async function readKnown(): Promise<Known> {
       .from(drugTags).innerJoin(tags, eq(tags.id, drugTags.tagId)),
   ]);
 
-  const byName = new Map<string, Known['byName'] extends Map<string, infer V> ? V : never>();
+  const byName = new Map<string, KnownDrug>();
+  const bySlug = new Map<string, KnownDrug>();
   for (const drug of drugRows) {
-    byName.set(lower(drug.genericName), {
+    const entry: KnownDrug = {
       id: drug.id,
       slug: drug.slug,
       generic: drug.genericName,
       drugClass: drug.drugClass,
       schedule: drug.schedule,
       fields: drug.fields,
-    });
+    };
+    byName.set(lower(drug.genericName), entry);
+    // Its own address last and unconditionally, because that one is unique and
+    // therefore unambiguously this drug's. What the generic name reduces to is
+    // usually the same string and is not guaranteed to be -- a drug can be
+    // renamed, and the seed sets both -- so it goes in first and gives way.
+    if (!bySlug.has(drugSlug(drug.genericName))) {
+      bySlug.set(drugSlug(drug.genericName), entry);
+    }
+    bySlug.set(drug.slug, entry);
   }
 
   const brandsByDrug = new Map<string, string[]>();
@@ -174,6 +207,12 @@ async function readKnown(): Promise<Known> {
     const holder = drugRows.find((drug) => drug.id === brand.drugId);
     if (holder && !byName.has(lower(brand.name))) {
       byName.set(lower(brand.name), byName.get(lower(holder.genericName))!);
+    }
+    // By address as well, but never over a generic name or a drug's own slug:
+    // a brand is the weakest claim on a name, and "Augmentin XR" reducing onto
+    // something else's address must not move it.
+    if (holder && !bySlug.has(drugSlug(brand.name))) {
+      bySlug.set(drugSlug(brand.name), byName.get(lower(holder.genericName))!);
     }
   }
 
@@ -195,6 +234,7 @@ async function readKnown(): Promise<Known> {
     defs: defs.filter((def) => def.deletedAt === null),
     keys: new Map(defs.map((def) => [def.key, def])),
     byName,
+    bySlug,
     brandsByDrug,
     indicationsByDrug,
     tagsByDrug,
@@ -202,10 +242,30 @@ async function readKnown(): Promise<Known> {
   };
 }
 
-/** The drug an entry is about, matched by its name and then by its aliases. */
+/**
+ * The drug an entry is about: by name, then by address.
+ *
+ * Two passes rather than one, and the order is the point. A name written the
+ * way the app writes it is a better answer than a name that merely reduces to
+ * the same address, so every name in the entry -- the generic and each alias --
+ * gets its exact try before any of them falls back. An entry whose generic
+ * reduces onto one drug while its alias names another outright means the one it
+ * names.
+ *
+ * The fallback is what makes a combination product work: the library spells
+ * eight of its seventeen with a space after the slash and the rest without, so
+ * a file cannot be expected to guess, and `Amoxicillin/clavulanate` should find
+ * the `Amoxicillin/ Clavulanate` that is already there rather than be refused
+ * for standing on its address.
+ */
 function matchDrug(entry: ImportDrug, known: Known) {
-  for (const name of [entry.generic, ...entry.aliases]) {
+  const names = [entry.generic, ...entry.aliases];
+  for (const name of names) {
     const found = known.byName.get(lower(name));
+    if (found) return found;
+  }
+  for (const name of names) {
+    const found = known.bySlug.get(drugSlug(name));
     if (found) return found;
   }
   return null;

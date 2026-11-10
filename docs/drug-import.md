@@ -247,34 +247,38 @@ a duplicate drug; it only looks careless on the page.
 | `source` | no | Overrides the file's `source` for this drug |
 | `note` | no | One line for the importer's eyes. Stored nowhere |
 
-**Matching.** A drug is matched by `generic`, then by each of its `aliases`, against the generic
-names **and the brand names** of every drug the app holds. The comparison is the whole string,
-trimmed and lower-cased, and nothing else is normalised. Case folds and the ends are trimmed;
-`/`, `-`, `+` and spaces *inside* the name do not. So `"ipilimumab"` finds `Ipilimumab`, and
-`"Opdivo"` finds nivolumab — but `"Amoxicillin/clavulanate"` does **not** find the
-`Amoxicillin/ Clavulanate` the app already holds, because of the one space after the slash. A
-near-match is **not** guessed at: if the deck says "nivolumab-relatlimab", that is a new drug.
+**Matching, first by name.** A drug is matched by `generic`, then by each of its `aliases`, against
+the generic names **and the brand names** of every drug the app holds. The comparison is the whole
+string, trimmed and lower-cased: `"ipilimumab"` finds `Ipilimumab`, and `"Opdivo"` finds nivolumab.
+A near-match is **not** guessed at — if the deck says "nivolumab-relatlimab", that is a new drug.
 
-**No match means a new drug, and its address comes from the generic name.** Lower-cased, with every
-run of anything that is not a letter or a digit turned into a single `-`, and any leading or
-trailing dash dropped. Capitals disappear, and `/`, `+`, spaces and existing dashes all become the
-same single dash — so these four spellings are four different names and one address:
+**Then by address.** Where no name in the entry matches one the app holds, each is reduced to a slug
+and compared again: lower-cased, with every run of anything that is not a letter or a digit turned
+into a single `-`, and any leading or trailing dash dropped. Capitals disappear, and `/`, `+`,
+spaces and existing dashes all become the same single dash. So these four spellings are four
+different names and one address, and all four find the drug that lives at it:
 
-| written as | matched against | address |
+| written as | compared as | address |
 |---|---|---|
 | `"Amoxicillin/clavulanate"` | `amoxicillin/clavulanate` | `amoxicillin-clavulanate` |
 | `"Amoxicillin-clavulanate"` | `amoxicillin-clavulanate` | `amoxicillin-clavulanate` |
 | `"Amoxicillin + clavulanate"` | `amoxicillin + clavulanate` | `amoxicillin-clavulanate` |
 | `"Amoxicillin/ Clavulanate"` | `amoxicillin/ clavulanate` | `amoxicillin-clavulanate` |
 
-**Which is how a combination product gets refused.** Only one of those strings matches the name the
-app holds, so a file spelling it any other way matches nothing, is treated as a new drug, and asks
-for an address that is already taken. The app will not keep two drugs a slug apart — that is how a
-duplicate nobody can tell apart gets made — so the entry is refused with *A drug already exists at
-/drugs/amoxicillin-clavulanate* and nothing of it is written. The library is not consistent about
-this either: it holds `Piperacillin/Tazobactam` with no space and `Amoxicillin/ Clavulanate` and
-`Ampicillin/ Sulbactam` with one, so there is no separator style to follow — look the drug up and
-copy the name, or list the other spellings as `aliases`.
+This is what a combination product needs, because the library is not consistent about the
+separator: it holds `Piperacillin/Tazobactam` with no space and `Amoxicillin/ Clavulanate` and
+`Ampicillin/ Sulbactam` with one, so there is no style a file could follow. It is safe to match on
+because the app cannot hold two drugs at one address, so a name whose address is taken is a name for
+the drug that holds it. **Punctuation is forgiven; a different name is not** — `"Amox/clav"` reduces
+to `amox-clav` and matches nothing, so a short form the deck uses belongs in `aliases`, where the
+brand name (`"Augmentin"`) works too.
+
+A name the app holds **exactly** always wins over one that merely reduces to the same address: every
+name in the entry gets its exact try before any of them falls back. An entry whose `generic` reduces
+onto one drug while an alias names another outright means the one it names.
+
+**No match either way means a new drug is created**, at the address its `generic` reduces to — which
+is normal for an oncology lecture, where most of the drugs are not on a top-200 list.
 
 **Indications are where oncology earns its specificity.** `"melanoma"` is almost useless as an
 indication — a dozen drugs would share it and a quiz built from it asks nothing. Write what the
@@ -464,11 +468,13 @@ A dosing flow, written the way it renders:
 The importer refuses rather than guesses, and a refusal names the entry. Nothing is written until
 every refusal is cleared.
 
-The last row is the one exception to that, and worth knowing before it happens: an address is only
-taken at the moment of the insert, so that collision is found while writing rather than while
-checking. The rest of the file lands, and the entry that collided is skipped and named in the report
-— the report's box says *Nothing was written*, which is the planner's wording; what it means there
-is *these entries were not written*. If a file half-landed, that is the row to look for.
+The last row is the one exception to that, and worth knowing before it happens. Matching is against
+everything the app held when the file was read, so two entries in one file that reduce to one
+address cannot see each other: the first creates the drug and the second asks for an address that
+was free when it was checked and is taken by the time it is written. It is found while writing, so
+the rest of the file lands and that one entry is skipped and named in the report — which says *that
+entry was not written, everything else in the file was*. If a file half-landed, this is the row to
+look for.
 
 | Refused | Why |
 |---|---|
@@ -484,7 +490,7 @@ is *these entries were not written*. If a file half-landed, that is the row to l
 | a regimen with fewer than two components | monotherapy is the drug's `dosing` |
 | a regimen component naming an unknown drug | a drug would be invented from a dose line |
 | a declared `key` that is not `snake_case` | keys are permanent and key the stored values |
-| a new drug whose address is already taken by a drug it did not match | the names differ and the addresses do not, and two drugs a slug apart is a duplicate nobody can tell apart |
+| two entries in one file reaching one address | the second is a new drug standing where the first one just landed, and two drugs a slug apart is a duplicate nobody can tell apart |
 
 ---
 
@@ -499,9 +505,9 @@ is *these entries were not written*. If a file half-landed, that is the row to l
 - [ ] Nothing is declared twice for one idea, and nothing is declared that the field table already has.
 - [ ] Every markdown value uses only paragraphs, nested bullets, numbered steps and headings.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
-- [ ] Every combination product is spelled the way the app already spells it — look it up at
-      `/drugs/` first — or every other spelling it could be looked for under, the brand name
-      included, is in `aliases`.
+- [ ] Every combination product is written out in full — the separator and the spacing do not
+      matter, `"Amox/clav"` does — and any short form the deck uses is in `aliases`, with the brand
+      name beside it.
 - [ ] `scope` is spelled the way every other file for this course spells it, and names no `topic`.
 - [ ] What the lecture is *about* is in each drug's `indications`, not in the scope.
 - [ ] It is valid JSON. No comments, no trailing commas.

@@ -3068,7 +3068,7 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
-### One address, four spellings: the combination-product refusal (2026-11-10)
+### One address, four spellings: matching a combination product (2026-11-10)
 
 *A file had `"generic": "Amoxicillin/clavulanate"`; the app already held that drug; the import
 refused with "A drug already exists at /drugs/amoxicillin-clavulanate".*
@@ -3094,16 +3094,42 @@ reaching one address, a *What gets refused* row, and a checklist item that says 
 or to list every other spelling in `aliases` (the brand name included -- `Augmentin` would have
 matched). A test reproduces the failure with the real names.
 
-**Two importer changes are recommended and not yet made** (the ask was the doc plus a verdict):
+**Both importer changes are now made** (the first ask was the doc plus a verdict; the verdict was
+yes to both).
 
-1. **Match on the slug as well as the string.** `drugSlug(name)` as a second match key cannot be
-   ambiguous, because the app cannot hold two drugs with one slug -- so if a name's slug is taken,
-   the drug holding it *is* the drug being named. That turns this whole class of refusal into an
-   ordinary update with the lecture's provenance on it, and the create-time collision stays as the
-   backstop for a race.
-2. **Stop the report's box saying *Nothing was written*.** `Problems` is shared by the planner and
-   the report, and the two mean opposite things: a plan problem means nothing was written, while a
-   report problem means everything else *was*. The file half-landed and the screen said it had not.
+**Match by address, after every name has had its exact try.** `readKnown` builds a second index,
+`bySlug`, keyed by what each name reduces to: `drugSlug` of every generic and brand name, plus each
+drug's own stored slug. `matchDrug` then runs two passes -- every name in the entry by string, then
+every name by address -- and the order is the decision: a name the app holds exactly is a better
+answer than a name that merely reduces to the same place, so an entry whose `generic` reduces onto
+one drug while an alias names another outright means the one it names.
+
+It is safe to match on for one reason, and it is the reason the refusal existed in the first place:
+**the app cannot hold two drugs at one address**, because the slug column is unique. So a name whose
+address is taken is a name for the drug that holds it -- there is no second candidate it could mean.
+Precedence inside the index follows how strong a claim each name has: a drug's own slug is set
+unconditionally (unique, so unambiguously its own), what its generic name reduces to gives way to
+that, and a brand name is only indexed where nothing holds the key already. Checked against the live
+260: the only key two drugs reduce to is `generic-no-brand-name`, from a seed placeholder brand
+`Generic/No brand name` on folic acid, heparin and phenylephrine -- harmless because brands never
+displace, and already true of the exact-name index.
+
+What is left of the collision is one case, and it is now the table's row: **two entries in one file
+reaching one address.** Matching compares against what the app held when the file was read, so the
+second entry cannot see the drug the first one just created. Found while writing, named, skipped,
+and the rest of the file lands -- which is the other fix.
+
+**A report is not a refusal, and the box they share said it was.** `Problems` is rendered for a plan
+and for a report, and the two mean opposite things by a problem: a refusal found while checking stops
+the import, while a problem in the report is one entry that did not land out of a file that
+otherwise did. The box told both *Nothing was written*, so the file that half-landed reported that it
+had not -- which is the reading somebody re-imports on, and re-importing was the one thing that
+would have made it worse. The note is a parameter now, and the planner's wording stays for the
+planner.
+
+Guarded statically, because it is copy in a client component and this suite has no DOM: the report's
+branch must carry *everything else in the file was* and must not carry *nothing was written*, and
+the planner's branch must still carry it. A narrow assertion for a narrow claim.
 
 ### Correcting a version instead of the drug (2026-11-10)
 
