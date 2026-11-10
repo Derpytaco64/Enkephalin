@@ -3068,6 +3068,53 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### The field list reorders itself, and ticks its own boxes (2026-11-10)
+
+*Drag to reorder appearance order, and put blank-means-none, can-be-quizzed and visible-by-default
+on the list as checkboxes so they are easy to change.*
+
+Appearance order was a number box on each field's own editor page, which turned the only question
+anybody asks of this screen -- what comes after what -- into arithmetic, and spread the answer across
+thirteen pages. It is now a drag, and `/admin/fields` is a client component for exactly that reason:
+an order is only expressible as *the whole order*, so the row has to move before the server has
+agreed to it.
+
+**Within a group only.** A profile renders fields grouped, so a row dragged between two members of
+another group would sit on this page somewhere the profile will never put it. Changing a field's
+group is an edit to the field, and the editor is where that lives.
+
+Three things this turned up that were not obvious:
+
+- **The grouped order and `sortOrder` are not the same list.** The numbers interleave the groups
+  live -- `ae` at 0, `generic` at 10, `indication` at 30 -- so a profile's Clinical section is built
+  from three separate runs of the sort order. The page therefore hands the list over already
+  flattened through `groupFieldDefs`, which is both the order a reader sees *and* the order in which
+  each group is one contiguous run, which is what lets the arrows move a row past its neighbour. The
+  first reorder renumbers 0..n and the two agree from then on.
+- **`reorderFieldDefs` takes every field, not the one that moved.** Renumbering the lot is the only
+  write that cannot leave two fields claiming one position, and it is a transaction because a
+  half-applied renumber is a scrambled list rather than an old one. The index is the new
+  `sortOrder`, which keeps the editor's default of 100 meaning *last*, and a test pins that.
+- **`setFieldFlag` is deliberately narrow.** `updateFieldDef` writes the whole definition, so using
+  it to tick a box would have the list sending back a label, a type and an enum option list it never
+  displayed -- any of which, arriving stale, would overwrite an edit made in the editor a minute
+  earlier. One id, one flag, one boolean.
+
+Also: **arrows beside the handle**, because a native drag works for neither a keyboard nor a
+touchscreen, and a reordering control that only a mouse can reach is a reordering control half the
+time. And both writes return their `Result` so a refusal puts the row -- or the tick -- back where
+it was and says why, rather than leaving the screen disagreeing with the database.
+
+The three flags' copy moved into `FIELD_FLAGS` in `lib/fields/constants.ts`, and the editor now
+reads it too: the list shows one word and a tooltip, the editor the whole sentence, and two copies
+of that wording is how a checkbox comes to mean something subtly different depending on where it was
+ticked.
+
+Two static guards failed on the new file and both were right to: the accent-text allowlist in
+`chrome.test.ts` and the form-action allowlist in `form-reset.test.ts` each name the file that is
+allowed the thing, and the thing had moved from `page.tsx` into `field-list.tsx`. Updated with their
+reasons rather than widened.
+
 ### What counts as a pearl, and keeping a field short (2026-11-10)
 
 Guide only, by instruction, and nothing in it needed the importer -- so nothing in the importer

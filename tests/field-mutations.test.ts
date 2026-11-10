@@ -5,7 +5,9 @@ import { fieldDefs } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
   createFieldDef,
+  reorderFieldDefs,
   restoreFieldDef,
+  setFieldFlag,
   softDeleteFieldDef,
   updateFieldDef,
 } from '@/lib/fields/mutations';
@@ -150,5 +152,97 @@ describe('softDeleteFieldDef', () => {
       ok: false,
       message: 'That field no longer exists.',
     });
+  });
+});
+
+/* ------------------------------------------------- the list's own two edits -- */
+
+/**
+ * Reordering and the three tick boxes, which the field list writes directly.
+ *
+ * Both exist because the list cannot use `updateFieldDef`: appearance order is
+ * only expressible as the whole order, and a tick box that sent the whole
+ * definition back would carry a label and a type it never showed anybody.
+ */
+describe('reorderFieldDefs', () => {
+  const keysInOrder = async () => (await listFieldDefs()).map((field) => field.key);
+
+  it('renumbers from the list it is given', async () => {
+    const before = await keysInOrder();
+    const moved = [before[2], ...before.filter((_, at) => at !== 2)];
+
+    const ids = new Map((await listFieldDefs()).map((field) => [field.key, field.id]));
+    expect(await reorderFieldDefs(moved.map((key) => ids.get(key)!))).toEqual({ ok: true });
+
+    expect(await keysInOrder()).toEqual(moved);
+  });
+
+  it('leaves no two fields claiming one position', async () => {
+    const ids = (await listFieldDefs()).map((field) => field.id);
+    await reorderFieldDefs([...ids].reverse());
+
+    const orders = (await listFieldDefs()).map((field) => field.sortOrder);
+    expect(orders).toEqual([...orders].sort((a, b) => a - b));
+    expect(new Set(orders).size).toBe(orders.length);
+  });
+
+  it('keeps a field created afterwards at the end, where the editor puts it', async () => {
+    const ids = (await listFieldDefs()).map((field) => field.id);
+    await reorderFieldDefs(ids);
+    // The editor's default is 100, which has to stay above a renumbered list
+    // for a new field to arrive at the bottom rather than in the middle.
+    await createFieldDef('half_life', { ...valid, sortOrder: 100 });
+
+    expect((await keysInOrder()).at(-1)).toBe('half_life');
+  });
+
+  it('ignores a repeated id rather than numbering it twice', async () => {
+    const ids = (await listFieldDefs()).map((field) => field.id);
+    await reorderFieldDefs([ids[0], ids[0], ...ids.slice(1)]);
+
+    const orders = (await listFieldDefs()).map((field) => field.sortOrder);
+    expect(new Set(orders).size).toBe(orders.length);
+  });
+
+  it('refuses an empty list rather than renumbering nothing', async () => {
+    expect(await reorderFieldDefs([])).toEqual({
+      ok: false, message: 'Nothing to reorder.',
+    });
+  });
+});
+
+describe('setFieldFlag', () => {
+  it('writes one boolean and touches nothing else', async () => {
+    const before = await byKey('dosing');
+    expect(await setFieldFlag(before.id, 'blankMeansNone', true)).toEqual({ ok: true });
+
+    const after = await byKey('dosing');
+    expect(after.blankMeansNone).toBe(true);
+    // The whole point of a narrow mutation: nothing the list never showed can
+    // arrive stale and overwrite an edit made in the editor a moment earlier.
+    expect(after.label).toBe(before.label);
+    expect(after.dataType).toBe(before.dataType);
+    expect(after.sortOrder).toBe(before.sortOrder);
+    expect(after.isQuizzable).toBe(before.isQuizzable);
+    expect(after.defaultVisible).toBe(before.defaultVisible);
+  });
+
+  it('turns one off again', async () => {
+    const { id } = await byKey('bbw');
+    await setFieldFlag(id, 'isQuizzable', false);
+    expect((await byKey('bbw')).isQuizzable).toBe(false);
+  });
+
+  it('works on a core field, which has these three like any other', async () => {
+    const { id } = await byKey('generic');
+    expect(await setFieldFlag(id, 'defaultVisible', false)).toEqual({ ok: true });
+    expect((await byKey('generic')).defaultVisible).toBe(false);
+  });
+
+  it('says so when the field is gone', async () => {
+    const result = await setFieldFlag(
+      '00000000-0000-0000-0000-000000000000', 'isQuizzable', false,
+    );
+    expect(result).toEqual({ ok: false, message: 'That field no longer exists.' });
   });
 });

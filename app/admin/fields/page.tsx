@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { groupFieldDefs, listFieldDefs } from '@/lib/fields/registry';
-import { deleteFieldAction, restoreFieldAction } from './actions';
+import {
+  deleteFieldAction, reorderFieldsAction, restoreFieldAction, setFieldFlagAction,
+} from './actions';
+import { FieldList } from './field-list';
 
 export const metadata = { title: 'Fields' };
 
@@ -21,40 +24,20 @@ export default async function FieldsPage() {
         Fields are rows, not columns. Adding one needs no migration and no deploy.
       </p>
 
-      {groupFieldDefs(active).map(([group, fields]) => (
-        <section key={group} className="mt-10">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-[var(--muted)]">{group}</h2>
-          <ul className="mt-2 divide-y divide-[var(--border)]">
-            {fields.map((field) => (
-              <li key={field.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
-                <Link href={`/admin/fields/${field.id}`} className="text-[var(--accent)] underline">
-                  {field.label}
-                </Link>
-                <code className="text-xs text-[var(--muted)]">{field.key}</code>
-                <span className="text-xs text-[var(--muted)]">{field.dataType}</span>
-                {field.yearLevels.length > 0 && (
-                  <span className="text-xs text-[var(--muted)]">{field.yearLevels.join(' · ')}</span>
-                )}
-                {field.blankMeansNone && (
-                  <span className="text-xs text-[var(--muted)]">blank means none</span>
-                )}
-                {!field.isQuizzable && <span className="text-xs text-[var(--muted)]">not quizzed</span>}
-
-                <span className="ml-auto flex items-center gap-3 text-xs">
-                  {field.isCore ? (
-                    <span className="text-[var(--muted)]">core</span>
-                  ) : (
-                    <form action={deleteFieldAction}>
-                      <input type="hidden" name="id" value={field.id} />
-                      <button type="submit" className="pill pill-xs pill-danger">Remove</button>
-                    </form>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {/* Flattened through `groupFieldDefs` rather than passed in `sortOrder`
+          order, because those two are not the same list: the numbers interleave
+          the groups (`ae` at 0, `generic` at 10, `indication` at 30) and a
+          profile reads them grouped, so the grouped order is the appearance
+          order and the raw one is a detail of how it got there. Handing the
+          list over already grouped also means each group is one contiguous run
+          in there, which is what lets a row move by its neighbour. The first
+          reorder renumbers the lot and the two agree from then on. */}
+      <FieldList
+        fields={groupFieldDefs(active).flatMap(([, fields]) => fields)}
+        reorder={reorderFieldsAction}
+        setFlag={setFieldFlagAction}
+        remove={deleteFieldAction}
+      />
 
       {removed.length > 0 && (
         <section className="mt-12">

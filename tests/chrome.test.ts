@@ -306,7 +306,7 @@ describe('the pill, for everything that is not a button', () => {
 
       // The identity of a row in a list or a table. The row is already the
       // target; a column of pills reads as a wall of buttons.
-      'app/admin/fields/page.tsx': 'the field being named in each row',
+      'app/admin/fields/field-list.tsx': 'the field being named in each row',
       'app/admin/tags/page.tsx': 'the list being named in each row',
       'app/drugs/drug-browser.tsx': 'the drug named in each row of 236',
       // Both kinds at once: the subject of each log entry is that row's

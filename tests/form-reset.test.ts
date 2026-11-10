@@ -23,7 +23,10 @@ const ALLOWED: Record<string, string> = {
   'app/admin/invites/page.tsx':
     'create form (the reset restores the 1 and the 14), plus a revoke button with no fields',
   'app/admin/fields/page.tsx':
-    'remove and restore buttons; a hidden id and nothing to reset',
+    'restore button; a hidden id and nothing to reset',
+  'app/admin/fields/field-list.tsx':
+    'remove button; a hidden id and nothing to reset. The list holds its order and its '
+    + 'tick boxes in state, and both are written by an action call rather than by this form',
   'app/admin/tags/[slug]/page.tsx':
     'delete button; a hidden slug and nothing to reset',
   'app/drugs/[slug]/page.tsx':

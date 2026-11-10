@@ -2,7 +2,7 @@
 
 import { useActionState } from 'react';
 import { submitTo } from '@/app/_components/submit';
-import { FIELD_DATA_TYPES, YEAR_LEVELS, type Result } from '@/lib/fields/constants';
+import { FIELD_DATA_TYPES, FIELD_FLAGS, YEAR_LEVELS, type Result } from '@/lib/fields/constants';
 import type { FieldDef } from '@/lib/fields/registry';
 
 const input = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2';
@@ -98,27 +98,22 @@ export function FieldForm({
         <p className={hint}>Leave all clear for a field no program year owns.</p>
       </fieldset>
 
+      {/* The same three the field list ticks inline, reading the same copy out
+          of `FIELD_FLAGS` -- here with the explanation, there with one word and
+          a tooltip. */}
       <div className="space-y-2">
-        <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="blankMeansNone" defaultChecked={field?.blankMeansNone ?? false} className="mt-1" />
-          <span>
-            Blank means none
-            <span className="block text-xs text-[var(--muted)]">
-              Tick where empty is the answer rather than a gap, as with a drug that has no black
-              box warning. Unticked, an empty value reads as “not recorded yet”.
+        {FIELD_FLAGS.map((flag) => (
+          <label key={flag.key} className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox" name={flag.key} defaultChecked={field?.[flag.key] ?? flag.on}
+              className="mt-1"
+            />
+            <span>
+              {flag.label}
+              <span className="block text-xs text-[var(--muted)]">{flag.hint}</span>
             </span>
-          </span>
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="isQuizzable" defaultChecked={field?.isQuizzable ?? true} />
-          Can be quizzed
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="defaultVisible" defaultChecked={field?.defaultVisible ?? true} />
-          Visible on profiles by default
-        </label>
+          </label>
+        ))}
       </div>
 
       <div>

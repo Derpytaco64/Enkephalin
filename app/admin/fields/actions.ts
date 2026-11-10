@@ -4,10 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { readFieldDefInput } from '@/lib/fields/form-input';
 import {
   createFieldDef,
+  reorderFieldDefs,
   restoreFieldDef,
+  setFieldFlag,
   softDeleteFieldDef,
   updateFieldDef,
 } from '@/lib/fields/mutations';
+import { isFieldFlag, type Result } from '@/lib/fields/constants';
 import { requireAdmin } from '@/lib/session';
 
 // Each action re-checks: the layout guard protects the page render, not a
@@ -24,6 +27,35 @@ export async function updateFieldAction(formData: FormData) {
   await requireAdmin();
   const result = await updateFieldDef(String(formData.get('id') ?? ''), readFieldDefInput(formData));
   revalidatePath('/admin/fields');
+  return result;
+}
+
+/**
+ * The list's two edits, both of which return their result so the row can put
+ * the box back where it was when a write is refused.
+ *
+ * `ids` is the whole list in its new order -- see `reorderFieldDefs`.
+ */
+export async function reorderFieldsAction(ids: string[]): Promise<Result> {
+  await requireAdmin();
+  const result = await reorderFieldDefs(ids);
+  revalidatePath('/admin/fields');
+  return result;
+}
+
+export async function setFieldFlagAction(
+  id: string,
+  flag: string,
+  value: boolean,
+): Promise<Result> {
+  await requireAdmin();
+  if (!isFieldFlag(flag)) return { ok: false, message: `"${flag}" is not a field setting.` };
+
+  const result = await setFieldFlag(id, flag, value);
+  // Profiles read `defaultVisible` and the study screens read `isQuizzable`,
+  // so the list is not the only page that just went stale.
+  revalidatePath('/admin/fields');
+  revalidatePath('/drugs');
   return result;
 }
 
