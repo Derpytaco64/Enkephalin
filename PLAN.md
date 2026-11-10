@@ -3113,6 +3113,33 @@ The target is also deliberately **not** in the file format. Like `write`, it is 
 database rather than a fact about the deck, and the file's author has no way to know this database
 holds three readings of nivolumab already.
 
+**And the choice is not defaulted** (same day, after the first cut shipped with one). The target
+started at *the drug's own profile*, which quietly re-created the bug it was built for: the mode that
+overwrites would still overwrite the drug by default, and the person importing need never notice
+there was a question. So `TARGET_UNDECIDED` is its own value, distinct from `TARGET_DRUG` -- *nobody
+has said* and *the drug itself* are different answers -- and `base` with nothing said refuses.
+
+Three details carry the design:
+
+- **Reported by the planner, refused by the apply.** `undecidedTarget` is deliberately *not* pushed
+  into `plan.problems`, because the screen hides the preview whenever a problem is present, and the
+  preview is how the choice gets made: it is where the versions in play and the fields at stake are
+  listed. Blocking the check would leave nothing to decide with -- the scopes to choose between are
+  read out of the file, so they are not even known until a check has come back.
+- **Only asked when something is being replaced.** A drug the app has never held takes everything as
+  its own whatever is picked, so a first load of two hundred new drugs is not stopped to answer a
+  question whose answers are identical. There is always a version to choose *between*, because the
+  format already refuses a file naming neither a course nor an exam -- so that half needs no guard,
+  and a test pins the guarantee rather than the planner re-checking it.
+- **The screen turns the button off; the server is the gate.** The client's rule reads facts off the
+  last check -- drugs that already exist, scopes that exist -- and the file in the box may have been
+  edited since, so `applyDrugImport` re-plans and refuses on its own. The disabled button is a
+  courtesy, and the refusal names the options.
+
+The parser still defaults `target` to the drug, which is not an inconsistency: a caller building an
+`ImportFile` in code -- a script, a test -- has answered by not naming a version, and only a screen
+with the question on it can have left it unanswered.
+
 ### A screen for undoing an import (2026-11-10)
 
 *I need a way to bulk delete drugs in the case of a bad import — probably an admin area with all the

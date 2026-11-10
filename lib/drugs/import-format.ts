@@ -23,21 +23,37 @@ export const IMPORT_FORMAT = 'enkephalin.drugs/1';
 export const WRITE_MODES = ['fill', 'variant', 'base'] as const;
 
 /**
- * Which version this import means: `''` for the drug's own, or a scope tag's
+ * Which version this import means: the drug's own profile, or a scope tag's
  * slug.
  *
  * Not read out of the file, and set by the import screen -- the same division
  * `write` already follows, and for the same reason: the file's author read a
  * deck and cannot know that this database holds three readings of nivolumab
- * already. Empty is *as the mode decides*: `fill` and `variant` put what
- * differs on the narrowest scope, and `base` corrects the drug itself.
+ * already.
  *
  * Naming one changes what `base` **overwrites**. *Correct the drug itself* on a
  * drug with versions had no way to say which thing was wrong, so correcting a
  * class's bad wording meant correcting the drug and watching the class's
  * version go on outranking it.
+ *
+ * `fill` and `variant` have no use for it: what they write that differs always
+ * goes to the narrowest scope, because it is that class speaking.
  */
-export const TARGET_DRUG = '';
+export const TARGET_DRUG = 'the-drug';
+
+/**
+ * *Nobody has said yet*, which is where the screen's select starts.
+ *
+ * A separate value from `TARGET_DRUG` because *the drug itself* and *unasked*
+ * are different answers, and `base` is the one mode where the difference is
+ * expensive: it is the mode that overwrites, so defaulting the question would
+ * be guessing which of two people's wording to destroy. `planDrugImport`
+ * reports it as `undecidedTarget` and `applyDrugImport` refuses, while a
+ * preview is still shown -- the scopes to choose between are only known once
+ * the file has been read, so blocking the check would leave nothing to decide
+ * with.
+ */
+export const TARGET_UNDECIDED = '';
 export type WriteMode = (typeof WRITE_MODES)[number];
 
 /**
@@ -748,7 +764,10 @@ export function parseDrugImport(raw: string): ParseResult {
       },
       write: write as WriteMode,
       // The screen's to set: a file names what it is, not what this database
-      // needs doing to it.
+      // needs doing to it. The drug's own profile is the default here rather
+      // than *unasked*, because a caller building a file in code -- a script, a
+      // test -- has answered by not naming a version; only a screen with the
+      // question on it can have left it unanswered.
       target: TARGET_DRUG,
       declare,
       drugs,

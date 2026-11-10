@@ -8,7 +8,7 @@ import {
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
   applyFieldMap, IMPORT_FORMAT, parseDrugImport, regimenFieldFor, renderRegimen,
-  type ImportValue,
+  TARGET_DRUG, TARGET_UNDECIDED, type ImportValue,
 } from '@/lib/drugs/import-format';
 import { formatFieldValue } from '@/lib/fields/format';
 import { applyDrugImport, planDrugImport } from '@/lib/drugs/import';
@@ -973,14 +973,14 @@ describe('correcting a version rather than the drug', () => {
     expect(layer?.fields.moa.value).toBe(value);
   };
 
-  it('writes over the drug when nothing is aimed at, as it always did', async () => {
+  it('writes over the drug when the drug is what it is aimed at', async () => {
     await seeded();
-    const plan = await planDrugImport(aimed('', 'Lympholytic at high dose'));
+    const plan = await planDrugImport(aimed(TARGET_DRUG, 'Lympholytic at high dose'));
 
     expect(plan.correcting).toBe(false);
     expect(plan.drugs[0].writes.map((write) => write.to)).toEqual(['drug']);
 
-    await applyWith('', 'Lympholytic at high dose');
+    await applyWith(TARGET_DRUG, 'Lympholytic at high dose');
     const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
     expect(after.fields.moa.value).toBe('Lympholytic at high dose');
   });
@@ -1030,7 +1030,7 @@ describe('correcting a version rather than the drug', () => {
     // its wording is not a licence to rewrite the drug's class.
     expect(plan.drugs[0].identity.drugClass).toBeNull();
 
-    const atDrug = await planDrugImport(aimed('', 'Lympholytic at high dose'));
+    const atDrug = await planDrugImport(aimed(TARGET_DRUG, 'Lympholytic at high dose'));
     expect(atDrug.drugs[0].identity.drugClass).toBe('Glucocorticoid');
   });
 
@@ -1044,6 +1044,64 @@ describe('correcting a version rather than the drug', () => {
     expect(result.ok).toBe(false);
     const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
     expect(after.fields.moa.value).toBe('Glucocorticoid receptor agonist');
+  });
+
+  /* ------------------------------------------- and until somebody says so -- */
+
+  it('will not import an overwrite until what it replaces is decided', async () => {
+    await seeded();
+    const plan = await planDrugImport(aimed(TARGET_UNDECIDED, 'Lympholytic at high dose'));
+    expect(plan.undecidedTarget).toBe(true);
+
+    // Not a problem, on purpose: the preview is how the choice gets made, and
+    // a problem hides it. There has to be something to decide with.
+    expect(plan.problems).toEqual([]);
+    expect(plan.drugs[0].writes.length).toBeGreaterThan(0);
+
+    const result = await applyDrugImport(aimed(TARGET_UNDECIDED, 'Lympholytic at high dose'), ME);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.problems[0].where).toBe('what to correct');
+    expect(result.problems[0].message).toContain('Heme/Onc Exam 3');
+
+    const [after] = await db.select().from(drugs).where(eq(drugs.slug, 'prednisone'));
+    expect(after.fields.moa.value).toBe('Glucocorticoid receptor agonist');
+  });
+
+  it('asks nothing when there is nothing to replace', async () => {
+    // Every drug new, so the target changes nothing -- a first load of two
+    // hundred drugs should not be stopped to answer a question with one
+    // possible answer.
+    const plan = await planDrugImport(aimed(TARGET_UNDECIDED, 'Lympholytic at high dose'));
+    expect(plan.undecidedTarget).toBe(false);
+
+    const result = await applyDrugImport(aimed(TARGET_UNDECIDED, 'Lympholytic at high dose'), ME);
+    expect(result.ok).toBe(true);
+  });
+
+  it('always has a version to choose between, because a file must name one', () => {
+    // Why the question is only ever about whether there is something to
+    // replace: a file naming neither a course nor an exam never reaches the
+    // planner at all.
+    expect(problems(file({ scope: {} }))).toContain('Neither course nor exam');
+  });
+
+  it('asks the other two modes nothing, and does not read unasked as a bad scope', async () => {
+    await seeded();
+    const filling = {
+      ...read(file({ drugs: [{ generic: 'Prednisone', fields: { moa: 'Cytotoxic' } }] })),
+      target: TARGET_UNDECIDED,
+    };
+
+    const plan = await planDrugImport(filling);
+    expect(plan.undecidedTarget).toBe(false);
+    // An empty target is a question nobody asked, not a slug that failed to
+    // match: `fill` sends what differs to the narrowest scope either way.
+    expect(plan.problems).toEqual([]);
+    expect(plan.variant?.slug).toBe('heme-onc-exam-3');
+
+    const result = await applyDrugImport(filling, ME);
+    expect(result.ok).toBe(true);
   });
 
   it('still gives a drug the app has never held everything as its own', async () => {

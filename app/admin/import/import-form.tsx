@@ -6,7 +6,8 @@ import { submitTo } from '@/app/_components/submit';
 import type { AskedField, ImportState } from './actions';
 import type { ImportPlan, PlannedDrug } from '@/lib/drugs/import';
 import {
-  WRITE_MODES, WRITE_MODE_COPY, type ImportProblem, type WriteMode,
+  TARGET_DRUG, TARGET_UNDECIDED, WRITE_MODES, WRITE_MODE_COPY,
+  type ImportProblem, type WriteMode,
 } from '@/lib/drugs/import-format';
 
 const CARD = 'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4';
@@ -337,6 +338,26 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
    */
   const scopes = state.kind === 'plan' ? state.plan.scope : [];
 
+  /**
+   * What to correct, starting at *nobody has said*.
+   *
+   * Controlled rather than left to the select's own default so the Import
+   * button can be turned off until it holds an answer. An overwrite aimed at
+   * nothing in particular is the one mistake on this screen that destroys
+   * somebody's wording, and it is the one a default would make quietly.
+   */
+  const [target, setTarget] = useState<string>(TARGET_UNDECIDED);
+
+  /**
+   * Whether the question is real yet, from what the last check came back with:
+   * drugs the app already holds (so there is something to overwrite) and scopes
+   * to choose between. Both are facts about a file that may have been edited
+   * since, which is why this only turns the button off -- `applyDrugImport`
+   * re-plans and refuses on its own.
+   */
+  const held = state.kind === 'plan' && state.plan.drugs.some((row) => row.exists);
+  const undecided = mode === 'base' && target === TARGET_UNDECIDED && scopes.length > 0 && held;
+
   return (
     <form onSubmit={submitTo(formAction)} className="mt-6">
       <label htmlFor="file" className="text-sm font-medium">The file</label>
@@ -384,11 +405,13 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
           <div className="mt-3 border-t border-[var(--border)] pt-3">
             <label htmlFor="target" className="block text-sm font-medium">What to correct</label>
             <select
-              id="target" name="target" defaultValue=""
+              id="target" name="target" value={target}
+              onChange={(event) => setTarget(event.target.value)}
               className="mt-1 h-9 w-full rounded border border-[var(--border)]
                 bg-[var(--surface)] px-2 text-sm"
             >
-              <option value="">The drug&rsquo;s own profile</option>
+              <option value={TARGET_UNDECIDED}>Pick what this is replacing&hellip;</option>
+              <option value={TARGET_DRUG}>The drug&rsquo;s own profile</option>
               {scopes.map((scope) => (
                 <option key={scope.slug} value={scope.slug}>
                   What {scope.label} says — its {scope.kind} version
@@ -400,6 +423,14 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
               make when it is the class that got it wrong. The drug&rsquo;s class and schedule are
               never corrected this way — a class cannot differ about what a drug <em>is</em>.
             </p>
+            {undecided && (
+              <p className="mt-2 text-xs text-[var(--danger)]">
+                These drugs are already in the app and they have versions, so there is more than
+                one wording this could be replacing. <em>Import it</em> stays off until you say
+                which. Until then the preview below shows the drug&rsquo;s own profile being
+                overwritten — pick a version and check it again to see that one instead.
+              </p>
+            )}
           </div>
         )}
       </fieldset>
@@ -408,9 +439,15 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
         <button type="submit" name="intent" value="plan" disabled={pending} className="btn btn-primary">
           {pending ? 'Reading…' : 'Check it'}
         </button>
-        <button type="submit" name="intent" value="apply" disabled={pending} className="btn btn-quiet">
+        <button
+          type="submit" name="intent" value="apply" disabled={pending || undecided}
+          className="btn btn-quiet"
+        >
           Import it
         </button>
+        {undecided && (
+          <span className="text-xs text-[var(--muted)]">Say what to correct first.</span>
+        )}
         <Link href="/drugs" className="pill">Drugs</Link>
       </div>
 

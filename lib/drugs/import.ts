@@ -36,7 +36,7 @@ import {
 } from './mutations';
 import { patchVariantLayer, pointTagsAtVariant } from './variants';
 import {
-  likeliestField, noteOf, provenanceOf, regimenFieldFor, TARGET_DRUG,
+  likeliestField, noteOf, provenanceOf, regimenFieldFor, TARGET_DRUG, TARGET_UNDECIDED,
   type ImportDrug, type ImportFile, type ImportProblem,
 } from './import-format';
 
@@ -84,6 +84,13 @@ export type ImportPlan = {
    * planner can leave the drug's own profile and its identity alone.
    */
   correcting: boolean;
+  /**
+   * True when *Correct the drug itself* is about to overwrite something and
+   * nobody has said which wording is wrong. The screen turns *Import it* off
+   * and `applyDrugImport` refuses; the preview is still built, from the
+   * drug's own profile, so there is something to decide with.
+   */
+  undecidedTarget: boolean;
   /**
    * The fields this file asks for, and whether each already exists.
    *
@@ -221,16 +228,32 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
   // tag these drugs with -- a layer no reader would ever apply, because every
   // one of them joins membership. Refused rather than ignored: a correction
   // aimed at the wrong thing must not land somewhere else quietly.
-  const aimed = file.target === TARGET_DRUG
-    ? null
-    : scope.find((entry) => entry.slug === file.target) ?? null;
-  if (file.target !== TARGET_DRUG && aimed === null) {
+  const named = file.target !== TARGET_DRUG && file.target !== TARGET_UNDECIDED;
+  const aimed = named ? scope.find((entry) => entry.slug === file.target) ?? null : null;
+  if (named && aimed === null) {
     problems.push({
       where: 'the version to correct',
       message: `"${file.target}" is not one of this file's scopes. Pick the drug's own profile, `
         + `or one of: ${scope.map((entry) => entry.slug).join(', ') || 'none'}.`,
     });
   }
+
+  /**
+   * *Correct the drug itself*, with nothing said about what it corrects.
+   *
+   * Reported rather than refused here: the scopes to choose between are read
+   * out of the file, so a check has to go through and come back with them
+   * before the question can even be put. `applyDrugImport` is the gate.
+   *
+   * Only asked where there is something to replace: a drug the app has never
+   * held takes everything as its own whatever is picked, so a first load of
+   * two hundred new drugs is not stopped to answer a question whose answers
+   * are all the same. There is always a version to choose between, because the
+   * format refuses a file that names neither a course nor an exam.
+   */
+  const undecidedTarget = file.write === 'base'
+    && file.target === TARGET_UNDECIDED
+    && file.drugs.some((entry) => matchDrug(entry, known) !== null);
 
   const destination = aimed ?? narrowest;
   // `base` writes over whatever it is aimed at. Aimed at a version, that is the
@@ -421,6 +444,7 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
     provenance,
     variant: destination ? { slug: destination.slug, label: destination.label } : null,
     correcting,
+    undecidedTarget,
     declare,
     assignable,
     drugs: planned,
@@ -466,6 +490,22 @@ export async function applyDrugImport(
 ): Promise<{ ok: false; problems: ImportProblem[] } | { ok: true; report: ImportReport }> {
   const plan = await planDrugImport(file);
   if (plan.problems.length > 0) return { ok: false, problems: plan.problems };
+
+  // The one refusal that is not a fault in the file: an overwrite nobody has
+  // aimed. Held back until here rather than pushed into `plan.problems`
+  // because the preview is how the choice gets made -- it is where the
+  // versions in play are listed -- and a problem hides the preview.
+  if (plan.undecidedTarget) {
+    return {
+      ok: false,
+      problems: [{
+        where: 'what to correct',
+        message: 'This overwrites drugs the app already has, and they have versions. Say which '
+          + `wording is wrong: the drug's own profile, or what one of `
+          + `${plan.scope.map((entry) => entry.label).join(' or ')} says. Nothing was written.`,
+      }],
+    };
+  }
 
   const report: ImportReport = {
     created: [], updated: [], toDrug: 0, toVariant: 0, unchanged: 0,

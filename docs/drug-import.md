@@ -200,6 +200,13 @@ and schedule are never corrected that way, because a class cannot differ about w
 target has to be one of the file's own scopes, since a layer for a class these drugs are not tagged
 with is a layer no reader would apply.
 
+**And it is not defaulted.** Where `base` would overwrite drugs the app already has, *Import it*
+stays off until what to correct has been picked: the mode that destroys somebody's wording is the
+one mode where a guess is expensive, so it asks rather than assuming. Checking the file still works
+and still shows the preview — that is where the versions in play are listed, so it is how the
+choice gets made. Nothing to replace means nothing to ask: a file whose drugs are all new takes
+everything as its own whatever is picked, and imports without the question.
+
 **The import screen shows these three as a choice and the person importing picks one**, starting on
 whichever your file names. You are telling them what you think the file is for; they are the one who
 knows what state their database is in. So set it to what the lecture actually is, and do not work
