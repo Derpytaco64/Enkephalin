@@ -67,8 +67,17 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
   // categories.
   const [defs, listRows, categoryRows, indicationRows] = await Promise.all([
     listFieldDefs(),
-    db.select({ slug: tags.slug, label: tags.label, kind: tags.kind }).from(tags)
-      .where(ne(tags.kind, 'system')).orderBy(asc(tags.label)),
+    // With the count, like the categories below: picking a list is picking a
+    // set of drugs, and *Heme/Onc Exam 3 -- 20 drugs* confirms you got the
+    // lecture you meant before building a deck out of it. A tag with none
+    // still shows, reading 0, because "this is empty" is the answer you need
+    // when a deck comes back with nothing in it.
+    db.select({ slug: tags.slug, label: tags.label, kind: tags.kind, count: count(drugTags.drugId) })
+      .from(tags)
+      .leftJoin(drugTags, eq(drugTags.tagId, tags.id))
+      .where(ne(tags.kind, 'system'))
+      .groupBy(tags.slug, tags.label, tags.kind)
+      .orderBy(asc(tags.label)),
     // With the count, so a category that would return nothing says so before
     // you pick it.
     db.select({ slug: tags.slug, label: tags.label, count: count(drugTags.drugId) })
@@ -225,7 +234,9 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
                   return (
                     <optgroup key={kind} label={label}>
                       {group.map((tag) => (
-                        <option key={tag.slug} value={tag.slug}>{tag.label}</option>
+                        <option key={tag.slug} value={tag.slug}>
+                          {tag.label} — {tag.count} drug{tag.count === 1 ? '' : 's'}
+                        </option>
                       ))}
                     </optgroup>
                   );

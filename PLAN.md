@@ -3045,6 +3045,29 @@ One thing deliberately left: `flatten` keeps markdown markers, so no search of a
 across a `**`. That is shared with the drug's own values rather than new here, and stripping markers
 is a change to what every search does — worth doing on its own, not smuggled in on this.
 
+### The dropdown says how many drugs a list holds (2026-11-09)
+
+*I want the tag so it's easy to select that set of drugs in the flashcard and quiz creator.*
+
+Which is what the scope already does -- an import creates the class and the exam as tags, tags every
+drug in the file with both, and both appear in the **Drug list** dropdown grouped by kind, so
+*Exams -> Heme/Onc Exam 3* is one selection on either study screen. The one thing missing was
+confirmation: the dropdown listed tags with no counts while the categories axis beside it showed
+them, so picking a lecture's exam told you nothing about whether you had got the lecture.
+
+Now *Heme/Onc Exam 3 -- 20 drugs*. Tags with none still appear, reading 0, because "this list is
+empty" is exactly the answer you need when a deck comes back with nothing in it -- hiding them would
+turn a visible emptiness into an inexplicable one.
+
+Worth being explicit about the two labels, because they are deliberately different things. The
+**provenance** on a value names the class -- *from Heme/Onc content* -- because that is whose words
+they are. The **tag** you study by is the exam, because that is the set you are revising. Both come
+out of one `scope` in the import file, and a lecture is reachable through either.
+
+A lecture is still not a unit you can select, by the same earlier decision: there is no `topic`
+scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
+axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
+
 ### Every version side by side, from the dropdown (2026-11-09)
 
 The variant index, placed where the owner put it: *its own thing at the top of the drop down, and
