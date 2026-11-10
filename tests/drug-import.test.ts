@@ -378,6 +378,46 @@ describe('a drug the app has never held', () => {
     expect(tagSlugs.sort()).toEqual(['heme-onc-exam-3', 'phrm-535']);
   });
 
+  it('is refused where its name misses and its address is already taken', async () => {
+    // The failure as it happened, with the names it happened to. The app holds
+    // a space after the slash and the file does not, so no spelling in the
+    // entry matches anything -- and every spelling of it reduces to the slug
+    // that drug already occupies.
+    await db.insert(drugs).values({
+      slug: 'amoxicillin-clavulanate', genericName: 'Amoxicillin/ Clavulanate',
+    });
+
+    const text = file({
+      drugs: [
+        {
+          generic: 'Amoxicillin/clavulanate',
+          aliases: ['Amoxicillin-clavulanate', 'Amox/clav'],
+          fields: { moa: 'Beta-lactam with a beta-lactamase inhibitor' },
+        },
+        { generic: 'Cefepime', fields: { moa: 'Fourth-generation cephalosporin' } },
+      ],
+    });
+
+    const plan = await planDrugImport(read(text));
+    expect(plan.drugs[0].exists).toBe(false);
+    expect(plan.drugs[0].slug).toBe('amoxicillin-clavulanate');
+
+    const report = await apply(text);
+    expect(report.problems).toEqual([{
+      where: 'drugs (Amoxicillin/clavulanate)',
+      message: 'A drug already exists at /drugs/amoxicillin-clavulanate.',
+    }]);
+    // The rest of the file lands, which the report's *Nothing was written* --
+    // the planner's wording, reused for a report -- hides. The guide says so.
+    expect(report.created).toEqual(['cefepime']);
+
+    // And nothing of the refused entry reached the drug it collided with: it
+    // was never matched to it, so it was never an update.
+    const [held] = await db
+      .select().from(drugs).where(eq(drugs.slug, 'amoxicillin-clavulanate'));
+    expect(held.fields.moa).toBeUndefined();
+  });
+
   it('is matched by a brand name rather than created twice', async () => {
     const plan = await planDrugImport(read(file({
       drugs: [{ generic: 'DTIC-Dome', fields: { moa: 'Alkylates DNA' } }],

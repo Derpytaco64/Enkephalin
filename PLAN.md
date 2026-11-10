@@ -3068,6 +3068,43 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### One address, four spellings: the combination-product refusal (2026-11-10)
+
+*A file had `"generic": "Amoxicillin/clavulanate"`; the app already held that drug; the import
+refused with "A drug already exists at /drugs/amoxicillin-clavulanate".*
+
+Two rules that each look reasonable, and the gap between them is exactly the width of one space:
+
+- **Matching is whole-string, trimmed and lower-cased.** `matchDrug` tries `generic` then every
+  alias against an index of generic names *and* brand names. Nothing inside the string is
+  normalised.
+- **A new drug's address is `drugSlug(generic)`**, which turns every run of non-alphanumerics into
+  one dash.
+
+So the library's `Amoxicillin/ Clavulanate` and the file's `Amoxicillin/clavulanate` are different
+strings and the same address. No match, so a new drug; the address is taken, so `createDrug`
+refuses -- and it refuses deliberately, because two drugs a slug apart is how the sildenafil
+duplicate happened. `Piperacillin/Tazobactam` in the same file matched and updated fine, which is
+the tell: the library is spelled both ways. Eight of its seventeen combination names have a space
+after the slash and the rest do not, so *use the separator the library uses* is not advice anybody
+can follow.
+
+The guide now carries all of it: the exact comparison, the slug rule as a table of four spellings
+reaching one address, a *What gets refused* row, and a checklist item that says to look the drug up
+or to list every other spelling in `aliases` (the brand name included -- `Augmentin` would have
+matched). A test reproduces the failure with the real names.
+
+**Two importer changes are recommended and not yet made** (the ask was the doc plus a verdict):
+
+1. **Match on the slug as well as the string.** `drugSlug(name)` as a second match key cannot be
+   ambiguous, because the app cannot hold two drugs with one slug -- so if a name's slug is taken,
+   the drug holding it *is* the drug being named. That turns this whole class of refusal into an
+   ordinary update with the lecture's provenance on it, and the create-time collision stays as the
+   backstop for a race.
+2. **Stop the report's box saying *Nothing was written*.** `Problems` is shared by the planner and
+   the report, and the two mean opposite things: a plan problem means nothing was written, while a
+   report problem means everything else *was*. The file half-landed and the screen said it had not.
+
 ### Correcting a version instead of the drug (2026-11-10)
 
 *For "correct the drug itself", if a drug is going to be changed on import by it and the drug has
