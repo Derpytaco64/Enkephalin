@@ -3,13 +3,15 @@
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { VARIANT_KIND_LABELS, type VariantKind } from '@/lib/drugs/variant-kinds';
+import { ALL_VARIANTS, VARIANT_KIND_LABELS, type VariantKind } from '@/lib/drugs/variant-kinds';
 
 export type PickerVariant = {
   slug: string;
   label: string;
   kind: VariantKind;
   overrides: number;
+  /** The `n` in V-n, or null for a class with nothing of its own. */
+  n: number | null;
 };
 
 /** Class, then exam — the order they overlay in, so the list reads widest first. */
@@ -65,6 +67,16 @@ export function VariantPicker({
       }}
       className="h-9 rounded border border-[var(--border)] bg-[var(--surface)] px-2 text-sm"
     >
+      {/* Its own thing at the top, in its own group, and deliberately not the
+          default: the table answers *how do these differ*, which is a question
+          you ask on purpose. Landing on it would put a comparison in front of
+          somebody who opened a drug to read it. Offered only where there is
+          something to compare -- two versions, one of which says something. */}
+      {variants.some((variant) => variant.n !== null) && (
+        <optgroup label="Compare">
+          <option value={ALL_VARIANTS}>Every version side by side</option>
+        </optgroup>
+      )}
       <option value="">The drug’s own profile</option>
       {ORDER.map((kind) => {
         const group = variants.filter((variant) => variant.kind === kind);
@@ -73,7 +85,12 @@ export function VariantPicker({
           <optgroup key={kind} label={VARIANT_KIND_LABELS[kind]}>
             {group.map((variant) => (
               <option key={variant.slug} value={variant.slug}>
-                {variant.label}
+                {/* The number first, where it is the identifier a card showed
+                    you. A study card says *V-2 PHRM 535*; without the number
+                    here, the control you came to this page to use does not
+                    answer to the name you arrived with. A class with nothing
+                    of its own has no number -- it is not another version. */}
+                {variant.n !== null ? `V-${variant.n} ` : ''}{variant.label}
                 {variant.overrides > 0 ? ` — ${variant.overrides} of its own` : ' — nothing of its own'}
               </option>
             ))}

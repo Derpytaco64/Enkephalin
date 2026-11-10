@@ -6,6 +6,7 @@ import {
 } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
+  numberedVariantsByDrug,
   variantLayerFor,
   variantOptionsFor,
   variantSlugsAmong,
@@ -279,9 +280,9 @@ describe('reading a variant back', () => {
     // two courses sort between themselves and the narrower exam lands last.
     // Not the drug list, which is not something a drug can have a version for.
     expect(options).toEqual([
-      { tagId: expect.any(String), slug: SECOND, label: 'PHRM 535', kind: 'course', overrides: 0 },
-      { tagId: expect.any(String), slug: COURSE, label: 'PSCI 413', kind: 'course', overrides: 1 },
-      { tagId: expect.any(String), slug: EXAM, label: 'Heme/Onc Exam 3', kind: 'exam', overrides: 0 },
+      { tagId: expect.any(String), slug: SECOND, label: 'PHRM 535', kind: 'course', overrides: 0, n: null },
+      { tagId: expect.any(String), slug: COURSE, label: 'PSCI 413', kind: 'course', overrides: 1, n: 1 },
+      { tagId: expect.any(String), slug: EXAM, label: 'Heme/Onc Exam 3', kind: 'exam', overrides: 0, n: null },
     ]);
   });
 
@@ -304,6 +305,56 @@ describe('reading a variant back', () => {
     // The stored row is still there; it is simply not a profile anyone can
     // ask for, which keeps the picker and the browse filter in agreement.
     expect(await variantLayerFor(await drugId(), COURSE)).toBeNull();
+
+    // And every other reader agrees, which is the part that was broken: the
+    // numbering still counted it, so browse showed a V-1 the dropdown would
+    // not offer -- and worse, a study session scoped to the class went on
+    // teaching its wording for a drug that had left it.
+    expect((await numberedVariantsByDrug()).get(await drugId()) ?? []).toEqual([]);
+
+    const [levothyroxine] = (await loadCardSources([COURSE]))
+      .filter((source) => source.slug === 'levothyroxine');
+    expect(levothyroxine.values.moa?.value).toBe('Replaces T4');
+  });
+
+  it('numbers a version the same way every other screen does', async () => {
+    // The pill on a study card and the option in this dropdown have to be the
+    // same name for the same thing, and they are computed by different
+    // functions over different queries -- so this is the test that keeps them
+    // honest rather than a comment saying they agree.
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: EXAM,
+      values: { moa: 'What the exam says' }, source: '', note: '', userId: ME,
+    });
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: COURSE,
+      values: { moa: 'What the class says' }, source: '', note: '', userId: ME,
+    });
+
+    const options = await variantOptionsFor(await drugId());
+    const numbered = (await numberedVariantsByDrug()).get(await drugId()) ?? [];
+
+    expect(options.filter((option) => option.n !== null).map((option) => [option.n, option.slug]))
+      .toEqual(numbered.map((variant) => [variant.n, variant.slug]));
+    // PSCI 413 is V-1 and the exam V-2: overlay order, widest first.
+    expect(numbered.map((variant) => [variant.n, variant.slug])).toEqual([[1, COURSE], [2, EXAM]]);
+  });
+
+  it('leaves a class with nothing of its own unnumbered', async () => {
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: COURSE,
+      values: { moa: 'Its own wording' }, source: '', note: '', userId: ME,
+    });
+
+    const options = await variantOptionsFor(await drugId());
+    const bySlug = Object.fromEntries(options.map((option) => [option.slug, option.n]));
+
+    // PHRM 535 sorts *first* and still has no number: numbering counts
+    // versions, and a class the drug is merely tagged with is not another
+    // version of it. If it were numbered and skipped, PSCI 413 would be V-2
+    // here and V-1 on a card.
+    expect(bySlug[SECOND]).toBeNull();
+    expect(bySlug[COURSE]).toBe(1);
   });
 
   it('tells a variant slug from a drug list slug', async () => {

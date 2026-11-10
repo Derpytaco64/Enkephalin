@@ -11,8 +11,9 @@ import {
   userPreferences,
 } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
+import { ALL_VARIANTS } from './variant-kinds';
 import {
-  overlayFields, overriddenKeys, variantLayerFor, variantOptionsFor,
+  overlayFields, overriddenKeys, variantLayerFor, variantLayersForDrug, variantOptionsFor,
 } from './variants';
 
 export type ProfileBrand = {
@@ -83,9 +84,15 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
       : Promise.resolve([]),
   ]);
 
-  const [variants, variant] = await Promise.all([
+  // `~all` is a request for the table rather than for a version, so it reads
+  // as "no variant in force" everywhere else on the page: the overlay below is
+  // the drug's own, and the *reading this as X* banner stays away.
+  const wantsAll = variantSlug === ALL_VARIANTS;
+
+  const [variants, variant, layers] = await Promise.all([
     variantOptionsFor(drug.id),
-    variantSlug ? variantLayerFor(drug.id, variantSlug) : Promise.resolve(null),
+    variantSlug && !wantsAll ? variantLayerFor(drug.id, variantSlug) : Promise.resolve(null),
+    wantsAll ? variantLayersForDrug(drug.id) : Promise.resolve(null),
   ]);
 
   const indicationsByBrand = new Map<string, string[]>();
@@ -128,5 +135,12 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
     variant,
     /** Which keys this variant speaks about, so the page can mark them. */
     overridden: variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>(),
+    /**
+     * Every version's stored layer, only when the table was asked for.
+     *
+     * Null rather than an empty map when it was not, so the page cannot render
+     * the table by accident on a profile that never asked for it.
+     */
+     layers,
   };
 }

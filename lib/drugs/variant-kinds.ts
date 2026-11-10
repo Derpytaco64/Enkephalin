@@ -35,6 +35,17 @@ export const KIND_RANK = new Map<string, number>(VARIANT_KINDS.map((kind, at) =>
  * the owner uses for it; `course` stays the stored value, since it is the tag
  * kind migration 0000 created and renaming an enum value is not worth a word.
  */
+/**
+ * The `?as=` value that asks for every version side by side rather than one of
+ * them.
+ *
+ * A `~` because a tag slug cannot contain one -- slugs are `[a-z0-9-]` with no
+ * leading dash, so this can never be mistaken for a class somebody named
+ * "All". A sentinel that a user could collide with by naming a tag badly is
+ * not a sentinel.
+ */
+export const ALL_VARIANTS = '~all';
+
 export const VARIANT_KIND_LABELS: Record<VariantKind, string> = {
   course: 'Class',
   exam: 'Exam',

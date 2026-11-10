@@ -51,7 +51,8 @@ study scope studies the drug in that scope's words — and a drug list can name
 which version *it* means, per drug, so *Top Drugs 2026* can hold amoxicillin as
 the infectious disease class words it. Cards and quiz questions carry a `V-2 ·
 PHRM 535` pill saying whose wording they are asking about, never the drug's own
-name. All of them are tags, so membership and filtering were already there.
+name; the profile's dropdown offers every version by that number, plus a table
+of all of them side by side. All of them are tags, so membership and filtering were already there.
 
 **Importing a lecture** — `/admin/import` takes one JSON file describing what a
 lecture says about the drugs in it: profiles, named regimens like FOLFOX or

@@ -3045,6 +3045,87 @@ One thing deliberately left: `flatten` keeps markdown markers, so no search of a
 across a `**`. That is shared with the drug's own values rather than new here, and stripping markers
 is a change to what every search does — worth doing on its own, not smuggled in on this.
 
+### Every version side by side, from the dropdown (2026-11-09)
+
+The variant index, placed where the owner put it: *its own thing at the top of the drop down, and
+default to the first variant still.*
+
+Proposed as a per-tag admin screen — *what did Heme/Onc Exam 3 write?* — and sited instead as an
+entry in the control that already exists for choosing a version. That is the better call for a
+reason worth writing down: a reader comparing versions is **already on the drug**, and a screen
+reached from the tag admin page would have asked them to leave, pick the class, and find the drug
+again. The dropdown is where the question is asked, so it is where the answer belongs. It also costs
+no navigation: no bar entry, no route, one more `?as=` value.
+
+`?as=~all` rather than `?as=all`, because a tag slug is `[a-z0-9-]` with no leading dash and a `~`
+therefore cannot collide. A sentinel a user can hit by naming a class badly is not a sentinel.
+
+**Not the default, deliberately.** It sits above *The drug's own profile* and the select still opens
+on the drug's own. Landing on a comparison would put *how do these differ* in front of somebody who
+opened the page to read what a drug does — and the table is the rarer question, asked on purpose.
+
+Three rules about what the table shows, all the same rule: say the difference, not the data.
+
+- **Only fields some version words its own way get a row.** Forty rows where every column repeats
+  the drug's own value is a wall with the answer hidden in it. The count of untouched fields goes
+  underneath, so nothing vanishes silently.
+- **Only versions with a stored layer get a column.** An empty column implies a class disagreed when
+  it has simply not been written up.
+- **An absent key says "Same as the drug's" in words.** It is a different fact from a class
+  recording that there is *none*, and both would otherwise render as an empty cell. `overlayFields`
+  is the code that treats them differently; the table has to as well or it misreports it.
+
+### V-n is the version, and the base profile is not one of them (2026-11-09)
+
+Asked directly, and worth settling in writing: **V-1 is the first *variant*, not the drug's own
+profile.** The base profile has no number — it is *The drug's own profile* in the dropdown and no
+pill at all on a card. Numbering runs 1..n over the versions that have a stored layer, in overlay
+order.
+
+The alternative — base as V-1, first variant as V-2 — was considered and is worse for one concrete
+reason: every drug would be V-1, so the browse pill would read `V-1` on all 236 rows and mean
+nothing. The pill earns its place by being absent when there is nothing to say. Numbering the base
+also implies a parity that does not exist: a variant is a layer *over* the drug, not a sibling of
+it.
+
+Two consequences now made true rather than assumed:
+
+**A class with nothing of its own is unnumbered, not numbered-and-skipped.** It appears in the
+dropdown (the drug is tagged with it, and *it says what the drug says* is a true answer) with no
+number. Numbering it would make the next version V-2 in the dropdown and V-1 on a card.
+
+**The dropdown shows the number.** It did not, which made the numbers useless in the one place they
+were meant to be used: a card said *V-2 PHRM 535*, you opened the drug to find it, and the control
+did not answer to that name. `variantOptionsFor` now carries `n`, numbered by the same two rules
+`numberedVariantsByDrug` follows, and a test asserts the two agree rather than a comment claiming
+they do.
+
+**One `V-n` that is a count, not an index:** the browse pill. `V-3` there means *three alternate
+versions exist*, which is what it was asked for. It reads like an identifier beside a card's `V-2`
+and is not one. Left as it is, on the owner's spec, and noted here so the next person does not
+"fix" one of them into the other.
+
+### A layer outlives its membership, and had gone on being applied (2026-11-09)
+
+Found while checking whether V-2 really does mean the same thing everywhere. It did not, in one
+case, and the case was worse than a label.
+
+Untagging a drug from a class leaves the stored layer behind — deliberately: the work is expensive
+and the untagging may be a mistake. `variantLayerFor` already refused to serve such a layer, with a
+comment claiming this *"keeps the picker and the browse filter in agreement"*. It did not. Neither
+`numberedVariantsByDrug` nor `allVariantLayers` joined through `drug_tags`, so an outlived layer was
+still counted on the browse row, still numbered, still offered by the list builder — and, the real
+defect, **still applied by study sessions.** A drug removed from a class went on being taught in that
+class's words, with no screen on which to notice.
+
+Fixed by making membership the single gate: all three readers now join `drug_tags` on
+`(drug_id, tag_id)`. Nothing is deleted, so the layer comes back intact if the drug is re-tagged —
+which is the behaviour the original decision wanted and only half implemented.
+
+The lesson is about the comment rather than the join. *Keeps X and Y in agreement* was written as an
+observation, not checked, and three functions later it was false. A test asserting the agreement
+would have failed the day the second reader was written.
+
 ### The bar had already lost the button (2026-11-09)
 
 *The class sets button in the top bar should be gone since that whole system doesn't exist anymore.*

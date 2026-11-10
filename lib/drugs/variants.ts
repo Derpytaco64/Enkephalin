@@ -49,6 +49,17 @@ export type VariantOption = {
   kind: VariantKind;
   /** How many fields it overrides. 0 means the drug is merely tagged with it. */
   overrides: number;
+  /**
+   * The `n` in V-n, or null for a class the drug is merely tagged with.
+   *
+   * Numbered the same way `numberedVariantsByDrug` numbers them -- over the
+   * versions that have a stored layer, in overlay order -- because otherwise a
+   * card could say *V-2 PHRM 535* and the dropdown you went to find it in
+   * would call it something else. A class with no layer of its own is
+   * deliberately **unnumbered** rather than numbered and skipped: it is not
+   * another version of the drug, it is the drug, read in that class.
+   */
+  n: number | null;
 };
 
 export type Result =
@@ -149,13 +160,45 @@ export async function variantOptionsFor(drugId: string): Promise<VariantOption[]
     layers.map((layer) => [layer.tagId, overriddenKeys(layer.fields).length]),
   );
 
-  return member
+  // Sorted before numbering, and numbered only across the ones with a stored
+  // layer -- the same two rules `numberedVariantsByDrug` follows, so V-2 means
+  // one thing in this app.
+  const sorted = member
     .map((variant) => ({
       ...variant,
       kind: variant.kind as VariantKind,
       overrides: countByTag.get(variant.tagId) ?? 0,
     }))
     .sort(byOverlayOrder);
+
+  let next = 1;
+  return sorted.map((variant) => ({
+    ...variant,
+    n: countByTag.has(variant.tagId) ? next++ : null,
+  }));
+}
+
+/**
+ * Every stored layer for one drug, keyed by variant slug.
+ *
+ * For the side-by-side table, which is the one reader that wants all of them
+ * at once -- `allVariantLayers` is shaped for a study session, which asks by
+ * slug across every drug.
+ */
+export async function variantLayersForDrug(
+  drugId: string,
+): Promise<Map<string, Record<string, FieldValue>>> {
+  const rows = await db
+    .select({ slug: tags.slug, fields: drugVariantValues.fields })
+    .from(drugVariantValues)
+    .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+    .innerJoin(drugTags, and(
+      eq(drugTags.drugId, drugVariantValues.drugId),
+      eq(drugTags.tagId, drugVariantValues.tagId),
+    ))
+    .where(and(eq(drugVariantValues.drugId, drugId), isVariantTag));
+
+  return new Map(rows.map((row) => [row.slug, row.fields]));
 }
 
 /**
@@ -219,6 +262,17 @@ export async function allVariantLayers(
     })
     .from(drugVariantValues)
     .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+    // Still in the class. A layer outlives the membership that created it --
+    // untagging a drug does not delete what the class recorded, deliberately,
+    // because that work is expensive and the untagging may be a mistake. But
+    // an outlived layer must not go on being *applied*: `variantLayerFor`
+    // already refuses to serve one, and a study session that kept teaching a
+    // class's wording for a drug no longer in that class would be the same bug
+    // with no screen to notice it on.
+    .innerJoin(drugTags, and(
+      eq(drugTags.drugId, drugVariantValues.drugId),
+      eq(drugTags.tagId, drugVariantValues.tagId),
+    ))
     .where(and(isVariantTag, inArray(tags.slug, wanted)));
 
   const byDrug = new Map<string, Map<string, Record<string, FieldValue>>>();
@@ -287,6 +341,12 @@ export async function numberedVariantsByDrug(): Promise<Map<string, NumberedVari
     })
     .from(drugVariantValues)
     .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+    // Membership, same as every other reader: a V-n the profile's dropdown
+    // cannot offer is a number pointing at nothing.
+    .innerJoin(drugTags, and(
+      eq(drugTags.drugId, drugVariantValues.drugId),
+      eq(drugTags.tagId, drugVariantValues.tagId),
+    ))
     .where(isVariantTag);
 
   const byDrug = new Map<string, NumberedVariant[]>();

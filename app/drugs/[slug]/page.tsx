@@ -5,6 +5,9 @@ import { VariantPicker } from './variant-picker';
 import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
+import { ALL_VARIANTS } from '@/lib/drugs/variant-kinds';
+import { overriddenKeys } from '@/lib/drugs/variants';
+import type { VariantOption } from '@/lib/drugs/variants';
 import { colorFor, readableTextOn, scheduleBadge } from '@/lib/theme/palette';
 import { getPreferences } from '@/lib/theme/preferences';
 import { requireUser } from '@/lib/session';
@@ -122,6 +125,122 @@ function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefine
   }
 }
 
+/**
+ * Every version of this profile side by side.
+ *
+ * The one screen that answers *how do these differ* rather than *what does
+ * this one say*. Reading that off the dropdown means opening each version in
+ * turn and holding the last one in your head, which is exactly the task a
+ * table is for -- and after an import writes a class's wording across twenty
+ * drugs, it is the only way to see the shape of what was written.
+ *
+ * **Only the fields somebody words differently get a row.** A table of
+ * forty-odd fields where every column repeats the drug's own value is a wall
+ * with the answer hidden in it; the count of untouched fields goes underneath
+ * instead, so nothing is silently dropped.
+ *
+ * **Only versions with a stored layer get a column**, for the same reason --
+ * and because an empty column implies a class disagreed when it simply has
+ * not been written up.
+ *
+ * An absent key is *the drug's own*, which the cell says in words. It is a
+ * different fact from a class recording that there is none, and the two would
+ * otherwise both render as an empty cell -- see `overlayFields`, which is the
+ * code that treats them differently.
+ */
+function VariantTable({
+  fields,
+  updatedAt,
+  defs,
+  variants,
+  layers,
+}: {
+  fields: Record<string, FieldValue>;
+  updatedAt: Date;
+  defs: FieldDef[];
+  variants: VariantOption[];
+  layers: Map<string, Record<string, FieldValue>>;
+}) {
+  const columns = variants.filter((variant) => variant.n !== null);
+  const spoken = new Set(
+    columns.flatMap((column) => overriddenKeys(layers.get(column.slug) ?? {})),
+  );
+
+  const overridable = defs.filter((def) => !def.isCore);
+  const rows = overridable.filter((def) => spoken.has(def.key));
+  const untouched = overridable.length - rows.length;
+
+  const head = 'border border-[var(--border)] px-3 py-2 text-left align-top text-xs '
+    + 'font-medium uppercase tracking-wide text-[var(--muted)]';
+  const cell = 'border border-[var(--border)] px-3 py-2 align-top';
+
+  return (
+    <section className={CARD}>
+      <SectionHead>Every version side by side</SectionHead>
+
+      {rows.length === 0 ? (
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          {columns.length === 0
+            ? 'No class or exam has recorded its own wording for this drug yet, so there is nothing to compare.'
+            : 'Every version of this drug currently reads exactly like the drug’s own profile.'}
+        </p>
+      ) : (
+        <>
+          {/* A table is the one thing on the page allowed to scroll sideways:
+              four versions will not fit a phone, and folding the columns into
+              stacked blocks would undo the comparison the table exists for. */}
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[44rem] border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th scope="col" className={head}>Field</th>
+                  <th scope="col" className={head}>The drug’s own</th>
+                  {columns.map((column) => (
+                    <th key={column.slug} scope="col" className={head}>
+                      <span className="font-mono">V-{column.n}</span> {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((def) => (
+                  <tr key={def.key}>
+                    <th scope="row" className={head}>{def.label}</th>
+                    <td className={cell}>
+                      <FieldBody def={def} value={fields[def.key]} />
+                    </td>
+                    {columns.map((column) => {
+                      const own = layers.get(column.slug)?.[def.key];
+                      return (
+                        <td key={column.slug} className={cell}>
+                          {own
+                            ? <FieldBody def={def} value={own} />
+                            : <span className="text-[var(--muted)]">Same as the drug’s</span>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {untouched > 0 && (
+            <p className="mt-3 text-xs text-[var(--muted)]">
+              {untouched} other field{untouched === 1 ? '' : 's'} read the same in every version, so
+              {untouched === 1 ? ' it is' : ' they are'} left out. The drug’s own profile has all of them.
+            </p>
+          )}
+        </>
+      )}
+
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        Last change to the drug itself: {updatedAt.toLocaleDateString()}.
+      </p>
+    </section>
+  );
+}
+
 export default async function DrugProfilePage({
   params,
   searchParams,
@@ -141,7 +260,7 @@ export default async function DrugProfilePage({
   if (!profile) notFound();
 
   const {
-    drug, brands, indications, tags, defs, siblings, variants, variant, overridden,
+    drug, brands, indications, tags, defs, siblings, variants, variant, overridden, layers,
   } = profile;
   const isAdmin = session.user.role === 'admin';
 
@@ -227,7 +346,7 @@ export default async function DrugProfilePage({
           <VariantPicker
             slug={drug.slug}
             variants={variants}
-            current={variant?.slug ?? null}
+            current={layers ? ALL_VARIANTS : variant?.slug ?? null}
           />
           {isAdmin && variant !== null && (
             <Link
@@ -336,7 +455,15 @@ export default async function DrugProfilePage({
             )}
           </section>
 
-          {groupFieldDefs(defs.filter((def) => !SHOWN_ABOVE.has(def.key)))
+          {layers ? (
+            <VariantTable
+              fields={drug.fields}
+              updatedAt={drug.updatedAt}
+              defs={defs.filter((def) => !SHOWN_ABOVE.has(def.key))}
+              variants={variants}
+              layers={layers}
+            />
+          ) : groupFieldDefs(defs.filter((def) => !SHOWN_ABOVE.has(def.key)))
             .filter(([, groupDefs]) => groupDefs.length > 0)
             .map(([group, groupDefs]) => (
             <section key={group} className={CARD}>
