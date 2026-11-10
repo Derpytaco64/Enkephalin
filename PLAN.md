@@ -3068,6 +3068,61 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### Two rules of form: no semicolons, and a capital after every slash (2026-11-10)
+
+**No semicolon in a markdown value.** `lib/fields/prose.ts` reads a heading, a paragraph and a list,
+and a semicolon is none of them -- so `- Tendonitis and tendon rupture; risk factors age over 60` is
+one bullet carrying two ideas, and the second is the one nobody sees. Each idea gets its own line: a
+bullet, or a sub-bullet under the one it qualifies, which is the shape whenever the second half is
+*about* the first.
+
+**Warned, not refused**, and the distinction is the whole design. The value is correct, importable
+and renders exactly as written -- it only reads worse than it could -- so blocking a lecture over it
+would be out of proportion, and saying nothing would be worse, because nobody rereads a field once it
+is stored. `ImportPlan.warnings` is its own channel: not `problems`, which stops the import, and not
+`issues`, which is the file author's own list of what they could not resolve. A warning is about
+*form*, and it is named exactly the way a refusal is -- `drugs[3] (Ciprofloxacin).fields.bbw` -- so
+it points at the line to edit rather than at a name to search for.
+
+Three decisions inside it:
+
+- **Markdown only.** A `list` field reads `;` as a separator and is documented as doing so (`"IV;
+  PO"` is two routes), so the scan must not creep into the one type where the character means
+  something. A `text` field is left alone too: nothing there splits, but nothing there pretends to.
+- **The type comes from the database or from the file**, in that order, so a field this lecture
+  declares is scanned on the strength of its own `type` -- which matters, because a lecture's own
+  markdown field is the one most likely to arrive as a wall of semicolons.
+- **A regimen is scanned at its source**, over `when`, `flow` and `notes`, rather than over the
+  composed `regimen` value the planner builds for each member drug. Scanning the composition would
+  report one semicolon once per drug in the protocol and point at none of the places it is written.
+
+Nothing stored needs cleaning for correctness: a semicolon is ordinary text to `parseProse`, so every
+stored value renders as written. It is a readability debt, and the live library carries 45 of them --
+18 `moa`, 13 `regimen`, 10 `ae`, 3 `dosing`, 1 `pearl`, plus one variant layer -- across 29 distinct
+lines, mostly one deck repeated across the BRAF/MEK drugs. Left alone pending a decision: rewriting
+somebody's stored prose is not a thing to do unasked.
+
+**A capital after every slash.** In a combination product every component is capitalised -- in the
+generic name, the aliases and a regimen component's drug name: `Amoxicillin/Clavulanate`,
+`Piperacillin/Tazobactam`, `Imipenem/Cilastatin/Relebactam`, and the short forms `Amox/Clav`,
+`Pip/Tazo`, `TMP/SMX`. Only the first letter of each part changes; the rest stays as the deck writes
+it, so `Norethindrone/Ethinyl estradiol` capitalises *Ethinyl* and leaves *estradiol* alone. The rule
+is about **names** and not about prose with a slash in it -- a dose written *nivolumab 480 mg /
+relatlimab 160 mg* is a sentence.
+
+No importer change, and two facts worth writing down rather than assuming. Matching lower-cases both
+sides, and the address fallback lower-cases too, so a file spelling a component either way finds the
+same drug and creates no duplicate. And **an import never renames a drug it matched**: `createDrug`
+is the only writer of `generic_name` on this path, so the stored spelling survives the import that
+disagrees with it. Fixing a stored name is an edit, not an import -- a test already pins it.
+
+Checked before writing any of it: the library has **no** lower-case component to fix. Every
+combination name and every brand is already capitalised on both sides of the slash.
+
+While in there, a table this guide had split in half: the `source` and `note` rows of the drug-entry
+table had been orphaned below the capitalisation paragraph I added on 2026-11-10, so they rendered as
+the literal run of pipes this same guide tells authors to avoid. Reunited with their table.
+
 ### A tag reads the drug as something, and the page now says which (2026-11-10)
 
 *Swapping between variations shows both as having the tags when only one should. An ID lecture

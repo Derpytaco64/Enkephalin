@@ -229,12 +229,14 @@ The class and the schedule are *filled* and never corrected, except in `base` mo
 | Key | Required | What it is |
 |---|---|---|
 | `generic` | **yes** | The generic name, **capitalised**: `"Nivolumab"`, `"Iron sucrose"` |
-| `aliases` | no | Other names the deck uses: `["T-VEC", "talimogene"]`. Used for matching only, so case does not matter here |
+| `aliases` | no | Other names the deck uses: `["T-VEC", "Talimogene"]`. Matching only, so case changes nothing — capitalise them the same way regardless |
 | `brands` | no | Trade names: `["Opdivo"]`. Only ones the deck names |
 | `indications` | no | What it is used for, **as specifically as the deck says it** |
 | `class` | no | The pharmacologic class, if the deck gives one |
 | `schedule` | no | `CI`–`CV`, and only for a controlled substance |
 | `fields` | no | Everything else. See the field set below |
+| `source` | no | Overrides the file's `source` for this drug |
+| `note` | no | One line for the importer's eyes. Stored nowhere |
 
 **Capitalise the generic name.** The app stores it and shows it exactly as the file writes it — it
 does not tidy the case — and every drug already in the library carries a leading capital, so a
@@ -244,8 +246,26 @@ the capitals a name has earned — `"Fentanyl Transdermal Patch"`, a brand like 
 like `"T-VEC"` — and do not invent any: `"Mycophenolate mofetil"` has one word capitalised because
 only the first is a word that takes one. Matching ignores case, so getting this wrong does not create
 a duplicate drug; it only looks careless on the page.
-| `source` | no | Overrides the file's `source` for this drug |
-| `note` | no | One line for the importer's eyes. Stored nowhere |
+
+**In a combination product, every component is capitalised.** One rule, applied after each `/`:
+
+```json
+"generic": "Amoxicillin/Clavulanate"
+"generic": "Piperacillin/Tazobactam"
+"generic": "Imipenem/Cilastatin/Relebactam"
+```
+
+Short forms the same way, wherever they appear — in `aliases`, and in a regimen component's
+`drug`: `"Amox/Clav"`, `"Pip/Tazo"`, `"TMP/SMX"`. **Only the first letter of each part changes** and
+the rest stays as the deck writes it, so `"Norethindrone/Ethinyl estradiol"` capitalises *Ethinyl*
+and leaves *estradiol* where it is. The rule is about names — a generic, an alias, a component's
+drug — and not about prose that happens to contain a slash: a dose written *nivolumab 480 mg /
+relatlimab 160 mg* is a sentence, not a name.
+
+Matching ignores case here too, so a file spelling a component in lower case still finds the drug and
+still creates no duplicate. And **an import never renames a drug it matched**: the name on the page
+stays whatever the app already holds, so a file cannot tidy the library's spelling and does not need
+to try. Fixing a stored name is an edit, not an import.
 
 **Matching, first by name.** A drug is matched by `generic`, then by each of its `aliases`, against
 the generic names **and the brand names** of every drug the app holds. The comparison is the whole
@@ -260,16 +280,16 @@ different names and one address, and all four find the drug that lives at it:
 
 | written as | compared as | address |
 |---|---|---|
-| `"Amoxicillin/clavulanate"` | `amoxicillin/clavulanate` | `amoxicillin-clavulanate` |
-| `"Amoxicillin-clavulanate"` | `amoxicillin-clavulanate` | `amoxicillin-clavulanate` |
-| `"Amoxicillin + clavulanate"` | `amoxicillin + clavulanate` | `amoxicillin-clavulanate` |
+| `"Amoxicillin/Clavulanate"` | `amoxicillin/clavulanate` | `amoxicillin-clavulanate` |
+| `"Amoxicillin-Clavulanate"` | `amoxicillin-clavulanate` | `amoxicillin-clavulanate` |
+| `"Amoxicillin + Clavulanate"` | `amoxicillin + clavulanate` | `amoxicillin-clavulanate` |
 | `"Amoxicillin/ Clavulanate"` | `amoxicillin/ clavulanate` | `amoxicillin-clavulanate` |
 
 This is what a combination product needs, because the library is not consistent about the
 separator: it holds `Piperacillin/Tazobactam` with no space and `Amoxicillin/ Clavulanate` and
 `Ampicillin/ Sulbactam` with one, so there is no style a file could follow. It is safe to match on
 because the app cannot hold two drugs at one address, so a name whose address is taken is a name for
-the drug that holds it. **Punctuation is forgiven; a different name is not** — `"Amox/clav"` reduces
+the drug that holds it. **Punctuation is forgiven; a different name is not** — `"Amox/Clav"` reduces
 to `amox-clav` and matches nothing, so a short form the deck uses belongs in `aliases`, where the
 brand name (`"Augmentin"`) works too.
 
@@ -421,8 +441,9 @@ level, and the app composes it onto the `regimen` field of **every drug in it**.
 | `notes` | no | Outcomes, trial names, comparative toxicity |
 | `source` | no | Overrides the file's `source` |
 
-**Capitalise a component's name too.** It is matched case-insensitively but **printed verbatim**
-into the Regimens field of every drug in the protocol, so a lowercase `"drug": "ipilimumab"` reads as
+**Capitalise a component's name too**, combination products included — `"TMP/SMX"`, not
+`"TMP/smx"`. It is matched case-insensitively but **printed verbatim** into the Regimens field of
+every drug in the protocol, so a lowercase `"drug": "ipilimumab"` reads as
 `- ipilimumab — 3 mg/kg IV…` on four profiles.
 
 **A component naming a drug that is neither in this file nor in the database is refused**, not
@@ -449,25 +470,45 @@ a renderer this app does not ship, and a nested list *is* the flowchart when the
 nodes deep. Anything unsupported is shown as the plain text it is, which is why a table degrades
 into an unreadable run of pipes — so turn a table into a list, one bullet per row.
 
-**A run of items is a list, not one long line with semicolons in it.** No prose field splits on
-anything — only a `list` field does, and only where there is no line break — so
+### No semicolons
+
+**A markdown value does not use a semicolon to join two ideas.** Every markdown field — `dosing`,
+`moa`, `bbw`, `regimen`, a regimen's `flow`, `when` and `notes`, and every markdown field you
+declare — is read by the three constructs above, and a semicolon is none of them. It splits
+nothing, so both ideas arrive on one line and the second is the one nobody reads.
+
+**Each idea gets its own line**, as a bullet or as a sub-bullet under the one it qualifies:
+
+```json
+"bbw": "- Tendonitis and tendon rupture; risk factors age over 60, steroids"
+```
+
+becomes
+
+```json
+"bbw": "- Tendonitis and tendon rupture\n  - Risk factors: age over 60, steroids"
+```
+
+A sub-bullet is the right shape whenever the second half is *about* the first — a risk factor, a
+threshold, what to do about it. Two independent facts are two bullets at the same level. A run of
+items is a list and never a sentence:
 
 ```json
 "ae": "Nausea; vomiting; rash; hepatotoxicity; QTc prolongation; infusion reactions"
 ```
 
-renders as exactly the one long line it is, and somebody scanning for one of the six has to read all
-six. One bullet each, which is what a card and a profile are built to show:
-
 ```json
 "ae": "- Nausea\n- Vomiting\n- Rash\n- Hepatotoxicity\n- QTc prolongation\n- Infusion reactions"
 ```
 
-Keep the semicolon for what it is for — joining two clauses of one thought, as in *hold until it
-resolves; restart at full dose* — and never as a separator somebody is expected to read past. The
-same is true of a `list` field even though `;` *is* read there: `["IV", "PO", "SL"]` or one item per
-line, rather than a long `"IV; PO; SL"`. The stored value is identical either way, so the only thing
-the choice changes is whether the file can be read and corrected by the person importing it.
+**The importer warns rather than refuses.** A semicolon in a markdown value is named in the preview
+the way a refusal is — `drugs[3] (Ciprofloxacin).fields.bbw` — and the import goes ahead and stores
+the value exactly as written. It is a reading problem, not a correctness one, so it is worth saying
+and not worth blocking a lecture over. Tidy it in the file and check again.
+
+**A `list` field is the exception, and it is not changed by this.** There a semicolon separates two
+items and is read as doing so: `"IV; PO"` is two routes, as documented above. Even so the list form
+is the one to reach for — `["IV", "PO", "SL"]`, or one item per line.
 
 A dosing flow, written the way it renders:
 
@@ -524,12 +565,13 @@ look for.
 - [ ] Anything ambiguous is `"status": "flagged"` rather than omitted or guessed.
 - [ ] Nothing is declared twice for one idea, and nothing is declared that the field table already has.
 - [ ] Every markdown value uses only paragraphs, nested bullets, numbered steps and headings.
-- [ ] No field is a run of items joined with `;` on one line — a run of items is bullets, one
-      per line, and a `list` field is a list.
+- [ ] **No markdown value contains a semicolon.** Each idea is on its own line — a bullet, or a
+      sub-bullet under the one it qualifies. (A `list` field may still use `;` between items.)
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
-- [ ] Every combination product is written out in full — the separator and the spacing do not
-      matter, `"Amox/clav"` does — and any short form the deck uses is in `aliases`, with the brand
-      name beside it.
+- [ ] Every combination product is written out in full, with **every component capitalised** —
+      `"Amoxicillin/Clavulanate"`. The separator and the spacing do not matter to matching; a
+      different name does, so any short form the deck uses (`"Amox/Clav"`) is in `aliases`, with
+      the brand name beside it.
 - [ ] `scope` is spelled the way every other file for this course spells it, and names no `topic`.
 - [ ] What the lecture is *about* is in each drug's `indications`, not in the scope.
 - [ ] It is valid JSON. No comments, no trailing commas.
@@ -570,7 +612,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       ],
       "class": "PD-1 blocking antibody",
       "fields": {
-        "moa": "PD-1 inhibitor. PD-1 on T cells binds PD-L1 on the tumour and switches the T cell off late in the immune response; blocking it restores T cell activation, recognition and attack.",
+        "moa": "PD-1 inhibitor. PD-1 on T cells binds PD-L1 on the tumour and switches the T cell off late in the immune response. Blocking it restores T cell activation, recognition and attack.",
         "dosing": "240 mg IV every 2 weeks, or 480 mg IV every 4 weeks, until progression or toxicity.\n\nIn combination with ipilimumab the dose is lower — see Regimens.",
         "route": "IV",
         "ae": "- Diarrhoea 19%, grade 3-4 2%\n- Rash 26%\n- Hypothyroidism 9%\n- Raised ALT/AST 4%\n- Colitis 1%\n\nirAEs are fewer and milder than on the ipilimumab combination.",
@@ -583,7 +625,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "indications": ["Unresectable or metastatic melanoma"],
       "class": "CTLA-4 blocking antibody",
       "fields": {
-        "moa": "CTLA-4 inhibitor. CTLA-4 on regulatory T cells limits T cell activity early in the immune response; blocking it lets the response get started.",
+        "moa": "CTLA-4 inhibitor. CTLA-4 on regulatory T cells limits T cell activity early in the immune response. Blocking it lets the response get started.",
         "route": "IV",
         "ae": "- Diarrhoea 33%, grade 3-4 6%\n- Colitis 12%, grade 3-4 9%\n- Rash 33%\n\nColitis is the characteristic one, and the largest on the CTLA-4 body map."
       }
@@ -594,10 +636,10 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
       "indications": ["Unresectable or metastatic melanoma, BRAF V600E positive"],
       "class": "BRAF kinase inhibitor",
       "fields": {
-        "moa": "BRAF inhibitor. BRAF V600E holds the MAPK pathway (RAS-BRAF-MEK-ERK) always on; inhibiting it stops the signal. Resistance develops through MEK, which is why it is given with a MEK inhibitor.",
+        "moa": "BRAF inhibitor. BRAF V600E holds the MAPK pathway (RAS-BRAF-MEK-ERK) always on. Inhibiting it stops the signal. Resistance develops through MEK, which is why it is given with a MEK inhibitor.",
         "dosing": "150 mg PO twice daily. Take with meals.",
         "route": "PO",
-        "ae": "- Pyrexia — the greatest risk of the three BRAF/MEK pairs. Onset 2-4 weeks, median 9 days; hold until it resolves then restart at full dose, and add prednisone 10 mg PO daily if it does not settle\n- Cutaneous squamous cell carcinoma, 12%\n- Rash, photosensitivity, arthralgia, fatigue\n- Reduced ejection fraction, ocular toxicity",
+        "ae": "- Pyrexia — the greatest risk of the three BRAF/MEK pairs\n  - Onset 2-4 weeks, median 9 days\n  - Hold until it resolves, then restart at full dose\n  - Add prednisone 10 mg PO daily if it does not settle\n- Cutaneous squamous cell carcinoma, 12%\n- Rash, photosensitivity, arthralgia, fatigue\n- Reduced ejection fraction, ocular toxicity",
         "pearl": "Crosses the blood-brain barrier, so it is the pair to reach for with CNS metastases. Metabolised by CYP2C8 and CYP3A4."
       }
     },
@@ -626,13 +668,13 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
     },
     {
       "name": "Dabrafenib + trametinib",
-      "when": "BRAF V600E positive stage III adjuvant or stage IV disease. Consider first when disease is high-volume and symptomatic; otherwise ICI first, since the ICI-then-BRAF/MEK sequence gives longer response and overall survival.",
+      "when": "BRAF V600E positive stage III adjuvant or stage IV disease.\n- Consider first when disease is high-volume and symptomatic\n- Otherwise ICI first, since the ICI-then-BRAF/MEK sequence gives longer response and overall survival",
       "components": [
         { "drug": "Dabrafenib", "dose": "150 mg PO twice daily, with meals" },
         { "drug": "Trametinib", "dose": "2 mg PO once daily" }
       ],
       "flow": "- BRAF V600E or V600K mutation?\n  - No -> immune checkpoint inhibitor, not this\n  - Yes -> either, and the sequence matters\n    - High-volume symptomatic disease -> BRAF/MEK first\n    - Otherwise -> ICI first, BRAF/MEK on progression\n- Pyrexia during treatment?\n  - Hold until it resolves, then restart at full dose\n  - Not resolving -> prednisone 10 mg PO daily, antipyretics, fluids",
-      "notes": "Of the three BRAF/MEK pairs: this one crosses the blood-brain barrier and carries the greatest pyrexia risk; vemurafenib + cobimetinib has the highest overall AE rate; encorafenib + binimetinib has the least pyrexia. All three prolong QTc except dabrafenib + trametinib."
+      "notes": "Of the three BRAF/MEK pairs:\n- This one crosses the blood-brain barrier and carries the greatest pyrexia risk\n- Vemurafenib + cobimetinib has the highest overall AE rate\n- Encorafenib + binimetinib has the least pyrexia\n\nAll three prolong QTc except dabrafenib + trametinib."
     }
   ],
 

@@ -145,6 +145,35 @@ function Problems({ problems, note }: { problems: ImportProblem[]; note: string 
   );
 }
 
+/**
+ * What to tidy, which is not what to fix.
+ *
+ * Its own box rather than a line in the refusal one, because the two call for
+ * opposite things: a refusal is read before the import happens, and this is
+ * read before the *next file* is written. Same naming as a refusal --
+ * `drugs[3] (Ciprofloxacin).fields.bbw` -- so it points at the same place in
+ * the file, and no *nothing was written* line, because everything will be.
+ */
+function Warnings({ warnings }: { warnings: ImportProblem[] }) {
+  return (
+    <div className={`${CARD} border-[var(--accent)]`}>
+      <p className="text-sm font-medium">
+        {warnings.length === 1 ? 'One thing' : `${warnings.length} things`} to tidy. The import
+        will go ahead.
+      </p>
+      <ul className="mt-2 space-y-1.5 text-sm">
+        {warnings.map((warning, at) => (
+          <li key={`${warning.where}-${at}`}>
+            <span className="font-mono text-xs text-[var(--muted)]">{warning.where}</span>
+            <br />
+            {warning.message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Preview({ plan, declared }: { plan: ImportPlan; declared: ReactNode }) {
   const fresh = plan.drugs.filter((drug) => !drug.exists).length;
   const toDrug = plan.drugs.reduce((n, drug) => n + drug.writes.filter((w) => w.to === 'drug').length, 0);
@@ -178,6 +207,8 @@ function Preview({ plan, declared }: { plan: ImportPlan; declared: ReactNode }) 
           ))}
         </ul>
       </div>
+
+      {plan.warnings.length > 0 && <Warnings warnings={plan.warnings} />}
 
       {declared}
 

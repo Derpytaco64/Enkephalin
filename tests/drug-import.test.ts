@@ -1189,6 +1189,100 @@ describe('correcting a version rather than the drug', () => {
   });
 });
 
+/* ------------------------------------------------- what it warns about -- */
+
+/**
+ * A semicolon in a markdown value: said, not refused.
+ *
+ * `lib/fields/prose.ts` reads a heading, a paragraph and a list, and a
+ * semicolon is none of them -- so `- Tendonitis and tendon rupture; risk
+ * factors age over 60` is one bullet carrying two ideas and the second is the
+ * one nobody sees. Refusing would be out of proportion: the value is correct,
+ * importable and only reads worse than it could. Saying nothing would be
+ * worse, because nobody rereads a field once it is stored.
+ */
+describe('a semicolon in a markdown value', () => {
+  const bbw = '- Tendonitis and tendon rupture; risk factors age over 60, steroids';
+
+  it('is warned about, named the way a refusal is', async () => {
+    const plan = await planDrugImport(read(file({
+      drugs: [
+        { generic: 'Nivolumab' },
+        { generic: 'Dacarbazine' },
+        { generic: 'Ciprofloxacin', fields: { bbw } },
+      ],
+    })));
+
+    // The index is the entry's place in the file, so it points at the line to
+    // edit rather than at a name to search for.
+    expect(plan.warnings).toEqual([{
+      where: 'drugs[2] (Ciprofloxacin).fields.bbw',
+      message: expect.stringContaining('own line'),
+    }]);
+    // Not a refusal, and nothing else about the plan changes.
+    expect(plan.problems).toEqual([]);
+  });
+
+  it('imports anyway, and stores the value exactly as written', async () => {
+    const report = await apply(file({
+      drugs: [{ generic: 'Ciprofloxacin', fields: { bbw } }],
+    }));
+    expect(report.problems).toEqual([]);
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'ciprofloxacin'));
+    expect(drug.fields.bbw.value).toBe(bbw);
+  });
+
+  it('says nothing about a list field, where a semicolon separates items', async () => {
+    // `"IV; PO"` is two routes and is documented as two routes. The warning
+    // must not creep into the one field type that reads the character.
+    const plan = await planDrugImport(read(file({
+      drugs: [{ generic: 'Ciprofloxacin', fields: { route: 'IV; PO' } }],
+    })));
+
+    expect(plan.warnings).toEqual([]);
+    expect(plan.drugs[0].writes[0].value).toBe('IV; PO');
+  });
+
+  it('reads the type off the file for a field the app has not got yet', async () => {
+    // A declared field has no row in the database to ask, and a lecture's own
+    // markdown field is the one most likely to arrive as a wall of semicolons.
+    const plan = await planDrugImport(read(file({
+      declare: [
+        { key: 'ae', label: 'Adverse effects', type: 'markdown' },
+        { key: 'monitor', label: 'Monitoring', type: 'text' },
+      ],
+      drugs: [{
+        generic: 'Ciprofloxacin',
+        fields: { ae: 'Tendon rupture; QTc prolongation', monitor: 'CBC; LFTs' },
+      }],
+    })));
+
+    expect(plan.warnings.map((warning) => warning.where))
+      .toEqual(['drugs[0] (Ciprofloxacin).fields.ae']);
+  });
+
+  it('names the regimen that wrote it, once, rather than every drug in it', async () => {
+    const plan = await planDrugImport(read(file({
+      drugs: [{ generic: 'Dabrafenib' }, { generic: 'Trametinib' }],
+      regimens: [{
+        name: 'Dabrafenib + trametinib',
+        components: [{ drug: 'Dabrafenib' }, { drug: 'Trametinib' }],
+        flow: '- Pyrexia; hold until it resolves',
+        notes: 'Crosses the blood-brain barrier; greatest pyrexia risk',
+      }],
+    })));
+
+    // The composed `regimen` value lands on both drugs, so scanning it there
+    // would report one semicolon twice and point at neither place it is
+    // written.
+    expect(plan.warnings.map((warning) => warning.where)).toEqual([
+      'regimens[0] (Dabrafenib + trametinib).flow',
+      'regimens[0] (Dabrafenib + trametinib).notes',
+    ]);
+  });
+});
+
 /* --------------------------------------------- what the screen claims of it -- */
 
 /**

@@ -107,6 +107,18 @@ export type ImportPlan = {
   regimens: { name: string; members: string[] }[];
   /** Refusals found against the database. Nothing is written while any remain. */
   problems: ImportProblem[];
+  /**
+   * Things to tidy that do not stop the import, named the way a refusal is.
+   *
+   * A different thing from `issues`, which is the file's own list of what its
+   * author could not resolve. These are what the app noticed about the file,
+   * and the distinction worth keeping is that a warning is about *form*: the
+   * value is importable, readable and correct, and will read better rewritten.
+   * Refusing would be wrong -- a lecture is not worth blocking over a
+   * semicolon -- and saying nothing would be worse, because nobody rereads a
+   * field once it is stored.
+   */
+  warnings: ImportProblem[];
   /** The file's own unresolved notes, for a person to read. */
   issues: string[];
 };
@@ -392,6 +404,59 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
     return { name: regimen.name, members: regimen.components.map((part) => part.drug) };
   });
 
+  /* ------------------------------------------------------- what to tidy -- */
+
+  /**
+   * Semicolons in a markdown value.
+   *
+   * `lib/fields/prose.ts` reads three constructs and a semicolon is none of
+   * them, so `- Tendonitis and tendon rupture; risk factors age over 60` is
+   * one bullet carrying two ideas, and the second is the one nobody sees. The
+   * fix is a line of its own -- a bullet, or a sub-bullet under the first --
+   * which the guide now asks for.
+   *
+   * A warning and not a refusal, because the value is correct and importable
+   * and only reads worse than it could. The scan is over the entry's **own**
+   * fields rather than the composed values below, so a semicolon inside a
+   * regimen is reported once, against the regimen that wrote it, instead of
+   * twice against every drug in it.
+   *
+   * List fields are deliberately not scanned: there a semicolon separates two
+   * items and is read as doing so -- `"IV; PO"` is two routes -- which the
+   * guide documents and this does not second-guess.
+   */
+  const warnings: ImportProblem[] = [];
+  const typeOf = (key: string) =>
+    known.keys.get(key)?.dataType
+      ?? file.declare.find((entry) => entry.key === key)?.dataType
+      ?? null;
+  const TIDY = 'A semicolon joins two ideas into one line, and markdown here has no separator '
+    + 'that splits them again. Put the second on its own line — a bullet, or a sub-bullet under '
+    + 'the first. Imported exactly as written either way.';
+
+  for (const [at, entry] of file.drugs.entries()) {
+    for (const [key, value] of Object.entries(entry.fields)) {
+      if (typeOf(key) !== 'markdown') continue;
+      if (!value.value?.includes(';')) continue;
+      warnings.push({
+        where: `drugs[${at}] (${entry.generic}).fields.${key}`,
+        message: TIDY,
+      });
+    }
+  }
+
+  // A regimen's own prose, which `regimenFieldFor` renders into the markdown
+  // every member drug carries.
+  for (const [at, regimen] of file.regimens.entries()) {
+    for (const part of ['when', 'flow', 'notes'] as const) {
+      if (!regimen[part]?.includes(';')) continue;
+      warnings.push({
+        where: `regimens[${at}] (${regimen.name}).${part}`,
+        message: TIDY,
+      });
+    }
+  }
+
   /* ------------------------------------------------------------- the drugs -- */
   const planned: PlannedDrug[] = file.drugs.map((entry) => {
     const existing = matchDrug(entry, known);
@@ -510,6 +575,7 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
     drugs: planned,
     regimens,
     problems,
+    warnings,
     issues: file.issues,
   };
 }
