@@ -287,9 +287,24 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       // is a profile that looks broken rather than one that looks sourced.
       let to: PlannedWrite['to'];
       if (!existing || file.write === 'base') to = 'drug';
+      // A value the drug already holds, word for word, is **not an override**
+      // -- whatever the mode asked for. This check used to sit below the
+      // `variant` branch, which meant a `variant` import of a value that
+      // agreed with the drug still wrote it into the class's layer: the class
+      // then claimed its own wording for a field it words identically, the
+      // profile offered a version that changes nothing, and the browse row
+      // grew a V-n for it. Re-running a lecture after a half-finished import
+      // did it five times over.
+      //
+      // The rule this restores is the one the rest of the feature is built on:
+      // a class that says nothing of its own is not another version of the
+      // drug. `base` stays above this deliberately -- correcting the drug is a
+      // instruction to rewrite, provenance included.
+      else if (
+        holdsAnAnswer(current) && from === value.value && current?.status === value.status
+      ) to = 'unchanged';
       else if (file.write === 'variant') to = 'variant';
       else if (!holdsAnAnswer(current)) to = 'drug';
-      else if (from === value.value && current?.status === value.status) to = 'unchanged';
       else to = 'variant';
 
       writes.push({ key, label: labelFor(key), to, from, value: value.value, status: value.status });

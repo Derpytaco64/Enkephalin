@@ -594,3 +594,103 @@ describe('a field the file asks for', () => {
     expect(mapped.problems[0].message).toContain('not declared');
   });
 });
+
+/* ----------------------------------------------- running the same file twice -- */
+
+describe('the same lecture imported again', () => {
+  /**
+   * The recovery path, and the reason it is tested rather than assumed.
+   *
+   * `applyDrugImport` is not one transaction: it creates the fields, then the
+   * tags, then writes the drugs one at a time. Everything that can be refused
+   * is refused during planning, before any write, so a stop halfway needs an
+   * infrastructure fault rather than a bad file -- but if one happens, the fix
+   * is to run the same file again. That only works if a second run is a no-op
+   * over what the first one already wrote, which is what these assert.
+   */
+  const lecture = () => file({
+    write: 'variant',
+    declare: [{ key: 'ae', label: 'Adverse effects', type: 'markdown' }],
+    drugs: [
+      { generic: 'nivolumab', brands: ['Opdivo'], indications: ['Melanoma'], fields: { moa: 'PD-1 inhibitor', ae: 'Pruritus' } },
+      { generic: 'dabrafenib', fields: { moa: 'BRAF inhibitor' } },
+      // Named by the regimen below, so the file has to declare it -- which the
+      // format refuses to let us forget.
+      { generic: 'trametinib' },
+    ],
+    regimens: [{
+      name: 'Dabrafenib + trametinib',
+      components: [{ drug: 'dabrafenib', dose: '150 mg PO BID' }, { drug: 'trametinib', dose: '2 mg PO daily' }],
+    }],
+  });
+
+  it('writes nothing the second time', async () => {
+    const first = await apply(lecture());
+    expect(first.created.sort()).toEqual(['dabrafenib', 'nivolumab', 'trametinib']);
+    expect(first.fieldsDeclared).toEqual(['ae']);
+    // `write: 'variant'` and yet every value landed on the drug, which is
+    // right and worth pinning: these drugs exist *because* of this lecture, so
+    // there is no curated profile for them to differ from. A layer here would
+    // leave the drug itself blank. Layers appear where the app already knew
+    // the drug and the lecture disagreed -- see the `fill` tests above.
+    expect(first.toDrug).toBe(5);
+    expect(first.toVariant).toBe(0);
+
+    const second = await apply(lecture());
+    // Nothing new: the drugs exist, the field exists, the tags exist, and
+    // every value already reads exactly as the file says it should.
+    expect(second.created).toEqual([]);
+    expect(second.fieldsDeclared).toEqual([]);
+    expect(second.tagsCreated).toEqual([]);
+    expect(second.toDrug).toBe(0);
+    // And emphatically not five writes into the class's layer: a value the
+    // drug already holds word for word is not that class's own wording, so
+    // re-running a lecture must not invent a version that says nothing.
+    expect(second.toVariant).toBe(0);
+    expect(second.unchanged).toBe(first.toDrug + first.toVariant);
+    expect(second.updated.sort()).toEqual(['dabrafenib', 'nivolumab', 'trametinib']);
+  });
+
+  it('does not duplicate the brands, the indications or the regimen', async () => {
+    await apply(lecture());
+    await apply(lecture());
+
+    const [nivolumab] = await db.select().from(drugs).where(eq(drugs.slug, 'nivolumab'));
+    const brands = await db.select().from(drugBrands).where(eq(drugBrands.drugId, nivolumab.id));
+    const links = await db.select().from(drugIndications).where(eq(drugIndications.drugId, nivolumab.id));
+
+    expect(brands.map((brand) => brand.name)).toEqual(['Opdivo']);
+    expect(links).toHaveLength(1);
+
+    // The regimen is one rendered block on the field, so a second run must
+    // replace it rather than append a second copy of the same protocol.
+    const [dabrafenib] = await db.select().from(drugs).where(eq(drugs.slug, 'dabrafenib'));
+    const text = dabrafenib.fields.regimen?.value ?? '';
+    expect(text.match(/Dabrafenib \+ trametinib/g) ?? []).toHaveLength(1);
+  });
+
+  it('fills a gap the first run could not, without disturbing the rest', async () => {
+    await apply(lecture());
+
+    // The second reading of the same deck adds a mechanism nobody had.
+    const report = await apply(file({
+      write: 'variant',
+      drugs: [{ generic: 'trametinib', fields: { moa: 'MEK inhibitor' } }],
+    }));
+
+    expect(report.created).toEqual([]);
+    // The layer, not the drug: `variant` means *make an alternate profile and
+    // only that*, so it does not reach the drug's own even to fill a gap. That
+    // is the difference between the two modes, and the reason the screen makes
+    // somebody choose -- `fill` would have put this on the drug.
+    expect(report.toVariant).toBe(1);
+    expect(report.toDrug).toBe(0);
+
+    const [trametinib] = await db.select().from(drugs).where(eq(drugs.slug, 'trametinib'));
+    expect(trametinib.fields.moa).toBeUndefined();
+    // The narrowest scope in the file, which is the exam rather than the
+    // class: the exam is the more specific claim about whose words these are.
+    const layer = await variantLayerFor(trametinib.id, 'heme-onc-exam-3');
+    expect(layer?.fields.moa.value).toBe('MEK inhibitor');
+  });
+});

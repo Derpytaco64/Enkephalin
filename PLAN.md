@@ -3068,6 +3068,59 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### The versions moved to the right, as pills (2026-11-09)
+
+*Put the variants and compare on the right where the associated tags are displayed, in the same
+format.*
+
+Third placement for this control, and the first one that is obviously right. It began as a row of
+pills at the top of the page, became a dropdown because a drug in two classes with three exams
+apiece turned that row into a second navigation bar, and is now the same pills in the sidebar
+column.
+
+**The earlier objection was to the top of the page, not to pills.** A column absorbs eight wrapped
+pills without pushing anything down, which is why the same shape that failed above the profile works
+beside it. And sitting under the tags, it reads as the answer to them: the tags are the classes this
+drug is in, these are what those classes say.
+
+Links rather than a control, which the dropdown could not be: every version is already a URL, so the
+client component and its `router.push` are gone and `?as=` is the whole of the memory. `.pill-on`
+marks the one in force and `.pill-soft` quiets the neighbours' hover -- the same vocabulary the top
+bar and the colour-axis switcher use for exactly this, a row where one pill is already filled.
+
+The **table** stays in the main column, where there is width for it. *Compare all* is a pill like
+the rest; what it opens is forty-odd characters across four columns, which a 15rem rail cannot hold
+without becoming unreadable. Controls on the right, the thing they open in the middle.
+
+### An identical value is not an override (2026-11-09)
+
+Found by testing something that had never been tested: running the same import file twice.
+
+`applyDrugImport` is not one transaction -- it declares the fields, then the tags, then writes the
+drugs one at a time -- so the recovery path for a half-finished import is to run the same file
+again. Nothing verified that a second run was safe.
+
+It was not. The `unchanged` check sat *below* the `variant` branch, so in `variant` mode a value that
+agreed with the drug word for word was still written into the class's layer. The class then claimed
+its own wording for a field it worded identically; the profile offered a version that changed
+nothing; the browse row grew a `V-1` for it. A re-run did it to every field at once -- five values in
+the test, seventy-six in the melanoma deck.
+
+Fixed by checking *the drug already holds this* before deciding anything is an override, which
+restores the rule the rest of the feature is built on: **a class that says nothing of its own is not
+another version of the drug.** `base` stays above the check deliberately -- *correct the drug itself*
+is an instruction to rewrite, provenance included.
+
+Three things the new tests pin, all of them behaviour I got wrong when guessing and had to read the
+code to state correctly:
+
+- A **new** drug's values go to the drug itself whatever the mode says, because a drug that exists
+  because of this lecture has no curated profile to differ from. A layer would leave its own profile
+  blank.
+- In `variant` mode an existing drug's **gap** goes to the layer, not the drug. That is the whole
+  difference from `fill`, and the reason the screen makes somebody choose.
+- A layer is written to the **narrowest** scope in the file -- the exam, not the class.
+
 ### Every version side by side, from the dropdown (2026-11-09)
 
 The variant index, placed where the owner put it: *its own thing at the top of the drop down, and

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Prose } from '@/app/_components/prose';
-import { VariantPicker } from './variant-picker';
 import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
@@ -337,28 +336,6 @@ export default async function DrugProfilePage({
         </div>
       </header>
 
-      {/* Which version of this profile to read, where there is more than one
-          to read. Shown only where the drug is tagged with a class or an exam
-          -- a dropdown holding one option called *The drug's own profile* is a
-          control that does nothing. */}
-      {variants.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <VariantPicker
-            slug={drug.slug}
-            variants={variants}
-            current={layers ? ALL_VARIANTS : variant?.slug ?? null}
-          />
-          {isAdmin && variant !== null && (
-            <Link
-              href={`/drugs/${drug.slug}/variant/${encodeURIComponent(variant.slug)}`}
-              className="pill pill-xs pill-edge"
-            >
-              Edit what {variant.label} says
-            </Link>
-          )}
-        </div>
-      )}
-
       {variant !== null && (
         <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--muted)]">
           Reading this drug as <span className="font-medium text-[var(--fg)]">{variant.label}</span>{' '}
@@ -538,6 +515,77 @@ export default async function DrugProfilePage({
             reach for *while* reading a field, and scrolling back up for them
             loses your place. */}
         <aside className="space-y-4 lg:sticky lg:top-6">
+          {/* Which version of this profile to read, in the column where the
+              tags already live and in their format -- pills, because each one
+              stands for a thing and goes to a place.
+
+              It was a dropdown at the top of the page, which replaced a row of
+              pills at the top of the page, and the objection that killed the
+              pills was about the *top of the page*: a drug in two classes with
+              three exams apiece put a second navigation bar above the profile.
+              A column absorbs the same pills without that, and sitting beside
+              the tags says what they are -- the tags are the classes this drug
+              is in, and these are what those classes say.
+
+              Links, not a control: every version is a URL, so this needs no
+              JavaScript and `?as=` stays the whole of the memory. */}
+          {variants.length > 0 && (
+            <section className={CARD}>
+              <SectionHead>Versions</SectionHead>
+              <ul className="mt-3 flex flex-wrap gap-1">
+                <li>
+                  <Link
+                    href={`/drugs/${drug.slug}`}
+                    className={`pill pill-xs pill-soft ${
+                      variant === null && !layers ? 'pill-on' : 'pill-edge'}`}
+                  >
+                    The drug&rsquo;s own
+                  </Link>
+                </li>
+                {variants.map((option) => (
+                  <li key={option.slug}>
+                    <Link
+                      href={`/drugs/${drug.slug}?as=${encodeURIComponent(option.slug)}`}
+                      title={option.overrides > 0
+                        ? `${option.overrides} field${option.overrides === 1 ? '' : 's'} its own way`
+                        : 'Nothing of its own yet — reads as the drug’s own profile'}
+                      className={`pill pill-xs pill-soft ${
+                        variant?.slug === option.slug ? 'pill-on' : 'pill-edge'}`}
+                    >
+                      {/* The number is the identifier a card showed you, so it
+                          leads. A class with nothing of its own has none --
+                          see PLAN, *V-n is the version*. */}
+                      {option.n !== null && <span className="font-mono">V-{option.n}</span>}
+                      {option.n !== null ? ' ' : ''}{option.label}
+                    </Link>
+                  </li>
+                ))}
+                {variants.some((option) => option.n !== null) && (
+                  <li>
+                    <Link
+                      href={`/drugs/${drug.slug}?as=${ALL_VARIANTS}`}
+                      className={`pill pill-xs pill-soft ${layers ? 'pill-on' : 'pill-edge'}`}
+                    >
+                      Compare all
+                    </Link>
+                  </li>
+                )}
+              </ul>
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                A class or exam is read in <em>its own words</em> where it has them, and the
+                drug&rsquo;s everywhere else.
+              </p>
+              {isAdmin && variant !== null && (
+                <Link
+                  href={`/drugs/${drug.slug}/variant/${encodeURIComponent(variant.slug)}`}
+                  className="pill pill-xs pill-edge mt-2"
+                >
+                  Edit what {variant.label} says
+                </Link>
+              )}
+            </section>
+          )}
+
           {tags.length > 0 && (
             <section className={CARD}>
               <SectionHead>Tags</SectionHead>
