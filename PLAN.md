@@ -3068,6 +3068,54 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### A dose belongs to an indication, and the backup dropped it (2026-11-10)
+
+*It's giving me this message, but importing part of the drug list.* With the upload limit raised and
+the live server rebuilt, the restore got through the door and then died partway, reporting a
+production digest.
+
+`dosing_regimens_unique` is over `(drug, coalesce(indication, zero-uuid), route, population,
+alternative, step)`, so **the indication is load-bearing in the key** -- and the export never carried
+it. One drug in 236 notices: sildenafil, whose two doses are 20 mg three times a day for pulmonary
+hypertension and 50 mg an hour beforehand for the other thing, identical in every other column
+because the sheet lists it twice and `mergeDuplicateSlugs` folds the two entries into one drug. Drop
+the indication and they are one key twice over. Postgres refused the second, the exception came up
+through `restoreBackup`, and the restore stopped -- two hundred drugs in, with two hundred drugs
+written and the rest not.
+
+Reproduced from the real 1.05 MB file in a test before anything was changed, which is how the one
+drug got named rather than guessed at.
+
+Four things, and the first is the actual bug:
+
+- **A regimen carries its indication, by label.** `BackupRegimen.indication`, wording rather than an
+  id like everything else in this format, resolved on restore against the drug's own indication
+  links -- which the restore has just written from the same file, and already keeps in a map for the
+  brands. Optional, so absent still means null.
+- **A dose the file cannot tell apart is kept as the next `alternative`.** Every backup written
+  before today lacks the label, and that is exactly the file somebody restores. Both doses are real,
+  so the second is not dropped and does not throw: `alternative` already means *another branch of
+  this dose*, which is the truest thing left to say once the indication is gone. The drug is named
+  in the report -- it is a change to the data nobody asked for -- and re-exporting from the source
+  gets the indications back. A current export never reaches this path, because the keys differ.
+- **One transaction per drug.** Children are replaced, not merged: a delete then an insert each. Row
+  by row that meant the delete stood while the insert did not, so a legacy restore left sildenafil
+  with *no* dosing rows -- worse than the crash. Now a drug that fails is a drug nothing happened
+  to, it is named in `report.problems`, and the rest of the file still goes in. Counters are bumped
+  after the commit, because a count of work that rolled back is a lie about the database.
+- **The screen says what the database said.** A server action that throws reaches the browser as *an
+  error occurred in the Server Components render, the specific message is omitted in production
+  builds* -- the right default for a public page and useless on an admin screen behind a login on a
+  self-hosted box. `restoreAction` catches, logs where `docker logs` finds it, and hands back the
+  first line of the real error. The form's own catch is now only for a request that did not complete
+  at all, and says *worth checking a size limit in front of the app* rather than asserting it.
+
+**`BACKUP_VERSION` stays 3.** The field is additive and an old file restores correctly without it,
+which is the case the re-keying exists to serve -- bumping would refuse every backup already on
+disk, including the ones from 11-04, and make that path unreachable. The cost is that a *new* file
+restored into an *old* build silently loses the indication, which is what every build did until
+today.
+
 ### The backup got bigger than the upload (2026-11-10)
 
 *Something is wrong with the backup restore system. I exported the local test site's data to restore
@@ -3075,7 +3123,10 @@ the top drugs to the live server and it keeps failing.*
 
 The export is 1.05 MB. **Next's server-action body parser allows 1 MB**, and nothing had raised it.
 
-That is the whole fault, and the reason it was unreadable is the shape of it: the request is refused
+That was the first barrier and not the only one -- a second fault was sitting behind it, and raising
+this one is what let anybody see it; see [A dose belongs to an
+indication](#a-dose-belongs-to-an-indication-and-the-backup-dropped-it-2026-11-10). The reason this
+one was unreadable is the shape of it: the request is refused
 by the framework, so `restoreAction` never runs -- and `restoreAction` is where all the care is. It
 checks the size, names it, names the limit, and the limit it names is 24 MB. So the screen advertised
 a limit twenty-four times larger than the one actually being enforced, and the enforcement happened

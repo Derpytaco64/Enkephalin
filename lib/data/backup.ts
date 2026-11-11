@@ -77,6 +77,23 @@ export type BackupBrand = {
 };
 
 export type BackupRegimen = {
+  /**
+   * The one of this drug's indications this dose is for, by **label**, or null
+   * for the drug's own dose.
+   *
+   * Wording rather than an id, like the indications themselves: a backup
+   * restores into a database whose vocabulary rows are different objects. The
+   * restore resolves it against the drug's own indication links, which it has
+   * just written from the same file.
+   *
+   * Optional, so a file written before this existed still restores -- and
+   * absent means null, which is what those files meant. **It was missing until
+   * 2026-11-10 and that was not cosmetic**: sildenafil's two doses are
+   * distinguished by nothing else, so dropping the indication made them one
+   * key twice over, and `dosing_regimens_unique` refused the second -- which
+   * threw, mid-restore, after two hundred drugs had already been written.
+   */
+  indication?: string | null;
   variantRoute: string;
   population: string;
   alternative: number;
@@ -324,8 +341,15 @@ export async function exportBackup(): Promise<Backup> {
       .from(brandIndications)
       .innerJoin(drugIndications, eq(drugIndications.id, brandIndications.indicationId))
       .innerJoin(indications, eq(indications.id, drugIndications.indicationId)),
+    // The indication comes out as its label, so the row can be filed under the
+    // same indication in a database where its id is a different object.
     db
-      .select().from(dosingRegimens)
+      .select({
+        drugId: dosingRegimens.drugId, regimen: dosingRegimens, indication: indications.label,
+      })
+      .from(dosingRegimens)
+      .leftJoin(drugIndications, eq(drugIndications.id, dosingRegimens.indicationId))
+      .leftJoin(indications, eq(indications.id, drugIndications.indicationId))
       .orderBy(asc(dosingRegimens.alternative), asc(dosingRegimens.step)),
     db.select().from(tags).orderBy(asc(tags.slug)),
     db.select({ drugId: drugTags.drugId, slug: tags.slug })
@@ -429,7 +453,8 @@ export async function exportBackup(): Promise<Backup> {
       note: brand.note,
       indications: indicationsByBrand.get(brand.id) ?? [],
     })),
-    regimens: (regimensByDrug.get(drug.id) ?? []).map((regimen) => ({
+    regimens: (regimensByDrug.get(drug.id) ?? []).map(({ regimen, indication }) => ({
+      indication,
       variantRoute: regimen.variantRoute,
       population: regimen.population,
       alternative: regimen.alternative,
@@ -710,6 +735,18 @@ export type RestoreReport = {
    * *who* would be the wrong trade for a history.
    */
   auditActorsUnmatched: string[];
+  /**
+   * A drug the file described and the database would not take, named with the
+   * reason. Empty is the ordinary state; anything in it is a drug to look at,
+   * and the restore finished without it rather than stopping there.
+   */
+  problems: string[];
+  /**
+   * Drugs with a dose the file could not tell apart from another, kept as an
+   * extra alternative. Only an old backup does this -- the indication is what
+   * distinguished them and it was not in the file.
+   */
+  dosingRekeyed: string[];
 };
 
 export type RestoreResult =
@@ -780,6 +817,8 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     auditRestored: 0,
     auditSkipped: 0,
     auditActorsUnmatched: [],
+    problems: [],
+    dosingRekeyed: [],
   };
 
   if (mode === 'replace') {
@@ -840,112 +879,195 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
   }
 
   for (const drug of backup.drugs) {
-    const values = {
-      genericName: drug.genericName,
-      drugClass: drug.drugClass,
-      schedule: schedule(drug.schedule),
-      scheduleNote: drug.scheduleNote,
-      rxcui: drug.rxcui,
-      fields: drug.fields,
-      needsClassReview: drug.needsClassReview,
-      classCandidates: drug.classCandidates,
-      classSuggestion: drug.classSuggestion,
-      needsPairingReview: drug.needsPairingReview,
-      dosingUnique: drug.dosingUnique ?? false,
-      sourcePage: drug.sourcePage,
-      updatedAt: new Date(),
-    };
+    /**
+     * One drug at a time, and a failure costs that drug rather than the rest.
+     *
+     * This loop used to throw. A backup written before regimens carried their
+     * indication has sildenafil's two doses keyed identically -- see
+     * `BackupRegimen.indication` -- so `dosing_regimens_unique` refused the
+     * second, the exception left the restore on the floor two hundred drugs in,
+     * and the screen reported a digest. **A half-restored database is the one
+     * outcome a restore must not produce**, and the file that provokes it is by
+     * definition an old one, which is exactly the file somebody is restoring.
+     *
+     * So the drug is skipped and named. Its children are written as whole
+     * statements -- one delete and one insert each -- so what is skipped is the
+     * drug's brands, doses or tags, not half of them, and restoring a current
+     * export over the top fixes it. The same reasoning as the import and the
+     * removal panel: a stale row must not abandon the rest of the list.
+     */
+    try {
+      /*
+       * One transaction per drug, so a drug that fails is a drug nothing
+       * happened to. Its children are replaced rather than merged -- a delete
+       * then an insert each -- and without this the delete stood while the
+       * insert did not: sildenafil came out of a legacy restore with its dosing
+       * rows gone rather than kept. Counters are bumped after the commit, below,
+       * because a count of work that rolled back is a lie about the database.
+       */
+      let outcome = 'updated' as 'inserted' | 'updated';
+      // Set where a dose had to be moved to another `alternative` to fit the
+      // unique index -- see the regimens below.
+      let rekeyed = false;
+      await db.transaction(async (tx) => {
+        const values = {
+          genericName: drug.genericName,
+          drugClass: drug.drugClass,
+          schedule: schedule(drug.schedule),
+          scheduleNote: drug.scheduleNote,
+          rxcui: drug.rxcui,
+          fields: drug.fields,
+          needsClassReview: drug.needsClassReview,
+          classCandidates: drug.classCandidates,
+          classSuggestion: drug.classSuggestion,
+          needsPairingReview: drug.needsPairingReview,
+          dosingUnique: drug.dosingUnique ?? false,
+          sourcePage: drug.sourcePage,
+          updatedAt: new Date(),
+        };
 
-    const [existing] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, drug.slug));
-    let drugId: string;
-    if (existing) {
-      await db.update(drugs).set(values).where(eq(drugs.id, existing.id));
-      drugId = existing.id;
-      report.drugsUpdated += 1;
-    } else {
-      const [created] = await db
-        .insert(drugs)
-        .values({ slug: drug.slug, ...values })
-        .returning({ id: drugs.id });
-      drugId = created.id;
-      report.drugsInserted += 1;
-    }
+        const [existing] = await tx.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, drug.slug));
+        let drugId: string;
+        if (existing) {
+          await tx.update(drugs).set(values).where(eq(drugs.id, existing.id));
+          drugId = existing.id;
+          outcome = 'updated';
+        } else {
+          const [created] = await tx
+            .insert(drugs)
+            .values({ slug: drug.slug, ...values })
+            .returning({ id: drugs.id });
+          drugId = created.id;
+          outcome = 'inserted';
+        }
 
-    // Indications travel as wording, not as ids, so a backup stays readable
-    // and restores into a database whose vocabulary rows are different objects.
-    // `resolveIndications` is what reunites them: a label the target already
-    // knows joins that row, and one it does not becomes a new entry.
-    await db.delete(drugIndications).where(eq(drugIndications.drugId, drugId));
-    const indicationIdByText = new Map<string, string>();
-    const { rows: vocabulary } = await resolveIndications(drug.indications);
-    for (const [index, indication] of vocabulary.entries()) {
-      const [row] = await db
-        .insert(drugIndications)
-        .values({ drugId, indicationId: indication.id, sortOrder: index })
-        .returning({ id: drugIndications.id });
-      indicationIdByText.set(indication.label, row.id);
-    }
+        // Indications travel as wording, not as ids, so a backup stays readable
+        // and restores into a database whose vocabulary rows are different objects.
+        // `resolveIndications` is what reunites them: a label the target already
+        // knows joins that row, and one it does not becomes a new entry.
+        await tx.delete(drugIndications).where(eq(drugIndications.drugId, drugId));
+        const indicationIdByText = new Map<string, string>();
+        const { rows: vocabulary } = await resolveIndications(drug.indications);
+        for (const [index, indication] of vocabulary.entries()) {
+          const [row] = await tx
+            .insert(drugIndications)
+            .values({ drugId, indicationId: indication.id, sortOrder: index })
+            .returning({ id: drugIndications.id });
+          indicationIdByText.set(indication.label, row.id);
+        }
 
-    await db.delete(drugBrands).where(eq(drugBrands.drugId, drugId));
-    for (const [index, brand] of drug.brands.entries()) {
-      const [row] = await db
-        .insert(drugBrands)
-        .values({
-          drugId,
-          name: brand.name,
-          family: brand.family,
-          route: brand.route,
-          form: brand.form,
-          dosingOverride: brand.dosingOverride,
-          defaultPairingSuspect: brand.defaultPairingSuspect,
-          suspectReason: brand.suspectReason,
-          note: brand.note,
-          sortOrder: index,
-        })
-        .returning({ id: drugBrands.id });
+        await tx.delete(drugBrands).where(eq(drugBrands.drugId, drugId));
+        for (const [index, brand] of drug.brands.entries()) {
+          const [row] = await tx
+            .insert(drugBrands)
+            .values({
+              drugId,
+              name: brand.name,
+              family: brand.family,
+              route: brand.route,
+              form: brand.form,
+              dosingOverride: brand.dosingOverride,
+              defaultPairingSuspect: brand.defaultPairingSuspect,
+              suspectReason: brand.suspectReason,
+              note: brand.note,
+              sortOrder: index,
+            })
+            .returning({ id: drugBrands.id });
 
-      const links = brand.indications
-        .map((text) => indicationIdByText.get(text))
-        .filter((id): id is string => Boolean(id))
-        .map((indicationId) => ({ brandId: row.id, indicationId }));
-      if (links.length > 0) await db.insert(brandIndications).values(links).onConflictDoNothing();
-    }
+          const links = brand.indications
+            .map((text) => indicationIdByText.get(text))
+            .filter((id): id is string => Boolean(id))
+            .map((indicationId) => ({ brandId: row.id, indicationId }));
+          if (links.length > 0) await tx.insert(brandIndications).values(links).onConflictDoNothing();
+        }
 
-    await db.delete(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
-    if (drug.regimens.length > 0) {
-      await db.insert(dosingRegimens).values(drug.regimens.map((regimen) => ({ drugId, ...regimen })));
-    }
+        await tx.delete(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+        if (drug.regimens.length > 0) {
+          /*
+           * `dosing_regimens_unique` is over (drug, indication, route,
+           * population, alternative, step), so two rows the file cannot tell
+           * apart are one key twice and the second insert is refused.
+           *
+           * That is not hypothetical and it is not the file being corrupt: a
+           * backup written before regimens carried their indication has
+           * sildenafil's two doses -- 20 mg three times a day for pulmonary
+           * hypertension, 50 mg an hour beforehand for the other thing --
+           * keyed identically, because what distinguished them is the one
+           * field that was not exported.
+           *
+           * Both doses are real, so the second is kept as the **next
+           * alternative** rather than dropped or allowed to throw.
+           * `alternative` is already "another branch of this dose", which is
+           * the truest thing left to say about it once the indication is gone,
+           * and the drug is named in the report so somebody can re-export and
+           * get the indications back. A current export never reaches this:
+           * the indications differ, so the keys do.
+           */
+          const taken = new Set<string>();
+          const rows = drug.regimens.map(({ indication, ...regimen }) => {
+            // Filed under the same indication it was filed under, resolved
+            // through the links written a few lines above. A label this drug no
+            // longer has leaves the row unscoped, which is the honest reading of
+            // "that dose was for something this drug is no longer listed for".
+            const indicationId = indication === null || indication === undefined
+              ? null
+              : indicationIdByText.get(indication) ?? null;
 
-    await db.delete(drugTags).where(eq(drugTags.drugId, drugId));
-    const links = drug.tags
-      .map((slug) => tagIdBySlug.get(slug))
-      .filter((id): id is string => Boolean(id))
-      .map((tagId) => ({ drugId, tagId }));
-    if (links.length > 0) await db.insert(drugTags).values(links).onConflictDoNothing();
+            let alternative = regimen.alternative;
+            // JSON rather than a joined string: `variant_route` and
+            // `population` are free text, and a separator that can appear in a
+            // value is a key collision waiting to be found by one drug.
+            const key = () => JSON.stringify([
+              indicationId, regimen.variantRoute, regimen.population, alternative, regimen.step,
+            ]);
+            while (taken.has(key())) alternative += 1;
+            taken.add(key());
+            if (alternative !== regimen.alternative) rekeyed = true;
 
-    // What each class says differently, replaced wholesale like the regimens
-    // above: a layer is one statement about one drug, and merging two versions
-    // of it field by field would produce a profile neither file described.
-    //
-    // `variants` is absent in a file written before profile variants existed,
-    // and absent is not empty -- an older backup must not wipe layers typed
-    // since. An empty array *is* an instruction, and clears them.
-    if (drug.variants) {
-      await db.delete(drugVariantValues).where(eq(drugVariantValues.drugId, drugId));
-      const layers = drug.variants
-        .map((layer) => ({ layer, tagId: tagIdBySlug.get(layer.variant) }))
-        // A tag the file does not also carry: skipped rather than invented,
-        // the same rule the tag links above follow.
-        .filter((row): row is { layer: typeof row.layer; tagId: string } => Boolean(row.tagId))
-        .map((row) => ({
-          drugId,
-          tagId: row.tagId,
-          fields: row.layer.fields,
-          note: row.layer.note,
-        }));
-      if (layers.length > 0) {
-        await db.insert(drugVariantValues).values(layers).onConflictDoNothing();
-      }
+            return { drugId, ...regimen, alternative, indicationId };
+          });
+          await tx.insert(dosingRegimens).values(rows);
+        }
+
+        await tx.delete(drugTags).where(eq(drugTags.drugId, drugId));
+        const links = drug.tags
+          .map((slug) => tagIdBySlug.get(slug))
+          .filter((id): id is string => Boolean(id))
+          .map((tagId) => ({ drugId, tagId }));
+        if (links.length > 0) await tx.insert(drugTags).values(links).onConflictDoNothing();
+
+        // What each class says differently, replaced wholesale like the regimens
+        // above: a layer is one statement about one drug, and merging two versions
+        // of it field by field would produce a profile neither file described.
+        //
+        // `variants` is absent in a file written before profile variants existed,
+        // and absent is not empty -- an older backup must not wipe layers typed
+        // since. An empty array *is* an instruction, and clears them.
+        if (drug.variants) {
+          await tx.delete(drugVariantValues).where(eq(drugVariantValues.drugId, drugId));
+          const layers = drug.variants
+            .map((layer) => ({ layer, tagId: tagIdBySlug.get(layer.variant) }))
+            // A tag the file does not also carry: skipped rather than invented,
+            // the same rule the tag links above follow.
+            .filter((row): row is { layer: typeof row.layer; tagId: string } => Boolean(row.tagId))
+            .map((row) => ({
+              drugId,
+              tagId: row.tagId,
+              fields: row.layer.fields,
+              note: row.layer.note,
+            }));
+          if (layers.length > 0) {
+            await tx.insert(drugVariantValues).values(layers).onConflictDoNothing();
+          }
+        }
+      });
+      if (outcome === 'inserted') report.drugsInserted += 1;
+      else report.drugsUpdated += 1;
+      if (rekeyed) report.dosingRekeyed.push(drug.slug);
+    } catch (error) {
+      report.problems.push(
+        `${drug.slug}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

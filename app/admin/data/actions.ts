@@ -39,7 +39,28 @@ export async function restoreAction(formData: FormData): Promise<RestoreState> {
     return { ok: false, message: 'That file is not readable JSON.' };
   }
 
-  const result = await restoreBackup(parsed, mode);
+  /**
+   * A thrown restore is a message, not a digest.
+   *
+   * `restoreBackup` reports what it refuses, but a query it did not expect
+   * throws -- and a server action that throws reaches the browser as *an error
+   * occurred in the Server Components render, the specific message is omitted
+   * in production builds*. Which is the correct default for a public page and
+   * useless here: this screen is admin-only, self-hosted, and the thing a
+   * person needs on a bad day is the database's own words. So they are caught,
+   * logged where `docker logs` will show them, and handed back.
+   */
+  let result: Awaited<ReturnType<typeof restoreBackup>>;
+  try {
+    result = await restoreBackup(parsed, mode);
+  } catch (error) {
+    const why = error instanceof Error ? error.message : String(error);
+    console.error('[restore] failed', error);
+    // The first line only: drizzle prefixes a failed query with the whole SQL
+    // statement and its parameters, which is for the log, not for a person.
+    const [first] = why.split(/\r?\n/);
+    return { ok: false, message: `The restore stopped: ${first}` };
+  }
   if (!result.ok) return result;
 
   revalidatePath('/drugs');

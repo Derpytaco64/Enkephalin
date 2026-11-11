@@ -44,13 +44,16 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
         const why = error instanceof Error ? error.message : String(error);
         return {
           ok: false,
-          // A megabyte is the shape of this failure, and the half of it this
-          // app cannot configure is whatever is in front of it.
+          // The action catches its own failures and reports them, so reaching
+          // here means the request itself did not complete -- and over a
+          // megabyte, a size limit somewhere in front is the first thing to
+          // check. Said as a thing to check, not as a diagnosis: this is the
+          // one branch that cannot see what actually happened.
           message: size > COMMON_PROXY_CAP
-            ? `The server did not accept that upload (${(size / 1024 / 1024).toFixed(1)} MB). `
-              + 'A reverse proxy in front of the app is the usual cause -- nginx allows 1 MB '
-              + `unless told otherwise, Caddy has no limit of its own. (${why})`
-            : `That restore failed before it started. (${why})`,
+            ? `The request did not complete (${(size / 1024 / 1024).toFixed(1)} MB uploaded). `
+              + 'Worth checking a size limit in front of the app -- nginx allows 1 MB unless '
+              + `told otherwise, Caddy has none of its own. (${why})`
+            : `The request did not complete. (${why})`,
         };
       }
     },
@@ -142,6 +145,17 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
                       && `, ${state.report.auditSkipped} already here`}
                   </li>
                 )}
+                {/* A dose the file could not tell from another, kept anyway.
+                    Named because it is a change to the data nobody asked for,
+                    and re-exporting from the source undoes the need for it. */}
+                {state.report.dosingRekeyed.length > 0 && (
+                  <li>
+                    {state.report.dosingRekeyed.join(', ')} had two doses this file cannot tell
+                    apart &mdash; it predates doses carrying their indication &mdash; so the second
+                    is kept as another alternative. Re-export from the source to get the
+                    indications back.
+                  </li>
+                )}
                 {/* Said out loud rather than left to be noticed: the history is
                     intact, but those rows no longer say who. */}
                 {state.report.auditActorsUnmatched.length > 0 && (
@@ -151,6 +165,20 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
                   </li>
                 )}
               </ul>
+              {/* A drug the database would not take. The rest of the file went
+                  in, which is the point of reporting rather than stopping. */}
+              {state.report.problems.length > 0 && (
+                <>
+                  <p className="mt-2 font-medium text-[var(--danger)]">
+                    {state.report.problems.length} drug
+                    {state.report.problems.length === 1 ? '' : 's'} could not be written. Everything
+                    else in the file was.
+                  </p>
+                  <ul className="mt-1 space-y-0.5 font-mono text-xs text-[var(--danger)]">
+                    {state.report.problems.map((problem) => <li key={problem}>{problem}</li>)}
+                  </ul>
+                </>
+              )}
             </>
           ) : (
             state.message

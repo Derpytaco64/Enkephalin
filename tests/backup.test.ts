@@ -378,6 +378,123 @@ describe('restoreBackup', () => {
   });
 });
 
+/* --------------------------------------------- a dose and its indication -- */
+
+/**
+ * A dose belongs to an indication, and the backup has to carry which.
+ *
+ * `dosing_regimens_unique` is over (drug, indication, route, population,
+ * alternative, step), so **the indication is load-bearing in the key** -- and
+ * the export left it out. Sildenafil is the drug that proved it: 20 mg three
+ * times a day for pulmonary hypertension and 50 mg an hour beforehand for the
+ * other thing, identical in every other column. Restoring that file made them
+ * one key twice, Postgres refused the second, and the exception stopped the
+ * restore two hundred drugs in -- on the live server, from the screen, with a
+ * production digest for an explanation.
+ *
+ * Two tests, because there are two files in the world now: one that carries the
+ * indication, and every one exported before 2026-11-10 that does not.
+ */
+describe('a dose keeps the indication it was filed under', () => {
+  /** The drug `beforeEach` has already seeded, which carries two indications. */
+  const seededDrugId = async () => {
+    const [row] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    return row.id;
+  };
+
+  /** Two doses differing by nothing but what they are for. */
+  const twoDoses = async (drugId: string) => {
+    const links = await db
+      .select({ id: drugIndications.id, label: indications.label })
+      .from(drugIndications)
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .where(eq(drugIndications.drugId, drugId));
+    const idOf = (label: string) => links.find((row) => row.label === label)!.id;
+
+    await db.delete(dosingRegimens).where(eq(dosingRegimens.drugId, drugId));
+    await db.insert(dosingRegimens).values([
+      {
+        drugId,
+        indicationId: idOf('Diabetes'),
+        sourceText: '2.5 mg subcutaneously once weekly',
+        frequency: { kind: 'interval', low: 1, high: null, unit: 'week' },
+        source: 'the sheet',
+      },
+      {
+        drugId,
+        indicationId: idOf('Weight management'),
+        sourceText: '15 mg subcutaneously once weekly',
+        frequency: { kind: 'interval', low: 1, high: null, unit: 'week' },
+        source: 'the sheet',
+      },
+    ]);
+  };
+
+  /** Each dose with the indication it is filed under, for an assertion. */
+  const dosesOf = async (slug: string) => {
+    const rows = await db
+      .select({ label: indications.label, text: dosingRegimens.sourceText, alternative: dosingRegimens.alternative })
+      .from(dosingRegimens)
+      .innerJoin(drugs, eq(drugs.id, dosingRegimens.drugId))
+      .leftJoin(drugIndications, eq(drugIndications.id, dosingRegimens.indicationId))
+      .leftJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .where(eq(drugs.slug, slug));
+    return rows.sort((a, b) => a.text.localeCompare(b.text));
+  };
+
+  it('exports it, and restoring over the drug keeps both doses apart', async () => {
+    await twoDoses(await seededDrugId());
+
+    const backup = await exportBackup();
+    const exported = backup.drugs.find((drug) => drug.slug === 'tirzepatide')!;
+    // On the file as a label, which is how this format says everything: a
+    // backup restores into a database whose rows are different objects.
+    expect(exported.regimens.map((regimen) => regimen.indication).sort())
+      .toEqual(['Diabetes', 'Weight management']);
+
+    // Merge over a database that already has the drug, which is the restore
+    // that failed: the children are deleted and written back.
+    const result = await restoreBackup(backup, 'merge');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.report.problems).toEqual([]);
+      expect(result.report.dosingRekeyed).toEqual([]);
+    }
+
+    expect(await dosesOf('tirzepatide')).toEqual([
+      { label: 'Weight management', text: '15 mg subcutaneously once weekly', alternative: 0 },
+      { label: 'Diabetes', text: '2.5 mg subcutaneously once weekly', alternative: 0 },
+    ]);
+  });
+
+  it('keeps both doses of an older file that cannot say which is which', async () => {
+    await twoDoses(await seededDrugId());
+
+    // Every file exported before the label existed. Both doses are real and
+    // the file has lost what told them apart, so the second is kept as another
+    // alternative rather than dropped -- and never by throwing, which took the
+    // rest of the drug list down with it.
+    const backup = await exportBackup();
+    for (const drug of backup.drugs) {
+      for (const regimen of drug.regimens) delete regimen.indication;
+    }
+
+    const result = await restoreBackup(backup, 'merge');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.report.problems).toEqual([]);
+      // Named, because it is a change to the data the file did not ask for.
+      expect(result.report.dosingRekeyed).toEqual(['tirzepatide']);
+    }
+
+    // Both survive, unscoped, told apart by the one column left to do it.
+    expect(await dosesOf('tirzepatide')).toEqual([
+      { label: null, text: '15 mg subcutaneously once weekly', alternative: 1 },
+      { label: null, text: '2.5 mg subcutaneously once weekly', alternative: 0 },
+    ]);
+  });
+});
+
 /* ------------------------------------------------ getting the file in -- */
 
 /**
