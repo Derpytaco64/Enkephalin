@@ -7,7 +7,14 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     globalSetup: ['./tests/global-setup.ts'],
-    env: { DATABASE_URL: TEST_DATABASE_URL },
+    env: {
+      DATABASE_URL: TEST_DATABASE_URL,
+      // No test asks the National Library of Medicine anything. The class
+      // lookup's own tests drive it with a stub instead -- see
+      // `tests/class-lookup.test.ts` -- and every other test creates drugs
+      // without waiting on a network that may not be there.
+      DRUG_CLASS_LOOKUP: 'off',
+    },
     // postgres-js wants real node builtins, which forks give us.
     pool: 'forks',
     // One shared database, so files must not run at the same time: each

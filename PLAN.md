@@ -46,6 +46,11 @@ Transcription of the note:
 - **Public drug APIs are an on-demand lookup, not a seeding step.** When adding or editing a drug,
   a lookup panel queries DailyMed / RxNorm / openFDA and lets you pull individual values into
   individual fields, one at a time, with the citation recorded. Nothing is ever auto-filled in bulk.
+  **The one exception is the class, and it is the original exception** rather than a new one: a
+  classification is a fact to be looked up rather than prose to be written, which is why
+  `scripts/fetch-drug-classes.py` was allowed to class all 237 at once. Since 2026-11-10 creating a
+  drug does the same lookup for that one field — see [A new drug is classed the way the first 236
+  were](#a-new-drug-is-classed-the-way-the-first-236-were-2026-11-10).
 - **Fields are not fixed.** The note's seven fields are a starting set, not the schema. More will be
   added (half-life, pregnancy category, renal dosing, boxed warning, kinetics, counseling points…),
   so fields are **data, defined and edited in the admin UI**, not columns in a migration.
@@ -3067,6 +3072,59 @@ out of one `scope` in the import file, and a lecture is reachable through either
 A lecture is still not a unit you can select, by the same earlier decision: there is no `topic`
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
+
+### A new drug is classed the way the first 236 were (2026-11-10)
+
+*The creation should get the drug class like the original top drugs did by looking it up. Ones that
+don't have it can remain uncategorized.*
+
+The sheet has no class column, so all 237 were classed by one bulk run against RxNav —
+`scripts/fetch-drug-classes.py`, keeping the FDA's **Established Pharmacologic Class** and nothing
+else. A drug created since got whatever the person or the lecture happened to write, or nothing: the
+heme/onc import gave its drugs *CTLA-4 inhibitor* and *MEK inhibitor*, lecture wording in a column
+where every other row holds `Penicillin-class Antibacterial`. The axis drives colour coding, the
+browse filter and same-class distractor sampling by exact string, so that is two vocabularies in one
+column.
+
+So `lib/drugs/class-lookup.ts` is **that script ported**, and `createDrug` calls it — the one funnel
+both the add form and `applyDrugImport` go through. The port is deliberate rather than a rewrite,
+because the script's logic is almost entirely scar tissue from the original run: EPC only and only
+from `FDASPL` or `DAILYMED`; a combination asked ingredient by ingredient, because the product name
+often resolves to nothing and RxClass gives Piperacillin/Tazobactam only the beta lactamase
+inhibitor; the ingredient the product is named for first leading; an adjuvant never leading; salts
+and release qualifiers stripped, because the class belongs to the active moiety.
+
+Checked against the library it has to agree with, live: Piperacillin/Tazobactam →
+`Penicillin-class Antibacterial`, Carbidopa/Levodopa → `Aromatic Amino Acid` (carbidopa's
+decarboxylase inhibitor correctly demoted), Metoprolol Succinate ER → `beta-Adrenergic Blocker`,
+buspirone → null. Every one is the value already in the database. The tests drive the same paths
+through a stub, because what is worth pinning is the reasoning, and no test should need the National
+Library of Medicine to be up.
+
+Four rules about when it does **not** speak:
+
+- **Never over a class somebody gave.** A file or a form that names one keeps it, which is the
+  existing *filled, never corrected* rule reaching one step further back. The lookup is for the
+  absence.
+- **No EPC means null**, which reads as *Uncategorized* — the answer, not a gap. The other
+  vocabularies are recorded in `class_candidates` and the profile says *class needs review*, which
+  is what the seed did for the twenty originals that have no class. Keyed off the class being null
+  rather than off which lookup path ran: buspirone resolves `direct` and has a VA category and no
+  EPC, and listing the paths instead left it unflagged with its candidates thrown away. The test
+  caught that.
+- **It cannot fail a creation.** No network, a slow endpoint, a box with no route out: each returns
+  a result that says so, the drug is created uncategorized, and `needs_class_review` stays *off* —
+  unreachable is not evidence of anything. `DRUG_CLASS_LOOKUP=off` skips it outright, which is what
+  the test suite sets and what an air-gapped install wants so creation does not wait first.
+- **It is one field.** Not mechanism, not dosing, not a boxed warning. [Public drug APIs are an
+  on-demand lookup](#decisions) still holds for everything that is prose: a classification is a
+  fact, and that is the whole reason this one was ever allowed.
+
+Resolved names are memoized for the life of the process, since an import asks about the same
+ingredient across several combinations. The cost is real and accepted: three requests a drug at
+RxNav's latency, so a 24-drug lecture spends a few extra seconds in the import. Parallelising it
+would mean restructuring the import's per-drug loop, which is not worth doing until a file is big
+enough to notice.
 
 ### A dose belongs to an indication, and the backup dropped it (2026-11-10)
 

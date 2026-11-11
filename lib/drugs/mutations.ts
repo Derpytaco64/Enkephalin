@@ -13,6 +13,7 @@ import {
   type FieldValue,
 } from '@/db/schema';
 import { isUniqueViolation } from '@/lib/db-errors';
+import { classColumns, lookUpDrugClass, type ClassLookup } from '@/lib/drugs/class-lookup';
 import { setDrugIndicationLinks } from '@/lib/drugs/indication-store';
 import { indicationSlug } from '@/lib/drugs/indications';
 import { activesOf, notesFor, parseDosing } from '@/lib/dosing/parse';
@@ -639,13 +640,34 @@ export type NewDrugInput = IdentityInput & {
  * Creates a drug by hand, for what the sheet does not carry. Everything it
  * writes is marked as coming from whoever typed it, never from the sheet: the
  * provenance is the whole reason "verified only" is worth filtering by.
+ *
+ * **The class is looked up where none was given**, the way the library's first
+ * 236 were: `lookUpDrugClass` asks RxNav for the FDA's Established
+ * Pharmacologic Class and this writes it, with the RxCUI it resolved and the
+ * other vocabularies' answers as candidates. Only where none was given --
+ * whoever typed one, or the lecture that named one, outranks a lookup -- and a
+ * drug the FDA gives no EPC stays null, which reads as *Uncategorized*. The
+ * lookup cannot fail a creation: unreachable means a drug with no class, not a
+ * refusal. See `lib/drugs/class-lookup.ts`.
+ *
+ * `lookUpClass` is injectable for the tests; nothing else passes it.
  */
-export async function createDrug(input: NewDrugInput, actorId: string): Promise<Result<string>> {
+export async function createDrug(
+  input: NewDrugInput,
+  actorId: string,
+  options: { lookUpClass?: (generic: string) => Promise<ClassLookup> } = {},
+): Promise<Result<string>> {
   const generic = input.genericName.trim();
   if (!generic) return { ok: false, message: 'A drug needs a generic name.' };
 
   const slug = drugSlug(generic);
   if (!slug) return { ok: false, message: 'That name has no letters or digits to make a slug from.' };
+
+  const given = input.drugClass.trim();
+  const found = given ? null : await (options.lookUpClass ?? lookUpDrugClass)(generic);
+  const classed = found === null
+    ? { drugClass: given, rxcui: null, classCandidates: [], needsClassReview: false }
+    : classColumns(found);
 
   let drugId: string;
   try {
@@ -654,7 +676,10 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
       .values({
         slug,
         genericName: generic,
-        drugClass: input.drugClass.trim() || null,
+        drugClass: classed.drugClass || null,
+        rxcui: classed.rxcui,
+        classCandidates: classed.classCandidates,
+        needsClassReview: classed.needsClassReview,
         schedule: readSchedule(input.schedule),
         scheduleNote: input.scheduleNote.trim() || null,
         dosingUnique: input.dosingUnique,
@@ -671,7 +696,22 @@ export async function createDrug(input: NewDrugInput, actorId: string): Promise<
     throw err;
   }
 
-  await audit({ actorId, action: 'drug.create', drugId, diff: { slug, genericName: generic } });
+  await audit({
+    actorId,
+    action: 'drug.create',
+    drugId,
+    diff: {
+      slug,
+      genericName: generic,
+      // A value nobody typed says where it came from, or why there is not one.
+      ...(found === null ? {} : {
+        drugClass: found.drugClass,
+        classLookup: found.path,
+        matchedAs: found.matchedAs,
+        rxcui: found.rxcui,
+      }),
+    },
+  });
 
   const brands = unique(lines(input.brands));
   if (brands.length > 0) {

@@ -43,6 +43,11 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       SITE_NAME: ${SITE_NAME}
+      # `off` on a box with no route to the internet, so creating a drug does
+      # not wait on RxNav before deciding it has no class. Defaulted to empty,
+      # which is on: unset is the ordinary case, and compose would otherwise
+      # warn on every command.
+      DRUG_CLASS_LOOKUP: ${DRUG_CLASS_LOOKUP:-}
     ports:
       # Bound to localhost: your reverse proxy terminates TLS and forwards here.
       - "127.0.0.1:3000:3000"

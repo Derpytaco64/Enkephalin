@@ -232,7 +232,7 @@ The class and the schedule are *filled* and never corrected, except in `base` mo
 | `aliases` | no | Other names the deck uses: `["T-VEC", "Talimogene"]`. Matching only, so case changes nothing — capitalise them the same way regardless |
 | `brands` | no | Trade names: `["Opdivo"]`. Only ones the deck names |
 | `indications` | no | What it is used for, **as specifically as the deck says it** |
-| `class` | no | The pharmacologic class, if the deck gives one, **capitalised**: `"Cephalosporin Antibacterial"` |
+| `class` | no | Usually leave it out — a drug created without one gets its FDA class looked up. Write one only to override that, **capitalised**: `"Cephalosporin Antibacterial"` |
 | `schedule` | no | `CI`–`CV`, and only for a controlled substance |
 | `fields` | no | Everything else. See the field set below |
 | `source` | no | Overrides the file's `source` for this drug |
@@ -358,16 +358,22 @@ The biomarker belongs in the indication when it is what *selects* the drug. That
 the dosing flow turns on, and saying it twice in two places is correct: one is what the drug is
 for, the other is how you choose it.
 
-### Finding the class when the deck does not give one
+### The class is looked up, so you can leave it out
 
-A lecture usually names the class in passing — *a BRAF inhibitor*, *a PD-1 inhibitor* — and almost
-never in the FDA's words. `class` wants the FDA's words, because that is the vocabulary every class
-the library came with is spelled in, and the value is compared as a whole string. So look it up
-rather than paraphrasing the slide.
+**Leave `class` out unless the deck's own name is the one you want kept.** A drug created without one
+gets its class looked up — RxNav's **Established Pharmacologic Class**, the FDA's own, which is the
+vocabulary every class the library came with is spelled in. It is the same source
+`scripts/fetch-drug-classes.py` classed the first 236 from, ported into the app so a drug added by a
+lecture is classed the same way as a drug that came off the sheet. The RxCUI it resolves is stored
+too, and a drug the FDA gives no EPC stays **Uncategorized**, which is a real answer and not a gap.
 
-**The source is the same one the library used**: RxNav's RxClass, filtered to the **Established
-Pharmacologic Class** the FDA label carries. `scripts/fetch-drug-classes.py` is the bulk run that
-resolved the Top Drugs with it; for one drug, one request does:
+So a lecture that says *a BRAF inhibitor* in passing is better served by saying nothing: write
+`class` only where you mean *this name, not whatever the lookup finds* — and then the capitalisation
+rule above is yours to follow, because **what you write wins**. The class is filled and never
+corrected, so a value in the file is the one that sticks.
+
+The rest of this section is what the lookup does, which is worth knowing because it is what your
+drug's class will be. To see it for one drug before you hand the file over:
 
 ```bash
 curl -s "https://rxnav.nlm.nih.gov/REST/rxclass/class/byDrugName.json?drugName=dabrafenib&relaSource=FDASPL"
@@ -385,16 +391,16 @@ copy its `className` **verbatim**:
 }
 ```
 
-So dabrafenib is `"class": "Kinase Inhibitor"`, not *BRAF Inhibitor*. Ipilimumab is
-`"CTLA-4-directed Blocking Antibody"`, not *CTLA-4 Inhibitor*. Those names come back already spelled
-the way the rule above asks for — the lowercase *directed* after the hyphen is the FDA's own — which
-is the point of taking them verbatim: copied exactly, a class cannot be miscapitalised.
+So dabrafenib becomes `Kinase Inhibitor`, not *BRAF Inhibitor*, and ipilimumab
+`CTLA-4-directed Blocking Antibody`, not *CTLA-4 Inhibitor*. Those names arrive already spelled the
+way the rule above asks for — the lowercase *directed* after the hyphen is the FDA's own — which is
+the other reason to let the lookup write it: a name nobody retyped cannot be miscapitalised.
 
 Without `curl`, two browser routes give the same answer: **RxClass**
 (<https://mor.nlm.nih.gov/RxClass/>, search the drug and read the *EPC* rows) and the drug's
 **DailyMed** label, which prints its established pharmacologic class.
 
-Four things that go wrong:
+Four things the lookup already handles, and that you would have to handle by hand:
 
 - **`MOA` and `VA` rows are not classes.** The same response offers dabrafenib `Protein Kinase
   Inhibitors` (MOA) and `ANTINEOPLASTIC,OTHER` (VA), and `BRAF Serine/Threonine Kinase Inhibitors`
@@ -412,11 +418,13 @@ Four things that go wrong:
   *Metoprolol Succinate ER* is looked up as `metoprolol`. A salt is a different RxCUI and often
   carries no EPC of its own.
 
-**If there is no EPC, leave `class` out.** That is not a gap to fill from somewhere else: 20 drugs in
-the library have none — buspirone offers only a MEDRT mechanism and a VA category — and every one of
-them is deliberately null, which the app shows as *Uncategorized* and groups under one heading.
-See `lib/drugs/drug-class.ts`. An invented class is worse than no class, because the colour coding,
-the browse filter and the quiz's distractor sampling all treat it as a real group.
+**Where there is no EPC, the drug stays uncategorized** — and that is the answer, not a gap to fill
+from somewhere else. 20 drugs in the library have none; buspirone offers only a MEDRT mechanism and a
+VA category, and both are recorded as candidates against the drug for whoever wants to decide later.
+The profile says *class needs review*, the browse rail groups them under one heading, and nothing
+guesses. An invented class is worse than no class, because the colour coding, the browse filter and
+the quiz's distractor sampling all treat it as a real group. See `lib/drugs/class-lookup.ts` and
+`lib/drugs/drug-class.ts`.
 
 ### `fields` — the field set
 
@@ -862,9 +870,8 @@ look for.
 - [ ] **Every value is a short fragment, and each fact is in exactly one field.** Shorter wording,
       never fewer facts.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
-- [ ] **Every `class` is an FDA Established Pharmacologic Class, looked up and copied verbatim** —
-      not the slide's paraphrase. Where the drug has no EPC, the key is left out rather than filled
-      from a mechanism or a VA category.
+- [ ] **`class` is left out unless the deck's own name must win.** A new drug's class is looked up
+      from the FDA's own vocabulary; a paraphrase written here overrides that and sticks.
 - [ ] **Every `class` is capitalised the way the library writes it** — `"Cephalosporin
       Antibacterial"`, `"Second-generation Cephalosporin"`. Every word takes a capital, except a
       joining word and a qualifier after a hyphen; an acronym keeps its own case.
