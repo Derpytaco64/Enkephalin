@@ -49,6 +49,54 @@ key.
 
 ---
 
+## The third rule: a picture is part of the deck
+
+**A slide's figures are the deck talking.** Read them the way you read its sentences.
+
+This matters more here than it would in most imports, because a pharmacy lecture puts the facts
+this app most wants into pictures rather than prose. The sentences carry the disease; the dose
+lives in a drawn grid. What you are looking for inside a figure:
+
+- **A dose or dose-adjustment table** — the renal rows, the weight bands, the hepatic reduction.
+- **A taper or a cycle**, drawn as a calendar or a schedule.
+- **A treatment algorithm** — first line, then what you do when it fails. This is what a regimen's
+  `flow` is for.
+- **A management grid** — the irAE table that pairs a grade with hold, steroid, discontinue.
+- **A table of agents**, where the drug's class, route or place in therapy is in a column heading
+  and nowhere in the body text.
+
+Read the figure, then write what it says in the three constructs the prose renderer understands: a
+table becomes **one bullet per row**, an algorithm becomes **nested bullets**, a schedule becomes
+**numbered steps**. See *Markdown, and the four things it may contain* — the rule against tables
+there is a rule about the **output**, not permission to skip the input. Do not transcribe a grid as
+pipes and do not try to reproduce its shape; carry the facts across and let the list be the shape.
+
+And the converse, which is the one rule again: **a picture that is not a drug fact stays out**, even
+when it is beautiful and clearly the point of the slide. A structural formula, a receptor cartoon, a
+signalling pathway, a body map, a Kaplan-Meier curve, a histology photo, the ABCDE panel — there is
+nowhere in a drug profile for any of them. A pathway diagram is not a mechanism you may narrate into
+`moa` beyond what the deck's own words say about *this drug*.
+
+### When you cannot see them
+
+Sometimes you are working from extracted text and the figures did not come with it — a slide arrives
+as an empty frame, a caption with nothing under it, or a run of orphaned numbers.
+
+**That is not a deck that says there is none.** Per the second rule, a `null` asserts that the
+lecture addressed this and the answer is nothing; a figure you could not read asserts nothing at
+all. So:
+
+- **Omit the key.** The app keeps what it already knows, which is the right outcome.
+- Or, if you can tell what the figure was about but not what it said, `"status": "flagged"` with
+  your best reading, so it lands in the admin **Flagged** list for a human with the slide open.
+- Say so in `notes` at the end of the file — *slide 23's renal dosing table did not extract* — the
+  same way you would record any judgement call.
+
+Never fill a gap a picture left with a dose from memory or from a package insert. The file is what
+**this lecture** says.
+
+---
+
 ## Skeleton
 
 Copy this and fill it. Delete the optional keys you do not need.
@@ -850,6 +898,10 @@ look for.
 
 - [ ] Every drug in the file is a **drug**, not a class, a target or a pathway.
 - [ ] Nothing in the file is a disease fact that happened to share a slide with a drug.
+- [ ] **The slides' figures were read**, and every table, taper and algorithm in them arrived as
+      bullets, steps or a `flow` — not as pipes, and not left behind.
+- [ ] **Nothing is `null` because it was only in a picture.** A figure you could not read is an
+      omitted key or a `flagged` value, never an assertion that the deck said none.
 - [ ] Each fact is in the field that is *about* that kind of fact — toxicity is not mechanism.
 - [ ] Indications say what the deck scopes the drug to, biomarker included where it selects it.
 - [ ] `null` only where the deck says there is none. Nothing you merely did not find.

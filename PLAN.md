@@ -2753,6 +2753,26 @@ key means *this deck did not say*, and nothing is written. `null` means *this dr
 is an answer and is quizzed. An empty string says neither, so it is refused rather than guessed at —
 the same distinction `blankMeansNone` exists for, enforced at the door.
 
+**A picture is part of the deck** (added 2026-11-10, from *does the import instruction file tell the
+AI to check images too?*). It did not: the only mention of an image in 996 lines was the rule
+against writing one. Everywhere else the guide said *read the deck* and quoted slides as prose. That
+is a bad assumption for these decks in particular, because a pharmacy lecture's sentences carry the
+disease while the dose sits in a drawn grid — renal adjustment tables, tapers as calendars, irAE
+grade/hold/steroid grids, treatment algorithms, agent comparison tables whose column heading is the
+only place a route appears. So the guide now has a third rule saying to read the figures, and saying
+what to turn each kind into: a table is one bullet per row, an algorithm is nested bullets or a
+regimen's `flow`, a schedule is numbered steps. The existing *no tables, no images* rule is about
+the **output**, and the new rule says so explicitly, because read alone it invites skipping the
+input.
+
+The half that matters more is the failure mode. A model working from extracted text gets an empty
+frame where the table was, and the tempting write-up is `"dosing": null` — which under the rule
+above is a positive claim that the lecture addressed dosing and the answer is nothing. So an
+unreadable figure is an **omitted key**, or a `flagged` value with a note naming the slide, and
+never a `null`; two checklist lines enforce it. The converse is the first rule again: a structural
+formula, a pathway cartoon, a body map, a survival curve has nowhere to go in a drug profile, and a
+pathway diagram is not licence to narrate a mechanism the deck's own words do not give.
+
 **Nothing is overwritten, by default.** `write: "fill"` puts a value on the drug itself where the
 drug has none, and sends a value that *differs* to the variant layer for the narrowest scope the
 file names. That is what makes importing a lecture safe over a profile somebody has been curating,
