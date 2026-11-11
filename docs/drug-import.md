@@ -5,7 +5,9 @@ lecture adds to it.
 
 You are probably reading this because somebody handed you this file plus a lecture — notes, a slide
 deck, or both — and asked for a drug file. Everything you need is here. Output **one strict JSON
-file per lecture**: no comments, no trailing commas, UTF-8.
+file per lecture**: no comments, no trailing commas, UTF-8. Handed several lectures that sit on the
+same exam, output **one file for all of them** — see *Several lectures, one exam* below, because that
+is the one case where two files fight over the same place.
 
 See `PLAN.md` → *Importing what a lecture says about drugs* for why the format is shaped this way.
 
@@ -193,6 +195,51 @@ course:
 | `"Exam 03"` | `exam-03` | `03` and `3` are different digits |
 | `"PHRM535"` | `phrm535` | No separator, so no `-` |
 
+### Several lectures, one exam — one file
+
+**One file per lecture, unless the lectures share an exam. Then one file for all of them.**
+
+An exam's drugs often arrive as several decks: pneumonia split into community-acquired and
+hospital-acquired, skin infections split across two lecturers. Every one of those files names the
+same `exam`, and that tag holds **one version** of each drug — so the same drug in three files means
+three files writing to one place.
+
+The app no longer lets the third one overwrite the second: a value the version already holds, put
+there by another lecture, is **left out and reported** rather than replaced. That is the safe
+outcome, not the right one. The right one is a file where each drug appears **once**, holding what
+every deck said about it:
+
+```json
+{ "generic": "Vancomycin",
+  "indications": ["Community-acquired pneumonia, MRSA risk", "Hospital-acquired pneumonia",
+                  "Purulent skin and soft tissue infection"],
+  "fields": {
+    "dosing": "- Community-acquired pneumonia with methicillin-resistant S. aureus (MRSA) risk: 15 mg/kg every 12 hours, added to the standard regimen\n- Hospital-acquired or ventilator-associated pneumonia: 15 mg/kg IV q8-12h\n  - Consider a 25-30 mg/kg x1 loading dose in severe illness\n- Purulent infection: 5 days outpatient, 5-7 days inpatient" } }
+```
+
+Three decks, one entry, one bullet per indication — and each deck's qualifier nested under the dose
+it qualifies rather than standing beside it. The rules for doing this by hand:
+
+- **One bullet per indication**, named the way its deck named the infection. A dose and a *duration*
+  are not rivals: one deck giving `15 mg/kg q8-12h` and another giving `5 days` are answering
+  different questions about different infections, and both belong.
+- **Where every line is `Indication: dose` with nothing nested under it, leave the bullets off.**
+  Plain lines in that form are read into one dosing row *per indication*, which is what makes a
+  drug with four indications four rows rather than one block of text. A `- ` in front stops that
+  reading. Keep the bullets only where something has to nest.
+- **Union the lists.** `indications`, `brands` and `route` are sets: `PO` from one deck and
+  `Topical` from another means the drug has both.
+- **Say each fact once.** Two decks often repeat a sentence word for word; the merged value says it
+  once.
+- **A combination keeps both readings where they differ.** Two decks describing *vancomycin +
+  piperacillin/tazobactam* with different `when` text are two readings of one protocol, and a
+  regimen's `name` is what the drug's own regimen text is keyed on — so give them distinct names
+  rather than silently dropping one.
+
+If the files are already written, `npx tsx scripts/merge-drug-imports.ts out.json a.json b.json …`
+does all of the above and prints every value it joined for review. It refuses files that do not name
+the same scope, because merging across scopes would put one class's wording into another's.
+
 ### `source`
 
 ```json
@@ -232,6 +279,14 @@ it differently*.
 Use `variant` when the lecture is deliberately a second reading of drugs the app already knows well
 (an endocrine course's own wording for levothyroxine). Use `base` only to correct the app, and only
 when you know the existing value is wrong.
+
+**Nor does any of the three write over another lecture's wording.** A version holds one value per
+field, and an exam's drugs often arrive as several files. Where the version already says something
+else about a field — because an earlier file in the same scope said it — this file's value is **left
+out and reported**, naming the lecture that got there first. `fill` and `variant` both behave that
+way; the way through is `base` aimed at that version, which is the mode that exists to say *this
+wording is wrong*. The real answer is usually *Several lectures, one exam* above: one entry per drug
+holding what every deck said.
 
 None of the three ever clears a field the file does not mention: a value is overwritten by a value,
 and a lecture silent about a field says nothing about it. To undo an import outright — the drugs it
@@ -907,6 +962,8 @@ look for.
 - [ ] `null` only where the deck says there is none. Nothing you merely did not find.
 - [ ] Anything ambiguous is `"status": "flagged"` rather than omitted or guessed.
 - [ ] Nothing is declared twice for one idea, and nothing is declared that the field table already has.
+- [ ] **Each drug appears once in the file**, holding what every deck in scope said about it — not
+      once per lecture, which is two entries fighting over one version.
 - [ ] **Every declared `label` is in Title Case** — `"Additional Notes"`, not *Additional notes* —
       with joining words, acronyms and hyphens as the `class` rule has them. The `key` stays
       `snake_case`.

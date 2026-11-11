@@ -3093,6 +3093,63 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### One exam, several lectures, one layer (2026-11-10)
+
+*These different sections have the same drugs. Does importing one after the other add to the same
+variant or overwrite it each time? I don't know if all the penicillin G info goes into the exam 3 tag
+when all is said and done.*
+
+The four files that prompted this are one exam's infectious-disease decks — CAP, HAP/VAP, and two
+skin-infection lectures — all four correctly naming `course: PHRM 532` / `exam: FS26: Infectious
+Disease Exam 3`. 56 drugs, **33 of them in more than one file**. What the importer did with them:
+
+- **Accumulated, where the files spoke about different fields.** `patchVariantLayer` merges keys, so
+  nothing a later file omitted was cleared. That part was never in doubt.
+- **Silently replaced, where they spoke about the same field.** `dosing` differed for 21 drugs, the
+  composed `regimen` for 14, `route` for 4. Vancomycin ended up holding SSTI's *5 days outpatient*
+  with CAP's *15 mg/kg every 12 hours* and HAP/VAP's loading dose gone — a duration where the dose
+  should be.
+
+And the preview could not warn about it, because `fill` compared each value against the **drug's
+own** and never read the layer it was about to write. So the one promise the screen makes — *nothing
+is overwritten* — was kept against curation and broken against the previous lecture.
+
+**A value the version already holds is now `held`:** nothing written, the first wording kept, and one
+line per drug in the report naming the field and the file that got there first (the layer's note is
+where that name lives). Not a refusal — the rest of the file goes in, and a lecture usually has
+plenty else to say about the same drug. Held rather than merged because a merge is a judgement: CAP's
+dose and SSTI's duration are both right, and no importer can tell that apart from two people wording
+one fact differently. `base` aimed at the version is still the way to overwrite, which is exactly
+what that mode is for, and the held message says so.
+
+A second, quieter result of reading the layer: a value identical to what the layer holds now counts
+as **unchanged** rather than being rewritten. The convergence test asserted `toVariant` of 1 there
+and a comment conceded the count was "the report overstating a no-op" — so its own name,
+*writes no values at all*, is now true.
+
+**The real fix is upstream, and it is that a lecture is the wrong unit.** An author reads one deck; a
+*version* is one exam. So the guide now says: handed several lectures on one exam, write one file for
+all of them, each drug appearing once with every deck's dose under it. For files already written,
+`scripts/merge-drug-imports.ts` does it — parse each through `parseDrugImport`, merge by drug slug,
+union the lists, join the markdown item by item with duplicates dropped, and parse the output back
+through the importer's own reader before writing it. It refuses files whose scopes differ, because
+merging across scopes is the mistake the variant feature exists to prevent.
+
+Two merge details worth keeping:
+
+- **A qualifier nests; it does not become a sibling.** `Hospital-acquired pneumonia: 15 mg/kg IV
+  q8-12h` followed by `- Consider a 25-30 mg/kg x1 loading dose` is one item, and the first cut
+  split it — producing a merged list where a loading dose stood as its own indication. A bullet
+  starts a new item only when the item it would leave is itself a bullet.
+- **The merge asks `parseDosing` what shape to emit.** Where every merged line is `Indication: dose`
+  with nothing nested, the bullets come off, because plain lines in that form are read into one
+  dosing row *per indication* and a `- ` stops that reading. 17 of the 43 merged dosings qualify —
+  clindamycin goes from one unparsed block to seven rows filed under seven indications. The test is
+  the real parser rather than a copy of its rules, which is the only way that cannot drift.
+
+Merged and dry-run against the local database: 56 drugs, 0 problems, 0 held, 111 values onto the
+drugs themselves, 32 into the exam's version, 219 indications added.
+
 ### A new drug is classed the way the first 236 were (2026-11-10)
 
 *The creation should get the drug class like the original top drugs did by looking it up. Ones that

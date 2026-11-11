@@ -46,10 +46,22 @@ import {
 export type PlannedWrite = {
   key: string;
   label: string;
-  /** `unchanged` is a value the drug already holds, word for word. */
-  to: 'drug' | 'variant' | 'unchanged';
-  /** What the drug holds now, for the one question a preview has to answer. */
+  /**
+   * `unchanged` is a value the drug already holds, word for word.
+   *
+   * `held` is the one that writes nothing on purpose: this version already
+   * says something else here, put there by a different lecture. See
+   * `heldBy` -- and `planDrugImport`, where the decision is made.
+   */
+  to: 'drug' | 'variant' | 'held' | 'unchanged';
+  /**
+   * What would be replaced, for the one question a preview has to answer. The
+   * drug's own value, except on a `held` write, where it is the version's --
+   * because that is the wording at stake.
+   */
   from: string | null;
+  /** Where the version's wording came from, on a `held` write. */
+  heldBy?: string | null;
   value: string | null;
   status: FieldValue['status'];
 };
@@ -340,11 +352,22 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
     .map((def) => ({ key: def.key, label: def.label, group: def.group }));
 
   /**
-   * What the version being corrected holds today, keyed by drug id.
+   * What the version this import writes to holds today, keyed by drug id.
    *
-   * Needed only to show what each value replaces -- the drug's own value would
-   * be the wrong thing to print as replaced, and a wrong *from* is how a
-   * preview stops being a preview.
+   * Read for every mode, not only while correcting. Correcting needs it to
+   * show what each value replaces -- the drug's own value would be the wrong
+   * thing to print as replaced, and a wrong *from* is how a preview stops
+   * being a preview. **A lecture import needs it for the opposite reason:** to
+   * find the values it must not touch.
+   *
+   * One exam's drugs arrive as several files -- a course splits pneumonia into
+   * CAP and HAP/VAP, skin infections into two decks -- and all of them scope to
+   * the same exam, so all of them write to the one layer. Without this, each
+   * file compared its wording only against the drug's own and replaced the
+   * previous file's in the layer without a word: four files, 21 drugs whose
+   * dosing disagreed, and the last file's wording the only survivor. The
+   * promise on the screen is *nothing is overwritten*, and that was the one
+   * place it was not kept.
    *
    * Its own query rather than `allVariantLayers`, which joins membership on
    * purpose: a layer outlives the tag that created it and no study session
@@ -353,14 +376,18 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
    * a drug not yet tagged would have its layer hidden from the very preview
    * meant to show it being overwritten.
    */
-  const aimedLayers = new Map<string, Record<string, FieldValue>>();
-  if (correcting && destination) {
+  const aimedLayers = new Map<string, { fields: Record<string, FieldValue>; note: string | null }>();
+  if (destination) {
     const rows = await db
-      .select({ drugId: drugVariantValues.drugId, fields: drugVariantValues.fields })
+      .select({
+        drugId: drugVariantValues.drugId,
+        fields: drugVariantValues.fields,
+        note: drugVariantValues.note,
+      })
       .from(drugVariantValues)
       .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
       .where(eq(tags.slug, destination.slug));
-    for (const row of rows) aimedLayers.set(row.drugId, row.fields);
+    for (const row of rows) aimedLayers.set(row.drugId, { fields: row.fields, note: row.note });
   }
 
   const declare = file.declare.map((entry) => {
@@ -487,7 +514,8 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       // drug's: `current` is what would be overwritten, and where the layer
       // says nothing it is the drug's own, because that is what the version
       // reads as today.
-      const layer = existing ? aimedLayers.get(existing.id)?.[key] : undefined;
+      const held = existing ? aimedLayers.get(existing.id) : undefined;
+      const layer = held?.fields[key];
       const current = correcting ? layer ?? existing?.fields[key] : existing?.fields[key];
       const from = current?.value ?? null;
 
@@ -520,6 +548,40 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       else if (file.write === 'variant') to = 'variant';
       else if (!holdsAnAnswer(current)) to = 'drug';
       else to = 'variant';
+
+      /**
+       * The version already speaks here, and another lecture is what made it
+       * speak. Two outcomes, and neither of them is a write:
+       *
+       * - **The same words.** Then this is `unchanged` like any other value the
+       *   app already holds. It is what makes *a second import of the same
+       *   lecture writes nothing* true of a layer value as well as a drug's
+       *   own, which `pointTagsAtVariant` already assumed.
+       * - **Different words.** Then it is `held`: left exactly as it is and
+       *   reported, because a lecture import has no way to tell a better
+       *   wording from a different section's subject. CAP's vancomycin dose and
+       *   SSTI's vancomycin duration are both right and neither replaces the
+       *   other -- the file wants merging, which is a person's job.
+       *
+       * Not while correcting: *correct this version* is aimed at this layer and
+       * said so on the screen. That is the way through, and the message says so.
+       */
+      if (to === 'variant' && !correcting && holdsAnAnswer(layer)) {
+        const same = layer?.value === value.value && layer?.status === value.status;
+        if (same) to = 'unchanged';
+        else {
+          writes.push({
+            key,
+            label: labelFor(key),
+            to: 'held',
+            from: layer?.value ?? null,
+            heldBy: held?.note ?? null,
+            value: value.value,
+            status: value.status,
+          });
+          continue;
+        }
+      }
 
       writes.push({ key, label: labelFor(key), to, from, value: value.value, status: value.status });
     }
@@ -590,6 +652,12 @@ export type ImportReport = {
   /** Field writes that landed in a variant layer. */
   toVariant: number;
   unchanged: number;
+  /**
+   * Values left alone because this version already says something else here.
+   * Listed in `problems` too, one line per drug, naming the lecture that got
+   * there first -- see the `held` branch in `planDrugImport`.
+   */
+  held: number;
   tagsCreated: string[];
   /**
    * Memberships now reading this lecture's version -- the file's other scope
@@ -634,7 +702,7 @@ export async function applyDrugImport(
   }
 
   const report: ImportReport = {
-    created: [], updated: [], toDrug: 0, toVariant: 0, unchanged: 0,
+    created: [], updated: [], toDrug: 0, toVariant: 0, unchanged: 0, held: 0,
     tagsCreated: [], listsPointed: 0, fieldsDeclared: [], problems: [],
   };
 
@@ -738,10 +806,20 @@ export async function applyDrugImport(
 
     const source = entry.source ?? provenanceOf(file);
     const layer: Record<string, FieldValue> = {};
+    const kept: PlannedWrite[] = [];
 
     for (const write of planned.writes) {
       if (write.to === 'unchanged') {
         report.unchanged += 1;
+        continue;
+      }
+      // Nothing to write, and the one thing to say. Collected per drug rather
+      // than pushed one problem at a time: a four-file exam holds a dozen
+      // values across two dozen drugs, and a list that long reads as a broken
+      // import rather than as the two sentences it actually is.
+      if (write.to === 'held') {
+        report.held += 1;
+        kept.push(write);
         continue;
       }
       const def = defs.get(write.key);
@@ -774,6 +852,18 @@ export async function applyDrugImport(
         updatedAt: new Date().toISOString(),
         updatedBy: actorId,
       };
+    }
+
+    if (kept.length > 0) {
+      const fields = kept.map((write) => write.label).join(', ');
+      const [first] = kept;
+      const by = first.heldBy ? ` (from ${first.heldBy})` : '';
+      report.problems.push({
+        where: `drugs (${planned.generic})`,
+        message: `${fields}: ${plan.variant?.label ?? 'this version'} already says something else `
+          + `here${by}, so what this file says was left out. Merge the two wordings into one file, `
+          + 'or import it again with "Correct the drug itself" aimed at that version.',
+      });
     }
 
     if (Object.keys(layer).length > 0) {

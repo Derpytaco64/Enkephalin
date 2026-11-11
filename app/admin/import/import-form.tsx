@@ -12,6 +12,10 @@ import {
 
 const CARD = 'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4';
 
+/** A value cut to the length a person reads, and *none* said as a word. */
+const trim = (text: string | null) =>
+  text === null ? 'none to record' : text.length > 140 ? `${text.slice(0, 140)}…` : text;
+
 /**
  * What a value would replace, in the two lines a person actually reads.
  *
@@ -20,9 +24,6 @@ const CARD = 'rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4';
  * the whole point of looking.
  */
 function Change({ from, to }: { from: string | null; to: string | null }) {
-  const trim = (text: string | null) =>
-    text === null ? 'none to record' : text.length > 140 ? `${text.slice(0, 140)}…` : text;
-
   return (
     <div className="mt-1 space-y-0.5 text-xs">
       {from !== null && <p className="text-[var(--muted)] line-through">{trim(from)}</p>}
@@ -36,6 +37,7 @@ function DrugRow({
 }: { drug: PlannedDrug; variant: string | null; correcting: boolean }) {
   const toDrug = drug.writes.filter((write) => write.to === 'drug');
   const toVariant = drug.writes.filter((write) => write.to === 'variant');
+  const held = drug.writes.filter((write) => write.to === 'held');
   const same = drug.writes.filter((write) => write.to === 'unchanged').length;
 
   return (
@@ -101,6 +103,38 @@ function DrugRow({
                   {write.label}
                 </dt>
                 <dd><Change from={write.from} to={write.value} /></dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+
+      {/* The write that is not a write. Its own box, and the one place the
+          struck-through line is the *file's* wording rather than the app's:
+          what the version holds is what survives. */}
+      {held.length > 0 && (
+        <div className="mt-2 rounded border border-[var(--flagged)] p-2">
+          <p className="text-xs text-[var(--muted)]">
+            Another lecture already wrote this into{' '}
+            <span className="font-medium text-[var(--fg)]">{variant}</span>, so this file’s wording
+            is <span className="font-medium text-[var(--fg)]">left out</span>. Merge them in the
+            file, or import again with <em>Correct the drug itself</em> aimed at that version:
+          </p>
+          <dl className="mt-1.5 space-y-1.5">
+            {held.map((write) => (
+              <div key={write.key}>
+                <dt className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                  {write.label}
+                  {write.heldBy && (
+                    <span className="ml-2 font-normal normal-case tracking-normal">
+                      kept from {write.heldBy}
+                    </span>
+                  )}
+                </dt>
+                <dd className="mt-1 space-y-0.5 text-xs">
+                  <p>{write.from === null ? 'none to record' : trim(write.from)}</p>
+                  <p className="text-[var(--muted)] line-through">{trim(write.value)}</p>
+                </dd>
               </div>
             ))}
           </dl>
@@ -178,6 +212,7 @@ function Preview({ plan, declared }: { plan: ImportPlan; declared: ReactNode }) 
   const fresh = plan.drugs.filter((drug) => !drug.exists).length;
   const toDrug = plan.drugs.reduce((n, drug) => n + drug.writes.filter((w) => w.to === 'drug').length, 0);
   const toVariant = plan.drugs.reduce((n, drug) => n + drug.writes.filter((w) => w.to === 'variant').length, 0);
+  const held = plan.drugs.reduce((n, drug) => n + drug.writes.filter((w) => w.to === 'held').length, 0);
 
   return (
     <div className="mt-6 space-y-4">
@@ -189,6 +224,14 @@ function Preview({ plan, declared }: { plan: ImportPlan; declared: ReactNode }) 
           {plan.correcting ? 'overwriting what' : 'into'}{' '}
           {plan.variant?.label ?? 'no variant'}
           {plan.correcting ? ' says' : ''}.
+          {held > 0 && (
+            <>
+              {' '}
+              <span className="text-[var(--flagged)]">
+                {held} left out: another lecture already said something else there.
+              </span>
+            </>
+          )}
         </p>
         <p className="mt-2 text-xs text-[var(--muted)]">
           Every value will read <em>from {plan.provenance}</em> on the profile.
@@ -520,7 +563,10 @@ export function ImportForm({ action }: { action: (formData: FormData) => Promise
           <p className="mt-1 text-[var(--muted)]">
             {state.report.created.length} drugs created, {state.report.updated.length} updated.{' '}
             {state.report.toDrug} values onto the drugs, {state.report.toVariant} into the variant,{' '}
-            {state.report.unchanged} already identical.
+            {state.report.unchanged} already identical
+            {state.report.held > 0
+              ? `, ${state.report.held} left out where this version already said something else.`
+              : '.'}
             {state.report.fieldsDeclared.length > 0 && (
               <> New fields: {state.report.fieldsDeclared.join(', ')}.</>
             )}

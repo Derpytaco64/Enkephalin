@@ -568,6 +568,113 @@ describe('a drug the app already holds', () => {
   });
 });
 
+/**
+ * One exam, several lectures, one layer.
+ *
+ * The case that found this: a course split pneumonia into CAP and HAP/VAP and
+ * skin infections into two more decks, all four scoped to one exam. Every file
+ * compared its wording against the drug's own, found the drug silent about it,
+ * and replaced the previous file's value in the shared layer -- 21 drugs whose
+ * dosing disagreed, the last file's wording the only survivor.
+ */
+describe('a second lecture writing to the same exam', () => {
+  const lecture = (name: string, moa: string) => file({
+    source: { file: name },
+    drugs: [{ generic: 'dacarbazine', fields: { moa } }],
+  });
+
+  it('leaves the first lecture’s wording alone and says so', async () => {
+    await apply(lecture('16.Melanoma.pdf', 'What the melanoma deck says'));
+    const report = await apply(lecture('17.Sarcoma.pdf', 'What the sarcoma deck says'));
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'dacarbazine'));
+    const layer = await variantLayerFor(drug.id, 'heme-onc-exam-3');
+
+    // Nothing written, and nothing lost: the first file's wording stands.
+    expect(layer?.fields.moa.value).toBe('What the melanoma deck says');
+    expect(report.held).toBe(1);
+    expect(report.toVariant).toBe(0);
+    // The drug's own profile is untouched either way.
+    expect(drug.fields.moa.value).toBe('Alkylates DNA');
+
+    // Reported rather than refused: the rest of the file went in.
+    const [problem] = report.problems;
+    expect(problem.where).toBe('drugs (Dacarbazine)');
+    expect(problem.message).toContain('Mechanism');
+    expect(problem.message).toContain('Heme/Onc Exam 3 already says something else');
+    // Naming who got there first is the whole value of the message.
+    expect(problem.message).toContain('16.Melanoma.pdf');
+  });
+
+  it('shows it in the preview as a value left out, not as a write', async () => {
+    await apply(lecture('16.Melanoma.pdf', 'What the melanoma deck says'));
+
+    const plan = await planDrugImport(read(lecture('17.Sarcoma.pdf', 'What the sarcoma deck says')));
+    const [write] = plan.drugs[0].writes;
+    expect(write.to).toBe('held');
+    // `from` is the version's wording here, not the drug's: that is the wording
+    // at stake, and a preview printing "Alkylates DNA" would be describing a
+    // write that is not about to happen.
+    expect(write.from).toBe('What the melanoma deck says');
+    expect(write.heldBy).toContain('16.Melanoma.pdf');
+    // Not a refusal: the file is fine, and the rest of it is going in.
+    expect(plan.problems).toHaveLength(0);
+  });
+
+  it('counts a layer value it repeats word for word as unchanged', async () => {
+    await apply(lecture('16.Melanoma.pdf', 'What the melanoma deck says'));
+    // The same lecture again -- a half-finished import re-run, or a file with
+    // a typo fixed somewhere else in it.
+    const report = await apply(lecture('16.Melanoma.pdf', 'What the melanoma deck says'));
+
+    expect(report.unchanged).toBe(1);
+    expect(report.held).toBe(0);
+    expect(report.toVariant).toBe(0);
+    expect(report.problems).toHaveLength(0);
+  });
+
+  it('is corrected by a base import aimed at the version', async () => {
+    await apply(lecture('16.Melanoma.pdf', 'What the melanoma deck says'));
+    // `target` is the screen's answer, not the file's -- the parser always says
+    // the drug's own profile -- so it is set the way the action sets it.
+    const aimed = {
+      ...read(file({
+        write: 'base',
+        source: { file: '17.Sarcoma.pdf' },
+        drugs: [{ generic: 'dacarbazine', fields: { moa: 'The corrected wording' } }],
+      })),
+      target: 'heme-onc-exam-3',
+    };
+    const result = await applyDrugImport(aimed, ME);
+    if (!result.ok) throw new Error(`refused: ${JSON.stringify(result.problems)}`);
+    const report = result.report;
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'dacarbazine'));
+    // The way through, which the held message names: a correction is aimed, so
+    // it is allowed to replace what it is aimed at.
+    expect((await variantLayerFor(drug.id, 'heme-onc-exam-3'))?.fields.moa.value)
+      .toBe('The corrected wording');
+    expect(report.held).toBe(0);
+  });
+
+  it('still fills a field the exam has said nothing about', async () => {
+    await apply(lecture('16.Melanoma.pdf', 'What the melanoma deck says'));
+    const report = await apply(file({
+      source: { file: '17.Sarcoma.pdf' },
+      drugs: [{ generic: 'dacarbazine', fields: { dosing: '850 mg/m2 IV q3w' } }],
+    }));
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'dacarbazine'));
+    // One key is held, not the file: the second lecture still has everything
+    // else to say, which is the difference between this and a refusal.
+    expect(drug.fields.dosing.value).toBe('850 mg/m2 IV q3w');
+    expect(report.held).toBe(0);
+    expect(report.toDrug).toBe(1);
+    expect((await variantLayerFor(drug.id, 'heme-onc-exam-3'))?.fields.moa.value)
+      .toBe('What the melanoma deck says');
+  });
+});
+
 describe('what a lecture needs that the app has not got', () => {
   it('declares a field and writes to it in one pass', async () => {
     const report = await apply(file({
@@ -942,14 +1049,14 @@ describe('a lecture scoped to a class and its exam', () => {
     await db.update(drugTags).set({ variantTagId: null });
 
     const again = await apply(text);
-    // The layer is rewritten with the same value, because `unchanged` compares
-    // against the drug's *own* wording and the lecture still disagrees with it.
-    // Nothing actually changes -- `patchVariantLayer` keeps the envelope of a
-    // value whose text is the same -- so the count is the report overstating a
-    // no-op, not a write. What matters here is that the pointer is restored
-    // either way: it is not set alongside the write, it is set because the
-    // layer exists.
-    expect(again.toVariant).toBe(1);
+    // Nothing at all, layer included: `unchanged` compares against the version
+    // being written to as well as the drug's own, so a lecture re-imported over
+    // its own wording is a no-op the report counts honestly. (It used to count
+    // 1 here and say so in a comment, which made this test's name a half-truth.)
+    expect(again.toVariant).toBe(0);
+    expect(again.unchanged).toBe(1);
+    // What matters here is that the pointer is restored either way: it is not
+    // set alongside the write, it is set because the layer exists.
     expect(await pointerFor('prednisone', 'phrm-535')).toBe('heme-onc-exam-3');
   });
 
