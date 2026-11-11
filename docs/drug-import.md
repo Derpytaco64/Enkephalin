@@ -358,6 +358,66 @@ The biomarker belongs in the indication when it is what *selects* the drug. That
 the dosing flow turns on, and saying it twice in two places is correct: one is what the drug is
 for, the other is how you choose it.
 
+### Finding the class when the deck does not give one
+
+A lecture usually names the class in passing — *a BRAF inhibitor*, *a PD-1 inhibitor* — and almost
+never in the FDA's words. `class` wants the FDA's words, because that is the vocabulary every class
+the library came with is spelled in, and the value is compared as a whole string. So look it up
+rather than paraphrasing the slide.
+
+**The source is the same one the library used**: RxNav's RxClass, filtered to the **Established
+Pharmacologic Class** the FDA label carries. `scripts/fetch-drug-classes.py` is the bulk run that
+resolved the Top Drugs with it; for one drug, one request does:
+
+```bash
+curl -s "https://rxnav.nlm.nih.gov/REST/rxclass/class/byDrugName.json?drugName=dabrafenib&relaSource=FDASPL"
+```
+
+In the response, take the entry whose `classType` is `EPC` (equivalently, `rela` is `has_epc`) and
+copy its `className` **verbatim**:
+
+```json
+{
+  "minConcept": { "rxcui": "1424911", "name": "dabrafenib", "tty": "IN" },
+  "rxclassMinConceptItem": { "className": "Kinase Inhibitor", "classType": "EPC" },
+  "rela": "has_epc",
+  "relaSource": "FDASPL"
+}
+```
+
+So dabrafenib is `"class": "Kinase Inhibitor"`, not *BRAF Inhibitor*. Ipilimumab is
+`"CTLA-4-directed Blocking Antibody"`, not *CTLA-4 Inhibitor*. Those names come back already spelled
+the way the rule above asks for — the lowercase *directed* after the hyphen is the FDA's own — which
+is the point of taking them verbatim: copied exactly, a class cannot be miscapitalised.
+
+Without `curl`, two browser routes give the same answer: **RxClass**
+(<https://mor.nlm.nih.gov/RxClass/>, search the drug and read the *EPC* rows) and the drug's
+**DailyMed** label, which prints its established pharmacologic class.
+
+Four things that go wrong:
+
+- **`MOA` and `VA` rows are not classes.** The same response offers dabrafenib `Protein Kinase
+  Inhibitors` (MOA) and `ANTINEOPLASTIC,OTHER` (VA), and `BRAF Serine/Threonine Kinase Inhibitors`
+  from MEDRT — which is the slide's own wording and the tempting one to take. **EPC only, from
+  `FDASPL` or `DAILYMED`.** Mixing vocabularies on this axis puts two spellings of one idea in the
+  filter, colours them differently, and makes same-class distractors compare across systems.
+- **A combination has to be asked ingredient by ingredient.** The product name usually returns
+  nothing at all — `piperacillin and tazobactam` gives `{}` — while `piperacillin` gives
+  `Penicillin-class Antibacterial` and `tazobactam` gives `beta Lactamase Inhibitor`.
+- **An adjuvant must not lead.** Of those two, the one to write is the penicillin: the beta
+  lactamase inhibitor protects it and is not what the drug is for. Same for carbidopa beside
+  levodopa. Where a product's ingredients have different classes, the one the product is **named
+  for first** is the class.
+- **Strip the salt and the release qualifier first.** The EPC belongs to the active moiety, so
+  *Metoprolol Succinate ER* is looked up as `metoprolol`. A salt is a different RxCUI and often
+  carries no EPC of its own.
+
+**If there is no EPC, leave `class` out.** That is not a gap to fill from somewhere else: 20 drugs in
+the library have none — buspirone offers only a MEDRT mechanism and a VA category — and every one of
+them is deliberately null, which the app shows as *Uncategorized* and groups under one heading.
+See `lib/drugs/drug-class.ts`. An invented class is worse than no class, because the colour coding,
+the browse filter and the quiz's distractor sampling all treat it as a real group.
+
 ### `fields` — the field set
 
 Keys the app ships with. Use these before declaring anything new.
@@ -802,6 +862,9 @@ look for.
 - [ ] **Every value is a short fragment, and each fact is in exactly one field.** Shorter wording,
       never fewer facts.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
+- [ ] **Every `class` is an FDA Established Pharmacologic Class, looked up and copied verbatim** —
+      not the slide's paraphrase. Where the drug has no EPC, the key is left out rather than filled
+      from a mechanism or a VA category.
 - [ ] **Every `class` is capitalised the way the library writes it** — `"Cephalosporin
       Antibacterial"`, `"Second-generation Cephalosporin"`. Every word takes a capital, except a
       joining word and a qualifier after a hyphen; an acronym keeps its own case.
