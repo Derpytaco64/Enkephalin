@@ -2,14 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { restoreBackup, type RestoreReport } from '@/lib/data/backup';
+import { asMegabytes, MAX_BACKUP_BYTES } from '@/lib/data/limits';
 import { requireAdmin } from '@/lib/session';
 
 export type RestoreState =
   | { ok: true; report: RestoreReport }
   | { ok: false; message: string };
-
-/** 24 MB. The whole database as JSON is about one; this is room to grow into. */
-const MAX_BYTES = 24 * 1024 * 1024;
 
 export async function restoreAction(formData: FormData): Promise<RestoreState> {
   await requireAdmin();
@@ -18,8 +16,12 @@ export async function restoreAction(formData: FormData): Promise<RestoreState> {
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, message: 'Choose a backup file first.' };
   }
-  if (file.size > MAX_BYTES) {
-    return { ok: false, message: `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB; the limit is 24 MB.` };
+  if (file.size > MAX_BACKUP_BYTES) {
+    return {
+      ok: false,
+      message: `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB; the limit is `
+        + `${asMegabytes(MAX_BACKUP_BYTES)}.`,
+    };
   }
 
   // Replace deletes drugs the file does not mention, so it takes both the mode

@@ -21,6 +21,7 @@ import {
   users,
 } from '@/db/schema';
 import { BACKUP_VERSION, exportBackup, restoreBackup, type Backup } from '@/lib/data/backup';
+import { asMegabytes, MAX_BACKUP_BYTES, SERVER_ACTION_BODY_LIMIT } from '@/lib/data/limits';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 
 const USER = 'user-admin';
@@ -374,5 +375,45 @@ describe('restoreBackup', () => {
     const result = await restoreBackup(backup, 'replace');
     expect(result.ok).toBe(false);
     expect(await db.select().from(drugs)).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------ getting the file in -- */
+
+/**
+ * The size limits a restore has to get past, and the one that was never set.
+ *
+ * A backup travels to the server as a server-action body, so **three things
+ * have an opinion about how big it may be**: the action, which checks the file
+ * and names the limit in its refusal; the form, which can say so before the
+ * upload; and Next's own body parser, which rejects the request before any of
+ * this app's code runs and defaulted to 1 MB. The export passed a megabyte on
+ * 2026-11-10 -- indentation is about four tenths of it -- and restoring one
+ * stopped working, with nothing to read about why.
+ *
+ * So the number is shared, and this is the test that it stays shared. Nothing
+ * here needs a database: the failure was two files disagreeing about a
+ * constant, which is exactly what a unit test can hold still.
+ */
+describe('a backup is allowed to be as big as the app says it is', () => {
+  it('lets the framework pass what the action accepts', () => {
+    // Strictly looser, so the refusal a person reads is the app's own -- which
+    // names the size and the limit -- rather than a framework rejection, which
+    // says nothing and never reaches the action at all.
+    expect(SERVER_ACTION_BODY_LIMIT).toBeGreaterThan(MAX_BACKUP_BYTES);
+  });
+
+  it('is the number next.config.ts actually uses', async () => {
+    // Imported rather than matched as text: a config that had drifted back to
+    // the default would still contain the word.
+    const { default: config } = await import('../next.config.ts');
+    expect(config.experimental?.serverActions?.bodySizeLimit).toBe(SERVER_ACTION_BODY_LIMIT);
+  });
+
+  it('is well clear of the export it has to carry', () => {
+    // The whole database as JSON was 1.05 MB the day this was written. A limit
+    // that is merely above today's export is the bug again in a year.
+    expect(MAX_BACKUP_BYTES).toBeGreaterThan(16 * 1024 * 1024);
+    expect(asMegabytes(MAX_BACKUP_BYTES)).toBe('24 MB');
   });
 });

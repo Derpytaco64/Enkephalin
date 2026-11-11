@@ -3068,6 +3068,50 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### The backup got bigger than the upload (2026-11-10)
+
+*Something is wrong with the backup restore system. I exported the local test site's data to restore
+the top drugs to the live server and it keeps failing.*
+
+The export is 1.05 MB. **Next's server-action body parser allows 1 MB**, and nothing had raised it.
+
+That is the whole fault, and the reason it was unreadable is the shape of it: the request is refused
+by the framework, so `restoreAction` never runs -- and `restoreAction` is where all the care is. It
+checks the size, names it, names the limit, and the limit it names is 24 MB. So the screen advertised
+a limit twenty-four times larger than the one actually being enforced, and the enforcement happened
+somewhere that cannot say anything. **A limit the app states and does not enforce is worse than no
+limit**, because it sends you looking at the wrong thing.
+
+It had been under a megabyte for as long as it worked: 775 KB on 2026-11-04, 1.05 MB on 2026-11-10,
+a week of content and a lecture import later. About four tenths of the file is the indentation that
+makes it readable -- `JSON.stringify(backup, null, 2)`, which both the download route and
+`npm run export` use, and which stays: a backup you can grep is worth more than a backup that is 600
+KB. The content itself is 459 KB of drugs, 105 KB of audit log and 100 KB of one person's progress.
+
+So:
+
+- **One number, in `lib/data/limits.ts`.** `MAX_BACKUP_BYTES` is what the app accepts;
+  `SERVER_ACTION_BODY_LIMIT` is a megabyte above it and is what `next.config.ts` hands to
+  `experimental.serverActions.bodySizeLimit`. Deliberately the looser of the two, so a file between
+  the two sizes gets the app's refusal -- which names both numbers and says what to do -- rather
+  than a framework rejection, which says nothing. `tests/backup.test.ts` imports the config and
+  asserts the two agree, because the bug was two files disagreeing about a constant and that is
+  exactly what a unit test can hold still.
+- **The form catches what the action throws.** A rejected server action threw inside the transition,
+  where React logs it to a console nobody has open; the form showed nothing. Now anything thrown is
+  a visible message, and over a megabyte it names the likely cause.
+- **And it checks the size in the browser first**, against the same constant, so the obvious case is
+  answered before the upload rather than after it fails.
+- **`client_max_body_size 25m;` in the nginx example in `docs/deploy.md`.** nginx allows 1 MB by
+  default too, so the app's own config is only half the fix on a server behind one -- and the half
+  this repo cannot set. Caddy has no such default, which is now said where Caddy is recommended.
+
+**Two things a restore onto the live server still needs, neither of them code.** The image has to be
+rebuilt there -- the config is baked into the build, so the running container keeps the old limit
+until it is -- and the backup's `version` has to match that build's `BACKUP_VERSION`, which is 3
+here. A server behind on migrations refuses the file by version, and that refusal *is* legible:
+*that backup is version 3; this build reads version 2*.
+
 ### The panel deleted a drug nobody ticked (2026-11-10)
 
 *Something is wrong with the deletion thing we added. I went through removing imported drugs and one

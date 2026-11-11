@@ -192,7 +192,8 @@ sudo systemctl reload caddy
 ```
 
 That is the whole configuration — Caddy sets `X-Forwarded-Proto` and preserves
-the `Host` header by default, which is what the auth cookies need.
+the `Host` header by default, which is what the auth cookies need, and it has no
+request-size limit of its own, which is what restoring a backup needs.
 
 With **nginx** instead, those headers are yours to set, and forgetting
 `X-Forwarded-Proto` is the usual cause of a redirect loop on sign-in:
@@ -205,6 +206,12 @@ server {
 
     ssl_certificate     /etc/letsencrypt/live/drugs.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/drugs.example.com/privkey.pem;
+
+    # A restore posts the whole backup in one request. nginx allows 1 MB by
+    # default and the export passed that in November 2026; without this, the
+    # upload is refused with a 413 before the app ever sees it. Match the app's
+    # own limit in lib/data/limits.ts rather than guessing.
+    client_max_body_size 25m;
 
     location / {
         proxy_pass http://127.0.0.1:3000;

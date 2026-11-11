@@ -2,16 +2,62 @@
 
 import { useActionState, useState } from 'react';
 import { submitTo } from '@/app/_components/submit';
+import { asMegabytes, MAX_BACKUP_BYTES } from '@/lib/data/limits';
 import type { RestoreState } from './actions';
 
 const control = 'mt-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm';
 
+/**
+ * The size above which a failed upload is probably a size limit.
+ *
+ * One megabyte, because that is both Next's own default and nginx's
+ * `client_max_body_size`, and the guess only has to be good enough to point at
+ * the right thing.
+ */
+const COMMON_PROXY_CAP = 1024 * 1024;
+
+/**
+ * Hand it a backup, say what to do with it, press the button.
+ *
+ * **Two things here are about a failure that said nothing.** A backup travels
+ * as a server-action body, and the parser in front of the action has a size
+ * limit of its own -- 1 MB until `next.config.ts` said otherwise, which the
+ * export crossed on 2026-11-10. The request never reached the action, so the
+ * action's careful refusal never ran, and the screen sat there.
+ *
+ * So the size is checked here too, against the same number the action uses,
+ * and **anything thrown is caught and shown**. A server action that rejects --
+ * a body too large for the framework, or for a reverse proxy with a cap of its
+ * own, or a connection that died mid-upload -- otherwise throws inside the
+ * transition, where React logs it to a console nobody has open and the form
+ * reports nothing at all. A restore is the thing you reach for on a bad day;
+ * it has to say what went wrong on that day.
+ */
 export function RestoreForm({ action }: { action: (formData: FormData) => Promise<RestoreState> }) {
   const [state, formAction, pending] = useActionState(
-    async (_previous: RestoreState | null, formData: FormData) => action(formData),
+    async (_previous: RestoreState | null, formData: FormData): Promise<RestoreState> => {
+      try {
+        return await action(formData);
+      } catch (error) {
+        const file = formData.get('backup');
+        const size = file instanceof File ? file.size : 0;
+        const why = error instanceof Error ? error.message : String(error);
+        return {
+          ok: false,
+          // A megabyte is the shape of this failure, and the half of it this
+          // app cannot configure is whatever is in front of it.
+          message: size > COMMON_PROXY_CAP
+            ? `The server did not accept that upload (${(size / 1024 / 1024).toFixed(1)} MB). `
+              + 'A reverse proxy in front of the app is the usual cause -- nginx allows 1 MB '
+              + `unless told otherwise, Caddy has no limit of its own. (${why})`
+            : `That restore failed before it started. (${why})`,
+        };
+      }
+    },
     null,
   );
   const [mode, setMode] = useState<'merge' | 'replace'>('merge');
+  const [tooBig, setTooBig] = useState<number | null>(null);
 
   return (
     <form onSubmit={submitTo(formAction)} className="mt-4 space-y-4">
@@ -20,7 +66,18 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
         <input
           id="backup" name="backup" type="file" accept="application/json,.json" required
           className={control}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            setTooBig(file && file.size > MAX_BACKUP_BYTES ? file.size : null);
+          }}
         />
+        {tooBig !== null && (
+          <p className="mt-1 text-xs text-[var(--danger)]">
+            That file is {(tooBig / 1024 / 1024).toFixed(1)} MB and the limit is{' '}
+            {asMegabytes(MAX_BACKUP_BYTES)}. Said here rather than after the upload, because an
+            upload that large fails without explaining itself.
+          </p>
+        )}
       </div>
 
       <div>
@@ -102,7 +159,7 @@ export function RestoreForm({ action }: { action: (formData: FormData) => Promis
       )}
 
       <button
-        type="submit" disabled={pending}
+        type="submit" disabled={pending || tooBig !== null}
         className="btn btn-primary"
       >
         {pending ? 'Restoring…' : 'Restore from this file'}
