@@ -50,3 +50,16 @@ export const VARIANT_KIND_LABELS: Record<VariantKind, string> = {
   course: 'Class',
   exam: 'Exam',
 };
+
+/**
+ * Whether a tag of this kind can carry a version of a drug.
+ *
+ * The client-safe half of `isVariantTag`, which is the same question asked in
+ * SQL. Spelled as a function rather than `VARIANT_KINDS.includes(kind)` at each
+ * site because the tuple is typed as its two literals, so asking it about a
+ * `string` -- which is what a tag's kind is, once it has been through the
+ * database -- does not type-check without a cast nobody should have to repeat.
+ */
+export function isVariantKind(kind: string): boolean {
+  return (VARIANT_KINDS as readonly string[]).includes(kind);
+}

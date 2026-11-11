@@ -27,7 +27,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { drugVariantValues, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
-import { KIND_RANK, VARIANT_KINDS, type VariantKind } from './variant-kinds';
+import { isVariantKind, KIND_RANK, VARIANT_KINDS, type VariantKind } from './variant-kinds';
 
 export * from './variant-kinds';
 
@@ -614,6 +614,58 @@ export async function saveVariantLayer(input: {
   }
 
   return { ok: true, overrides: count };
+}
+
+/** One of a drug's memberships, as the scope rule needs to see it. */
+export type ScopeMembership = {
+  tagId: string;
+  /** The tag's kind, so a list can be told from a class. */
+  kind: string;
+  /** `drug_tags.variant_tag_id`: the version this membership reads, if any. */
+  readsVariant: string | null;
+};
+
+/**
+ * What deleting one version would take off the drug, and what it would only
+ * stop pointing at it.
+ *
+ * `clearVariantLayer` asks this in SQL and is the thing that acts on it. This
+ * is the same rule as a pure function, so that a **screen can show it before
+ * the button is pressed** -- which is the half that was missing: the deletion
+ * panel listed a drug's tags in one row above its versions, so *which class
+ * goes out with which version* was a question the only way to answer was to
+ * press delete and read the report afterwards.
+ *
+ * The two of them must agree, and `tests/remove-drugs.test.ts` runs them
+ * against the same fixture and compares, because a rule stated twice is a rule
+ * that drifts.
+ */
+export function variantScope(
+  variantTagId: string,
+  members: readonly ScopeMembership[],
+  /** The tags this drug has wording of its own under. */
+  layerTagIds: ReadonlySet<string>,
+): { takes: string[]; keeps: string[] } {
+  const takes: string[] = [];
+  const keeps: string[] = [];
+
+  for (const member of members) {
+    // Its own membership: the version is that tag, so deleting the version is
+    // deleting the drug's place in it.
+    if (member.tagId === variantTagId) {
+      takes.push(member.tagId);
+      continue;
+    }
+    if (member.readsVariant !== variantTagId) continue;
+
+    // Pointed at this version and with nothing of its own to say: the rest of
+    // the lecture's scope, which arrived with it and goes with it. A list, or a
+    // class that words the drug itself, keeps its place and loses the pointer.
+    if (isVariantKind(member.kind) && !layerTagIds.has(member.tagId)) takes.push(member.tagId);
+    else keeps.push(member.tagId);
+  }
+
+  return { takes, keeps };
 }
 
 /**

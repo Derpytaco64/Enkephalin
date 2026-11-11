@@ -3068,6 +3068,77 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### The panel deleted a drug nobody ticked (2026-11-10)
+
+*Something is wrong with the deletion thing we added. I went through removing imported drugs and one
+of the drugs in a different tag disappeared.* And: *drugs in the delete page with variants need to
+show which variant has which tag instead of just all the tags on the top one.* And: *despite
+choosing the variant prednisone it deleted the top drugs/original.*
+
+The audit log says exactly what happened. 24 drugs at `20:30:50` -- the whole heme/onc import, which
+is what the screen is for -- and then one more at `20:31:39`: `{"slug": "prednisone", "tags": 3}`.
+Three tags still on it, so its version had **not** been cleared first; `clearVariantLayer` would have
+taken the class and the exam with it and left one. The second press sent `drug=prednisone`, and
+Prednisone was a Top Drugs 2026 drug the lecture had merely worded.
+
+Three things let a drug go out under a tick meant for its version, and all three are the same
+mistake: **the screen knew something the person could not see.**
+
+- **A tick the filter hid still counted and did not travel.** Checkboxes are DOM fields, so
+  `new FormData` collects the rows on screen; the count beside the button counted every tick. That
+  pairing is the worst of the two: the deletion was a *subset* of a number that was right, so a tick
+  made under one filter sat invisible and went out with a later press. The count stays over every
+  tick -- *a filter changing is not a reason for a tick to be forgotten* is still the rule -- and a
+  hidden tick is now rendered as a hidden input, with a red line saying how many there are and a
+  button that clears the filters. Count and deletion are the same set again.
+- **The ticks survived the press.** They are cleared when the form is sent, which `submitTo` makes
+  safe: it builds the `FormData` synchronously before it dispatches, so emptying the state after the
+  call cannot race the submission. What the report names is also dropped from the list, so a row for
+  a drug that is already gone is not a row somebody re-ticks.
+- **The summary counted instead of naming.** *1 drug and 0 versions will be deleted* is a sentence
+  nobody can check. It now names them: *Prednisone -- off Top Drugs 2026*, in the danger colour,
+  with the escalation said outright -- *1 ticked version belongs to a drug that is ticked too, so the
+  whole drug goes, not just the version. Untick the drug if you meant only its version.* The old
+  wording for that case was *already goes with its drug*, which reads as reassurance.
+
+**And a tag is now drawn on the version that brought it**, which is what was asked for and is the
+same fix from the other end. One row of pills above a drug's versions could not answer *which class
+goes out with which version*, so the only way to find out was to press delete and read the report
+afterwards. Each version's line now carries the memberships that go off the drug with it, and names
+the ones that merely stop reading it (*read by Top Drugs 2026, which stays*). What is left on the
+drug's own row is what no version claimed -- so for a drug a lecture only touched, that is the
+curated list it was already on, standing alone where it reads as the warning it is. A drug the
+import *created* shows nothing there at all, and the difference is visible at a glance.
+
+`variantScope` is that rule as a pure function, beside the SQL in `clearVariantLayer` that acts on
+it. Two statements of one rule drift, so `tests/remove-drugs.test.ts` runs both against one fixture
+-- an exam holding the wording, a class pointed at it, a class with wording of its own, a curated
+list -- and asserts that what the panel promises is what the mutation takes.
+
+**What was not changed: the cascade itself.** It never ran here. [A version's tags go out with
+it](#a-versions-tags-go-out-with-it-2026-11-10) is still right, and the evidence says the loss came
+from the drug tick rather than from the scope rule -- so the fix is in what the screen shows before
+the button, not in what the button does.
+
+**And Prednisone is back on Top Drugs 2026**, through `scripts/restore-sheet-drug.ts <slug>`. It is
+the restore the export could not be: `/admin/data` holds the whole database as one file, and the
+newest one predates a week of work, so rolling back to it to recover a single row would have cost
+far more than the row. The sheet still has that row -- Prednisone's own profile had never been
+edited by hand -- so the script runs `syncDrugs` over a list of one, the same code path that made
+the other 235, and then `rebuildRegimens` for the dosing prose, which is the step the sync leaves
+to `backfill-dosing.ts` and the reason a restored drug would otherwise be the only one in the table
+with no dosing row. It **refuses a drug that already exists**: overwriting a live profile with the
+sheet's wording is `npm run seed -- --force`, a different operation, and not what *put it back*
+means.
+
+What came back is what the sheet knows: Deltasone, *Inflammatory disorders*, `2.5-10 mg by mouth
+daily` parsed to one regimen, the Corticosteroid class, `rxcui` 8640, page 19, and the Top Drugs
+2026 membership. What did not: the two indications the lecture added and the lecture's own wording
+of the drug, which come back by importing that lecture again -- and the study history recorded
+against the deleted row, which is gone for good. The `phrm-535` and `heme-onc-exam-3` tags are
+still there with nothing on them, which is correct: deleting drugs is not a decision about the
+vocabulary.
+
 ### A declared field's label is Title Case (2026-11-10)
 
 *Additional notes should be capitalized in the drug import doc, new tags should follow that rule:
@@ -3622,7 +3693,9 @@ Decisions:
   how the twenty-fifth gets missed.
 - **The count is over every tick, not the shown ones.** A filter changing is not a reason for a tick
   to be forgotten, and a number that moved while you typed would be the one thing on a destructive
-  screen nobody could trust.
+  screen nobody could trust. **The submission was not**, until later the same day, which is how a
+  hidden tick deleted a drug nobody meant to delete; see [The panel deleted a drug nobody
+  ticked](#the-panel-deleted-a-drug-nobody-ticked-2026-11-10).
 - **One drug at a time, reporting per row.** `applyDrugImport` is not transactional either, and here
   it is the better behaviour rather than a compromise: a stale row -- two admins, or a double submit
   -- must not abandon the rest of the list, so each failure is named and the others still go.

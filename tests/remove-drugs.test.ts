@@ -6,7 +6,7 @@ import { drugTags, drugVariantValues, drugs, tags, users } from '@/db/schema';
 import { deleteDrug } from '@/lib/drugs/merge';
 import { setDrugTags } from '@/lib/drugs/mutations';
 import {
-  clearVariantLayer, patchVariantLayer, pointTagsAtVariant, variantLayerFor,
+  clearVariantLayer, patchVariantLayer, pointTagsAtVariant, variantLayerFor, variantScope,
 } from '@/lib/drugs/variants';
 
 /**
@@ -246,6 +246,62 @@ describe('undoing a bad import', () => {
     expect(layer.ok).toBe(false);
   });
 
+  it('says beforehand exactly what clearing a version will take', async () => {
+    /*
+     * `variantScope` is what the panel draws and `clearVariantLayer` is what
+     * the button does, and the two are the same rule written twice -- once in
+     * TypeScript, once in SQL. So they are run against one fixture and
+     * compared: the screen promised nothing about which class went out with
+     * which version, you pressed delete to find out, and a drug came off a
+     * list nobody was undoing.
+     *
+     * The fixture is the shape an import leaves, with one of everything: the
+     * exam that holds the wording, a class pointed at it, a class with wording
+     * of its own, and a curated list.
+     */
+    const course = await seedTag('phrm-535', 'PHRM 535', 'course');
+    const exam = await seedTag('heme-onc-exam-3', 'Heme/Onc Exam 3', 'exam');
+    const list = await seedTag('top-drugs-2026', 'Top Drugs 2026', 'top_list');
+    const other = await seedTag('phrm-540', 'PHRM 540', 'course');
+    const drug = await seedDrug('prednisone', 'Prednisone');
+    await setDrugTags('prednisone', ['phrm-535', 'heme-onc-exam-3', 'top-drugs-2026', 'phrm-540'], ME);
+    await wordedBy(drug.id, 'heme-onc-exam-3', 'What the exam said');
+    await wordedBy(drug.id, 'phrm-540', 'What the other class said');
+    await pointTagsAtVariant({
+      drugId: drug.id,
+      variantSlug: 'heme-onc-exam-3',
+      tagSlugs: ['phrm-535', 'top-drugs-2026', 'phrm-540'],
+    });
+
+    const members = await db
+      .select({
+        tagId: drugTags.tagId, kind: tags.kind, readsVariant: drugTags.variantTagId,
+      })
+      .from(drugTags)
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .where(eq(drugTags.drugId, drug.id));
+    const layerTagIds = new Set([exam.id, other.id]);
+
+    const planned = variantScope(exam.id, members, layerTagIds);
+    // The exam itself and the class reading it; the list and the class with
+    // its own wording keep their place.
+    expect(planned.takes.sort()).toEqual([course.id, exam.id].sort());
+    expect(planned.keeps.sort()).toEqual([list.id, other.id].sort());
+
+    const result = await clearVariantLayer({
+      drugSlug: 'prednisone', variantSlug: 'heme-onc-exam-3',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const slugOf = new Map(
+        (await db.select({ id: tags.id, slug: tags.slug }).from(tags)).map((t) => [t.id, t.slug]),
+      );
+      // What the panel said it would take is what the mutation took.
+      expect(result.untagged).toEqual(planned.takes.map((id) => slugOf.get(id)).sort());
+    }
+    expect(await slugsTagged('prednisone')).toEqual(['phrm-540', 'top-drugs-2026']);
+  });
+
   it('refuses a version slug that is not a class or an exam', async () => {
     await seedTag('top-drugs-2026', 'Top Drugs 2026', 'top_list');
     await seedDrug('warfarin', 'Warfarin');
@@ -299,5 +355,38 @@ describe('the deletion panel filters by tag the way the drug list does', () => {
     // are the two it most has to offer.
     expect(page).not.toMatch(/tags\.kind\s*,\s*'/);
     expect(page).toContain('kind: tags.kind');
+  });
+
+  /*
+   * The three guards that exist because this panel deleted Prednisone -- a
+   * Top Drugs 2026 drug a heme/onc lecture had worded -- when what was meant
+   * was its version. Static for the same reason as the rest of this block, and
+   * worth pinning because every one of them is invisible when it works.
+   */
+  it('sends the ticks the filter is hiding', () => {
+    // A checkbox is a DOM field, so a ticked row the filter has removed
+    // contributes nothing to `new FormData` -- while the count beside the
+    // button counts it. Hidden inputs are what keep the two the same.
+    expect(form).toContain('hiddenDrugs.map');
+    expect(form).toContain('hiddenLayers.map');
+    expect(form).toMatch(/type="hidden" name="drug"/);
+    expect(form).toMatch(/type="hidden" name="layer"/);
+  });
+
+  it('forgets the ticks once they have been sent', () => {
+    // They used to survive the press, so the next one carried them.
+    expect(form).toMatch(/send\(event\);\s+setDrugPicks\(\[\]\);\s+setLayerPicks\(\[\]\);/);
+  });
+
+  it('names what is about to go, and draws each tag on its own version', () => {
+    // A count is a number nobody can check. The names, the curated lists a
+    // deletion would take a drug off, and the escalation from version to whole
+    // drug are all said before the button, not reported after it.
+    expect(form).toContain('nameOf(slug)');
+    expect(form).toContain('curatedGoing');
+    expect(form).toContain('goingAnyway.length > 0');
+    // Per version, from the shared rule rather than one row of pills on top.
+    expect(form).toContain('variant.takes.map');
+    expect(page).toContain('variantScope(layer.tagId, scoped, layerTagIds)');
   });
 });

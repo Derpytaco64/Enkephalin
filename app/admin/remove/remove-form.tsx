@@ -1,17 +1,34 @@
 'use client';
 
-import { useActionState, useMemo, useState } from 'react';
+import { useActionState, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { submitTo } from '@/app/_components/submit';
 import { matchesTags, TAG_KIND_GROUPS } from '@/lib/tags/constants';
 import type { RemoveState } from './actions';
 
+/** A tag, as a pill on a row. */
+export type RowTag = { slug: string; label: string };
+
 export type RemovableDrug = {
   slug: string;
   generic: string;
-  /** Every tag it carries, labelled: a class and an exam, not only lists. */
-  tags: { slug: string; label: string }[];
-  variants: { slug: string; label: string; fields: number }[];
+  /**
+   * The drug's **own** memberships: the ones no version has claimed.
+   *
+   * `curated` is the ones that outlive a lecture -- a list, a year -- which is
+   * what makes a drug an import merely touched look different from a drug an
+   * import created. See `page.tsx`, which decides this.
+   */
+  tags: (RowTag & { curated: boolean })[];
+  variants: {
+    slug: string;
+    label: string;
+    fields: number;
+    /** Memberships that go off the drug with this version. */
+    takes: RowTag[];
+    /** Memberships that stay and only stop reading it. */
+    keeps: RowTag[];
+  }[];
 };
 
 export type FacetTag = { slug: string; label: string; kind: string; count: number };
@@ -24,6 +41,7 @@ const contains = (haystack: string, needle: string) =>
 
 const layerKey = (drugSlug: string, variantSlug: string) => `${drugSlug}:${variantSlug}`;
 const drugOf = (key: string) => key.slice(0, key.indexOf(':'));
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /**
  * Tick what should go, type DELETE, press the button.
@@ -39,6 +57,22 @@ const drugOf = (key: string) => key.slice(0, key.indexOf(':'));
  * its wording over the wrong class leaves drugs that should stay and layers
  * that should not, and a screen that could only delete whole drugs would make
  * the only fix for that worse than the problem.
+ *
+ * **Three things here exist because this screen deleted a drug nobody meant to
+ * delete.** Prednisone was on Top Drugs 2026 and a heme/onc lecture had worded
+ * it; the version was ticked, the drug was ticked too, and the drug went.
+ *
+ * 1. *A tick the filter hides still travels.* Checkboxes are DOM fields, so
+ *    `new FormData` collects only the rows on screen -- while the count beside
+ *    the button counted every tick. The count was right and the deletion was a
+ *    subset of it, which is the worst possible pairing: a tick made under one
+ *    filter sat invisible and went out with a later press. Hidden ticks are
+ *    rendered as hidden inputs, and the panel says how many there are.
+ * 2. *The summary names what is about to go.* Counts cannot be checked by
+ *    eye. "1 drug" reads as the one you were thinking about; *Prednisone --
+ *    off Top Drugs 2026* does not.
+ * 3. *The ticks are cleared when the form is sent.* They used to survive it,
+ *    so the next press carried whatever the last one had left behind.
  */
 export function RemoveForm({
   rows,
@@ -72,18 +106,45 @@ export function RemoveForm({
   const [drugPicks, setDrugPicks] = useState<string[]>([]);
   const [layerPicks, setLayerPicks] = useState<string[]>([]);
 
-  const shown = useMemo(() => rows.filter((row) => {
-    const held = row.tags.map((entry) => entry.slug);
+  /**
+   * What the last press took, so the list stops offering it.
+   *
+   * Read off the report rather than refetched: a server component's list is
+   * fixed for the life of the render, and a row for a drug that is already gone
+   * is a row somebody re-ticks.
+   */
+  const gone = useMemo(() => ({
+    drugs: new Set(state.kind === 'done' ? state.report.drugs : []),
+    layers: new Set(state.kind === 'done' ? state.report.layers : []),
+  }), [state]);
+
+  const live = useMemo(() => rows
+    .filter((row) => !gone.drugs.has(row.slug))
+    .map((row) => ({
+      ...row,
+      variants: row.variants.filter((variant) => !gone.layers.has(layerKey(row.slug, variant.slug))),
+    })), [rows, gone]);
+
+  const shown = useMemo(() => live.filter((row) => {
+    const held = [
+      ...row.tags.map((entry) => entry.slug),
+      // A version's tags are the drug's memberships too -- they are only drawn
+      // on the version's line -- so filtering by the class an import created
+      // has to find the drug it worded as well as the drugs it made.
+      ...row.variants.flatMap((variant) => [...variant.takes, ...variant.keeps]
+        .map((entry) => entry.slug)),
+    ];
     if (!matchesTags(held, tagPicks, tagsAny ? 'any' : 'all')) return false;
     if (onlyVersions && row.variants.length === 0) return false;
     if (query.trim() && !contains(row.generic, query) && !contains(row.slug, query)) return false;
     return true;
-  }), [rows, query, tagPicks, tagsAny, onlyVersions]);
+  }), [live, query, tagPicks, tagsAny, onlyVersions]);
 
   const tagLabels = useMemo(
     () => new Map(facetTags.map((entry) => [entry.slug, entry.label])),
     [facetTags],
   );
+  const bySlug = useMemo(() => new Map(rows.map((row) => [row.slug, row])), [rows]);
 
   const addTag = (slug: string) =>
     setTagPicks((picks) => (picks.includes(slug) ? picks : [...picks, slug]));
@@ -100,15 +161,51 @@ export function RemoveForm({
       ...shown.flatMap((row) => row.variants.map((variant) => layerKey(row.slug, variant.slug))),
     ])]);
 
-  const picked = drugPicks.length + layerPicks.length;
+  // Ticks on rows the last press removed are dropped rather than re-sent.
+  const drugTicks = drugPicks.filter((slug) => !gone.drugs.has(slug));
+  const layerTicks = layerPicks.filter(
+    (key) => !gone.layers.has(key) && !gone.drugs.has(drugOf(key)),
+  );
+
+  const picked = drugTicks.length + layerTicks.length;
   // Counted over every tick rather than only the shown ones: a filter changing
   // is not a reason for a tick to be forgotten, and a count that moved when you
-  // typed would be the one number here nobody could trust.
-  const goingAnyway = layerPicks.filter((key) => drugPicks.includes(drugOf(key))).length;
-  const layersGoing = layerPicks.length - goingAnyway;
+  // typed would be the one number here nobody could trust. What makes that safe
+  // is that a hidden tick is still submitted -- see the hidden inputs below.
+  const goingAnyway = layerTicks.filter((key) => drugTicks.includes(drugOf(key)));
+  const layersGoing = layerTicks.filter((key) => !drugTicks.includes(drugOf(key)));
+
+  const onScreen = new Set(shown.map((row) => row.slug));
+  const hiddenDrugs = drugTicks.filter((slug) => !onScreen.has(slug));
+  const hiddenLayers = layerTicks.filter((key) => !onScreen.has(drugOf(key)));
+
+  const curatedGoing = drugTicks
+    .map((slug) => ({ slug, lists: (bySlug.get(slug)?.tags ?? []).filter((tag) => tag.curated) }))
+    .filter((entry) => entry.lists.length > 0);
+
+  const nameOf = (slug: string) => bySlug.get(slug)?.generic ?? slug;
+  const labelOf = (key: string) => {
+    const row = bySlug.get(drugOf(key));
+    const variant = row?.variants.find((entry) => layerKey(row.slug, entry.slug) === key);
+    return `${row?.generic ?? drugOf(key)} — ${variant?.label ?? key.slice(key.indexOf(':') + 1)}`;
+  };
+
+  /**
+   * Sent, then forgotten.
+   *
+   * `submitTo` builds the `FormData` synchronously before it dispatches, so
+   * emptying the ticks here cannot race the submission -- and leaving them
+   * behind is how a tick from one press went out with the next.
+   */
+  const send = submitTo(formAction);
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    send(event);
+    setDrugPicks([]);
+    setLayerPicks([]);
+  };
 
   return (
-    <form onSubmit={submitTo(formAction)} className="mt-6">
+    <form onSubmit={onSubmit} className="mt-6">
       <div className={CARD}>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
@@ -194,13 +291,14 @@ export function RemoveForm({
 
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
           <span className="text-xs text-[var(--muted)]">
-            {shown.length} of {rows.length} shown · {picked} ticked
+            {shown.length} of {live.length} shown · {picked} ticked
           </span>
           <button type="button" onClick={tickAllShown} className="pill pill-xs pill-edge">
-            Tick every drug shown
+            Tick the {plural(shown.length, 'drug')} shown
           </button>
           <button type="button" onClick={tickAllVersionsShown} className="pill pill-xs pill-edge">
-            Tick every version shown
+            Tick the{' '}
+            {plural(shown.reduce((sum, row) => sum + row.variants.length, 0), 'version')} shown
           </button>
           {picked > 0 && (
             <button
@@ -212,11 +310,29 @@ export function RemoveForm({
             </button>
           )}
         </div>
+
+        {/* Ticked, off screen, and still going out. Said here because the
+            alternative -- a count that includes rows you cannot see -- is what
+            made a stale tick invisible in the first place. */}
+        {hiddenDrugs.length + hiddenLayers.length > 0 && (
+          <p className="mt-2 text-xs text-[var(--danger)]">
+            {plural(hiddenDrugs.length + hiddenLayers.length, 'tick')} the filter is hiding{' '}
+            {hiddenDrugs.length + hiddenLayers.length === 1 ? 'is' : 'are'} still part of this
+            deletion. They are named below.{' '}
+            <button
+              type="button"
+              onClick={() => { setQuery(''); setTagPicks([]); setOnlyVersions(false); }}
+              className="underline"
+            >
+              Show everything
+            </button>
+          </p>
+        )}
       </div>
 
       <ul className={`${CARD} mt-4 divide-y divide-[var(--border)]`}>
         {shown.map((row) => {
-          const withDrug = drugPicks.includes(row.slug);
+          const withDrug = drugTicks.includes(row.slug);
           return (
             <li key={row.slug} className="py-2 first:pt-0 last:pb-0">
               <div className="flex flex-wrap items-baseline gap-x-2">
@@ -224,7 +340,7 @@ export function RemoveForm({
                   <input
                     type="checkbox" name="drug" value={row.slug}
                     checked={withDrug}
-                    onChange={() => setDrugPicks(toggle(drugPicks, row.slug))}
+                    onChange={() => setDrugPicks(toggle(drugTicks, row.slug))}
                   />
                   <span className={withDrug ? 'font-medium line-through' : 'font-medium'}>
                     {row.generic}
@@ -233,17 +349,23 @@ export function RemoveForm({
                 <Link href={`/drugs/${row.slug}`} className="text-xs text-[var(--muted)] underline">
                   look
                 </Link>
-                {/* Each tag adds itself to the filter, because that is the
-                    motion this screen is for: you find one drug an import
-                    should not have touched, and what you want next is every
-                    other drug it tagged the same way. */}
+                {/* The drug's own tags, and only those: a tag a version brought
+                    is drawn on that version's line instead. Each adds itself to
+                    the filter, because that is the motion this screen is for:
+                    you find one drug an import should not have touched, and
+                    what you want next is every other drug it tagged the same
+                    way. */}
                 {row.tags.map((entry) => (
                   <button
                     key={entry.slug} type="button" onClick={() => addTag(entry.slug)}
-                    title={'Show everything tagged ' + entry.label}
-                    className={tagPicks.includes(entry.slug)
-                      ? 'pill pill-xs pill-on'
-                      : 'pill pill-xs pill-edge'}
+                    title={entry.curated
+                      ? `${entry.label} is a list, not a lecture's scope. Deleting the drug takes it off it.`
+                      : 'Show everything tagged ' + entry.label}
+                    className={[
+                      'pill pill-xs',
+                      tagPicks.includes(entry.slug) ? 'pill-on' : 'pill-edge',
+                      entry.curated && withDrug ? 'pill-danger' : '',
+                    ].join(' ')}
                   >
                     {entry.label}
                   </button>
@@ -254,22 +376,50 @@ export function RemoveForm({
                 <ul className="mt-1 ml-6 space-y-0.5">
                   {row.variants.map((variant) => {
                     const key = layerKey(row.slug, variant.slug);
+                    const ticked = layerTicks.includes(key);
                     return (
-                      <li key={key}>
+                      <li key={key} className="flex flex-wrap items-baseline gap-x-2">
                         <label className="flex items-center gap-2 text-xs">
                           <input
                             type="checkbox" name="layer" value={key}
-                            checked={layerPicks.includes(key)}
-                            onChange={() => setLayerPicks(toggle(layerPicks, key))}
+                            checked={ticked}
+                            onChange={() => setLayerPicks(toggle(layerTicks, key))}
                           />
-                          <span className={layerPicks.includes(key) || withDrug ? 'line-through' : ''}>
+                          <span className={ticked || withDrug ? 'line-through' : ''}>
                             what {variant.label} says
                           </span>
                           <span className="text-[var(--muted)]">
-                            {variant.fields} field{variant.fields === 1 ? '' : 's'}
-                            {withDrug ? ' — goes with the drug' : ''}
+                            {plural(variant.fields, 'field')}
                           </span>
                         </label>
+                        {/* Which tag belongs to which version, which is the
+                            question a row of pills above the versions could not
+                            answer. `variantScope` decides these two lists and
+                            `clearVariantLayer` acts on the same rule. */}
+                        {variant.takes.map((entry) => (
+                          <button
+                            key={entry.slug} type="button" onClick={() => addTag(entry.slug)}
+                            title={`${entry.label} came with this version and goes off the drug with it.`}
+                            className={[
+                              'pill pill-xs',
+                              tagPicks.includes(entry.slug) ? 'pill-on' : 'pill-edge',
+                              ticked || withDrug ? 'pill-danger' : '',
+                            ].join(' ')}
+                          >
+                            {entry.label}
+                          </button>
+                        ))}
+                        {variant.keeps.length > 0 && (
+                          <span className="text-xs text-[var(--muted)]">
+                            read by {variant.keeps.map((entry) => entry.label).join(', ')}, which
+                            {variant.keeps.length === 1 ? ' stays' : ' stay'}
+                          </span>
+                        )}
+                        {withDrug && (
+                          <span className="text-xs text-[var(--danger)]">
+                            goes with the drug
+                          </span>
+                        )}
                       </li>
                     );
                   })}
@@ -281,25 +431,106 @@ export function RemoveForm({
         {shown.length === 0 && (
           <li className="text-sm text-[var(--muted)]">Nothing matches that.</li>
         )}
+
       </ul>
 
+      {/* A tick is a tick whether or not the filter is showing its row. The
+          checkboxes above are DOM fields, so a hidden row contributes nothing
+          to `new FormData`; these put it back, and the panel above says how
+          many there are. Outside the list, because a `ul` takes only `li`. */}
+      {hiddenDrugs.map((slug) => (
+        <input key={`hidden-drug-${slug}`} type="hidden" name="drug" value={slug} />
+      ))}
+      {hiddenLayers.map((key) => (
+        <input key={`hidden-layer-${key}`} type="hidden" name="layer" value={key} />
+      ))}
+
       <div className={`${CARD} mt-4`}>
-        <p className="text-sm">
-          {picked === 0 ? 'Tick a drug or a version above.' : (
-            <>
-              <strong>{drugPicks.length} drug{drugPicks.length === 1 ? '' : 's'}</strong> and{' '}
-              <strong>{layersGoing} version{layersGoing === 1 ? '' : 's'}</strong> will be deleted.
-              {layersGoing > 0 && (
-                <> A version takes the class and exam tags that came with it; lists stay.</>
-              )}
-              {goingAnyway > 0 && (
-                <> {goingAnyway} ticked version{goingAnyway === 1 ? '' : 's'} already{' '}
-                  {goingAnyway === 1 ? 'goes' : 'go'} with its drug.</>
-              )}
-            </>
-          )}
-        </p>
-        <div className="mt-2 sm:flex sm:items-end sm:gap-3">
+        {picked === 0 ? <p className="text-sm">Tick a drug or a version above.</p> : (
+          <div className="space-y-2 text-sm">
+            {/* Named, not counted. A count is a number you cannot check; a
+                name is the one thing that would have shown that the drug
+                under the ticked version was ticked as well. */}
+            {drugTicks.length > 0 && (
+              <div>
+                <p>
+                  <strong>{plural(drugTicks.length, 'drug')}</strong> will be deleted whole, with
+                  every version, list membership, card and answer on them:
+                </p>
+                <ul className="mt-1 flex flex-wrap gap-1">
+                  {drugTicks.map((slug) => {
+                    const lists = (bySlug.get(slug)?.tags ?? []).filter((tag) => tag.curated);
+                    return (
+                      <li
+                        key={slug}
+                        className={lists.length > 0
+                          ? 'pill pill-xs pill-edge pill-danger'
+                          : 'pill pill-xs pill-edge'}
+                        title={lists.length > 0
+                          ? `On ${lists.map((tag) => tag.label).join(', ')} — deleting it takes it off ${lists.length === 1 ? 'that' : 'those'} too.`
+                          : undefined}
+                      >
+                        {nameOf(slug)}
+                        {lists.length > 0 && ` — off ${lists.map((tag) => tag.label).join(', ')}`}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {/* The mistake this screen made once, said plainly. A ticked
+                version whose drug is also ticked is not a version being
+                deleted -- it is a drug being deleted. */}
+            {goingAnyway.length > 0 && (
+              <p className="text-[var(--danger)]">
+                {plural(goingAnyway.length, 'ticked version')} belongs to a drug that is ticked
+                too, so the whole drug goes, not just the version:{' '}
+                {goingAnyway.map((key) => nameOf(drugOf(key))).join(', ')}. Untick the drug if
+                you meant only its version.
+              </p>
+            )}
+
+            {layersGoing.length > 0 && (
+              <div>
+                <p>
+                  <strong>{plural(layersGoing.length, 'version')}</strong> will be deleted, the
+                  drug kept. A version takes the class and exam tags that came with it; lists
+                  stay.
+                </p>
+                <ul className="mt-1 space-y-0.5 text-xs text-[var(--muted)]">
+                  {layersGoing.map((key) => {
+                    const row = bySlug.get(drugOf(key));
+                    const variant = row?.variants.find(
+                      (entry) => layerKey(row.slug, entry.slug) === key,
+                    );
+                    return (
+                      <li key={key}>
+                        {labelOf(key)}
+                        {variant && variant.takes.length > 0
+                          && ` — off ${variant.takes.map((entry) => entry.label).join(', ')}`}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {curatedGoing.length > 0 && (
+              <p className="text-[var(--danger)]">
+                {curatedGoing.length === 1
+                  ? `${nameOf(curatedGoing[0].slug)} is on `
+                  : `${curatedGoing.length} of the ticked drugs are on `}
+                {[...new Set(curatedGoing.flatMap(
+                  (entry) => entry.lists.map((tag) => tag.label),
+                ))].join(', ')}, which no lecture put {curatedGoing.length === 1 ? 'it' : 'them'}{' '}
+                on. Deleting {curatedGoing.length === 1 ? 'it takes it' : 'them takes them'} off
+                that too &mdash; a drug an import only touched was here before it.
+              </p>
+            )}
+          </div>
+        )}
+        <div className="mt-3 sm:flex sm:items-end sm:gap-3">
           <div className="sm:w-48">
             <label htmlFor="confirm" className="block text-sm font-medium">Type DELETE</label>
             <input
@@ -325,14 +556,12 @@ export function RemoveForm({
       {state.kind === 'done' && (
         <div className={`${CARD} mt-4 text-sm`}>
           <p className="font-medium">
-            {state.report.drugs.length} drug{state.report.drugs.length === 1 ? '' : 's'} and{' '}
-            {state.report.layers.length} version
-            {state.report.layers.length === 1 ? '' : 's'} deleted.
+            {plural(state.report.drugs.length, 'drug')} and{' '}
+            {plural(state.report.layers.length, 'version')} deleted.
           </p>
           {state.report.withTheDrug > 0 && (
             <p className="mt-1 text-[var(--muted)]">
-              {state.report.withTheDrug} ticked version
-              {state.report.withTheDrug === 1 ? '' : 's'} went with{' '}
+              {plural(state.report.withTheDrug, 'ticked version')} went with{' '}
               {state.report.withTheDrug === 1 ? 'its' : 'their'} drug.
             </p>
           )}
@@ -341,8 +570,7 @@ export function RemoveForm({
           {state.report.untagged.length > 0 && (
             <>
               <p className="mt-1 text-[var(--muted)]">
-                {state.report.untagged.length} class or exam tag
-                {state.report.untagged.length === 1 ? '' : 's'} went with{' '}
+                {plural(state.report.untagged.length, 'class or exam tag')} went with{' '}
                 {state.report.layers.length === 1 ? 'it' : 'them'}. Lists are untouched.
               </p>
               <p className="mt-1 font-mono text-xs text-[var(--muted)]">
@@ -361,7 +589,8 @@ export function RemoveForm({
             </ul>
           )}
           <p className="mt-2 text-xs text-[var(--muted)]">
-            The list above still shows what it showed before. Reload to see it without them.
+            What went is off the list and the ticks are clear. Reload for the counts beside each
+            tag.
           </p>
         </div>
       )}
