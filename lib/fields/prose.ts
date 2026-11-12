@@ -27,7 +27,7 @@
  */
 
 export type ProseBlock =
-  | { kind: 'heading'; text: string }
+  | { kind: 'heading'; text: string; level: number }
   | { kind: 'paragraph'; text: string }
   | { kind: 'list'; items: ProseItem[] };
 
@@ -84,7 +84,7 @@ export function parseProse(raw: string): ProseBlock[] {
     const heading = HEADING.exec(line);
     if (heading) {
       flush();
-      blocks.push({ kind: 'heading', text: heading[2].trim() });
+      blocks.push({ kind: 'heading', text: heading[2].trim(), level: heading[1].length });
       continue;
     }
 
@@ -116,4 +116,49 @@ export function parseProse(raw: string): ProseBlock[] {
 
   flush();
   return blocks;
+}
+
+/** A heading and everything written under it, so the whole lot can fold. */
+export type ProseSection = {
+  kind: 'section';
+  heading: string;
+  level: number;
+  body: ProseNode[];
+};
+
+export type ProseNode = ProseBlock | ProseSection;
+
+/**
+ * The same blocks, with each heading holding its own contents.
+ *
+ * A heading in a regimen is not decoration, it is the name of a protocol, and
+ * carboplatin's regimen is nineteen of them in eight thousand characters. Flat
+ * blocks make that one unbroken scroll with no way to skip a protocol you are
+ * not studying, so a heading owns what follows it until the next heading at
+ * its own level or shallower -- which is what lets a profile draw it folded.
+ *
+ * Text written before any heading belongs to no section and stays where it is:
+ * it is the sentence that introduces the protocols, and hiding it behind a
+ * triangle would hide the first thing to read.
+ */
+export function groupProse(blocks: ProseBlock[]): ProseNode[] {
+  const root: ProseNode[] = [];
+  const open: ProseSection[] = [];
+  const into = () => (open.length > 0 ? open[open.length - 1].body : root);
+
+  for (const block of blocks) {
+    if (block.kind !== 'heading') {
+      into().push(block);
+      continue;
+    }
+
+    // A deeper heading nests, a same-or-shallower one closes what it follows.
+    while (open.length > 0 && open[open.length - 1].level >= block.level) open.pop();
+
+    const section: ProseSection = { kind: 'section', heading: block.text, level: block.level, body: [] };
+    into().push(section);
+    open.push(section);
+  }
+
+  return root;
 }

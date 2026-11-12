@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseProse } from '@/lib/fields/prose';
+import { groupProse, parseProse, type ProseNode } from '@/lib/fields/prose';
 
 /**
  * The little bit of markdown a field's prose is allowed to be.
@@ -49,7 +49,7 @@ describe('parsing a field’s prose', () => {
   it('reads a heading, where one field holds two distinct things', () => {
     const blocks = parseProse('### Ipilimumab + nivolumab\n\n- ipilimumab 3 mg/kg');
 
-    expect(blocks[0]).toEqual({ kind: 'heading', text: 'Ipilimumab + nivolumab' });
+    expect(blocks[0]).toEqual({ kind: 'heading', text: 'Ipilimumab + nivolumab', level: 3 });
     expect(blocks[1].kind).toBe('list');
   });
 
@@ -77,5 +77,70 @@ describe('parsing a field’s prose', () => {
     expect(parseProse('| Drug | Dose |\n|---|---|')).toEqual([
       { kind: 'paragraph', text: '| Drug | Dose | |---|---|' },
     ]);
+  });
+});
+
+/**
+ * Nineteen protocols in one field.
+ *
+ * Carboplatin’s regimen is eight thousand characters of `###` headings, and
+ * flat blocks make that one unbroken scroll with no way to skip a protocol
+ * you are not studying. Grouping is what lets a profile fold them, so the
+ * rule a heading follows -- it owns what comes after it, until a heading at
+ * its own level or shallower -- is the thing worth pinning down here.
+ */
+
+describe('folding a regimen on its headings', () => {
+  const headings = (nodes: ProseNode[]) =>
+    nodes.filter((node) => node.kind === 'section').map((node) => node.heading);
+
+  it('gives a heading the blocks written under it', () => {
+    const nodes = groupProse(parseProse([
+      '### Carboplatin + paclitaxel',
+      '- carboplatin AUC 6 IV day 1',
+      '- paclitaxel 175 mg/m2 IV day 1',
+      '',
+      '### Carboplatin + pemetrexed',
+      '- pemetrexed 500 mg/m2 IV day 1',
+    ].join('\n')));
+
+    expect(headings(nodes)).toEqual(['Carboplatin + paclitaxel', 'Carboplatin + pemetrexed']);
+    expect(nodes[0].kind === 'section' && nodes[0].body).toEqual([{
+      kind: 'list',
+      items: [
+        { text: 'carboplatin AUC 6 IV day 1', depth: 0, marker: null },
+        { text: 'paclitaxel 175 mg/m2 IV day 1', depth: 0, marker: null },
+      ],
+    }]);
+  });
+
+  it('leaves the words before the first heading out in the open', () => {
+    // That sentence is what introduces the protocols. Behind a triangle it
+    // would be the first thing to read and the last thing anybody sees.
+    const nodes = groupProse(parseProse('Dosed to AUC, not to body surface area.\n\n### AUC 6\n- every 21 days'));
+
+    expect(nodes[0]).toEqual({ kind: 'paragraph', text: 'Dosed to AUC, not to body surface area.' });
+    expect(headings(nodes)).toEqual(['AUC 6']);
+  });
+
+  it('nests a deeper heading inside the one above it', () => {
+    const nodes = groupProse(parseProse('## Curative\n### FOLFOX\n- oxaliplatin\n### FOLFIRI\n- irinotecan'));
+
+    expect(headings(nodes)).toEqual(['Curative']);
+    const inner = nodes[0].kind === 'section' ? headings(nodes[0].body) : [];
+    expect(inner).toEqual(['FOLFOX', 'FOLFIRI']);
+  });
+
+  it('closes a section when a shallower heading arrives', () => {
+    const nodes = groupProse(parseProse('## Curative\n### FOLFOX\n- oxaliplatin\n## Palliative\n- best supportive care'));
+
+    expect(headings(nodes)).toEqual(['Curative', 'Palliative']);
+    expect(nodes[1].kind === 'section' && nodes[1].body.map((node) => node.kind)).toEqual(['list']);
+  });
+
+  it('changes nothing about a field that has no headings at all', () => {
+    const blocks = parseProse('Vancomycin 15 mg/kg IV every 12 hours.\n- adjust to a trough of 10 to 20 mg/L');
+
+    expect(groupProse(blocks)).toEqual(blocks);
   });
 });

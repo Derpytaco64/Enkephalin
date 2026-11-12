@@ -3236,6 +3236,58 @@ Both screens pass the **quizzable** set to the picker, so *all* cannot reach `dr
 tick for the same reason the fold says how many are selected: *Select all 14* and a deck of 14 cards
 per drug are the same fact, and seeing the number first is cheaper than reading it off a deck.
 
+### A regimen folds on its protocols (2026-11-12)
+
+*Can we make it so regimens inside the regimen block collapse on the subheadings so its easier to
+scroll?*
+
+Asked after a cefepime regimen arrived as one unbroken block. The live data says why: of 61 drugs
+with a regimen, 32 hold two or more `###` protocols, and carboplatin holds **nineteen** of them in
+eight thousand characters. A heading there is not decoration, it is the name of a protocol, and
+flat blocks gave no way past a protocol you are not studying.
+
+So `groupProse` turns the flat blocks into sections -- a heading owns what follows it until the next
+heading at its own level or shallower -- and `Prose` draws each one as a `<details>`. Three
+decisions in it:
+
+- **Words before the first heading stay in the open.** That is the sentence introducing the
+  protocols, and behind a triangle it would be the first thing to read and the last thing seen.
+- **A lone section starts open, two or more start shut.** Folding a single short protocol only adds
+  a click; folding nineteen is the whole point. The 29 one-protocol regimens look exactly as they
+  did.
+- **A nested section starts open**, because its parent is already hiding it and two triangles to
+  reach one dose is worse than a long section.
+
+The parser keeps a heading's `level` now, which it had been throwing away. Still no mermaid, and
+still for the same reason -- see the note at the top of `lib/fields/prose.ts`. This is the first of
+the two regimen fixes; the second, storing protocols as rows rather than as one markdown field, is
+still unstarted and still wants the reimport.
+
+### An exam carries its year (2026-11-12)
+
+*We should add the year to the exam tag and variant/version title like the top drugs 2026 already
+has.*
+
+*Top Drugs 2026* was dated from the start because the sheet is reissued every year. An exam is the
+same kind of thing and was not: *Infectious Disease Exam 3* comes round again next autumn with
+different slides, and an exam tag is what a **version** of a profile is named after -- so one
+undated tag would end up holding two years of wording with no way to tell them apart, and the
+version switcher would print the same name twice.
+
+The year goes in the **slug** as well as the label, which is the part that makes them separate tags.
+That is a slug rename, which `renameTag` refuses to do on purpose (a slug is in saved session links
+and in every browse URL), so it is a one-line `update tags set slug = slug || '-2026', label = label
+|| ' 2026' where kind = 'exam'` on the box, run before the restore of the edited export so the
+file's tags match by slug and nothing is minted twice. Ids are untouched, so every layer, pointer
+and attribution survives. The audit log keeps the old names, because it records what the tag was
+called when the thing happened.
+
+A course keeps its number. *PHRM 532 2026* is not the name of anything, and the course is what every
+value's provenance line prints -- *from PHRM 532 content*, on 1,136 live values.
+
+`docs/drug-import.md` now says so under `scope`, because a file whose exam label lacks the year
+would create a second, undated tag beside the real one.
+
 ### One exam, several lectures, one layer (2026-11-10)
 
 *These different sections have the same drugs. Does importing one after the other add to the same

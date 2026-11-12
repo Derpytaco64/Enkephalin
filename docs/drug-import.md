@@ -149,7 +149,7 @@ Copy this and fill it. Delete the optional keys you do not need.
 | Key | Required | What it is |
 |---|---|---|
 | `format` | **yes** | Always the literal `"enkephalin.drugs/1"` |
-| `scope` | **yes** | Where this lecture sits: `course` and/or `exam`. At least one |
+| `scope` | **yes** | Where this lecture sits: `course` and/or `exam`. At least one. An exam carries its year |
 | `source` | **yes** | Where the facts came from. `file` is the one you read; `deck` the original slides |
 | `write` | no | `fill` (default), `variant`, or `base`. See below — **the person importing can change it**, so this is a suggestion rather than an instruction |
 | `declare` | no | Fields this lecture needs that the app does not have yet |
@@ -185,6 +185,14 @@ tag**:
 | `"exam 3"` | `exam-3` |
 | `"Exam #3"` | `exam-3` |
 | `"Heme/Onc Exam 3"` | `heme-onc-exam-3` |
+| `"Heme/Onc Exam 3 2026"` | `heme-onc-exam-3-2026` |
+
+**An exam ends with its year**, the way *Top Drugs 2026* does: `"Infectious Disease Exam 3 2026"`.
+Exam 3 comes round again next year with different slides, and a tag is what a version of a profile
+is named after — so a tag called *Infectious Disease Exam 3* would end up holding two years of
+wording with no way to tell them apart, and the version switcher would show the same name twice.
+The year in the label is also the year in the slug, which is what keeps them separate tags. A
+course is numbered rather than dated, so `"PHRM 532"` stays as it is.
 
 And these are **different** tags, so pick one spelling and keep it across every file for the same
 course:
@@ -1003,7 +1011,7 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
 {
   "format": "enkephalin.drugs/1",
 
-  "scope": { "course": "PHRM 535", "exam": "Heme/Onc Exam 3" },
+  "scope": { "course": "PHRM 535", "exam": "Heme/Onc Exam 3 2026" },
   "source": {
     "file": "16.Melanoma.pdf",
     "deck": "PHRM 535 - Melanoma - Student.pdf",

@@ -1,4 +1,4 @@
-import { parseProse, type ProseItem } from '@/lib/fields/prose';
+import { groupProse, parseProse, type ProseItem, type ProseNode } from '@/lib/fields/prose';
 
 /** One step in from its parent, enough to read as nesting and no more. */
 const INDENT = ['pl-0', 'pl-4', 'pl-8', 'pl-12'] as const;
@@ -21,6 +21,58 @@ function Item({ item }: { item: ProseItem }) {
 }
 
 /**
+ * The blocks of one level, with every heading drawn as something that folds.
+ *
+ * `startOpen` is the caller's judgement about whether folding helps here. A
+ * regimen with one protocol is already short, so hiding it only adds a click;
+ * a regimen with several is the thing we are trying to make scrollable, so
+ * those start shut and the headings become the list you pick from. A nested
+ * section always starts open, because its parent is already hiding it and two
+ * triangles to reach one dose is a worse answer than a long open section.
+ */
+function Nodes({ nodes, startOpen }: { nodes: ProseNode[]; startOpen: boolean }) {
+  return (
+    <div className="space-y-2 leading-relaxed">
+      {nodes.map((node, index) => {
+        // Index in the key: these are positional lines of one text, and two
+        // identical steps in a taper are a real thing to write.
+        const key = `${node.kind}-${index}`;
+
+        if (node.kind === 'section') {
+          return (
+            <details key={key} open={startOpen} className="rounded border border-[var(--border)]">
+              <summary className="cursor-pointer px-3 py-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                {node.heading}
+              </summary>
+
+              <div className="border-t border-[var(--border)] px-3 pb-3 pt-2">
+                <Nodes nodes={node.body} startOpen />
+              </div>
+            </details>
+          );
+        }
+        if (node.kind === 'paragraph') return <p key={key}>{node.text}</p>;
+        if (node.kind === 'heading') {
+          // Only reachable if grouping ever hands a heading back ungrouped;
+          // drawn the way it always was rather than dropped.
+          return (
+            <p key={key} className="pt-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+              {node.text}
+            </p>
+          );
+        }
+
+        return (
+          <ul key={key} className="space-y-1">
+            {node.items.map((item, at) => <Item key={`${at}-${item.text}`} item={item} />)}
+          </ul>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * A markdown field, drawn as the headings, paragraphs and nested lists it is.
  *
  * Profiles only. A card, a search index and a bulk-set preview all want the
@@ -29,30 +81,8 @@ function Item({ item }: { item: ProseItem }) {
  * tree, a taper's steps -- and flattening it there loses the answer.
  */
 export function Prose({ text }: { text: string }) {
-  const blocks = parseProse(text);
+  const nodes = groupProse(parseProse(text));
+  const sections = nodes.filter((node) => node.kind === 'section').length;
 
-  return (
-    <div className="space-y-2 leading-relaxed">
-      {blocks.map((block, index) => {
-        // Index as key: these are positional lines of one text, and two
-        // identical steps in a taper are a real thing to write.
-        const key = `${block.kind}-${index}`;
-
-        if (block.kind === 'heading') {
-          return (
-            <p key={key} className="pt-1 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-              {block.text}
-            </p>
-          );
-        }
-        if (block.kind === 'paragraph') return <p key={key}>{block.text}</p>;
-
-        return (
-          <ul key={key} className="space-y-1">
-            {block.items.map((item, at) => <Item key={`${at}-${item.text}`} item={item} />)}
-          </ul>
-        );
-      })}
-    </div>
-  );
+  return <Nodes nodes={nodes} startOpen={sections < 2} />;
 }
