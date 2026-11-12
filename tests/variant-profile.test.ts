@@ -804,15 +804,31 @@ describe('the drug\'s own words have an owner', () => {
     expect(await baseVariantOf(await drugId())).toBeNull();
   });
 
-  it('refuses a class the drug is not in, and a list that is no class at all', async () => {
-    const [absent, list] = await Promise.all([
-      setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: 'nothing-like-it' }),
-      setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: 'top-drugs-2026' }),
-    ]);
+  it('refuses a tag the drug is not on', async () => {
+    const absent = await setBaseVariant({
+      drugSlug: 'levothyroxine', variantSlug: 'nothing-like-it',
+    });
 
     expect(absent.ok).toBe(false);
-    expect(list.ok).toBe(false);
     expect(await baseVariantOf(await drugId())).toBeNull();
+  });
+
+  it('takes the list the drug arrived on, since this is provenance and not a layer', async () => {
+    // *The 236 top drugs should be V-1 Top Drugs 2026* -- the owner's call, and
+    // it follows from what the column is: a layer may only live on a class or
+    // an exam, because that is how differing wording is addressed, but whose
+    // words the whole profile is can be answered by the list it came on.
+    expect(await setBaseVariant({
+      drugSlug: 'levothyroxine', variantSlug: 'top-drugs-2026',
+    })).toEqual({ ok: true });
+
+    expect(await baseVariantOf(await drugId()))
+      .toMatchObject({ slug: 'top-drugs-2026', label: 'Top Drugs 2026', kind: 'top_list' });
+
+    // And it takes none of the versions away: a list cannot hold a layer, so
+    // there was never a pill for it to collide with.
+    expect((await variantOptionsFor(await drugId())).map((o) => o.slug))
+      .toEqual([SECOND, COURSE, EXAM]);
   });
 
   it('clears back to nobody in particular, which is what the sheet\'s drugs are', async () => {

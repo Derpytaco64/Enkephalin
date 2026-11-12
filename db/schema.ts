@@ -143,8 +143,8 @@ export const drugs = pgTable('drugs', {
   rxcui: text('rxcui'),
 
   /**
-   * The class or exam whose words **the drug's own profile** is, where it is
-   * one class's rather than the sheet's.
+   * The tag whose words **the drug's own profile** is: the class or exam that
+   * wrote it, or the list it arrived on.
    *
    * A lecture imported into a drug the app had never held writes to the drug
    * itself rather than to a layer -- see `import.ts`, where a brand-new drug
@@ -155,13 +155,17 @@ export const drugs = pgTable('drugs', {
    * *V-2 Exam 3*, and the first of those was Exam 1 under a name that read
    * like nobody's.
    *
-   * Null is the normal case and means what it always meant -- the class
-   * sheet's, or whoever typed it. Not a variant layer: the base holds the
-   * whole profile and a layer holds only differences, which is why this is a
-   * pointer on `drugs` and not a row in `drug_variant_values`. A tag named
-   * here must be one the drug carries and must not also hold a layer, both
-   * enforced in `lib/drugs/variants.ts` -- the same class cannot be the drug's
-   * own words *and* a variation on them.
+   * Null means nobody in particular, which is what a drug somebody typed by
+   * hand is. **Any kind of tag may be named**, not only the two a layer can
+   * live on: the 236 off the class sheet read *V-1 Top Drugs 2026*, which is
+   * the honest answer to whose wording their profile is (2026-11-12, owner's
+   * call).
+   *
+   * Not a variant layer: the base holds the whole profile and a layer holds
+   * only differences, which is why this is a pointer on `drugs` and not a row
+   * in `drug_variant_values`. A tag named here must be one the drug carries
+   * and must not also hold a layer, both enforced in `lib/drugs/variants.ts`
+   * -- the same class cannot be the drug's own words *and* a variation on them.
    */
   baseVariantTagId: uuid('base_variant_tag_id')
     .references((): AnyPgColumn => tags.id, { onDelete: 'set null' }),

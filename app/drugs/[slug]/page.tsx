@@ -4,7 +4,7 @@ import { Prose } from '@/app/_components/prose';
 import { emptyLabel, formatFieldValue, fromSource } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
-import { ALL_VARIANTS } from '@/lib/drugs/variant-kinds';
+import { ALL_VARIANTS, isVariantKind } from '@/lib/drugs/variant-kinds';
 import { overriddenKeys } from '@/lib/drugs/variants';
 import type { VariantOption } from '@/lib/drugs/variants';
 import { colorFor, readableTextOn, scheduleBadge } from '@/lib/theme/palette';
@@ -612,7 +612,10 @@ export default async function DrugProfilePage({
                     href={`/drugs/${drug.slug}`}
                     title={baseVariant === null
                       ? 'The drug’s own profile'
-                      : `The drug’s own profile — the words ${baseVariant.label} teaches`}
+                      : isVariantKind(baseVariant.kind)
+                        ? `The drug’s own profile — the words ${baseVariant.label} teaches`
+                        : `The drug’s own profile — the wording it arrived with, `
+                          + `on ${baseVariant.label}`}
                     className={`pill pill-xs pill-soft ${
                       variant === null && !layers ? 'pill-on' : 'pill-edge'}`}
                   >
@@ -662,11 +665,23 @@ export default async function DrugProfilePage({
                   drug&rsquo;s everywhere else.
                 </p>
               )}
+              {/* Said differently for a class and for a list, because the two
+                  are different facts. A class *teaches* the base -- the lecture
+                  that created the drug wrote it, and there is nothing under it
+                  for that class to differ from. A list only says where the
+                  profile came from; it cannot word a drug its own way at all,
+                  which is why no pill of its own was ever missing. */}
               {baseVariant !== null && (
                 <p className="mt-2 text-xs text-[var(--muted)]">
-                  <span className="font-mono">V-1</span> is the drug&rsquo;s own profile, which is
-                  what {baseVariant.label} teaches: it arrived with that lecture, so there is
-                  nothing underneath it for {baseVariant.label} to differ from.
+                  <span className="font-mono">V-1</span> is the drug&rsquo;s own profile
+                  {isVariantKind(baseVariant.kind) ? (
+                    <>
+                      , which is what {baseVariant.label} teaches: it arrived with that lecture, so
+                      there is nothing underneath it for {baseVariant.label} to differ from.
+                    </>
+                  ) : (
+                    <> &mdash; the wording it arrived with, on {baseVariant.label}.</>
+                  )}
                 </p>
               )}
               {isAdmin && variant !== null && (

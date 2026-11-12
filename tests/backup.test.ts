@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import {
@@ -348,12 +348,12 @@ describe('whose words the drug itself holds', () => {
     await seedClass();
     const backup = await exportBackup();
 
-    // A class the drug is not in -- the commonest slip when editing by hand,
-    // and it must cost the attribution rather than the profile.
+    // A tag the file does not carry -- the commonest slip when editing by
+    // hand, and it must cost the attribution rather than the profile.
     const wrong = {
       ...backup,
       drugs: backup.drugs.map((drug) => (
-        drug.slug === 'tirzepatide' ? { ...drug, baseVariant: 'statins' } : drug
+        drug.slug === 'tirzepatide' ? { ...drug, baseVariant: 'phrm-999' } : drug
       )),
     } as Backup;
 
@@ -363,6 +363,165 @@ describe('whose words the drug itself holds', () => {
     expect(await baseOf()).toBeNull();
     const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'tirzepatide'));
     expect(drug.genericName).toBe('Tirzepatide');
+  });
+
+  it('refuses a class that also words the drug its own way', async () => {
+    const { courseId, drugId } = await seedClass();
+    await db.insert(drugVariantValues).values({
+      drugId,
+      tagId: courseId,
+      fields: {
+        moa: {
+          value: 'What the class says', status: 'ok', source: 'PSCI 413',
+          updatedAt: '2026-11-09T00:00:00.000Z', updatedBy: USER,
+        },
+      },
+      note: null,
+    });
+    const backup = await exportBackup();
+    const both = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => (
+        drug.slug === 'tirzepatide' ? { ...drug, baseVariant: 'psci-413' } : drug
+      )),
+    } as Backup;
+
+    await restoreBackup(both, 'merge');
+    expect(await baseOf()).toBeNull();
+    // And the layer is still there -- the refusal costs the attribution only.
+    expect(await db.select().from(drugVariantValues)).toHaveLength(1);
+  });
+
+  it('takes the list the drug arrived on, not only a class or an exam', async () => {
+    // The 236 off the class sheet read "V-1 Top Drugs 2026": the base is an
+    // attribution rather than a layer, so any tag the drug carries can be it.
+    const backup = await exportBackup();
+    const [list] = await db.select({ id: tags.id }).from(tags).where(eq(tags.slug, 'top-drugs-2026'));
+
+    const onTheList = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => (
+        drug.slug === 'tirzepatide' ? { ...drug, baseVariant: 'top-drugs-2026' } : drug
+      )),
+    } as Backup;
+
+    const result = await restoreBackup(onTheList, 'merge');
+    expect(result.ok && result.report.problems).toEqual([]);
+    expect(await baseOf()).toBe(list.id);
+  });
+});
+
+/**
+ * Which version each membership reads -- `drug_tags.variant_tag_id`.
+ *
+ * The hole this closes: memberships are replaced wholesale from the file, so a
+ * format that could only say *which* tags nulled every pointer it rebuilt. That
+ * undid `pointTagsAtVariant` for every drug a lecture ever wrote, on the one
+ * operation whose whole job is losing nothing.
+ */
+describe('which version a list reads', () => {
+  /** A class with wording of its own, and the list pointed at it. */
+  async function seedPointer() {
+    const [course] = await db
+      .insert(tags)
+      .values({ slug: 'psci-413', label: 'PSCI 413', kind: 'course' })
+      .returning({ id: tags.id });
+    const [drug] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    const [list] = await db.select({ id: tags.id }).from(tags).where(eq(tags.slug, 'top-drugs-2026'));
+
+    await db.insert(drugTags).values({ drugId: drug.id, tagId: course.id });
+    await db.insert(drugVariantValues).values({
+      drugId: drug.id,
+      tagId: course.id,
+      fields: {
+        moa: {
+          value: 'Dual GIP/GLP-1 agonist, as the class teaches it',
+          status: 'ok', source: 'PSCI 413', updatedAt: '2026-11-09T00:00:00.000Z', updatedBy: USER,
+        },
+      },
+      note: null,
+    });
+    // "On Top Drugs 2026, read tirzepatide as PSCI 413 words it."
+    await db
+      .update(drugTags)
+      .set({ variantTagId: course.id })
+      .where(and(eq(drugTags.drugId, drug.id), eq(drugTags.tagId, list.id)));
+    return { drugId: drug.id, courseId: course.id, listId: list.id };
+  }
+
+  const pointerOf = async (tagSlug: string) => {
+    const [drug] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    const [tag] = await db.select({ id: tags.id }).from(tags).where(eq(tags.slug, tagSlug));
+    const [row] = await db
+      .select({ reads: drugTags.variantTagId })
+      .from(drugTags)
+      .where(and(eq(drugTags.drugId, drug.id), eq(drugTags.tagId, tag.id)));
+    return row?.reads ?? null;
+  };
+
+  it('travels as an object, and a membership with no pointer stays a bare slug', async () => {
+    await seedPointer();
+    const backup = await exportBackup();
+    const entry = backup.drugs.find((drug) => drug.slug === 'tirzepatide');
+
+    expect(entry?.tags).toContainEqual({ tag: 'top-drugs-2026', reads: 'psci-413' });
+    // The common row is still one short string, so a diff reads like a list.
+    expect(entry?.tags).toContain('psci-413');
+    expect(entry?.tags).toContain('statins');
+  });
+
+  it('comes back on a restore, which is the whole point', async () => {
+    const { courseId } = await seedPointer();
+    const backup = await exportBackup();
+
+    await db.update(drugTags).set({ variantTagId: null });
+    expect(await pointerOf('top-drugs-2026')).toBeNull();
+
+    await restoreBackup(backup, 'merge');
+    expect(await pointerOf('top-drugs-2026')).toBe(courseId);
+    expect(await pointerOf('psci-413')).toBeNull();
+  });
+
+  it('restores a file written before the pointer was in the format', async () => {
+    await seedPointer();
+    const backup = await exportBackup();
+
+    // Every membership as a bare slug, which is all an older file could say.
+    const older = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => ({
+        ...drug,
+        tags: drug.tags.map((entry) => (typeof entry === 'string' ? entry : entry.tag)),
+      })),
+    } as Backup;
+
+    const result = await restoreBackup(older, 'merge');
+    expect(result.ok).toBe(true);
+    // Nothing to put back, and nothing lost either: the memberships are intact.
+    expect(await pointerOf('top-drugs-2026')).toBeNull();
+    const [drug] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    expect(await db.select().from(drugTags).where(eq(drugTags.drugId, drug.id))).toHaveLength(3);
+  });
+
+  it('drops a pointer at wording that is not in the file, and says so', async () => {
+    await seedPointer();
+    const backup = await exportBackup();
+
+    // The layer cleared but the pointer still written: what `clearVariantLayer`
+    // nulls in the app, so restoring it would put back a row claiming a version
+    // the drug has not got.
+    const stale = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => ({ ...drug, variants: [] })),
+    } as Backup;
+
+    const result = await restoreBackup(stale, 'merge');
+    expect(result.ok && result.report.problems.join(' '))
+      .toContain('left reading the drug');
+    expect(await pointerOf('top-drugs-2026')).toBeNull();
+    // The membership itself survives: being on the list is the fact.
+    const [drug] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    expect(await db.select().from(drugTags).where(eq(drugTags.drugId, drug.id))).toHaveLength(3);
   });
 });
 

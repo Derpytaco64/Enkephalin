@@ -27,6 +27,7 @@
  * needs an id written down.
  */
 import { asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 // Relative rather than '@/...' on purpose: scripts/export-backup.ts and
 // scripts/restore-backup.ts run this under `node --experimental-strip-types`,
@@ -134,14 +135,36 @@ export type BackupDrug = {
   indications: string[];
   brands: BackupBrand[];
   regimens: BackupRegimen[];
-  /** Tag slugs, categories included -- the seeder will rebuild those anyway. */
-  tags: string[];
   /**
-   * The class or exam whose words **the drug's own profile** is, by tag slug.
+   * The lists, classes and exams this drug is on -- and **which version each
+   * of them reads it as**, where one was named.
    *
-   * `drugs.base_variant_tag_id`. Null is the normal case -- the sheet's, or
-   * typed by hand -- and a current export always writes the key, so a
-   * round-trip clears an attribution the live site has dropped.
+   * A plain slug is the ordinary case and means *the drug's own profile*. The
+   * object form carries `drug_tags.variant_tag_id`: `{ tag: 'phrm-532', reads:
+   * 'infectious-disease-exam-2' }` is the sentence that column was added for --
+   * *on this list, read the drug as that class words it* -- and an import sets
+   * it on every scope tag the layer did not land on, so a lecture does not
+   * teach two different things depending on whether you study the class or the
+   * exam.
+   *
+   * **It was missing, and the restore was deleting it.** Memberships are
+   * replaced wholesale from this list, so a file that could only say *which*
+   * tags nulled every pointer it rebuilt -- which undid `pointTagsAtVariant`
+   * for every drug a lecture ever wrote, silently, on the one operation whose
+   * whole job is losing nothing. Both shapes are accepted so a file written
+   * before this still restores, and a tag with no pointer still exports as a
+   * bare string, because the file is meant to be read and diffed by a person.
+   *
+   * Categories included -- the seeder will rebuild those anyway.
+   */
+  tags: (string | BackupMembership)[];
+  /**
+   * The tag whose words **the drug's own profile** is, by slug: the class or
+   * exam that wrote it, or the list it arrived on.
+   *
+   * `drugs.base_variant_tag_id`. Null means nobody in particular, and a
+   * current export always writes the key, so a round-trip clears an
+   * attribution the live site has dropped.
    *
    * **Absent is not null**, the same rule `variants` follows: a file written
    * before this existed says nothing about it, and must not wipe an
@@ -149,11 +172,11 @@ export type BackupDrug = {
    * add by hand to an older export: write the tag slug in and the restore
    * takes it.
    *
-   * It has to be one of this drug's own `tags`, of kind `course` or `exam`,
-   * and must not also appear in `variants` -- one class cannot be both the
-   * drug's own words and a variation on them. A slug failing any of those is
-   * reported and the attribution left unset, rather than the drug being
-   * refused over it.
+   * It has to be one of this drug's own `tags` -- any kind, `top_list`
+   * included -- and must not also appear in `variants`, because one class
+   * cannot be both the drug's own words and a variation on them. A slug
+   * failing either is reported and the attribution left unset, rather than the
+   * drug being refused over it.
    */
   baseVariant?: string | null;
   /**
@@ -166,6 +189,14 @@ export type BackupDrug = {
    * that is all the table holds.
    */
   variants?: BackupVariantLayer[];
+};
+
+/** One membership that names the version it reads. */
+export type BackupMembership = {
+  /** The list, class or exam the drug is on. */
+  tag: string;
+  /** The class or exam whose wording this membership means, by tag slug. */
+  reads: string | null;
 };
 
 export type BackupVariantLayer = {
@@ -343,6 +374,9 @@ function group<T extends { drugId: string }>(rows: T[]) {
 
 /* -------------------------------------------------------------- export --- */
 
+/** `drug_tags.variant_tag_id` resolved to its slug, beside the membership. */
+const variantTagOf = alias(tags, 'variant_tag');
+
 export async function exportBackup(): Promise<Backup> {
   const [
     drugRows, indicationRows, brandRows, linkRows, regimenRows,
@@ -375,8 +409,12 @@ export async function exportBackup(): Promise<Backup> {
       .leftJoin(indications, eq(indications.id, drugIndications.indicationId))
       .orderBy(asc(dosingRegimens.alternative), asc(dosingRegimens.step)),
     db.select().from(tags).orderBy(asc(tags.slug)),
-    db.select({ drugId: drugTags.drugId, slug: tags.slug })
-      .from(drugTags).innerJoin(tags, eq(tags.id, drugTags.tagId)),
+    // The pointer travels as the variant tag's slug, like every other
+    // reference here: `reads` is null for the ordinary membership.
+    db.select({ drugId: drugTags.drugId, slug: tags.slug, reads: variantTagOf.slug })
+      .from(drugTags)
+      .innerJoin(tags, eq(tags.id, drugTags.tagId))
+      .leftJoin(variantTagOf, eq(variantTagOf.id, drugTags.variantTagId)),
     // A class's own wording for a drug. Hand-typed off a slide deck, so it
     // is exactly the kind of content a backup is for -- nothing re-derives it.
     db
@@ -499,7 +537,13 @@ export async function exportBackup(): Promise<Backup> {
       reviewNotes: regimen.reviewNotes,
       source: regimen.source,
     })),
-    tags: (tagsByDrug.get(drug.id) ?? []).map((row) => row.slug).sort(),
+    // A bare slug where nothing is pointed, the object only where something
+    // is: the common row stays one short string, so a diff of this file still
+    // reads like a list of tags.
+    tags: (tagsByDrug.get(drug.id) ?? [])
+      .map((row) => (row.reads === null ? row.slug : { tag: row.slug, reads: row.reads }))
+      .sort((a, b) => (typeof a === 'string' ? a : a.tag)
+        .localeCompare(typeof b === 'string' ? b : b.tag)),
     baseVariant: drug.baseVariantTagId === null
       ? null
       : tagSlugById.get(drug.baseVariantTagId) ?? null,
@@ -931,6 +975,16 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
      * removal panel: a stale row must not abandon the rest of the list.
      */
     /**
+     * The memberships in one shape, so everything below asks one question.
+     *
+     * A file may write a tag as a bare slug or as `{ tag, reads }`, and both
+     * mean the same membership -- see `BackupDrug.tags`.
+     */
+    const memberships = drug.tags.map((entry) => (
+      typeof entry === 'string' ? { tag: entry, reads: null } : entry
+    ));
+
+    /**
      * Whose words this drug's own profile is -- checked, not trusted.
      *
      * This is the one field in the format a person is expected to type in by
@@ -948,18 +1002,14 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     else if (drug.baseVariant === null) baseTagId = null;
     else {
       const slug = drug.baseVariant;
-      const kind = tagKindBySlug.get(slug);
       const refusal = !tagIdBySlug.has(slug)
         ? `no tag in this file is called "${slug}"`
-        : !drug.tags.includes(slug)
+        : !memberships.some((member) => member.tag === slug)
           ? `this drug is not tagged with "${slug}"`
-          : kind === undefined || !isVariantKind(kind)
-            ? `"${slug}" is a ${kind ?? 'tag'}, and only a class or an exam can be`
-              + ' whose words a profile is'
-            : (drug.variants ?? []).some((layer) => layer.variant === slug)
-              ? `"${slug}" also words this drug its own way, so it is a version of it`
-                + ' rather than where the drug itself came from'
-              : null;
+          : (drug.variants ?? []).some((layer) => layer.variant === slug)
+            ? `"${slug}" also words this drug its own way, so it is a version of it`
+              + ' rather than where the drug itself came from'
+            : null;
 
       if (refusal === null) baseTagId = tagIdBySlug.get(slug) ?? null;
       else {
@@ -1107,11 +1157,40 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
           await tx.insert(dosingRegimens).values(rows);
         }
 
+        /*
+         * Memberships, and the version each one reads.
+         *
+         * The pointer is checked rather than trusted, by the same rule
+         * `pointTagsAtVariant` writes it under: it must name a class or exam
+         * that **has a layer on this drug in this file**. A pointer at wording
+         * that is not there is read by every reader as the drug's own words
+         * anyway, so restoring one would only put back a row that says
+         * something untrue -- and `clearVariantLayer` nulls exactly these when
+         * a layer goes. Dropped and reported, membership kept: being on the
+         * list is the fact, and which wording it reads is the annotation.
+         */
+        const layerTags = new Set((drug.variants ?? []).map((layer) => layer.variant));
         await tx.delete(drugTags).where(eq(drugTags.drugId, drugId));
-        const links = drug.tags
-          .map((slug) => tagIdBySlug.get(slug))
-          .filter((id): id is string => Boolean(id))
-          .map((tagId) => ({ drugId, tagId }));
+        type Link = { drugId: string; tagId: string; variantTagId: string | null };
+        const links = memberships.flatMap((member): Link[] => {
+          const tagId = tagIdBySlug.get(member.tag);
+          // A tag the file does not carry: skipped, as it always was.
+          if (!tagId) return [];
+          if (member.reads === null) return [{ drugId, tagId, variantTagId: null }];
+
+          const readsId = tagIdBySlug.get(member.reads);
+          const kind = tagKindBySlug.get(member.reads);
+          if (readsId !== undefined && kind !== undefined && isVariantKind(kind)
+            && layerTags.has(member.reads)) {
+            return [{ drugId, tagId, variantTagId: readsId }];
+          }
+
+          report.problems.push(
+            `${drug.slug}: ${member.tag} left reading the drug's own words — `
+            + `"${member.reads}" has no wording of its own here.`,
+          );
+          return [{ drugId, tagId, variantTagId: null }];
+        });
         if (links.length > 0) await tx.insert(drugTags).values(links).onConflictDoNothing();
 
         // What each class says differently, replaced wholesale like the regimens

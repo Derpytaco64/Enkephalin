@@ -22,13 +22,15 @@
  *
  * Core fields are deliberately not overridable -- see `overridable` below.
  *
- * **The base can belong to a class too, and says so.** A lecture imported into
- * a drug the app had never held writes to the drug itself, so the drug's own
- * profile is that one class's wording with nothing else under it.
- * `drugs.base_variant_tag_id` records which class -- see `baseVariantOf` --
- * and it is an attribution rather than a fourth layer: the base still holds the
- * whole profile, and the class named there is excluded from the *layers*, since
- * one class cannot be both the drug's own words and a variation on them.
+ * **The base belongs to somebody too, and says so.** A lecture imported into a
+ * drug the app had never held writes to the drug itself, so the drug's own
+ * profile is that one class's wording with nothing else under it; and the 236
+ * off the class sheet are, in the same sense, Top Drugs 2026's.
+ * `drugs.base_variant_tag_id` records which tag -- see `baseVariantOf`, which
+ * accepts any kind of tag, a list included -- and it is an attribution rather
+ * than a fourth layer: the base still holds the whole profile, and a class
+ * named there is excluded from the *layers*, since one class cannot be both the
+ * drug's own words and a variation on them.
  *
  * **The base is V-1**, and the layers are numbered from 2 (2026-11-12, owner's
  * call): a version pill should answer *how many versions has this drug got*,
@@ -183,6 +185,14 @@ function byOverlayOrder<T extends { kind: string; label: string }>(a: T, b: T): 
  * this says whose wording that profile is -- which a lecture import into a new
  * drug makes a real question, because such a drug takes everything as its own.
  *
+ * **Any tag the drug carries can be named here, not only a class or an exam**
+ * (2026-11-12, owner's call: *the 236 top drugs should be V-1 Top Drugs
+ * 2026*). A layer may only live on a `course` or an `exam`, because wording
+ * that differs is addressed that way -- but this is not a layer, it is the
+ * answer to *whose words is this profile*, and for the 236 off the class sheet
+ * the honest answer is the list they came on. Null still means nobody in
+ * particular, which is what a drug typed by hand is.
+ *
  * **Membership is not required, and that is the one place this differs from
  * `variantLayerFor`.** A layer is refused on a drug that has left the class,
  * because applying one would be reading a version the drug has not got. This
@@ -195,7 +205,12 @@ export type BaseVariant = {
   tagId: string;
   slug: string;
   label: string;
-  kind: VariantKind;
+  /**
+   * The tag's kind -- any of them, not just the two a layer can live on, so
+   * `top_list` appears here. Carried for a screen that wants to say *class* or
+   * *exam*; nothing branches on it.
+   */
+  kind: string;
 };
 
 export async function baseVariantOf(drugId: string): Promise<BaseVariant | null> {
@@ -203,9 +218,9 @@ export async function baseVariantOf(drugId: string): Promise<BaseVariant | null>
     .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
     .from(drugs)
     .innerJoin(tags, eq(tags.id, drugs.baseVariantTagId))
-    .where(and(eq(drugs.id, drugId), isVariantTag));
+    .where(eq(drugs.id, drugId));
 
-  return row ? { ...row, kind: row.kind as VariantKind } : null;
+  return row ?? null;
 }
 
 /**
@@ -224,13 +239,9 @@ export async function baseVariantsByDrug(): Promise<Map<string, BaseVariant>> {
       kind: tags.kind,
     })
     .from(drugs)
-    .innerJoin(tags, eq(tags.id, drugs.baseVariantTagId))
-    .where(isVariantTag);
+    .innerJoin(tags, eq(tags.id, drugs.baseVariantTagId));
 
-  return new Map(rows.map(({ drugId, ...base }) => [
-    drugId,
-    { ...base, kind: base.kind as VariantKind },
-  ]));
+  return new Map(rows.map(({ drugId, ...base }) => [drugId, base]));
 }
 
 /**
@@ -746,14 +757,17 @@ export async function saveVariantLayer(input: {
  * screen-side writer is for the hundreds of drugs imported before the column
  * existed and for fixing a wrong one.
  *
- * Three refusals, all of them the same sentence from different angles -- *that
- * class is not in a position to be this drug's own words*:
+ * Two refusals, both of them the same sentence from a different angle --
+ * *that tag is not in a position to be this drug's own words*:
  *
- * - a tag the drug is not in, or one no version can live on;
+ * - a tag the drug is not on. Any **kind** of tag will do, the sheet's own
+ *   list included -- see `BaseVariant` -- because this is provenance rather
+ *   than a layer;
  * - a class that already holds a layer, which would make it the drug's own
- *   words *and* a variation on them;
- * - nothing else. Clearing is always allowed: it says *nobody in particular*,
- *   which is what the 236 off the class sheet are.
+ *   words *and* a variation on them.
+ *
+ * Clearing is always allowed: it says *nobody in particular*, which is what a
+ * drug somebody typed by hand is.
  */
 export async function setBaseVariant(input: {
   drugSlug: string;
@@ -778,13 +792,12 @@ export async function setBaseVariant(input: {
     .where(and(
       eq(drugTags.drugId, drug.id),
       eq(tags.slug, input.variantSlug),
-      isVariantTag,
     ));
 
   if (!variant) {
     return {
       ok: false,
-      message: `This drug is not in a class or exam called "${input.variantSlug}". `
+      message: `This drug is not on a list, class or exam called "${input.variantSlug}". `
         + 'Tag it first, in the drug editor.',
     };
   }

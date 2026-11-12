@@ -3159,6 +3159,50 @@ flashcard asking Exam 1's mechanism shows `V-1 Heme/Onc Exam 3` beside the `V-2`
 siblings carry. Same marker as the profile, for the reason the pills exist at all: a deck can be reading
 three classes' wording in one session, and the one with no pill used to look like nobody's.
 
+### A backup could not say which version a list reads (2026-11-12)
+
+Found while checking whether a hand-edited export was safe to restore, which is the only reason it
+was found at all: **the format had no room for `drug_tags.variant_tag_id`.** `tags` was a list of
+slugs, memberships are replaced wholesale from that list, so every restore nulled the pointer on
+every membership it rebuilt -- undoing [the other half: the file's scope is the version's
+tags](#the-other-half-the-files-scope-is-the-versions-tags-2026-11-10) for every drug a lecture ever
+wrote, silently, on the one operation whose whole job is losing nothing. The live export has 64
+drugs with layers and could not show a single pointer, which is the proof rather than the worry.
+
+A membership is now either a slug, meaning *the drug's own words*, or `{ tag, reads }`. Both shapes
+restore, so a file written before today still works, and a tag with nothing pointed still exports as
+a bare string -- the file is meant to be read and diffed by a person, and the common row should stay
+one short string. `BACKUP_VERSION` stays 3 for the same reason it did for `baseVariant`: additive
+and readable both ways.
+
+**The pointer is checked rather than trusted**, by the rule `pointTagsAtVariant` writes it under: it
+must name a class or exam that has a layer **on this drug in this file**. A pointer at wording that
+is not there is read by every reader as the drug's own words anyway, so restoring one would only put
+back a row claiming a version the drug has not got -- which is exactly what `clearVariantLayer`
+nulls when a layer goes. Dropped, reported, membership kept: being on the list is the fact, and
+which wording it reads is the annotation.
+
+### V-1 Top Drugs 2026 (2026-11-12)
+
+*The 236 top drugs should be V-1 Top Drugs 2026.*
+
+Which asks the base attribution to name a `top_list` tag, and it was written to accept only a
+`course` or an `exam` -- the kinds a *layer* can live on. That restriction was inherited rather than
+reasoned: a layer is wording that differs, and wording differs by class, so only a class or an exam
+can hold one. The base is not a layer. It is the answer to *whose words is this whole profile*, and
+for the 236 off the class sheet the honest answer is the list they arrived on.
+
+So `setBaseVariant`, `baseVariantOf` and the restore's check now take any tag the drug carries, and
+`BaseVariant.kind` is a tag kind rather than a `VariantKind`. Nothing else moves: a list cannot hold
+a layer, so there is no pill for it to collide with and `variantOptionsFor` never offered one. Null
+still means nobody in particular, which is now a smaller set -- a drug somebody typed by hand.
+
+The one thing that had to change with it is the sentence under the pills, because a class and a list
+are different facts. A class *teaches* the base: the lecture that created the drug wrote it, and
+there is nothing underneath for that class to differ from. A list only says where the profile came
+from. Printing the class sentence over *Top Drugs 2026* would have claimed the sheet was a lecture
+somebody sat through.
+
 ### *from from PHRM 532 content* (2026-11-12)
 
 Every value a lecture ever wrote printed its provenance twice. `provenanceOf` stores the preposition
