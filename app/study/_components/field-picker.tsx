@@ -81,18 +81,42 @@ export function FieldPicker({
       <fieldset className="sm:col-span-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <legend className="text-sm font-medium">Fields</legend>
-          {chosen.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setChosen([]);
-                setActiveYear('');
-              }}
-              className="pill pill-xs"
-            >
-              Clear fields
-            </button>
-          )}
+          {/* Both buttons, because *everything* is a real study session and
+              ticking fourteen boxes to ask for it is not. It is not the same
+              instruction as a year -- a year ticks the columns that year is
+              responsible for and leaves what a lecture added alone, where this
+              takes the lot, the folded-away ones included.
+
+              Only the fields this screen offers, which on both screens is the
+              quizzable set: a field nothing can ask about is not on the list
+              to begin with, so *all* cannot reach one. */}
+          <div className="flex flex-wrap gap-1">
+            {chosen.length < fields.length && (
+              <button
+                type="button"
+                onClick={() => {
+                  setChosen(fields.map((field) => field.key));
+                  // The lot is not any one year's set.
+                  setActiveYear('');
+                }}
+                className="pill pill-xs"
+              >
+                Select all {fields.length}
+              </button>
+            )}
+            {chosen.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setChosen([]);
+                  setActiveYear('');
+                }}
+                className="pill pill-xs"
+              >
+                Clear fields
+              </button>
+            )}
+          </div>
         </div>
         <p className="mt-1 text-xs text-[var(--muted)]">
           {chosen.length === 0

@@ -3176,6 +3176,22 @@ reads *Read off: PHRM 532 content*, which was the same bug the other way round.
 The pattern requires the space, so *Fromilid labelling* keeps its first four letters. That is in the
 test, because the obvious `startsWith('from')` is wrong on a real brand of clarithromycin.
 
+### Select all the fields, and why it is not the year (2026-11-12)
+
+Asked for on both study screens. *Clear fields* was there and its opposite was not, so a session over
+everything meant ticking every box by hand.
+
+It is deliberately **not** the same instruction as the year dropdown, which ticks the columns that
+program year is responsible for and leaves alone everything a lecture declared -- see [A lecture's
+fields fold away](#a-lectures-fields-fold-away-2026-11-09). *Select all* takes the lot, the
+folded-away ones included, and the `<details>` opens itself to show that it did, because a count
+that changes behind a closed fold is how somebody ends up with a deck they did not ask for.
+
+Both screens pass the **quizzable** set to the picker, so *all* cannot reach `drug_class` or `route`
+-- the two fields that are not sheet columns and are not asked. The button says how many it will
+tick for the same reason the fold says how many are selected: *Select all 14* and a deck of 14 cards
+per drug are the same fact, and seeing the number first is cheaper than reading it off a deck.
+
 ### One exam, several lectures, one layer (2026-11-10)
 
 *These different sections have the same drugs. Does importing one after the other add to the same
