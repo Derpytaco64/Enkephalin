@@ -17,7 +17,15 @@ export async function searchDrugsAction(query: string): Promise<LookupHit[]> {
   return searchDrugs(query);
 }
 
-export async function lookupDrugAction(slug: string): Promise<LookupCard | null> {
+/**
+ * @param scopeTags What the session is scoped to, so the panel reads the drug
+ *   the way the card asked about it. Slugs only: the server resolves them into
+ *   versions itself, exactly as the session did -- see `lookupDrug`.
+ */
+export async function lookupDrugAction(
+  slug: string,
+  scopeTags: string[] = [],
+): Promise<LookupCard | null> {
   const session = await requireUser();
-  return lookupDrug(slug, session.user.id);
+  return lookupDrug(slug, session.user.id, scopeTags);
 }

@@ -206,7 +206,29 @@ describe('the rules the lookup panel runs under', () => {
   });
 
   it('loads the drug the trigger named, without it being searched for', () => {
-    expect(panel).toContain('lookupDrugAction(drug.slug)');
+    expect(panel).toContain('lookupDrugAction(drug.slug, scopeTags)');
+  });
+
+  /* The panel reads the drug as the session reads it, which it can only do if
+     every runner hands it the scope. A panel without one silently falls back
+     to the drug's own profile -- the same wrong answer it used to give
+     always, now harder to notice because the other panel is right. */
+  it('is told what the session is scoped to, wherever it is opened', () => {
+    for (const [name, source] of [['quiz', quiz], ['flashcards', flashcards]] as const) {
+      const panels = source.match(/<LookupPanel[\s\S]{0,400}?\/>/g) ?? [];
+      expect(panels.length, `${name} has a panel`).toBeGreaterThan(0);
+      for (const found of panels) {
+        expect(found, `${name} panel carries the scope`).toContain('scopeTags={config.scope.tags}');
+      }
+    }
+  });
+
+  it('resolves the scope on the server rather than believing the browser', () => {
+    // The action takes tag slugs and nothing else. Were it to take versions or
+    // values, the panel would be a profile anybody could ask for any version
+    // of -- and it is reachable by every signed-in user.
+    expect(code(actions)).toContain('scopeTags: string[]');
+    expect(code(actions)).not.toContain('fields');
   });
 
   it('leaves no new-tab drug link in a runner, so one way in means one way in', () => {

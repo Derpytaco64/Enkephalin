@@ -3353,6 +3353,42 @@ value's provenance line prints -- *from PHRM 532 content*, on 1,136 live values.
 `docs/drug-import.md` now says so under `scope`, because a file whose exam label lacks the year
 would create a second, undated tag beside the real one.
 
+### The panel behind the card shows the same version (2026-11-12)
+
+*Does the drug panel after a quiz or card flip show the version that is being asked about, or
+display that it is that version at all?*
+
+No, on both counts, and the second was the worse one. `lookupDrug` read `drugs.fields` and printed
+them — the drug's **own** profile, whatever the session was reading. So the one moment the panel
+exists for was the moment it was wrong: a card asks what the exam says the warning is, you flip it,
+you open the drug to check, and the panel shows a different sentence with nothing on it saying why.
+Two wordings and no third thing telling you they are both right.
+
+It now takes the session's scope — `config.scope.tags`, handed down by both runners — and resolves
+it **on the server with the same two functions the session used**: `variantSlugsAmong` for what the
+scope names, `membershipVariants` for what each list says a drug is read as, applied in that order,
+narrowest last. Not the versions re-sent from the browser: this is reachable by every signed-in
+user, and a panel that believed what the page told it would be a profile anybody could ask for any
+version of.
+
+Whose words each field is comes from `wordedBy` in `lib/drugs/variants.ts`, which is the loop the
+study loader used to hold privately. One function, because the panel and the card have to agree
+about this by construction — a second copy of the rule is a pill that lies on one screen and not on
+the other.
+
+What it shows: the versions in play as a band under the drug's name, in the same coloured pill the
+card wore, and a pill of its own on any field a class reworded. Only the layers get a row pill —
+V-1 is most of the panel and is named once at the top, and repeating it on every line would bury
+the two lines that are somebody else's.
+
+Only versions that **actually supplied something** are named. A class in scope that has said nothing
+about this drug is not a version of it.
+
+**And `V-2` no longer breaks in half.** A pill is an inline-flex row, so a label long enough to wrap
+— *Infectious Disease Exam 1 2026* — squeezed the number beside it until the browser took the hyphen
+as a break and stacked *V-* above *2*. Every place that prints a version number is `whitespace-
+nowrap` now: the profile's picker and comparison table, the browse badge, the card's pill.
+
 ### One exam, several lectures, one layer (2026-11-10)
 
 *These different sections have the same drugs. Does importing one after the other add to the same

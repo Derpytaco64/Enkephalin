@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LookupCard, LookupHit } from '@/lib/study/lookup';
+import type { CardVariant } from '@/lib/study/cards';
 import { lookupDrugAction, searchDrugsAction } from './lookup-actions';
+import { VariantPills } from './variant-pills';
 
 /** The drug a trigger names, which is what the panel opens on. */
 export type LookupTarget = { slug: string; generic: string };
@@ -82,12 +84,19 @@ export function LookupPanel({
   drug,
   available,
   onClose,
+  scopeTags = [],
 }: {
   /** Null is closed. */
   drug: LookupTarget | null;
   /** False shuts it, wherever it was opened from. */
   available: boolean;
   onClose: () => void;
+  /**
+   * The session's scope, so the panel reads each drug as the session reads it
+   * and says so. `config.scope.tags`; empty is the drug's own profile, which
+   * is what every caller outside a scoped session wants.
+   */
+  scopeTags?: string[];
 }) {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<LookupHit[]>([]);
@@ -116,12 +125,15 @@ export function LookupPanel({
     if (drug === null) return;
 
     let current = true;
-    void lookupDrugAction(drug.slug).then((found) => {
+    void lookupDrugAction(drug.slug, scopeTags).then((found) => {
       if (current) setCard(found);
     });
     return () => {
       current = false;
     };
+    // The scope is fixed for the life of a session, and a fresh array literal
+    // from the parent on every render would refetch the drug forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drug]);
 
   useEffect(() => {
@@ -214,7 +226,7 @@ export function LookupPanel({
                 <li key={hit.slug}>
                   <button
                     type="button"
-                    onClick={() => void lookupDrugAction(hit.slug).then(setCard)}
+                    onClick={() => void lookupDrugAction(hit.slug, scopeTags).then(setCard)}
                     className="flex w-full flex-wrap items-baseline gap-x-2 gap-y-1 px-3 py-2
                       text-left text-sm hover:bg-[var(--bg)]"
                   >
@@ -256,6 +268,21 @@ export function LookupPanel({
                   shows them per brand) and nothing picked them up again. */}
               <h2 className="text-xl font-semibold tracking-tight">{card.generic}</h2>
 
+              {/* Whose words these are, in the same coloured pill the card
+                  wore -- the panel is opened to check an answer against the
+                  profile, and the two have to be the same profile. Where a
+                  class has reworded a field, the row says so below; this band
+                  is the whole panel's provenance.
+
+                  The drug's name is above it rather than inside it, which the
+                  card may not do: here the drug has already been named by the
+                  thing that opened the panel. */}
+              {card.versions.length > 0 && (
+                <div className="mt-2">
+                  <VariantPills variants={card.versions} />
+                </div>
+              )}
+
               <dl className="mt-3 space-y-2.5">
                 {card.schedule !== null && <Row label="Controlled schedule">{card.schedule}</Row>}
                 {card.drugClass !== null && <Row label="Drug class">{card.drugClass}</Row>}
@@ -282,7 +309,14 @@ export function LookupPanel({
                       a dose wrapping to four lines. */}
                   <dl className="mt-2 space-y-2.5">
                     {group.fields.map((field) => (
-                      <Row key={field.key} label={field.label}>
+                      <Row
+                        key={field.key}
+                        label={field.label}
+                        /* Only a layer's. V-1 is named once at the top and is
+                           most of the panel; repeating it on every row would
+                           bury the two lines that are somebody else's. */
+                        version={field.version && field.version.n > 1 ? field.version : null}
+                      >
                         {field.lines.map((line, index) => (
                           <span key={index} className="block whitespace-pre-line">{line}</span>
                         ))}
@@ -322,10 +356,26 @@ export function LookupPanel({
  * side of it -- which is what `tests/colour-is-cosmetic.test.ts` exists to
  * stop.
  */
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  version = null,
+  children,
+}: {
+  label: string;
+  /** A class that worded this line its own way, where one did. */
+  version?: CardVariant | null;
+  children: React.ReactNode;
+}) {
   return (
     <div className="sm:grid sm:grid-cols-[9rem_1fr] sm:gap-3">
-      <dt className="text-xs text-[var(--muted)] sm:pt-0.5">{label}</dt>
+      <dt className="text-xs text-[var(--muted)] sm:pt-0.5">
+        {label}
+        {version && (
+          <span className="mt-1 block">
+            <VariantPills variants={[version]} />
+          </span>
+        )}
+      </dt>
       <dd className="text-sm">{children}</dd>
     </div>
   );

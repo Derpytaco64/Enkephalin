@@ -10,6 +10,7 @@ import { setTagDrugs } from '@/lib/tags/mutations';
 import { setDrugTags } from '@/lib/drugs/mutations';
 import { getDrugIndex } from '@/lib/drugs/browse';
 import { loadCardSources } from '@/lib/study/sources';
+import { lookupDrug } from '@/lib/study/lookup';
 import { DEFAULT_CONFIG, normalizeConfig } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
 
@@ -336,6 +337,24 @@ describe('telling you whose words you are studying', () => {
     const [card] = deck.cards.filter((entry) => entry.slug === 'amoxicillin');
 
     expect(card.variants).toEqual([]);
+  });
+
+  it('shows the lookup panel the version the list points at', async () => {
+    await saveVariantLayer({
+      drugSlug: 'amoxicillin', variantSlug: CLASS,
+      values: { moa: 'What PHRM 535 says' }, source: '', note: '', userId: ME,
+    });
+
+    // Scoped to the list, which is the ordinary way to study: the pointer is
+    // the only thing saying to read the class's wording, and the panel has to
+    // follow it or it contradicts the card that was just answered.
+    const card = await lookupDrug('amoxicillin', ME, [LIST]);
+    const moa = card!.groups.flatMap((group) => group.fields)
+      .find((field) => field.key === 'moa')!;
+
+    expect(moa.lines).toEqual(['What PHRM 535 says']);
+    expect(moa.version).toEqual({ n: 2, label: 'PHRM 535', slug: CLASS });
+    expect(card!.versions).toEqual([{ n: 2, label: 'PHRM 535', slug: CLASS }]);
   });
 
   it('never carries the drug’s name, which would give the answer away', async () => {

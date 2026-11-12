@@ -166,6 +166,55 @@ export function overriddenKeys(layer: Record<string, FieldValue>): string[] {
   );
 }
 
+/**
+ * A version of a drug as a screen has to name it: the number and whose it is.
+ *
+ * The same three things `CardVariant` carries, written here because the rule
+ * below is shared by the study loader and the lookup panel and neither of them
+ * should own it.
+ */
+export type FieldAuthor = { n: number; label: string; slug: string };
+
+/**
+ * Whose words each field is, once the layers have been applied.
+ *
+ * The companion of `overlayFields`, and deliberately written beside it: the
+ * two walk the same layers in the same order, so the version a pill names is
+ * always the version whose value won. They were a pair of loops in the study
+ * loader until the lookup panel needed the same answer; a second copy of this
+ * is a pill that lies on one screen and not on the other.
+ *
+ * **The drug's own fields go in first**, where a lecture is whose they are: a
+ * drug that arrived with one holds that lecture's wording as its base, so
+ * every field it answers is that class's until a layer speaks over the key.
+ * `overriddenKeys` is the right test for the base as well as for a layer --
+ * it asks which keys hold an answer, and it leaves the core fields out, which
+ * are the sheet's.
+ *
+ * A layer with no `version` still applies its values (`overlayFields` does
+ * that) but names nobody: an unnumbered class is one that has said nothing of
+ * its own, and there is nothing for it to have worded.
+ */
+export function wordedBy(
+  drugFields: Record<string, FieldValue>,
+  base: { label: string; slug: string } | null | undefined,
+  layers: { fields: Record<string, FieldValue>; variant: FieldAuthor | null }[],
+): Record<string, FieldAuthor> {
+  const authors: Record<string, FieldAuthor> = {};
+
+  if (base) {
+    for (const key of overriddenKeys(drugFields)) {
+      authors[key] = { n: 1, label: base.label, slug: base.slug };
+    }
+  }
+  for (const layer of layers) {
+    if (!layer.variant) continue;
+    for (const key of overriddenKeys(layer.fields)) authors[key] = layer.variant;
+  }
+
+  return authors;
+}
+
 /* ----------------------------------------------------------------- read ---- */
 
 /** The SQL fragment for "a tag that can carry a variant". */

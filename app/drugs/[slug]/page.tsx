@@ -201,12 +201,12 @@ function VariantTable({
                       V-2 and V-3 reads like the unsourced one, when it is
                       Exam 1's. */}
                   <th scope="col" className={head}>
-                    <span className="font-mono">V-1</span>{' '}
+                    <span className="font-mono whitespace-nowrap">V-1</span>{' '}
                     {base ?? 'the drug’s own'}
                   </th>
                   {columns.map((column) => (
                     <th key={column.slug} scope="col" className={head}>
-                      <span className="font-mono">V-{column.n}</span> {column.label}
+                      <span className="font-mono whitespace-nowrap">V-{column.n}</span> {column.label}
                     </th>
                   ))}
                 </tr>
@@ -628,7 +628,11 @@ export default async function DrugProfilePage({
                         So it takes the first number rather than a marker of
                         its own, which is what makes *V-2* mean *there are two
                         versions of this drug*. */}
-                    <span className="font-mono">V-1</span>{' '}
+                    {/* Never broken across two lines. A pill is an
+                        inline-flex row, so a label long enough to wrap
+                        squeezes this item until the browser takes the
+                        hyphen as a break and leaves *V-* above *2*. */}
+                    <span className="font-mono whitespace-nowrap">V-1</span>{' '}
                     {baseVariant?.label ?? 'the drug’s own'}
                   </Link>
                 </li>
@@ -643,7 +647,9 @@ export default async function DrugProfilePage({
                       {/* The number is the identifier a card showed you, so it
                           leads. A class with nothing of its own has none --
                           see PLAN, *V-n is the version*. */}
-                      {option.n !== null && <span className="font-mono">V-{option.n}</span>}
+                      {option.n !== null && (
+                        <span className="font-mono whitespace-nowrap">V-{option.n}</span>
+                      )}
                       {option.n !== null ? ' ' : ''}{option.label}
                     </Link>
                   </li>
@@ -673,7 +679,7 @@ export default async function DrugProfilePage({
                   which is why no pill of its own was ever missing. */}
               {baseVariant !== null && (
                 <p className="mt-2 text-xs text-[var(--muted)]">
-                  <span className="font-mono">V-1</span> is the drug&rsquo;s own profile
+                  <span className="font-mono whitespace-nowrap">V-1</span> is the drug&rsquo;s own profile
                   {isVariantKind(baseVariant.kind) ? (
                     <>
                       , which is what {baseVariant.label} teaches: it arrived with that lecture, so

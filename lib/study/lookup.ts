@@ -16,9 +16,19 @@ import { and, asc, eq, ilike, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { drugBrands, drugs } from '@/db/schema';
 import { getDrugProfile } from '@/lib/drugs/profile';
+import {
+  baseVariantOf,
+  membershipVariants,
+  overlayFields,
+  variantLayersForDrug,
+  variantOptionsFor,
+  variantSlugsAmong,
+  wordedBy,
+} from '@/lib/drugs/variants';
 import { emptyLabel, formatFieldValue, type FormattedField } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import type { FieldValue } from '@/db/schema';
+import type { CardVariant } from './cards';
 
 export type LookupHit = {
   slug: string;
@@ -29,7 +39,18 @@ export type LookupHit = {
   matchedBrand: string | null;
 };
 
-export type LookupField = { key: string; label: string; group: string; lines: string[] };
+export type LookupField = {
+  key: string;
+  label: string;
+  group: string;
+  lines: string[];
+  /**
+   * Whose wording this line is, where it is somebody's -- the same
+   * `{ n, label, slug }` a card's pill carries, so the panel and the card
+   * name a version identically or not at all.
+   */
+  version: CardVariant | null;
+};
 
 export type LookupCard = {
   slug: string;
@@ -39,6 +60,15 @@ export type LookupCard = {
   brands: string[];
   indications: string[];
   groups: { group: string; fields: LookupField[] }[];
+  /**
+   * The versions this panel is reading, lowest number first -- so V-1 and
+   * whose it is leads, and any class that worded a field its own way follows.
+   *
+   * Only the ones that actually supplied something on screen: a class in scope
+   * that has said nothing about this drug is not a version of it, and a pill
+   * for it would be a claim about wording that is not there.
+   */
+  versions: CardVariant[];
 };
 
 const MAX_HITS = 8;
@@ -104,12 +134,63 @@ export async function searchDrugs(query: string, limit = MAX_HITS): Promise<Look
   }));
 }
 
-/** Everything the panel shows about one drug, formatted as the profile does it. */
-export async function lookupDrug(slug: string, userId?: string): Promise<LookupCard | null> {
+/**
+ * Everything the panel shows about one drug, formatted as the profile does it
+ * and **read as the session is reading it**.
+ *
+ * @param scopeTags The session's list and exam slugs -- `config.scope.tags`,
+ *   passed through from the runner.
+ *
+ * The panel used to show the drug's own profile whatever was being studied,
+ * which made it quietly wrong in exactly the situation the variant feature
+ * exists for: a card asks what PHRM 535 says the mechanism is, you flip it,
+ * you open the drug to check, and the panel shows the drug's own mechanism
+ * with nothing saying the two are different sentences.
+ *
+ * So it takes the same two inputs the session took -- `variantSlugsAmong` for
+ * what the scope names and `membershipVariants` for what each list says a drug
+ * is read as -- applies them in the same order, and names the result. Same
+ * functions, not the same values re-sent from the browser: a panel that
+ * believed what the page told it would be a profile anybody could ask for any
+ * version of.
+ */
+export async function lookupDrug(
+  slug: string,
+  userId?: string,
+  scopeTags: string[] = [],
+): Promise<LookupCard | null> {
   const profile = await getDrugProfile(slug, userId);
   if (profile === null) return null;
 
   const { drug, brands, indications, defs } = profile;
+
+  const [scopeVariants, byMembership, base, options, stored] = await Promise.all([
+    variantSlugsAmong(scopeTags),
+    membershipVariants(scopeTags),
+    baseVariantOf(drug.id),
+    variantOptionsFor(drug.id),
+    variantLayersForDrug(drug.id),
+  ]);
+
+  // The numbers a reader has already seen: the picker's, the browse badge's
+  // and the card's. A class with nothing of its own is not in here and gets no
+  // pill, which is the rule everywhere else.
+  const numbered = new Map(
+    options
+      .filter((option): option is typeof option & { n: number } => option.n !== null)
+      .map((option) => [option.slug, { n: option.n, label: option.label, slug: option.slug }]),
+  );
+
+  // The standing choice a list makes first, the deliberate one the scope makes
+  // last -- `loadCardSources` orders them that way and the panel must not
+  // reorder them, or it would show the losing value as the winning one.
+  const layers = [...(byMembership.get(drug.id) ?? []), ...scopeVariants].map((tag) => ({
+    fields: stored.get(tag) ?? {},
+    variant: numbered.get(tag) ?? null,
+  }));
+
+  const fields = overlayFields(drug.fields, ...layers.map((layer) => layer.fields));
+  const authors = wordedBy(drug.fields, base, layers);
 
   // Core fields live in their own columns; the rest come out of the JSONB.
   // Identity is not repeated as a field row -- the card's heading is already
@@ -136,13 +217,14 @@ export async function lookupDrug(slug: string, userId?: string): Promise<LookupC
               updatedAt: drug.updatedAt.toISOString(),
               updatedBy: null,
             }
-          : drug.fields[def.key];
+          : fields[def.key];
 
         return {
           key: def.key,
           label: def.label,
           group,
           lines: linesOf(formatFieldValue(def, value), def),
+          version: authors[def.key] ?? null,
         };
       }),
   })).filter((entry) => entry.fields.length > 0);
@@ -155,5 +237,9 @@ export async function lookupDrug(slug: string, userId?: string): Promise<LookupC
     brands: brands.map((brand) => brand.name),
     indications,
     groups,
+    // Deduplicated by slug and ordered by number, which puts V-1 first without
+    // having to say so: the base is 1 and a layer is 2 or more.
+    versions: [...new Map(Object.values(authors).map((v) => [v.slug, v])).values()]
+      .sort((a, b) => a.n - b.n),
   };
 }

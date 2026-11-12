@@ -23,6 +23,7 @@ import {
 import { getDrugProfile } from '@/lib/drugs/profile';
 import { ALL_VARIANTS } from '@/lib/drugs/variant-kinds';
 import { loadCardSources } from '@/lib/study/sources';
+import { lookupDrug } from '@/lib/study/lookup';
 import { DEFAULT_CONFIG, cardKey, normalizeConfig, type StudyConfig } from '@/lib/study/config';
 import { loadDeck } from '@/lib/study/session';
 
@@ -873,5 +874,57 @@ describe('the drug\'s own words have an owner', () => {
     // it. A drug with two versions, counted the way a reader counts them.
     expect(source.wordedBy?.moa).toEqual({ n: 1, label: 'PSCI 413', slug: COURSE });
     expect(source.wordedBy?.bbw).toEqual({ n: 2, label: 'Heme/Onc Exam 3', slug: EXAM });
+  });
+
+  /* The panel you open mid-session to check the answer you just gave. It read
+     the drug's own profile whatever was being studied, which made it wrong in
+     exactly the case the versions exist for: the card asks what the exam says,
+     you flip it, you open the drug, and the panel shows a different sentence
+     with nothing saying why. */
+  it('reads the drug the way the session is reading it, and says whose words', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: EXAM,
+      values: { bbw: 'What the exam says about the warning' },
+      source: '', note: '', userId: ME,
+    });
+
+    const card = await lookupDrug('levothyroxine', ME, [EXAM]);
+    const fields = card!.groups.flatMap((group) => group.fields);
+    const moa = fields.find((field) => field.key === 'moa')!;
+    const bbw = fields.find((field) => field.key === 'bbw')!;
+
+    // The exam's warning, named as the exam's -- the same number and label the
+    // card's pill carried.
+    expect(bbw.lines).toEqual(['What the exam says about the warning']);
+    expect(bbw.version).toEqual({ n: 2, label: 'Heme/Onc Exam 3', slug: EXAM });
+    // And the drug's own mechanism, which is the class's: the exam said
+    // nothing about it, so nothing about it changed.
+    expect(moa.lines).toEqual(['Replaces T4']);
+    expect(moa.version).toEqual({ n: 1, label: 'PSCI 413', slug: COURSE });
+
+    // Lowest number first, so the band reads V-1 then whoever reworded.
+    expect(card!.versions).toEqual([
+      { n: 1, label: 'PSCI 413', slug: COURSE },
+      { n: 2, label: 'Heme/Onc Exam 3', slug: EXAM },
+    ]);
+  });
+
+  it('names nobody where nobody has been named', async () => {
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: EXAM,
+      values: { bbw: 'What the exam says about the warning' },
+      source: '', note: '', userId: ME,
+    });
+
+    // No base attribution and nothing in scope: the drug's own words, and no
+    // pill at all. An unattributed profile is not V-1 of anything.
+    const card = await lookupDrug('levothyroxine', ME, []);
+    const fields = card!.groups.flatMap((group) => group.fields);
+
+    expect(fields.find((field) => field.key === 'bbw')!.lines)
+      .toEqual(['Thyrotoxicosis in weight loss']);
+    expect(fields.every((field) => field.version === null)).toBe(true);
+    expect(card!.versions).toEqual([]);
   });
 });

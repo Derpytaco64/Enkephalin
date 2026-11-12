@@ -225,7 +225,12 @@ export function SessionRunner({
         />
       </p>
 
-      <LookupPanel drug={lookup} available={revealed} onClose={() => setLookup(null)} />
+      {/* Read as the deck was built: the panel takes the session's scope,
+          so the profile it shows is the one the card asked about. */}
+      <LookupPanel
+        drug={lookup} available={revealed} scopeTags={config.scope.tags}
+        onClose={() => setLookup(null)}
+      />
     </div>
   );
 }

@@ -691,7 +691,7 @@ export function DrugBrowser({
                     >
                       {/* The highest number, which is also how many versions
                           there are: the drug's own profile is V-1. */}
-                      V-{row.variants.length + 1}
+                      <span className="whitespace-nowrap">V-{row.variants.length + 1}</span>
                     </Link>
                   )}
                   {row.review === 'flagged' && (
@@ -723,7 +723,10 @@ export function DrugBrowser({
                     {matchedIn.get(row.slug)!.variant && (
                       <span className="ml-1 rounded border border-[var(--border)] px-1 py-px
                         font-mono text-[0.625rem]">
-                        V-{matchedIn.get(row.slug)!.variant!.n} {matchedIn.get(row.slug)!.variant!.label}
+                        <span className="whitespace-nowrap">
+                          V-{matchedIn.get(row.slug)!.variant!.n}
+                        </span>{' '}
+                        {matchedIn.get(row.slug)!.variant!.label}
                       </span>
                     )}
                     <span className="font-medium">:</span>{' '}

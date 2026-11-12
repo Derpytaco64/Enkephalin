@@ -20,9 +20,9 @@ import {
 } from '@/db/schema';
 import { toSig } from '@/lib/dosing/sig';
 import {
-  allVariantLayers, baseVariantsByDrug, numberedVariantsByDrug, overlayFields, overriddenKeys,
+  allVariantLayers, baseVariantsByDrug, numberedVariantsByDrug, overlayFields, wordedBy,
 } from '@/lib/drugs/variants';
-import type { CardSource, CardVariant } from './cards';
+import type { CardSource } from './cards';
 
 /**
  * Core fields wrapped in the same envelope as the stored ones, so the card
@@ -201,24 +201,9 @@ export async function loadCardSources(
 
     // Who worded each field, in the order the layers apply -- so the last one
     // to speak about a key is the one recorded, which is the one whose value
-    // the overlay above kept.
-    const wordedBy: Record<string, CardVariant> = {};
-    // The drug's own words go in first, where a lecture is whose they are: a
-    // drug that arrived with one holds its wording as the base, so every field
-    // it answers is that class's until a layer speaks over the key -- which the
-    // loop below then does, in overlay order. `overriddenKeys` is the right
-    // test for the base as well as for a layer: it asks which keys hold an
-    // answer, and it leaves the core fields out, which are the sheet's.
-    const base = bases.get(drug.id);
-    if (base) {
-      for (const key of overriddenKeys(drug.fields)) {
-        wordedBy[key] = { n: 1, label: base.label, slug: base.slug };
-      }
-    }
-    for (const layer of layersFor(drug.id)) {
-      if (!layer.variant) continue;
-      for (const key of overriddenKeys(layer.fields)) wordedBy[key] = layer.variant;
-    }
+    // the overlay below kept. The lookup panel asks the same question of the
+    // same function, which is why it is not a loop written here.
+    const authors = wordedBy(drug.fields, bases.get(drug.id), layersFor(drug.id));
     const routeValue = drug.fields.route?.value ?? '';
 
     return {
@@ -235,7 +220,7 @@ export async function loadCardSources(
       dosingSig: sigByDrug.get(drug.id) ?? null,
       dosingBranches: [...(branchesByDrug.get(drug.id)?.values() ?? [])],
       needsPairingReview: drug.needsPairingReview,
-      wordedBy,
+      wordedBy: authors,
       values: {
         // The variant layers first, so a class's own wording is what the card
         // asks about. In the order the caller gave them, which is the order

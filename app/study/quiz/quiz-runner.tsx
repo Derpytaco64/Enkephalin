@@ -362,7 +362,10 @@ export function QuizRunner({
           </div>
         </div>
 
-        <LookupPanel drug={lookup} available onClose={() => setLookup(null)} />
+        <LookupPanel
+          drug={lookup} available scopeTags={config.scope.tags}
+          onClose={() => setLookup(null)}
+        />
 
         {wrong.length > 0 && (
           <section className="mt-8">
@@ -514,7 +517,12 @@ export function QuizRunner({
         )}
       </article>
 
-      <LookupPanel drug={lookup} available={answered} onClose={() => setLookup(null)} />
+      {/* Read as the paper was set: the panel takes the session's scope,
+          so the profile it shows is the one the question asked about. */}
+      <LookupPanel
+        drug={lookup} available={answered} scopeTags={config.scope.tags}
+        onClose={() => setLookup(null)}
+      />
 
       <p className="mt-3 text-xs text-[var(--muted)]">
         1–{question.options.length} to answer, space to move on.
