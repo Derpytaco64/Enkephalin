@@ -160,6 +160,10 @@ export const CORE_FIELD_DEFS: NewFieldDef[] = [
     // 147 of 237 have none. Without this the review queue fills with phantom
     // work and flashcards ask for warnings that do not exist.
     blankMeansNone: true,
-    promptTemplate: 'Does {{generic}} carry a black box warning?',
+    // Not *does it carry one*, which was the question while a card could
+    // answer "None". Only the drugs that have one are asked now -- see
+    // `worthAsking` in lib/study/cards.ts -- so a yes/no question would be one
+    // whose answer is always yes, and what is worth recalling is the warning.
+    promptTemplate: 'What is the black box warning for {{generic}}?',
   },
 ];

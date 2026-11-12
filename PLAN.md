@@ -3289,10 +3289,17 @@ than a data one:
   free elimination.
 
 **What it costs**, recorded because it is a real cost and the owner took it knowingly: a card
-existing is now itself a fact. *Does amoxicillin carry a black box warning* only comes up for the
-drugs that do, so the question half-answers itself. That is the smaller price -- the deck it
+existing is now itself a fact. A black box warning card only comes up for the drugs that have one,
+so its existence says so before the answer is shown. That is the smaller price -- the deck it
 replaces was mostly one word -- and it is why `none` and `missing` still differ everywhere a value
 is shown rather than asked.
+
+**And the question had to change with it.** `bbw` asked *Does {{generic}} carry a black box
+warning?*, which was a fair question while *None* was one of its answers and is now one whose answer
+is always yes. It asks *What is the black box warning for {{generic}}?* instead -- in the seed, and
+in the restored file, since a template lives in the database and the field editor can change it.
+`controlled` needed nothing: *what is the schedule of* was already a question about the drugs it is
+now asked of.
 
 ### A regimen folds on its protocols (2026-11-12)
 

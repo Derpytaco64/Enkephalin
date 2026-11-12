@@ -140,10 +140,14 @@ export function answerText(def: FieldDef, value: FieldValue | undefined): string
  * asking a hundred times.
  *
  * What it costs, and it is worth knowing: a card existing is now itself a
- * fact. *Does amoxicillin carry a black box warning* only comes up for the
- * drugs that do, so the question half-answers itself. That is a smaller price
+ * fact. A black box warning card only comes up for the drugs that have one, so
+ * its existence says so before the answer is shown. That is a smaller price
  * than a deck of *None*, and it is why `missing` and `none` still differ
  * everywhere else -- the profile goes on saying which it is.
+ *
+ * The field's question changed with it: *does {{generic}} carry a black box
+ * warning* was a fair yes/no while *None* was an answer, and would now be one
+ * whose answer is always yes. It asks for the warning instead.
  */
 export function worthAsking(def: FieldDef, value: FieldValue | undefined): boolean {
   return formatFieldValue(def, value).kind !== 'none';
