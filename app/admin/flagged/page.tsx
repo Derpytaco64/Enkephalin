@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { flaggedCounts, flaggedQueue } from '@/lib/admin/flagged';
+import { sourceName } from '@/lib/fields/format';
 import { ClearFlagButton } from './clear-flag-button';
 
 export const metadata = { title: 'Flagged values' };
@@ -104,7 +105,10 @@ export default async function FlaggedPage() {
               </p>
 
               {row.source && (
-                <p className="mt-1 text-xs text-[var(--muted)]">Read off: {row.source}</p>
+                // The bare name here, because this line supplies its own
+                // preposition: *Read off: from PHRM 532 content* reads as badly
+                // as the doubled *from* did on the profile.
+                <p className="mt-1 text-xs text-[var(--muted)]">Read off: {sourceName(row.source)}</p>
               )}
 
               <div className="mt-3 flex flex-wrap gap-2">

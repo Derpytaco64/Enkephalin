@@ -3159,6 +3159,23 @@ flashcard asking Exam 1's mechanism shows `V-1 Heme/Onc Exam 3` beside the `V-2`
 siblings carry. Same marker as the profile, for the reason the pills exist at all: a deck can be reading
 three classes' wording in one session, and the one with no pill used to look like nobody's.
 
+### *from from PHRM 532 content* (2026-11-12)
+
+Every value a lecture ever wrote printed its provenance twice. `provenanceOf` stores the preposition
+inside the phrase -- *from PHRM 532 content*, which is the wording asked for in [One provenance
+line, and it names the class](#one-provenance-line-and-it-names-the-class-2026-11-09) -- and the
+profile put its own *from* in front of whatever a value held, because the sheet's sources are bare
+names (*class sheet*, *added by hand*) and needed one.
+
+Fixed as a display rule, `fromSource` in `lib/fields/format.ts`, not as a migration: the phrase in
+the database is the one that was asked for, and thousands of live values already hold it, so a rule
+in the renderer fixes the running site where a rewrite would only fix the next import. Its sibling
+`sourceName` gives the bare name to a line that supplies its own preposition -- the flagged queue
+reads *Read off: PHRM 532 content*, which was the same bug the other way round.
+
+The pattern requires the space, so *Fromilid labelling* keeps its first four letters. That is in the
+test, because the obvious `startsWith('from')` is wrong on a real brand of clarithromycin.
+
 ### One exam, several lectures, one layer (2026-11-10)
 
 *These different sections have the same drugs. Does importing one after the other add to the same

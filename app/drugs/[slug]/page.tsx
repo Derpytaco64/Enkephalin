@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Prose } from '@/app/_components/prose';
-import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
+import { emptyLabel, formatFieldValue, fromSource } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
 import { ALL_VARIANTS } from '@/lib/drugs/variant-kinds';
@@ -548,7 +548,12 @@ export default async function DrugProfilePage({
                           </span>
                         )}
                         {value?.source && (
-                          <span className="text-xs text-[var(--muted)]">from {value.source}</span>
+                          <span className="text-xs text-[var(--muted)]">
+                            {/* `fromSource`, not `from {source}`: an import
+                                stores the preposition inside the phrase, so
+                                this read *from from PHRM 532 content*. */}
+                            {fromSource(value.source)}
+                          </span>
                         )}
 
                         {/* One button, because there is one judgement left to

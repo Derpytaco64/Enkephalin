@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import { fieldDefs, type FieldValue } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
-import { emptyLabel, formatFieldValue } from '@/lib/fields/format';
+import { emptyLabel, formatFieldValue, fromSource, sourceName } from '@/lib/fields/format';
 import { groupFieldDefs, listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 
 beforeEach(async () => {
@@ -196,5 +196,40 @@ describe('what is study material', () => {
       // Still a field: profiles show it and the study scope filters on it.
       expect(def!.deletedAt).toBeNull();
     }
+  });
+});
+
+/**
+ * *from from PHRM 532 content*, which is what every imported value read.
+ *
+ * The stored phrase carries the preposition -- `provenanceOf` writes *from
+ * PHRM 532 content*, on the owner's instruction that a variant should say
+ * exactly that -- and the profile put its own *from* in front of it. So the
+ * rule is "say it once", and it lives next to the other display rules rather
+ * than in the data, where thousands of live values already hold the phrase.
+ */
+describe('saying where a value came from', () => {
+  it('says from exactly once, whichever way the source was written', () => {
+    expect(fromSource('from PHRM 532 content')).toBe('from PHRM 532 content');
+    expect(fromSource('class sheet')).toBe('from class sheet');
+    expect(fromSource('added by hand')).toBe('from added by hand');
+  });
+
+  it('is case- and space-insensitive about the prefix it strips', () => {
+    expect(sourceName('From PHRM 532 content')).toBe('PHRM 532 content');
+    expect(sourceName('  from   PHRM 532 content ')).toBe('PHRM 532 content');
+  });
+
+  it('leaves a source that merely starts with those letters alone', () => {
+    // *Fromilid*, a real brand of clarithromycin, and the reason the pattern
+    // needs the space in it: stripping four letters off a name is worse than
+    // the bug being fixed.
+    expect(sourceName('Fromilid labelling')).toBe('Fromilid labelling');
+    expect(fromSource('Fromilid labelling')).toBe('from Fromilid labelling');
+  });
+
+  it('gives the bare name to a line that supplies its own preposition', () => {
+    // The flagged queue reads *Read off: PHRM 532 content*.
+    expect(sourceName('from PHRM 532 content')).toBe('PHRM 532 content');
   });
 });

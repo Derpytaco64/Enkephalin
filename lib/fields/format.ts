@@ -72,3 +72,30 @@ export function emptyLabel(kind: 'none' | 'missing', def: FieldDef) {
   if (kind === 'none') return def.dataType === 'enum' ? 'Not controlled' : 'None';
   return 'Not recorded yet';
 }
+
+/* ---------------------------------------------------------- provenance ---- */
+
+/**
+ * A source with any leading *from* taken off: `PHRM 532 content`.
+ *
+ * Half the stored sources carry the preposition and half do not, and both are
+ * right where they were written. The sheet's values say `class sheet`, a typed
+ * one says `added by hand`, and an import says **`from PHRM 532 content`** --
+ * because the owner's instruction was that a variant should read *from [class
+ * title] content*, which is a phrase rather than a name. See `provenanceOf`.
+ *
+ * So a screen that puts its own word in front of a source said it twice:
+ * *from from PHRM 532 content* on every value a lecture ever wrote. Fixed here
+ * rather than in the data, for two reasons -- the phrase in the database is the
+ * one the owner asked for, and thousands of live values already hold it, so a
+ * display rule fixes the running site and a migration would only fix the next
+ * import.
+ */
+export function sourceName(source: string): string {
+  return source.trim().replace(/^from\s+/i, '');
+}
+
+/** The reader's phrase, with *from* said exactly once: `from class sheet`. */
+export function fromSource(source: string): string {
+  return `from ${sourceName(source)}`;
+}
