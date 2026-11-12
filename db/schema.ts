@@ -1,6 +1,6 @@
 import {
   boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, real,
-  text, timestamp, uniqueIndex, uuid,
+  text, timestamp, uniqueIndex, uuid, type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 // Types only, so nothing is imported at runtime and this file stays loadable
 // by `node --experimental-strip-types` for the scripts.
@@ -142,6 +142,30 @@ export const drugs = pgTable('drugs', {
 
   rxcui: text('rxcui'),
 
+  /**
+   * The class or exam whose words **the drug's own profile** is, where it is
+   * one class's rather than the sheet's.
+   *
+   * A lecture imported into a drug the app had never held writes to the drug
+   * itself rather than to a layer -- see `import.ts`, where a brand-new drug
+   * takes everything as its own whatever the write mode says, because a drug
+   * whose mechanism went straight into a class layer would have a blank
+   * profile. The base is then that class's wording, and until this column
+   * nothing said so: the picker offered *the drug's own*, *V-1 Exam 2* and
+   * *V-2 Exam 3*, and the first of those was Exam 1 under a name that read
+   * like nobody's.
+   *
+   * Null is the normal case and means what it always meant -- the class
+   * sheet's, or whoever typed it. Not a variant layer: the base holds the
+   * whole profile and a layer holds only differences, which is why this is a
+   * pointer on `drugs` and not a row in `drug_variant_values`. A tag named
+   * here must be one the drug carries and must not also hold a layer, both
+   * enforced in `lib/drugs/variants.ts` -- the same class cannot be the drug's
+   * own words *and* a variation on them.
+   */
+  baseVariantTagId: uuid('base_variant_tag_id')
+    .references((): AnyPgColumn => tags.id, { onDelete: 'set null' }),
+
   // Every non-core field, keyed by field_defs.key -> FieldValue.
   fields: jsonb('fields').$type<Record<string, FieldValue>>().notNull().default({}),
 
@@ -174,6 +198,7 @@ export const drugs = pgTable('drugs', {
 }, (t) => [
   index('drugs_class_idx').on(t.drugClass),
   index('drugs_schedule_idx').on(t.schedule),
+  index('drugs_base_variant_idx').on(t.baseVariantTagId),
 ]);
 
 /* ------------------------------------------ brands and indications ------- */

@@ -265,6 +265,107 @@ describe('what a class says differently', () => {
   });
 });
 
+/**
+ * Whose words the drug's **own** profile is.
+ *
+ * The field in this format a person is expected to type in: the live site's
+ * drugs were imported before the column existed, so naming the class each base
+ * came from means editing an export and restoring it. These are the checks that
+ * stand behind doing that by hand.
+ */
+describe('whose words the drug itself holds', () => {
+  /** The class, and the drug's membership of it -- no layer: the base is not one. */
+  async function seedClass() {
+    const [course] = await db
+      .insert(tags)
+      .values({ slug: 'psci-413', label: 'PSCI 413', kind: 'course' })
+      .returning({ id: tags.id });
+    const [drug] = await db.select({ id: drugs.id }).from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    await db.insert(drugTags).values({ drugId: drug.id, tagId: course.id });
+    return { courseId: course.id, drugId: drug.id };
+  }
+
+  const baseOf = async () => {
+    const [row] = await db
+      .select({ base: drugs.baseVariantTagId })
+      .from(drugs)
+      .where(eq(drugs.slug, 'tirzepatide'));
+    return row.base;
+  };
+
+  it('travels as the tag slug, and as null where there is none', async () => {
+    const { courseId, drugId } = await seedClass();
+
+    const unset = await exportBackup();
+    expect(unset.drugs.find((drug) => drug.slug === 'tirzepatide')?.baseVariant).toBeNull();
+
+    await db.update(drugs).set({ baseVariantTagId: courseId }).where(eq(drugs.id, drugId));
+    const set = await exportBackup();
+    expect(set.drugs.find((drug) => drug.slug === 'tirzepatide')?.baseVariant).toBe('psci-413');
+  });
+
+  it('takes an attribution typed into the file by hand', async () => {
+    const { courseId } = await seedClass();
+    const backup = await exportBackup();
+
+    // Exactly what editing a live export looks like: one key, one tag slug.
+    const edited = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => (
+        drug.slug === 'tirzepatide' ? { ...drug, baseVariant: 'psci-413' } : drug
+      )),
+    } as Backup;
+
+    const result = await restoreBackup(edited, 'merge');
+    expect(result.ok).toBe(true);
+    expect(await baseOf()).toBe(courseId);
+  });
+
+  it('leaves one alone when the file predates the field, and clears it on null', async () => {
+    const { courseId, drugId } = await seedClass();
+    await db.update(drugs).set({ baseVariantTagId: courseId }).where(eq(drugs.id, drugId));
+    const backup = await exportBackup();
+
+    // Absent is not null, the same rule `variants` follows: an older file says
+    // nothing about the attribution and must not wipe one recorded since.
+    const older = {
+      ...backup,
+      drugs: backup.drugs.map(({ baseVariant: _ignored, ...drug }) => drug),
+    } as Backup;
+    await restoreBackup(older, 'merge');
+    expect(await baseOf()).toBe(courseId);
+
+    // Null *is* an instruction, and says nobody in particular.
+    const cleared = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => ({ ...drug, baseVariant: null })),
+    } as Backup;
+    await restoreBackup(cleared, 'merge');
+    expect(await baseOf()).toBeNull();
+  });
+
+  it('reports a slug that cannot be the base, and restores the drug anyway', async () => {
+    await seedClass();
+    const backup = await exportBackup();
+
+    // A class the drug is not in -- the commonest slip when editing by hand,
+    // and it must cost the attribution rather than the profile.
+    const wrong = {
+      ...backup,
+      drugs: backup.drugs.map((drug) => (
+        drug.slug === 'tirzepatide' ? { ...drug, baseVariant: 'statins' } : drug
+      )),
+    } as Backup;
+
+    const result = await restoreBackup(wrong, 'merge');
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.report.problems.join(' ')).toContain('baseVariant left unset');
+    expect(await baseOf()).toBeNull();
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'tirzepatide'));
+    expect(drug.genericName).toBe('Tirzepatide');
+  });
+});
+
 describe('restoreBackup', () => {
   it('puts everything back after the content is wiped', async () => {
     const backup = await exportBackup();

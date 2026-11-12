@@ -684,12 +684,14 @@ export function DrugBrowser({
                   {row.variants.length > 0 && (
                     <Link
                       href={`/drugs/${row.slug}`}
-                      title={`${row.variants.map((v) => `V-${v.n} ${v.label}`).join(', ')}`
-                        + ' — words this drug its own way'}
+                      title={`V-1 the drug’s own, `
+                        + `${row.variants.map((v) => `V-${v.n} ${v.label}`).join(', ')}`}
                       className="rounded border border-[var(--border)] px-1.5 py-0.5 font-mono
                         text-[0.6875rem] leading-none text-[var(--muted)]"
                     >
-                      V-{row.variants.length}
+                      {/* The highest number, which is also how many versions
+                          there are: the drug's own profile is V-1. */}
+                      V-{row.variants.length + 1}
                     </Link>
                   )}
                   {row.review === 'flagged' && (

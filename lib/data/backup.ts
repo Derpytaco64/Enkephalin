@@ -33,6 +33,9 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 // which resolves no path aliases.
 import { db } from '../../db/index.ts';
 import { resolveIndications } from '../drugs/indication-store.ts';
+// Client-safe and database-free, so it loads under `--experimental-strip-types`
+// like the rest of this file's imports.
+import { isVariantKind } from '../drugs/variant-kinds.ts';
 import {
   auditLog,
   brandIndications,
@@ -133,6 +136,26 @@ export type BackupDrug = {
   regimens: BackupRegimen[];
   /** Tag slugs, categories included -- the seeder will rebuild those anyway. */
   tags: string[];
+  /**
+   * The class or exam whose words **the drug's own profile** is, by tag slug.
+   *
+   * `drugs.base_variant_tag_id`. Null is the normal case -- the sheet's, or
+   * typed by hand -- and a current export always writes the key, so a
+   * round-trip clears an attribution the live site has dropped.
+   *
+   * **Absent is not null**, the same rule `variants` follows: a file written
+   * before this existed says nothing about it, and must not wipe an
+   * attribution recorded since. That is also what makes this a field you can
+   * add by hand to an older export: write the tag slug in and the restore
+   * takes it.
+   *
+   * It has to be one of this drug's own `tags`, of kind `course` or `exam`,
+   * and must not also appear in `variants` -- one class cannot be both the
+   * drug's own words and a variation on them. A slug failing any of those is
+   * reported and the attribution left unset, rather than the drug being
+   * refused over it.
+   */
+  baseVariant?: string | null;
   /**
    * What each of this drug's classes and exams says differently
    * about it.
@@ -426,6 +449,9 @@ export async function exportBackup(): Promise<Backup> {
   }
 
   const slugById = new Map(drugRows.map((drug) => [drug.id, drug.slug]));
+  // Tag ids never leave this file -- see the no-UUID rule at the top -- so the
+  // base attribution travels as the tag's slug like every other reference.
+  const tagSlugById = new Map(tagRows.map((tag) => [tag.id, tag.slug]));
 
   const exported: BackupDrug[] = drugRows.map((drug) => ({
     slug: drug.slug,
@@ -474,6 +500,9 @@ export async function exportBackup(): Promise<Backup> {
       source: regimen.source,
     })),
     tags: (tagsByDrug.get(drug.id) ?? []).map((row) => row.slug).sort(),
+    baseVariant: drug.baseVariantTagId === null
+      ? null
+      : tagSlugById.get(drug.baseVariantTagId) ?? null,
     variants: (variantsByDrug.get(drug.id) ?? []).map((layer) => ({
       variant: layer.variant,
       fields: layer.fields,
@@ -878,6 +907,11 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
     report.tagsInserted += 1;
   }
 
+  // The kinds as the file declares them, so a base attribution can be checked
+  // against them without a query: only a course or an exam can be the class
+  // whose words a profile is.
+  const tagKindBySlug = new Map(backup.tags.map((tag) => [tag.slug, tag.kind]));
+
   for (const drug of backup.drugs) {
     /**
      * One drug at a time, and a failure costs that drug rather than the rest.
@@ -896,6 +930,46 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
      * export over the top fixes it. The same reasoning as the import and the
      * removal panel: a stale row must not abandon the rest of the list.
      */
+    /**
+     * Whose words this drug's own profile is -- checked, not trusted.
+     *
+     * This is the one field in the format a person is expected to type in by
+     * hand: the live site's drugs were imported before the column existed, so
+     * naming the class each base came from means editing an export. Hence the
+     * checks, and hence each one reporting rather than refusing the drug --
+     * a typo in an attribution must not cost you the profile it was attached
+     * to.
+     *
+     * `undefined` and `null` are different answers: absent leaves whatever the
+     * database holds, and null clears it. See `BackupDrug.baseVariant`.
+     */
+    let baseTagId: string | null | undefined;
+    if (drug.baseVariant === undefined) baseTagId = undefined;
+    else if (drug.baseVariant === null) baseTagId = null;
+    else {
+      const slug = drug.baseVariant;
+      const kind = tagKindBySlug.get(slug);
+      const refusal = !tagIdBySlug.has(slug)
+        ? `no tag in this file is called "${slug}"`
+        : !drug.tags.includes(slug)
+          ? `this drug is not tagged with "${slug}"`
+          : kind === undefined || !isVariantKind(kind)
+            ? `"${slug}" is a ${kind ?? 'tag'}, and only a class or an exam can be`
+              + ' whose words a profile is'
+            : (drug.variants ?? []).some((layer) => layer.variant === slug)
+              ? `"${slug}" also words this drug its own way, so it is a version of it`
+                + ' rather than where the drug itself came from'
+              : null;
+
+      if (refusal === null) baseTagId = tagIdBySlug.get(slug) ?? null;
+      else {
+        baseTagId = undefined;
+        report.problems.push(
+          `${drug.slug}: baseVariant left unset — ${refusal}.`,
+        );
+      }
+    }
+
     try {
       /*
        * One transaction per drug, so a drug that fails is a drug nothing
@@ -923,6 +997,10 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
           needsPairingReview: drug.needsPairingReview,
           dosingUnique: drug.dosingUnique ?? false,
           sourcePage: drug.sourcePage,
+          // Spread rather than set to `undefined`: an absent attribution is the
+          // file not speaking about one, and a key that is not there is the
+          // only way to say *leave this alone* to an update.
+          ...(baseTagId === undefined ? {} : { baseVariantTagId: baseTagId }),
           updatedAt: new Date(),
         };
 

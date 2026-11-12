@@ -16,6 +16,7 @@ import { isUniqueViolation } from '@/lib/db-errors';
 import { classColumns, lookUpDrugClass, type ClassLookup } from '@/lib/drugs/class-lookup';
 import { setDrugIndicationLinks } from '@/lib/drugs/indication-store';
 import { indicationSlug } from '@/lib/drugs/indications';
+import { setBaseVariant } from '@/lib/drugs/variants';
 import { activesOf, notesFor, parseDosing } from '@/lib/dosing/parse';
 import type { FieldDef } from '@/lib/fields/registry';
 
@@ -634,6 +635,17 @@ export type NewDrugInput = IdentityInput & {
   dosing: string;
   dosingUnique: boolean;
   tagSlugs: string[];
+  /**
+   * The class or exam whose words this profile is, where a lecture is what
+   * made the drug.
+   *
+   * Only the importer passes it, and only for a drug the app has never held:
+   * such a drug takes everything as its own whatever the write mode says --
+   * there is no base for a layer to differ from yet -- so the base *is* that
+   * lecture's wording and this is what records it. Must be one of
+   * `tagSlugs`; `setBaseVariant` is where that is enforced.
+   */
+  baseVariant?: string | null;
 };
 
 /**
@@ -739,6 +751,14 @@ export async function createDrug(
     const result = await setDrugTags(slug, input.tagSlugs, actorId);
     // The drug exists either way; a bad tag slug is not worth discarding it.
     if (!result.ok) return { ok: true, value: slug };
+  }
+
+  // After the tags, because the attribution names one of them: a class the
+  // drug is not in cannot be where its profile came from. Refused attributions
+  // are dropped rather than failing the creation, for the same reason a bad tag
+  // slug is -- the drug and its fields are the thing being made here.
+  if (input.baseVariant) {
+    await setBaseVariant({ drugSlug: slug, variantSlug: input.baseVariant });
   }
 
   return { ok: true, value: slug };

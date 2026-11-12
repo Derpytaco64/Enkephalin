@@ -82,6 +82,13 @@ export default async function VariantProfileEditPage({ params }: Params) {
         box means it says what the drug says — and keeps saying it as the drug’s profile improves,
         which is why this is a layer and not a copy. Clearing a box removes this version of that
         field.
+        {profile.baseVariant !== null && (
+          <>
+            {' '}The drug’s own profile is{' '}
+            <span className="font-medium text-[var(--fg)]">{profile.baseVariant.label}</span>’s
+            wording, so that is what &ldquo;differently&rdquo; is measured against.
+          </>
+        )}
       </p>
 
       {fields.length === 0 ? (
@@ -98,6 +105,7 @@ export default async function VariantProfileEditPage({ params }: Params) {
           fields={fields}
           source={source}
           note={layer.note ?? ''}
+          baseLabel={profile.baseVariant?.label ?? null}
         />
       )}
     </main>

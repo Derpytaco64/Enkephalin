@@ -20,7 +20,7 @@ import {
 } from '@/db/schema';
 import { toSig } from '@/lib/dosing/sig';
 import {
-  allVariantLayers, numberedVariantsByDrug, overlayFields, overriddenKeys,
+  allVariantLayers, baseVariantsByDrug, numberedVariantsByDrug, overlayFields, overriddenKeys,
 } from '@/lib/drugs/variants';
 import type { CardSource, CardVariant } from './cards';
 
@@ -65,8 +65,9 @@ export async function loadCardSources(
   const layersWanted = [
     ...new Set([...variantSlugs, ...[...byMembership.values()].flat()]),
   ];
-  const [drugRows, brandRows, indicationRows, tagRows, regimenRows, variantLayers, numbered] =
-    await Promise.all([
+  const [
+    drugRows, brandRows, indicationRows, tagRows, regimenRows, variantLayers, numbered, bases,
+  ] = await Promise.all([
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db
       .select({ drugId: drugBrands.drugId, name: drugBrands.name })
@@ -96,6 +97,11 @@ export async function loadCardSources(
     // Every drug's versions, numbered the way the browse list and the list
     // builder number them -- so V-2 on a card is the same V-2 everywhere else.
     numberedVariantsByDrug(),
+    // And whose words each drug's *own* profile is, for the drugs a lecture
+    // created: those have no layer, so without this a card asks Exam 1's
+    // wording with nothing on screen saying so, beside its own sibling cards
+    // that name Exam 2 and Exam 3.
+    baseVariantsByDrug(),
   ]);
 
   const indicationLabelByLink = new Map(indicationRows.map((row) => [row.linkId, row.label]));
@@ -197,6 +203,18 @@ export async function loadCardSources(
     // to speak about a key is the one recorded, which is the one whose value
     // the overlay above kept.
     const wordedBy: Record<string, CardVariant> = {};
+    // The drug's own words go in first, where a lecture is whose they are: a
+    // drug that arrived with one holds its wording as the base, so every field
+    // it answers is that class's until a layer speaks over the key -- which the
+    // loop below then does, in overlay order. `overriddenKeys` is the right
+    // test for the base as well as for a layer: it asks which keys hold an
+    // answer, and it leaves the core fields out, which are the sheet's.
+    const base = bases.get(drug.id);
+    if (base) {
+      for (const key of overriddenKeys(drug.fields)) {
+        wordedBy[key] = { n: 1, label: base.label, slug: base.slug };
+      }
+    }
     for (const layer of layersFor(drug.id)) {
       if (!layer.variant) continue;
       for (const key of overriddenKeys(layer.fields)) wordedBy[key] = layer.variant;

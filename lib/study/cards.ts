@@ -61,6 +61,11 @@ export type CardSource = {
  * *amoxicillin [V-2]* on the question side would give it away. The number and
  * the class are safe: *V-2 · PHRM 535* says whose wording you are being asked
  * about without saying what the drug is.
+ *
+ * **`n` is 1 for the drug's own words**, where those words are themselves one
+ * class's -- a drug a lecture created holds that lecture's wording as its base,
+ * and that is version one of it. The layers are numbered from 2. See
+ * `drugs.base_variant_tag_id` and `VariantOption.n`.
  */
 export type CardVariant = { n: number; label: string; slug: string };
 

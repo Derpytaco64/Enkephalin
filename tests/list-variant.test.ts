@@ -100,13 +100,15 @@ async function membership(drugSlug: string, listSlug: string) {
 /* ------------------------------------------------------------- numbering -- */
 
 describe('numbering a drug’s versions', () => {
-  it('numbers them V-1 upward in overlay order', async () => {
+  it('numbers them from V-2, the drug’s own being V-1', async () => {
     const byDrug = await numberedVariantsByDrug();
 
-    // Both are classes, so they sort by label: PHRM 535 before PSCI 413.
+    // Both are classes, so they sort by label: PHRM 535 before PSCI 413. And
+    // they start at 2 -- the drug's own profile is V-1 on every screen, so
+    // *V-3* says there are three versions of this drug rather than four.
     expect(byDrug.get(drugIds.amoxicillin)).toEqual([
-      { slug: CLASS, label: 'PHRM 535', kind: 'course', n: 1, overrides: 1 },
-      { slug: OTHER, label: 'PSCI 413', kind: 'course', n: 2, overrides: 1 },
+      { slug: CLASS, label: 'PHRM 535', kind: 'course', n: 2, overrides: 1 },
+      { slug: OTHER, label: 'PSCI 413', kind: 'course', n: 3, overrides: 1 },
     ]);
     // A drug in no class has no versions, rather than an empty list of one.
     expect(byDrug.get(drugIds.warfarin)).toBeUndefined();
@@ -130,7 +132,7 @@ describe('numbering a drug’s versions', () => {
     const bySlug = Object.fromEntries(rows.map((row) => [row.slug, row]));
 
     expect(bySlug.amoxicillin.variants.map((variant) => [variant.n, variant.slug]))
-      .toEqual([[1, CLASS], [2, OTHER]]);
+      .toEqual([[2, CLASS], [3, OTHER]]);
     expect(bySlug.warfarin.variants).toEqual([]);
   });
 });
@@ -284,7 +286,7 @@ describe('telling you whose words you are studying', () => {
     const sources = await loadCardSources([], await membershipVariants([LIST]));
     const [amoxicillin] = sources.filter((source) => source.slug === 'amoxicillin');
 
-    expect(amoxicillin.wordedBy?.moa).toEqual({ n: 1, label: 'PHRM 535', slug: CLASS });
+    expect(amoxicillin.wordedBy?.moa).toEqual({ n: 2, label: 'PHRM 535', slug: CLASS });
     expect(amoxicillin.wordedBy?.bbw).toBeUndefined();
   });
 
@@ -298,7 +300,7 @@ describe('telling you whose words you are studying', () => {
     const deck = await loadDeck(ME, config);
     const bySlug = Object.fromEntries(deck.cards.map((card) => [card.slug, card]));
 
-    expect(bySlug.amoxicillin.variants).toEqual([{ n: 1, label: 'PHRM 535', slug: CLASS }]);
+    expect(bySlug.amoxicillin.variants).toEqual([{ n: 2, label: 'PHRM 535', slug: CLASS }]);
     // The drug's own words, so there is nothing to say about whose they are.
     expect(bySlug.warfarin.variants).toEqual([]);
   });
@@ -346,7 +348,7 @@ describe('telling you whose words you are studying', () => {
 
     // Asked this way round the drug is the answer, so the pill may say the
     // class and the number and nothing else.
-    expect(card.variants).toEqual([{ n: 1, label: 'PHRM 535', slug: CLASS }]);
+    expect(card.variants).toEqual([{ n: 2, label: 'PHRM 535', slug: CLASS }]);
     for (const variant of card.variants) {
       expect(variant.label.toLowerCase()).not.toContain('amoxicillin');
     }

@@ -3093,6 +3093,72 @@ A lecture is still not a unit you can select, by the same earlier decision: ther
 scope, because what a lecture is *about* is an indication. So the melanoma lecture is the indication
 axis, not a tag -- which also means it keeps working when a second lecture covers the same disease.
 
+### The drug's own words have an owner (2026-11-12)
+
+*We need to make it so base drugs still have a visible variant title, because it makes the variant
+switching area confusing. It will say this drug's own info, but it will be the exam 1 info, then the
+other two will be labeled exam 2 and exam 3.*
+
+Exactly right, and the cause is a rule this plan already wrote down approvingly. A lecture imported
+into a drug the app has never held writes **the drug itself**, whatever the write mode says -- the
+`!existing` clause in `planDrugImport`, there because a brand-new drug whose mechanism went into a
+class layer would have a blank profile of its own. So for every drug a lecture created, the base
+*is* that one class's wording. Nothing recorded which, and the picker read: *The drug's own*, *V-1
+Exam 2*, *V-2 Exam 3* -- three versions, two of them named, and the unnamed one was Exam 1's.
+
+`drugs.base_variant_tag_id` (migration 0017) is the fix, and what it is matters: **an attribution,
+not a fourth layer.** The base still holds the whole profile and the overlay rule is untouched; this
+only says whose wording that profile is. So the picker's first pill reads `V-1 Heme/Onc Exam 3` and
+the compare table's first column is headed the same way.
+
+**And it is V-1.** It shipped as `B` on the reasoning in [V-n is the version, and the base profile
+is not one of them](#v-n-is-the-version-and-the-base-profile-is-not-one-of-them-2026-11-09) --
+numbering the base implies a parity that a layer does not have -- and the owner reversed that the
+same day, which naming the base is exactly what justifies: *when a drug is added now and it gets
+variants it should start at V1 and count upwards, so V2 means there are two drug versions.* A pill
+should answer *how many versions has this drug got*, and the drug's own profile is one of them
+whoever wrote it. So the layers run from **V-2**, in `numberedVariantsByDrug` (`at + 2`) and
+`variantOptionsFor` (`next = 2`) together, and the browse badge is `layers + 1` -- still absent
+where there is only one version, which is what kept the old objection from biting: nothing reads
+`V-1` on 236 rows.
+
+The base is still not a layer and still not in `variantOptionsFor`: it is the one version with no
+`?as=` of its own, because it is what every `?as=` falls back to. A class with nothing of its own
+stays **unnumbered**, which is the part of the 11-09 entry that survives intact.
+
+**One class cannot be both.** Where the base is Exam 1's, Exam 1 stops being offered as a version of
+that drug: `variantOptionsFor` leaves it out, `variantLayerFor` returns null for it so `?as=exam-1`
+falls through to the drug's own profile, and `saveVariantLayer`/`patchVariantLayer` refuse it --
+otherwise the same class would appear in the picker twice, once named and once as *the drug's own*,
+which is the confusion being fixed rather than a second instance of it. `setBaseVariant` refuses
+from the other side too: a class holding a layer cannot be named as where the base came from.
+
+**The consequence worth flagging, because it changes a documented behaviour.** `variant` mode means
+*make an alternate profile and only that*, and [one pinned test said
+so](#correcting-a-version-instead-of-the-drug-2026-11-10) even for a gap. It still means that for a
+class reading a drug it did not write. For the deck the drug *came from* it cannot: there is nothing
+between that class's wording and the drug's own, so a gap it fills now extends the base, and a value
+it *contradicts* is **held** and reported -- the same answer two disagreeing lectures already get,
+with the same remedy named. This is the `!existing` rule one run later, not a new one: a second
+reading of the deck that created the drug is still the only voice there is.
+
+**Where the name comes from**, in the order it will matter:
+
+- an import that **creates** a drug records its own scope as the base, so this does not recur;
+- the profile's Versions card has an admin control offering the classes with nothing of their own
+  -- the only candidates, since a class that words the drug differently is a version of it;
+- the backup carries `baseVariant` per drug as a tag slug. **`BACKUP_VERSION` stays 3**: the key is
+  optional and absent means *the file does not speak about it* (null means *nobody in particular*),
+  so a live export taken before today still restores, and typing the key in by hand is the route for
+  the drugs already live. A slug that cannot be the base -- not a tag in the file, not one this drug
+  carries, not a class or exam, or one that also words the drug differently -- is reported and left
+  unset rather than costing the drug its restore.
+
+**On a card, too.** `wordedBy` now attributes the base's fields where the base has an owner, so a
+flashcard asking Exam 1's mechanism shows `V-1 Heme/Onc Exam 3` beside the `V-2` and `V-3` pills its
+siblings carry. Same marker as the profile, for the reason the pills exist at all: a deck can be reading
+three classes' wording in one session, and the one with no pill used to look like nobody's.
+
 ### One exam, several lectures, one layer (2026-11-10)
 
 *These different sections have the same drugs. Does importing one after the other add to the same
@@ -4276,6 +4342,13 @@ Three rules about what the table shows, all the same rule: say the difference, n
   is the code that treats them differently; the table has to as well or it misreports it.
 
 ### V-n is the version, and the base profile is not one of them (2026-11-09)
+
+> **Reversed 2026-11-12**, on the owner's call, once the base profile got a name: the drug's own is
+> **V-1** and the layers run from V-2. See [The drug's own words have an
+> owner](#the-drugs-own-words-have-an-owner-2026-11-12). What stands from this entry is everything
+> about *unnumbered* classes, and the note that the browse pill is a count. What does not is the
+> paragraph below about every drug reading V-1 -- the pill is still absent where there is only one
+> version, so nothing reads V-1 on 236 rows.
 
 Asked directly, and worth settling in writing: **V-1 is the first *variant*, not the drug's own
 profile.** The base profile has no number — it is *The drug's own profile* in the dropdown and no

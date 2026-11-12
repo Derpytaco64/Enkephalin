@@ -157,7 +157,7 @@ export function MemberPicker({
                   {drug.generic}
                   {drug.variants.length > 0 && (
                     <span className="ml-1 font-mono text-[0.6875rem] text-[var(--muted)]">
-                      V-{drug.variants.length}
+                      V-{drug.variants.length + 1}
                     </span>
                   )}
                   {drug.drugClass && (

@@ -21,6 +21,20 @@
  * `VARIANT_KINDS` is where it is said.
  *
  * Core fields are deliberately not overridable -- see `overridable` below.
+ *
+ * **The base can belong to a class too, and says so.** A lecture imported into
+ * a drug the app had never held writes to the drug itself, so the drug's own
+ * profile is that one class's wording with nothing else under it.
+ * `drugs.base_variant_tag_id` records which class -- see `baseVariantOf` --
+ * and it is an attribution rather than a fourth layer: the base still holds the
+ * whole profile, and the class named there is excluded from the *layers*, since
+ * one class cannot be both the drug's own words and a variation on them.
+ *
+ * **The base is V-1**, and the layers are numbered from 2 (2026-11-12, owner's
+ * call): a version pill should answer *how many versions has this drug got*,
+ * and the drug's own is one of them whoever wrote it. It is still not a layer
+ * and still not in `variantOptionsFor` -- it is the one version there is no
+ * `?as=` for, because it is what `?as=` falls back to.
  */
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -51,6 +65,13 @@ export type VariantOption = {
   overrides: number;
   /**
    * The `n` in V-n, or null for a class the drug is merely tagged with.
+   *
+   * **Counted from 2, because the drug's own profile is V-1** (2026-11-12,
+   * owner's call, reversing the decision below it): *V-2 means there are two
+   * versions of this drug*, which is what somebody reading a pill wants it to
+   * mean. The drug's own is always one of them -- named after the lecture it
+   * came from where there is one, see `baseVariantOf`, and simply the drug's
+   * own words where there is not.
    *
    * Numbered the same way `numberedVariantsByDrug` numbers them -- over the
    * versions that have a stored layer, in overlay order -- because otherwise a
@@ -154,9 +175,74 @@ function byOverlayOrder<T extends { kind: string; label: string }>(a: T, b: T): 
   return rank !== 0 ? rank : a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
 }
 
-/** Every variant this drug is tagged with, in overlay order, with its count. */
+/**
+ * The class or exam whose words a drug's **own profile** is, or null.
+ *
+ * `drugs.base_variant_tag_id`, resolved to something a screen can print. The
+ * base is not a layer and never becomes one: it holds the whole profile, and
+ * this says whose wording that profile is -- which a lecture import into a new
+ * drug makes a real question, because such a drug takes everything as its own.
+ *
+ * **Membership is not required, and that is the one place this differs from
+ * `variantLayerFor`.** A layer is refused on a drug that has left the class,
+ * because applying one would be reading a version the drug has not got. This
+ * applies nothing: it is provenance, the plain fact of whose slides those words
+ * were typed off, and untagging the drug does not make that fact untrue. What
+ * it does mean is that the pill can name a class the Tags card no longer lists,
+ * which is honest -- the words are still that class's.
+ */
+export type BaseVariant = {
+  tagId: string;
+  slug: string;
+  label: string;
+  kind: VariantKind;
+};
+
+export async function baseVariantOf(drugId: string): Promise<BaseVariant | null> {
+  const [row] = await db
+    .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
+    .from(drugs)
+    .innerJoin(tags, eq(tags.id, drugs.baseVariantTagId))
+    .where(and(eq(drugs.id, drugId), isVariantTag));
+
+  return row ? { ...row, kind: row.kind as VariantKind } : null;
+}
+
+/**
+ * Every drug's base attribution at once, keyed by drug id.
+ *
+ * One query for the whole table, for the same reason `allVariantLayers` is one:
+ * the study loader reads all 236 drugs and must not ask this per drug.
+ */
+export async function baseVariantsByDrug(): Promise<Map<string, BaseVariant>> {
+  const rows = await db
+    .select({
+      drugId: drugs.id,
+      tagId: tags.id,
+      slug: tags.slug,
+      label: tags.label,
+      kind: tags.kind,
+    })
+    .from(drugs)
+    .innerJoin(tags, eq(tags.id, drugs.baseVariantTagId))
+    .where(isVariantTag);
+
+  return new Map(rows.map(({ drugId, ...base }) => [
+    drugId,
+    { ...base, kind: base.kind as VariantKind },
+  ]));
+}
+
+/**
+ * Every variant this drug is tagged with, in overlay order, with its count.
+ *
+ * **The base's own class is not among them.** Where the drug's own profile is
+ * Exam 1's wording, Exam 1 is not also a version of it: offering both would
+ * put the same class in the picker twice -- once named and once as *the drug's
+ * own* -- which is the confusion the attribution exists to end.
+ */
 export async function variantOptionsFor(drugId: string): Promise<VariantOption[]> {
-  const [member, layers] = await Promise.all([
+  const [member, layers, base] = await Promise.all([
     db
       .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
       .from(drugTags)
@@ -166,6 +252,7 @@ export async function variantOptionsFor(drugId: string): Promise<VariantOption[]
       .select({ tagId: drugVariantValues.tagId, fields: drugVariantValues.fields })
       .from(drugVariantValues)
       .where(eq(drugVariantValues.drugId, drugId)),
+    baseVariantOf(drugId),
   ]);
 
   const countByTag = new Map(
@@ -176,6 +263,7 @@ export async function variantOptionsFor(drugId: string): Promise<VariantOption[]
   // layer -- the same two rules `numberedVariantsByDrug` follows, so V-2 means
   // one thing in this app.
   const sorted = member
+    .filter((variant) => variant.tagId !== base?.tagId)
     .map((variant) => ({
       ...variant,
       kind: variant.kind as VariantKind,
@@ -183,7 +271,10 @@ export async function variantOptionsFor(drugId: string): Promise<VariantOption[]
     }))
     .sort(byOverlayOrder);
 
-  let next = 1;
+  // From 2: V-1 is the drug's own profile, which is a version of it whoever
+  // wrote it -- the pill for it is the picker's first, and it is not in this
+  // list because it is not reached by `?as=`.
+  let next = 2;
   return sorted.map((variant) => ({
     ...variant,
     n: countByTag.has(variant.tagId) ? next++ : null,
@@ -220,15 +311,28 @@ export async function variantLayersForDrug(
  * nothing stored: a layer on a drug that has since left the class is not a
  * profile anybody asked to see, and quietly showing it would make the picker on
  * the profile disagree with the tag filter in the browser.
+ *
+ * **And null for the class the base profile already belongs to.** Reading the
+ * drug *as Exam 1* where the drug's own words are Exam 1's is reading the drug,
+ * so `?as=exam-1` falls through to its own profile rather than answering with
+ * an empty layer -- and the edit screen for one 404s, because there is nothing
+ * for that class to say differently from itself.
  */
 export async function variantLayerFor(
   drugId: string,
   variantSlug: string,
 ): Promise<VariantLayer | null> {
   const [variant] = await db
-    .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
+    .select({
+      tagId: tags.id,
+      slug: tags.slug,
+      label: tags.label,
+      kind: tags.kind,
+      baseTagId: drugs.baseVariantTagId,
+    })
     .from(drugTags)
     .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .innerJoin(drugs, eq(drugs.id, drugTags.drugId))
     .where(and(
       eq(drugTags.drugId, drugId),
       eq(tags.slug, variantSlug),
@@ -236,6 +340,7 @@ export async function variantLayerFor(
     ));
 
   if (!variant) return null;
+  if (variant.baseTagId === variant.tagId) return null;
 
   const [stored] = await db
     .select()
@@ -377,9 +482,12 @@ export async function numberedVariantsByDrug(): Promise<Map<string, NumberedVari
   // Numbered after sorting, never before: V-2 is "the second of this drug's
   // versions in overlay order", so it has to survive a new class being added
   // above it -- which it does, by being recomputed rather than stored.
+  //
+  // `+ 2`, not `+ 1`: the drug's own profile is V-1 on every screen, so the
+  // first class with wording of its own is the second version there is.
   for (const list of byDrug.values()) {
     list.sort(byOverlayOrder);
-    list.forEach((variant, at) => { variant.n = at + 1; });
+    list.forEach((variant, at) => { variant.n = at + 2; });
   }
 
   return byDrug;
@@ -524,9 +632,10 @@ export async function saveVariantLayer(input: {
   if (!drug) return { ok: false, message: 'That drug no longer exists.' };
 
   const [variant] = await db
-    .select({ tagId: tags.id, label: tags.label })
+    .select({ tagId: tags.id, label: tags.label, baseTagId: drugs.baseVariantTagId })
     .from(drugTags)
     .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .innerJoin(drugs, eq(drugs.id, drugTags.drugId))
     .where(and(
       eq(drugTags.drugId, drug.id),
       eq(tags.slug, input.variantSlug),
@@ -541,6 +650,19 @@ export async function saveVariantLayer(input: {
       ok: false,
       message: `This drug is not in a class or exam called "${input.variantSlug}". `
         + 'Tag it first, in the drug editor.',
+    };
+  }
+
+  // The class the drug's own profile already belongs to cannot also hold a
+  // layer over it: the base is that class's whole wording, so a layer would be
+  // the same class differing from itself, and the profile would offer it twice.
+  // Edit the drug itself instead -- which is what editing that class's words
+  // now means.
+  if (variant.baseTagId === variant.tagId) {
+    return {
+      ok: false,
+      message: `${variant.label} is where this drug's own profile came from, so its wording is `
+        + 'the drug\'s. Edit the drug itself to change it.',
     };
   }
 
@@ -614,6 +736,83 @@ export async function saveVariantLayer(input: {
   }
 
   return { ok: true, overrides: count };
+}
+
+/**
+ * Records whose words a drug's **own profile** is -- or clears it.
+ *
+ * The other half of `baseVariantOf`. Two ways in: a lecture import that creates
+ * a drug sets it as it goes, since the import is the thing that knows, and this
+ * screen-side writer is for the hundreds of drugs imported before the column
+ * existed and for fixing a wrong one.
+ *
+ * Three refusals, all of them the same sentence from different angles -- *that
+ * class is not in a position to be this drug's own words*:
+ *
+ * - a tag the drug is not in, or one no version can live on;
+ * - a class that already holds a layer, which would make it the drug's own
+ *   words *and* a variation on them;
+ * - nothing else. Clearing is always allowed: it says *nobody in particular*,
+ *   which is what the 236 off the class sheet are.
+ */
+export async function setBaseVariant(input: {
+  drugSlug: string;
+  /** The class or exam the profile came from, or null for nobody in particular. */
+  variantSlug: string | null;
+}): Promise<Result> {
+  const [drug] = await db
+    .select({ id: drugs.id })
+    .from(drugs)
+    .where(eq(drugs.slug, input.drugSlug));
+  if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  if (input.variantSlug === null) {
+    await db.update(drugs).set({ baseVariantTagId: null }).where(eq(drugs.id, drug.id));
+    return { ok: true };
+  }
+
+  const [variant] = await db
+    .select({ tagId: tags.id, label: tags.label })
+    .from(drugTags)
+    .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .where(and(
+      eq(drugTags.drugId, drug.id),
+      eq(tags.slug, input.variantSlug),
+      isVariantTag,
+    ));
+
+  if (!variant) {
+    return {
+      ok: false,
+      message: `This drug is not in a class or exam called "${input.variantSlug}". `
+        + 'Tag it first, in the drug editor.',
+    };
+  }
+
+  const [layer] = await db
+    .select({ fields: drugVariantValues.fields })
+    .from(drugVariantValues)
+    .where(and(
+      eq(drugVariantValues.drugId, drug.id),
+      eq(drugVariantValues.tagId, variant.tagId),
+    ));
+
+  if (layer && overriddenKeys(layer.fields).length > 0) {
+    return {
+      ok: false,
+      message: `${variant.label} already words ${overriddenKeys(layer.fields).length} field`
+        + `${overriddenKeys(layer.fields).length === 1 ? '' : 's'} its own way, so it is a version `
+        + 'of this drug rather than where the drug itself came from. Clear its wording first if '
+        + 'the two have been mixed up.',
+    };
+  }
+
+  await db
+    .update(drugs)
+    .set({ baseVariantTagId: variant.tagId })
+    .where(eq(drugs.id, drug.id));
+
+  return { ok: true };
 }
 
 /** One of a drug's memberships, as the scope rule needs to see it. */
@@ -791,9 +990,10 @@ export async function patchVariantLayer(input: {
   userId: string;
 }): Promise<SaveResult> {
   const [variant] = await db
-    .select({ tagId: tags.id })
+    .select({ tagId: tags.id, label: tags.label, baseTagId: drugs.baseVariantTagId })
     .from(drugTags)
     .innerJoin(tags, eq(tags.id, drugTags.tagId))
+    .innerJoin(drugs, eq(drugs.id, drugTags.drugId))
     .where(and(
       eq(drugTags.drugId, input.drugId),
       eq(tags.slug, input.variantSlug),
@@ -804,6 +1004,19 @@ export async function patchVariantLayer(input: {
     return {
       ok: false,
       message: `This drug is not in a class or exam called "${input.variantSlug}".`,
+    };
+  }
+
+  // The class the drug's own profile came from, same as `saveVariantLayer`:
+  // a layer there would be the class differing from itself, and `variantLayerFor`
+  // would refuse to read it -- a row stored where nothing can ever see it. The
+  // planner sends those writes to the drug instead, so reaching this is a bug
+  // in a caller rather than something a file can ask for.
+  if (variant.baseTagId === variant.tagId) {
+    return {
+      ok: false,
+      message: `${variant.label} is where this drug's own profile came from, so it has nothing `
+        + 'to differ from. Write the drug itself.',
     };
   }
 

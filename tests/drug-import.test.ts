@@ -944,7 +944,7 @@ describe('the same lecture imported again', () => {
     expect(text.match(/Dabrafenib \+ trametinib/g) ?? []).toHaveLength(1);
   });
 
-  it('fills a gap the first run could not, without disturbing the rest', async () => {
+  it('fills its own gap in the drug, being the deck the drug came from', async () => {
     await apply(lecture());
 
     // The second reading of the same deck adds a mechanism nobody had.
@@ -954,10 +954,35 @@ describe('the same lecture imported again', () => {
     }));
 
     expect(report.created).toEqual([]);
-    // The layer, not the drug: `variant` means *make an alternate profile and
-    // only that*, so it does not reach the drug's own even to fill a gap. That
-    // is the difference between the two modes, and the reason the screen makes
-    // somebody choose -- `fill` would have put this on the drug.
+    // The drug itself, and in `variant` mode -- which otherwise means *make an
+    // alternate profile and only that*. The exception is the one the first run
+    // already took: these drugs exist **because** of this deck, so the drug's
+    // own profile is this exam's wording and there is nothing between the two
+    // for a layer to hold. `drugs.base_variant_tag_id` is where the first run
+    // recorded that, and a class cannot differ from itself -- a layer here
+    // would be offered as *the drug's own* and as V-1, which is the
+    // duplication the attribution exists to end.
+    expect(report.toDrug).toBe(1);
+    expect(report.toVariant).toBe(0);
+
+    const [trametinib] = await db.select().from(drugs).where(eq(drugs.slug, 'trametinib'));
+    expect(trametinib.fields.moa.value).toBe('MEK inhibitor');
+    expect(await variantLayerFor(trametinib.id, 'heme-onc-exam-3')).toBeNull();
+  });
+
+  it('still layers a different class over it, gap or no gap', async () => {
+    await apply(lecture());
+
+    // The rule it does *not* change: a class that did not write this drug is in
+    // a position to differ from it, so `variant` means what it always meant --
+    // the value goes to that class's layer and the drug's own stays empty, even
+    // though a gap is what it would have filled.
+    const report = await apply(file({
+      write: 'variant',
+      scope: { course: 'PHRM 540', exam: 'Pharmacology Exam 1' },
+      drugs: [{ generic: 'trametinib', fields: { moa: 'MEK inhibitor' } }],
+    }));
+
     expect(report.toVariant).toBe(1);
     expect(report.toDrug).toBe(0);
 
@@ -965,8 +990,33 @@ describe('the same lecture imported again', () => {
     expect(trametinib.fields.moa).toBeUndefined();
     // The narrowest scope in the file, which is the exam rather than the
     // class: the exam is the more specific claim about whose words these are.
-    const layer = await variantLayerFor(trametinib.id, 'heme-onc-exam-3');
+    const layer = await variantLayerFor(trametinib.id, 'pharmacology-exam-1');
     expect(layer?.fields.moa.value).toBe('MEK inhibitor');
+  });
+
+  it('holds a contradiction of its own base rather than layering it', async () => {
+    await apply(lecture());
+    await apply(file({
+      write: 'variant',
+      drugs: [{ generic: 'trametinib', fields: { moa: 'MEK inhibitor' } }],
+    }));
+
+    // The same deck a third time, now disagreeing with what it wrote itself.
+    // Not a layer -- that would be the class differing from itself -- and not a
+    // silent overwrite either: held and reported, the same answer two lectures
+    // get when they disagree, with the remedy named.
+    const report = await apply(file({
+      write: 'variant',
+      drugs: [{ generic: 'trametinib', fields: { moa: 'MEK 1/2 inhibitor, said again' } }],
+    }));
+
+    expect(report.held).toBe(1);
+    expect(report.toDrug).toBe(0);
+    expect(report.toVariant).toBe(0);
+    expect(report.problems[0].message).toContain('already says something else');
+
+    const [trametinib] = await db.select().from(drugs).where(eq(drugs.slug, 'trametinib'));
+    expect(trametinib.fields.moa.value).toBe('MEK inhibitor');
   });
 });
 

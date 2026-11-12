@@ -27,7 +27,7 @@ const hint = 'mt-1 text-xs text-[var(--muted)]';
  * without the two side by side. It is set quietly and the box is the loud
  * half, since the box is the thing being filled in.
  */
-function Row({ field }: { field: VariantField }) {
+function Row({ field, baseLabel }: { field: VariantField; baseLabel: string | null }) {
   const { def, base, own } = field;
   const [text, setText] = useState(own);
   const multiline = def.dataType === 'markdown' || def.dataType === 'list';
@@ -44,10 +44,17 @@ function Row({ field }: { field: VariantField }) {
         )}
       </div>
 
-      {/* The drug's own value, quietly, as the thing being differed from. */}
+      {/* The drug's own value, quietly, as the thing being differed from --
+          named where those words are themselves a class's, because *the drug
+          says* is a thin answer to *differently from what*. */}
       <p className={hint}>
         {baseText
-          ? <>The drug says: <span className="text-[var(--fg)]">{baseText}</span></>
+          ? (
+            <>
+              The drug says{baseLabel !== null && <>, from {baseLabel}</>}:{' '}
+              <span className="text-[var(--fg)]">{baseText}</span>
+            </>
+          )
           : 'The drug has nothing recorded for this.'}
       </p>
 
@@ -104,6 +111,7 @@ export function VariantForm({
   fields,
   source,
   note,
+  baseLabel,
 }: {
   action: (formData: FormData) => Promise<VariantState>;
   drug: { slug: string; generic: string };
@@ -111,6 +119,8 @@ export function VariantForm({
   fields: VariantField[];
   source: string;
   note: string;
+  /** The class the drug's own profile is the wording of, where it is one. */
+  baseLabel: string | null;
 }) {
   const [state, formAction, pending] = useActionState<VariantState | null, FormData>(
     async (_previous, formData) => action(formData),
@@ -141,7 +151,9 @@ export function VariantForm({
         </p>
       </div>
 
-      {fields.map((field) => <Row key={field.def.key} field={field} />)}
+      {fields.map((field) => (
+        <Row key={field.def.key} field={field} baseLabel={baseLabel} />
+      ))}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn btn-primary">

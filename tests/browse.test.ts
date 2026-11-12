@@ -210,7 +210,9 @@ describe('a class’s own wording in the index', () => {
 
     expect(alprazolam.variants).toHaveLength(1);
     const [variant] = alprazolam.variants;
-    expect(variant).toMatchObject({ slug: CLASS, label: 'PHRM 535', n: 1 });
+    // V-2: the first class with wording of its own is the drug's second
+    // version, the drug's own profile being V-1.
+    expect(variant).toMatchObject({ slug: CLASS, label: 'PHRM 535', n: 2 });
     // Flattened by the same `formatFieldValue` and `flatten` the drug's own
     // values go through, markdown markers and all -- so a word is findable
     // whoever wrote it, and neither is findable across a `**`.

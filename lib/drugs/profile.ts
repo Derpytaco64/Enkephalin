@@ -15,7 +15,8 @@ import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { formatFieldValue } from '@/lib/fields/format';
 import { ALL_VARIANTS } from './variant-kinds';
 import {
-  overlayFields, overriddenKeys, variantLayerFor, variantLayersForDrug, variantOptionsFor,
+  baseVariantOf, overlayFields, overriddenKeys, variantLayerFor, variantLayersForDrug,
+  variantOptionsFor,
 } from './variants';
 
 export type ProfileBrand = {
@@ -102,10 +103,14 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
   // the drug's own, and the *reading this as X* banner stays away.
   const wantsAll = variantSlug === ALL_VARIANTS;
 
-  const [variants, variant, layers] = await Promise.all([
+  const [variants, variant, layers, baseVariant] = await Promise.all([
     variantOptionsFor(drug.id),
     variantSlug && !wantsAll ? variantLayerFor(drug.id, variantSlug) : Promise.resolve(null),
     wantsAll ? variantLayersForDrug(drug.id) : Promise.resolve(null),
+    // Whose words the drug's own profile is, where it is one class's. Read for
+    // every view, not only the base one: the picker names it from a variant's
+    // page too, which is where somebody is comparing the two.
+    baseVariantOf(drug.id),
   ]);
 
   /**
@@ -233,6 +238,15 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
     variants,
     /** The variant being read through, or null for the drug's own profile. */
     variant,
+    /**
+     * The class whose words the drug's own profile is, where it is one class's.
+     *
+     * Null for the 236 off the class sheet, and for anything typed by hand.
+     * Not a version -- it is the base, and `variantOptionsFor` leaves it out of
+     * `variants` for that reason -- so every screen that prints *the drug's
+     * own* has this to print beside it.
+     */
+    baseVariant,
     /** Which keys this variant speaks about, so the page can mark them. */
     overridden: variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>(),
     /**

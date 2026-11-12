@@ -11,7 +11,7 @@ import { colorFor, readableTextOn, scheduleBadge } from '@/lib/theme/palette';
 import { getPreferences } from '@/lib/theme/preferences';
 import { requireUser } from '@/lib/session';
 import type { FieldValue } from '@/db/schema';
-import { markFieldAction } from './actions';
+import { markFieldAction, setBaseVariantAction } from './actions';
 
 /**
  * One card, used eight or nine times down the page.
@@ -153,12 +153,15 @@ function VariantTable({
   defs,
   variants,
   layers,
+  base,
 }: {
   fields: Record<string, FieldValue>;
   updatedAt: Date;
   defs: FieldDef[];
   variants: VariantOption[];
   layers: Map<string, Record<string, FieldValue>>;
+  /** The class the drug's own column *is*, where it is one class's wording. */
+  base: string | null;
 }) {
   const columns = variants.filter((variant) => variant.n !== null);
   const spoken = new Set(
@@ -193,7 +196,14 @@ function VariantTable({
               <thead>
                 <tr>
                   <th scope="col" className={head}>Field</th>
-                  <th scope="col" className={head}>The drug’s own</th>
+                  {/* Named where it is somebody's, and numbered like the rest:
+                      a column headed only *the drug's own* beside two headed
+                      V-2 and V-3 reads like the unsourced one, when it is
+                      Exam 1's. */}
+                  <th scope="col" className={head}>
+                    <span className="font-mono">V-1</span>{' '}
+                    {base ?? 'the drug’s own'}
+                  </th>
                   {columns.map((column) => (
                     <th key={column.slug} scope="col" className={head}>
                       <span className="font-mono">V-{column.n}</span> {column.label}
@@ -260,6 +270,7 @@ export default async function DrugProfilePage({
 
   const {
     drug, brands, indications, tags, defs, siblings, variants, variant, overridden, layers,
+    baseVariant,
     // Core fields read from their own columns rather than the JSONB, resolved
     // in `getDrugProfile` because its visibility rule reads them too.
     coreValues,
@@ -315,7 +326,9 @@ export default async function DrugProfilePage({
       tags: inGroup,
       current: !comparing && reads === reading,
       label: reads === null
-        ? 'The drug’s own words'
+        ? (baseVariant === null
+            ? 'The drug’s own words'
+            : `The drug’s own words — ${baseVariant.label}’s`)
         : `What ${labelOfVariant.get(reads) ?? reads} says`,
       href: reads === null
         ? (`/drugs/${drug.slug}` as const)
@@ -494,6 +507,7 @@ export default async function DrugProfilePage({
               defs={defs.filter((def) => !SHOWN_ABOVE.has(def.key))}
               variants={variants}
               layers={layers}
+              base={baseVariant?.label ?? null}
             />
           ) : groupFieldDefs(defs.filter((def) => !SHOWN_ABOVE.has(def.key)))
             .filter(([, groupDefs]) => groupDefs.length > 0)
@@ -584,17 +598,30 @@ export default async function DrugProfilePage({
 
               Links, not a control: every version is a URL, so this needs no
               JavaScript and `?as=` stays the whole of the memory. */}
-          {(worded.length > 0 || (isAdmin && silent.length > 0)) && (
+          {(worded.length > 0 || baseVariant !== null || (isAdmin && silent.length > 0)) && (
             <section className={CARD}>
               <SectionHead>Versions</SectionHead>
               <ul className="mt-3 flex flex-wrap gap-1">
                 <li>
                   <Link
                     href={`/drugs/${drug.slug}`}
+                    title={baseVariant === null
+                      ? 'The drug’s own profile'
+                      : `The drug’s own profile — the words ${baseVariant.label} teaches`}
                     className={`pill pill-xs pill-soft ${
                       variant === null && !layers ? 'pill-on' : 'pill-edge'}`}
                   >
-                    The drug&rsquo;s own
+                    {/* **V-1, and named where a lecture wrote it.** *The
+                        drug's own* beside *V-1 Exam 2* and *V-2 Exam 3* read
+                        like the one nobody had sourced, when it was Exam 1's --
+                        the first lecture into a drug the app had never held
+                        writes the drug itself, and that is the whole of why.
+
+                        So it takes the first number rather than a marker of
+                        its own, which is what makes *V-2* mean *there are two
+                        versions of this drug*. */}
+                    <span className="font-mono">V-1</span>{' '}
+                    {baseVariant?.label ?? 'the drug’s own'}
                   </Link>
                 </li>
                 {worded.map((option) => (
@@ -628,6 +655,13 @@ export default async function DrugProfilePage({
                 <p className="mt-2 text-xs text-[var(--muted)]">
                   A class or exam is read in <em>its own words</em> where it has them, and the
                   drug&rsquo;s everywhere else.
+                </p>
+              )}
+              {baseVariant !== null && (
+                <p className="mt-2 text-xs text-[var(--muted)]">
+                  <span className="font-mono">V-1</span> is the drug&rsquo;s own profile, which is
+                  what {baseVariant.label} teaches: it arrived with that lecture, so there is
+                  nothing underneath it for {baseVariant.label} to differ from.
                 </p>
               )}
               {isAdmin && variant !== null && (
@@ -672,6 +706,49 @@ export default async function DrugProfilePage({
                     ))}
                   </ul>
                 </div>
+              )}
+
+              {/* Whose words the drug itself holds, which is a fact only a
+                  person knows for the hundreds imported before the column
+                  existed. A lecture that creates a drug now records it on the
+                  way in -- see `createDrug` -- so this is for those, and for
+                  fixing a wrong one.
+
+                  Only the classes with nothing of their own are offered: one
+                  that words the drug differently is a version of it, and the
+                  same class cannot be both. `setBaseVariant` refuses it
+                  anyway, which is where the rule lives. */}
+              {isAdmin && (silent.length > 0 || baseVariant !== null) && (
+                <form
+                  action={setBaseVariantAction}
+                  className="mt-3 border-t border-[var(--border)] pt-3"
+                >
+                  <input type="hidden" name="slug" value={drug.slug} />
+                  <label htmlFor="base-variant" className="text-xs text-[var(--muted)]">
+                    Whose words is the drug&rsquo;s own profile?
+                  </label>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <select
+                      id="base-variant"
+                      name="variant"
+                      defaultValue={baseVariant?.slug ?? ''}
+                      className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
+                    >
+                      <option value="">Nobody in particular</option>
+                      {/* The one it already names comes first and is not
+                          duplicated below: the versions list leaves the base's
+                          class out, so it would otherwise be missing from its
+                          own control. */}
+                      {baseVariant !== null && (
+                        <option value={baseVariant.slug}>{baseVariant.label}</option>
+                      )}
+                      {silent.map((option) => (
+                        <option key={option.slug} value={option.slug}>{option.label}</option>
+                      ))}
+                    </select>
+                    <button type="submit" className="pill pill-xs">Save</button>
+                  </div>
+                </form>
               )}
             </section>
           )}

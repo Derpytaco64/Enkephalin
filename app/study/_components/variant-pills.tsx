@@ -31,6 +31,9 @@ export function VariantPills({ variants }: { variants: CardVariant[] }) {
           className="flex items-baseline gap-1 rounded border border-[var(--border)]
             px-1.5 py-0.5 text-xs text-[var(--muted)]"
         >
+          {/* V-1 is the drug's own profile, named after the lecture it came
+              from; the layers are V-2 up. Same numbers as the profile's picker
+              and the browse badge, so one pill means one thing. */}
           <span className="font-mono text-[0.6875rem]">V-{variant.n}</span>
           <span>{variant.label}</span>
         </li>

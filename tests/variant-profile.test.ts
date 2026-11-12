@@ -7,6 +7,7 @@ import {
 } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
+  baseVariantOf,
   clearVariantLayer,
   numberedVariantsByDrug,
   pointTagsAtVariant,
@@ -17,6 +18,7 @@ import {
   overridable,
   overriddenKeys,
   saveVariantLayer,
+  setBaseVariant,
 } from '@/lib/drugs/variants';
 import { getDrugProfile } from '@/lib/drugs/profile';
 import { ALL_VARIANTS } from '@/lib/drugs/variant-kinds';
@@ -285,7 +287,7 @@ describe('reading a variant back', () => {
     // Not the drug list, which is not something a drug can have a version for.
     expect(options).toEqual([
       { tagId: expect.any(String), slug: SECOND, label: 'PHRM 535', kind: 'course', overrides: 0, n: null },
-      { tagId: expect.any(String), slug: COURSE, label: 'PSCI 413', kind: 'course', overrides: 1, n: 1 },
+      { tagId: expect.any(String), slug: COURSE, label: 'PSCI 413', kind: 'course', overrides: 1, n: 2 },
       { tagId: expect.any(String), slug: EXAM, label: 'Heme/Onc Exam 3', kind: 'exam', overrides: 0, n: null },
     ]);
   });
@@ -340,8 +342,9 @@ describe('reading a variant back', () => {
 
     expect(options.filter((option) => option.n !== null).map((option) => [option.n, option.slug]))
       .toEqual(numbered.map((variant) => [variant.n, variant.slug]));
-    // PSCI 413 is V-1 and the exam V-2: overlay order, widest first.
-    expect(numbered.map((variant) => [variant.n, variant.slug])).toEqual([[1, COURSE], [2, EXAM]]);
+    // PSCI 413 is V-2 and the exam V-3: overlay order, widest first, after the
+    // drug's own profile at V-1.
+    expect(numbered.map((variant) => [variant.n, variant.slug])).toEqual([[2, COURSE], [3, EXAM]]);
   });
 
   it('leaves a class with nothing of its own unnumbered', async () => {
@@ -355,10 +358,10 @@ describe('reading a variant back', () => {
 
     // PHRM 535 sorts *first* and still has no number: numbering counts
     // versions, and a class the drug is merely tagged with is not another
-    // version of it. If it were numbered and skipped, PSCI 413 would be V-2
-    // here and V-1 on a card.
+    // version of it. If it were numbered and skipped, PSCI 413 would be V-3
+    // here and V-2 on a card.
     expect(bySlug[SECOND]).toBeNull();
-    expect(bySlug[COURSE]).toBe(1);
+    expect(bySlug[COURSE]).toBe(2);
   });
 
   it('tells a variant slug from a drug list slug', async () => {
@@ -727,5 +730,132 @@ describe('the two kinds of variant', () => {
     expect(through.cards[0].cardKey).toBe(cardKey({
       mode: plain.mode, direction: plain.direction, fieldKeys: ['moa'],
     }));
+  });
+});
+
+/**
+ * Whose words the drug's **own** profile is.
+ *
+ * The case that made this necessary: a lecture imported into a drug the app had
+ * never held writes the drug itself, so the base was Exam 1's wording and the
+ * picker called it *the drug's own* beside *V-1 Exam 2* and *V-2 Exam 3* -- the
+ * only unnamed one of the three, and the one that had a name.
+ *
+ * An attribution, not a fourth layer: nothing about the values changes, which
+ * is the first test here, and the class named stops being offered as a version
+ * of the drug, which is the rest of them.
+ */
+describe('the drug\'s own words have an owner', () => {
+  it('changes no value by naming the class the base came from', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+
+    const profile = await getDrugProfile('levothyroxine', ME);
+    expect(profile!.drug.fields.moa.value).toBe('Replaces T4');
+    expect(profile!.baseVariant).toEqual({
+      tagId: expect.any(String), slug: COURSE, label: 'PSCI 413', kind: 'course',
+    });
+  });
+
+  it('stops offering that class as a version of the drug', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+
+    // Two left, not three: PSCI 413 is the drug's own words, and offering it
+    // as well would put the same class in the picker twice -- once named and
+    // once as "the drug's own", which is the confusion being fixed.
+    const options = await variantOptionsFor(await drugId());
+    expect(options.map((option) => option.slug)).toEqual([SECOND, EXAM]);
+  });
+
+  it('reads the drug itself when asked for that class', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+
+    expect(await variantLayerFor(await drugId(), COURSE)).toBeNull();
+
+    // So `?as=psci-413` is the drug's own profile rather than an empty layer
+    // over it: reading the drug as the class whose words it already is.
+    const profile = await getDrugProfile('levothyroxine', ME, COURSE);
+    expect(profile!.variant).toBeNull();
+    expect(profile!.drug.fields.moa.value).toBe('Replaces T4');
+  });
+
+  it('refuses a layer for the class the base already belongs to', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+
+    const result = await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: COURSE,
+      values: { moa: 'The same class, differing from itself' },
+      source: '', note: '', userId: ME,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(await db.select().from(drugVariantValues)).toHaveLength(0);
+  });
+
+  it('refuses the attribution for a class that words the drug its own way', async () => {
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: COURSE,
+      values: { moa: 'Its own wording' }, source: '', note: '', userId: ME,
+    });
+
+    // The same rule from the other side: a class is either where the profile
+    // came from or a variation on it, and never both.
+    const result = await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+    expect(result.ok).toBe(false);
+    expect(await baseVariantOf(await drugId())).toBeNull();
+  });
+
+  it('refuses a class the drug is not in, and a list that is no class at all', async () => {
+    const [absent, list] = await Promise.all([
+      setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: 'nothing-like-it' }),
+      setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: 'top-drugs-2026' }),
+    ]);
+
+    expect(absent.ok).toBe(false);
+    expect(list.ok).toBe(false);
+    expect(await baseVariantOf(await drugId())).toBeNull();
+  });
+
+  it('clears back to nobody in particular, which is what the sheet\'s drugs are', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+    expect(await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: null })).toEqual({ ok: true });
+
+    expect(await baseVariantOf(await drugId())).toBeNull();
+    // And the class is a version to be written again.
+    expect((await variantOptionsFor(await drugId())).map((o) => o.slug))
+      .toEqual([SECOND, COURSE, EXAM]);
+  });
+
+  it('keeps the attribution when the drug leaves the class', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+
+    const [course] = await db.select({ id: tags.id }).from(tags).where(eq(tags.slug, COURSE));
+    await db
+      .delete(drugTags)
+      .where(and(eq(drugTags.drugId, await drugId()), eq(drugTags.tagId, course.id)));
+
+    // The one place this differs from a layer, deliberately: a layer on a drug
+    // that has left the class is refused, because applying it would read a
+    // version the drug has not got. This applies nothing -- it is the plain
+    // fact of whose slides the words were typed off, and untagging does not
+    // make it untrue.
+    expect(await baseVariantOf(await drugId())).toMatchObject({ slug: COURSE });
+  });
+
+  it('tells a study card whose wording it is asking about', async () => {
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: COURSE });
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: EXAM,
+      values: { bbw: 'What the exam says about the warning' },
+      source: '', note: '', userId: ME,
+    });
+
+    const [source] = (await loadCardSources([EXAM]))
+      .filter((row) => row.slug === 'levothyroxine');
+
+    // The base's fields are the class's, and the base is V-1 -- so the exam's
+    // one field is V-2, the same number the picker and the browse badge give
+    // it. A drug with two versions, counted the way a reader counts them.
+    expect(source.wordedBy?.moa).toEqual({ n: 1, label: 'PSCI 413', slug: COURSE });
+    expect(source.wordedBy?.bbw).toEqual({ n: 2, label: 'Heme/Onc Exam 3', slug: EXAM });
   });
 });

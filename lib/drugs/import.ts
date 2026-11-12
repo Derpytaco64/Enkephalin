@@ -151,6 +151,14 @@ type KnownDrug = {
   drugClass: string | null;
   schedule: string | null;
   fields: Record<string, FieldValue>;
+  /**
+   * The tag slug of the class whose words this drug's **own profile** is, or
+   * null.
+   *
+   * Read because it changes where this file's values go: a class is not
+   * differing from itself. See the `to` decision below.
+   */
+  baseVariant: string | null;
 };
 
 type Known = {
@@ -200,6 +208,9 @@ async function readKnown(): Promise<Known> {
       .from(drugTags).innerJoin(tags, eq(tags.id, drugTags.tagId)),
   ]);
 
+  // Tag ids are not what this file deals in; every comparison here is by slug.
+  const tagSlugById = new Map(tagRows.map((tag) => [tag.id, tag.slug]));
+
   const byName = new Map<string, KnownDrug>();
   const bySlug = new Map<string, KnownDrug>();
   for (const drug of drugRows) {
@@ -210,6 +221,9 @@ async function readKnown(): Promise<Known> {
       drugClass: drug.drugClass,
       schedule: drug.schedule,
       fields: drug.fields,
+      baseVariant: drug.baseVariantTagId === null
+        ? null
+        : tagSlugById.get(drug.baseVariantTagId) ?? null,
     };
     byName.set(lower(drug.genericName), entry);
     // Its own address last and unconditionally, because that one is unique and
@@ -500,6 +514,20 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       };
     }
 
+    /**
+     * This file's class is the one the drug's own profile already came from.
+     *
+     * Then it is not in a position to differ: there is nothing between its
+     * wording and the drug's, because its wording *is* the drug's. The same
+     * reason a brand-new drug takes everything as its own, one run later --
+     * a second reading of the deck that created the drug is still the only
+     * voice there is. `drugs.base_variant_tag_id` is where that was recorded,
+     * by the import that created it.
+     */
+    const ownsTheBase = existing !== null
+      && destination !== null
+      && existing.baseVariant === destination.slug;
+
     const writes: PlannedWrite[] = [];
     for (const [key, value] of Object.entries(values)) {
       if (!known.keys.has(key) && !declared.has(key)) {
@@ -545,6 +573,12 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
       else if (
         holdsAnAnswer(current) && from === value.value && current?.status === value.status
       ) to = 'unchanged';
+      // Its own base: a gap it fills extends the drug's own profile, and a
+      // value it *contradicts* is held rather than layered -- a layer there
+      // would be the same class differing from itself, which the profile would
+      // then have to offer as both *the drug's own* and a version of it. The
+      // report names it and says what to do, which is to correct the drug.
+      else if (ownsTheBase) to = holdsAnAnswer(current) ? 'held' : 'drug';
       else if (file.write === 'variant') to = 'variant';
       else if (!holdsAnAnswer(current)) to = 'drug';
       else to = 'variant';
@@ -756,6 +790,12 @@ export async function applyDrugImport(
         dosing: '',
         dosingUnique: false,
         tagSlugs: scopeSlugs,
+        // Whose words this profile is. A drug the app has never held takes
+        // everything as its own -- see the `!existing` clause in the planner --
+        // so the base is this lecture's wording with nothing underneath it, and
+        // without recording that the profile offers *the drug's own* beside the
+        // versions later lectures write, as though the first one were nobody's.
+        baseVariant: plan.variant?.slug ?? null,
       }, actorId);
 
       if (!created.ok) {
