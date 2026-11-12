@@ -308,6 +308,9 @@ describe('telling you whose words you are studying', () => {
   it('says nothing on a card whose fields the version never touched', async () => {
     // A class that rewords the mechanism has not reworded the warning, and a
     // pill on that card would be a lie told by a badge.
+    //
+    // The warning carries a real value rather than a `none`, because a field a
+    // drug has none of now makes no card at all -- see `worthAsking`.
     await saveVariantLayer({
       drugSlug: 'amoxicillin', variantSlug: CLASS,
       values: { moa: 'What PHRM 535 says' }, source: '', note: '', userId: ME,
@@ -317,7 +320,7 @@ describe('telling you whose words you are studying', () => {
       .set({
         fields: {
           moa: { value: 'Inhibits cell wall synthesis', status: 'ok', source: 's', updatedAt: '', updatedBy: null },
-          bbw: { value: null, status: 'none', source: 's', updatedAt: '', updatedBy: null },
+          bbw: { value: 'Warning as the sheet words it', status: 'ok', source: 's', updatedAt: '', updatedBy: null },
         },
       })
       .where(eq(drugs.slug, 'amoxicillin'));

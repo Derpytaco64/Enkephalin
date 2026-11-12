@@ -158,10 +158,10 @@ export function SessionRunner({
       </div>
 
       <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-        {/* Above the question, because it changes what the question means:
-            *what is the mechanism* and *what does PHRM 535 say the mechanism
-            is* have different right answers. */}
-        <VariantPills variants={card.variants} />
+        {/* The card's top right, above the question, because it changes what
+            the question means: *what is the mechanism* and *what does PHRM 535
+            say the mechanism is* have different right answers. */}
+        <VariantPills variants={card.variants} align="end" />
         <p className="mt-2 whitespace-pre-line text-lg">{card.prompt}</p>
 
         {revealed ? (

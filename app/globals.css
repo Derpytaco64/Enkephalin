@@ -77,6 +77,40 @@
   --grade-3: #3f6212;
   --grade-4: #166534;
 
+  /* The eight version colours, worn by the pill on a card that says whose
+     wording it is -- V-2 - Infectious Disease Exam 3 2026.
+
+     Here rather than in lib/theme for the same reason --grade-1..4 are: the
+     study pages may not import the palette at all, and this has to reach a
+     flashcard. The rule it keeps is the one that matters -- colour is never
+     the only signal, because the pill prints its number and its class either
+     way, and nothing among a question's *options* is ever tinted. See
+     tests/colour-is-cosmetic.test.ts.
+
+     One value each rather than a light/dark pair, because a categorical fill
+     is one answer to "what colour is this version" -- the rule
+     lib/theme/palette.ts follows for a class or a schedule. These are its
+     CATEGORICAL_RAMP, hue for hue and in order, and the pill picks one with
+     the same hash, so a tag wears the same colour in a deck as it does on the
+     browse list. tests/study-colour.test.ts pins both halves of that, and
+     pins each ink: black or white, whichever reads, 4.9:1 at worst. */
+  --version-1: #2563eb;
+  --version-1-ink: #ffffff;
+  --version-2: #059669;
+  --version-2-ink: #000000;
+  --version-3: #8b5cf6;
+  --version-3-ink: #000000;
+  --version-4: #ea580c;
+  --version-4-ink: #000000;
+  --version-5: #0891b2;
+  --version-5-ink: #000000;
+  --version-6: #d946ef;
+  --version-6-ink: #000000;
+  --version-7: #65a30d;
+  --version-7-ink: #000000;
+  --version-8: #f43f5e;
+  --version-8-ink: #000000;
+
   /* The filled button: its ground, its words, and its edge. Three tokens
      rather than two because the fill and the page it sits on can be the same
      brightness -- see the comment on .btn-primary. A cool slate rather than

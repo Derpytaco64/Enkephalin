@@ -428,10 +428,10 @@ export function QuizRunner({
       </div>
 
       <article className="mt-3 rounded border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-6">
-        {/* Whose wording is being asked about, above the question because it
-            changes which answer is right. Never the drug's name: asked the
-            other way round, the drug is the answer. */}
-        <VariantPills variants={question.variant ? [question.variant] : []} />
+        {/* Whose wording is being asked about, in the top right above the
+            question because it changes which answer is right. Never the drug's
+            name: asked the other way round, the drug is the answer. */}
+        <VariantPills variants={question.variant ? [question.variant] : []} align="end" />
         <p className="mt-2 whitespace-pre-line text-lg">{question.prompt}</p>
 
         <ul className="mt-6 space-y-2">

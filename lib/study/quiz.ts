@@ -23,7 +23,8 @@ import { indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
 import {
-  answerText, DRUG_SUBJECT, inScope, type CardSource, type CardVariant, type StudySubject,
+  answerText, DRUG_SUBJECT, inScope, worthAsking,
+  type CardSource, type CardVariant, type StudySubject,
 } from './cards';
 import type { StudyConfig, StudyDirection } from './config';
 import { weightOf, type QuestionWeights } from './priority';
@@ -227,22 +228,29 @@ export type QuizOptions = {
  * Whether this drug can be *asked about* on this field, as against merely
  * having a value for it.
  *
- * Only the controlled schedule needs the distinction, and it needs it badly.
- * 213 of the 236 drugs are not controlled, and "not controlled" is a perfectly
- * good fact -- it is just not a question. Asked drug-to-fact it floods a quiz
- * with a hundred questions whose answer is the same word, which teaches
- * nothing about what CII means and buries the 23 that do; asked fact-to-drug it
- * is incoherent, since 213 drugs are equally right. So a schedule question is
+ * The controlled schedule needed this first and needed it badly: 213 of the
+ * 236 drugs are not controlled, and *not controlled* is a perfectly good fact
+ * -- it is just not a question. Asked drug-to-fact it floods a quiz with a
+ * hundred questions whose answer is the same word, which teaches nothing about
+ * what CII means and buries the 23 that do; asked fact-to-drug it is
+ * incoherent, since 213 drugs are equally right. So a schedule question is
  * asked only of a scheduled drug, and its options are therefore other
  * schedules -- which is the question anyone meant by it.
  *
- * Nothing changes about what is stored or what a profile shows: "not
- * controlled" is still recorded, and flashcards still state it. This is about
- * what multiple choice can sensibly ask.
+ * It is now every field rather than that one, which is the same argument with
+ * the black box warning's numbers in it: 147 of 237 have none. `worthAsking`
+ * holds the rule, flashcards keep it too, and the distractor pool is built
+ * from these candidates -- so *None* cannot turn up as a wrong option either,
+ * which would have been a free elimination once it stopped being a right one.
+ *
+ * Nothing changes about what is stored or what a profile shows: *not
+ * controlled* is still recorded and still shown. This is about what is worth
+ * being asked.
  */
 function askable(def: FieldDef, source: CardSource): boolean {
-  if (def.key === 'controlled') return Boolean(source.schedule);
-  return true;
+  // A split dosing is asked branch by branch, and a branch is always a dose.
+  if (def.key === 'dosing' && source.dosingBranches.length > 0) return true;
+  return worthAsking(def, source.values[def.key]);
 }
 
 /**

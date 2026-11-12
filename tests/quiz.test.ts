@@ -443,8 +443,8 @@ describe('the controlled schedule', () => {
   it('is asked only of drugs that have one', () => {
     const questions = buildQuiz(scheduled(), defs, config({ fields: ['controlled'] }));
 
-    // Three of the five are simply not controlled. That is a fact and a
-    // flashcard; as multiple choice it is a hundred questions with one answer.
+    // Three of the five are simply not controlled. That is a fact, and the
+    // profile shows it; as a question it is a hundred of them with one answer.
     expect(questions.map((question) => question.slug).sort()).toEqual(['alprazolam', 'oxycodone']);
   });
 
@@ -454,6 +454,74 @@ describe('the controlled schedule', () => {
     for (const question of questions) {
       expect(question.options).not.toContain('Not controlled');
     }
+  });
+});
+
+/**
+ * The schedule's rule, now every field's.
+ *
+ * 147 of 237 drugs carry no black box warning, which is the same shape as the
+ * 213 that are not controlled: *None* is an answer the profile keeps showing
+ * and not a question worth asking, in either direction. See `worthAsking`.
+ */
+describe('a field a drug has none of', () => {
+  function warned(): CardSource[] {
+    const none = (slug: string, generic: string, moa: string) =>
+      source({
+        slug, generic,
+        values: { moa: value({ value: moa }), bbw: value({ value: null, status: 'none' }) },
+      });
+
+    return [
+      source({
+        slug: 'alprazolam', generic: 'Alprazolam',
+        values: {
+          moa: value({ value: 'GABA-A positive modulation' }),
+          bbw: value({ value: 'Risks from concomitant use with opioids' }),
+        },
+      }),
+      source({
+        slug: 'ciprofloxacin', generic: 'Ciprofloxacin',
+        values: {
+          moa: value({ value: 'DNA gyrase inhibition' }),
+          bbw: value({ value: 'Tendonitis and tendon rupture' }),
+        },
+      }),
+      none('lisinopril', 'Lisinopril', 'ACE inhibition'),
+      none('metformin', 'Metformin', 'Hepatic gluconeogenesis inhibition'),
+      none('atorvastatin', 'Atorvastatin', 'HMG-CoA reductase inhibition'),
+    ];
+  }
+
+  it('is asked only of the drugs that have one', () => {
+    const questions = buildQuiz(warned(), defs, config({ fields: ['bbw'] }));
+
+    expect(questions.map((question) => question.slug).sort())
+      .toEqual(['alprazolam', 'ciprofloxacin']);
+  });
+
+  it('never offers "None" as an option', () => {
+    // Once it has stopped being a right answer, it would be a free
+    // elimination as a wrong one -- which is worse than not offering it.
+    for (const question of buildQuiz(warned(), defs, config({ fields: ['bbw'] }))) {
+      expect(question.options).not.toContain('None');
+    }
+  });
+
+  it('still prints it as a line of a profile being identified', () => {
+    // Per-drug mode asks which drug this profile belongs to, and "no black box
+    // warning" is a true line of it. `askable` is deliberately not consulted
+    // there -- an option three lines long beside three of four would be the
+    // tell, so a bundle needs every field.
+    const questions = buildQuiz(warned(), defs, config({
+      fields: ['moa', 'bbw'],
+      mode: 'inclusive',
+    }), { direction: 'drug_to_fields' });
+
+    // Every drug is asked, the three without a warning included.
+    expect(questions).toHaveLength(5);
+    expect(questions.some((question) => question.options.some((option) => option.includes('None'))))
+      .toBe(true);
   });
 });
 

@@ -93,13 +93,34 @@ describe('buildCards', () => {
     expect(cards[0].faces).toEqual([{ key: 'generic', label: 'Drug', text: 'Alprazolam' }]);
   });
 
-  it('asks about an affirmed absence, because that is an answer', () => {
-    // 147 drugs have no black box warning. "Does this one?" is a real
-    // question, and "None" is the right answer rather than a gap.
-    const cards = buildCards([source()], defs, config({ fields: ['bbw'] }));
+  it('does not ask about an affirmed absence, because it is not a question', () => {
+    // 147 of 237 drugs have no black box warning. *None* is a real answer and
+    // the profile still shows it -- it is just not worth a card, and a deck of
+    // them buries the ones that have a warning. The quiz has refused the same
+    // question about the controlled schedule since it could tell "not
+    // controlled" from "not recorded"; this is that rule, on every field.
+    expect(buildCards([source()], defs, config({ fields: ['bbw'] }))).toEqual([]);
+  });
+
+  it('still asks the drugs that do carry one', () => {
+    const warned = source({
+      values: { ...source().values, bbw: value({ value: 'Risk of dependence' }) },
+    });
+    const cards = buildCards([warned], defs, config({ fields: ['bbw'] }));
 
     expect(cards).toHaveLength(1);
-    expect(cards[0].faces[0].text).toBe('None');
+    expect(cards[0].faces[0].text).toBe('Risk of dependence');
+  });
+
+  it('drops the absence from a card that asks several fields', () => {
+    // The card is built, because the dosing is real; the warning is left off
+    // rather than printed as a line saying None.
+    const cards = buildCards([source()], defs, config({
+      fields: ['dosing', 'bbw'],
+      mode: 'inclusive',
+    }));
+
+    expect(cards[0].fieldKeys).toEqual(['dosing']);
   });
 
   it('skips a field nobody has filled in', () => {
@@ -212,7 +233,10 @@ describe('buildCards', () => {
   it('says what it is asking for when the field has no template', () => {
     // A bare drug name leaves you guessing whether it wants the dose, the
     // mechanism or the warning.
-    const cards = buildCards([source()], defs, config({ fields: ['dosing', 'bbw'], mode: 'inclusive' }));
+    const warned = source({
+      values: { ...source().values, bbw: value({ value: 'Risk of dependence' }) },
+    });
+    const cards = buildCards([warned], defs, config({ fields: ['dosing', 'bbw'], mode: 'inclusive' }));
 
     expect(cards[0].prompt).toBe('Alprazolam — Dosing, Black box warning?');
   });

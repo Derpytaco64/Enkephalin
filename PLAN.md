@@ -3236,6 +3236,64 @@ Both screens pass the **quizzable** set to the picker, so *all* cannot reach `dr
 tick for the same reason the fold says how many are selected: *Select all 14* and a deck of 14 cards
 per drug are the same fact, and seeing the number first is cheaper than reading it off a deck.
 
+### The version pill wears its version’s colour (2026-11-12)
+
+*I think we should have a colored tag in the top right of flashcards and quiz questions showing the
+variant/version title so you know where it’s info was pulled from.*
+
+The pill was already there and already said *V-2 · PHRM 535*; what it lacked was a colour and a
+corner. Both now: filled with one of eight, right-aligned above the question on a flashcard and on a
+quiz question, unchanged where it sits inline beside a field label on the answer side.
+
+The colour is a fact about the data, which is exactly the kind of colour [Colour is cosmetic, and nothing studied may depend on
+it](#colour-is-cosmetic-and-nothing-studied-may-depend-on-it-2026-11-02) holds off the study screens -- so the rule it has to keep
+is the reason the rule exists. Two things do that. The pill **prints its number and its class
+whatever the fill is**, so nothing is carried by colour alone; and **nothing among a question’s
+options is tinted**, which was always the real danger -- an option whose colour matched the prompt
+would answer the question without being read.
+
+The eight values live in `app/globals.css` beside the grade ramp, for the same reason that one does:
+the study pages may not import `lib/theme`, and a card has to reach them. They are
+`CATEGORICAL_RAMP`, hue for hue, and the pill picks one with the same FNV-1a hash the palette runs
+over the same slug -- so a tag is the same colour on a card as on the browse list.
+`tests/study-colour.test.ts` pins both halves of that, checks each ink is the better of black and
+white, and checks each fill clears 3:1 on both grounds. The one thing that does not carry over is
+the Settings palette override: the study side cannot read it, and a pill is a label rather than a
+way of looking at a drug.
+
+### A field a drug has none of is not a question (2026-11-12)
+
+*I dont think flashcards should generate for empty fields like black box warnings on drugs that dont
+have them the same way control schedule doesnt ask about non controled drugs. That should probably
+be the case for all fields.*
+
+The quiz had been doing exactly that for the controlled schedule since it could tell *not controlled*
+from *not recorded* -- `askable`, with the numbers in its comment: 213 of 236 are not controlled, so
+asked drug-to-fact it is a hundred questions with one answer and asked fact-to-drug it is incoherent,
+because all 213 are equally right. What it was not doing was applying that anywhere else, and
+flashcards were not applying it at all.
+
+So the rule moved up a level. `worthAsking` in `lib/study/cards.ts` is the whole of it -- a value
+whose formatted kind is `none` is not asked -- and both builders consult it. 147 of 237 drugs carry
+no black box warning, which is the schedule’s shape with a different field’s numbers.
+
+Three places deliberately keep saying *None*, and they are the reason this is a study rule rather
+than a data one:
+
+- **The profile**, where *None* and *Not recorded yet* are different sentences and always were.
+- **The quiz’s per-drug mode**, where the question is which drug a profile belongs to and *no black
+  box warning* is a true line of one. `bundleOf` needs every selected field, because an option three
+  lines long beside three of four is the tell.
+- **A distractor pool**, which is built from the same candidates -- so *None* cannot appear as a
+  wrong option either. Once it has stopped being a right answer, offering it as a wrong one is a
+  free elimination.
+
+**What it costs**, recorded because it is a real cost and the owner took it knowingly: a card
+existing is now itself a fact. *Does amoxicillin carry a black box warning* only comes up for the
+drugs that do, so the question half-answers itself. That is the smaller price -- the deck it
+replaces was mostly one word -- and it is why `none` and `missing` still differ everywhere a value
+is shown rather than asked.
+
 ### A regimen folds on its protocols (2026-11-12)
 
 *Can we make it so regimens inside the regimen block collapse on the subheadings so its easier to

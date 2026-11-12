@@ -93,9 +93,14 @@ export type StudyCardSpec = {
 };
 
 /**
- * Renders a value as a single line of answer text. `none` is kept: "no black
- * box warning" is a fact worth being asked for, and the whole field system
- * exists to tell that apart from nobody having filled it in.
+ * Renders a value as a single line of answer text.
+ *
+ * `none` still renders, as *None* or *Not controlled*: it is a real answer,
+ * and the whole field system exists to tell it apart from nobody having filled
+ * anything in. Whether it is a thing to *ask* is a separate question, and
+ * `worthAsking` below is where that is decided -- a profile shows it, the
+ * quiz's per-drug mode prints it as a line of the profile being identified,
+ * and no card is built out of it.
  */
 export function answerText(def: FieldDef, value: FieldValue | undefined): string | null {
   const formatted = formatFieldValue(def, value);
@@ -118,6 +123,30 @@ export function answerText(def: FieldDef, value: FieldValue | undefined): string
     default:
       return formatted.text;
   }
+}
+
+/**
+ * Whether this field has something to **ask** about on this drug.
+ *
+ * `none` is an answer and not a question. 147 of 237 drugs carry no black box
+ * warning and 213 are not controlled, so asked drug-to-fact the deck fills
+ * with cards whose answer is the same word and buries the ones that have one;
+ * asked fact-to-drug it is incoherent, because all 147 are equally right.
+ *
+ * This was the controlled schedule's own rule in `lib/study/quiz.ts`, where it
+ * had been since the quiz could tell *not controlled* from *not recorded*. It
+ * is every field now, on the owner's call, and flashcards follow it too -- the
+ * screens asked the question honestly and the honest question was not worth
+ * asking a hundred times.
+ *
+ * What it costs, and it is worth knowing: a card existing is now itself a
+ * fact. *Does amoxicillin carry a black box warning* only comes up for the
+ * drugs that do, so the question half-answers itself. That is a smaller price
+ * than a deck of *None*, and it is why `missing` and `none` still differ
+ * everywhere else -- the profile goes on saying which it is.
+ */
+export function worthAsking(def: FieldDef, value: FieldValue | undefined): boolean {
+  return formatFieldValue(def, value).kind !== 'none';
 }
 
 export function inScope(source: CardSource, config: StudyConfig) {
@@ -263,7 +292,10 @@ export function buildCards(
     const answered = selected
       .map((def) => {
         const value = source.values[def.key];
-        const text = answerText(def, value);
+        // A field the drug has none of is not asked -- see `worthAsking`. A
+        // card whose every field is like that is not built at all, which is
+        // the `answered.length === 0` line below.
+        const text = worthAsking(def, value) ? answerText(def, value) : null;
         return text === null ? null : { key: def.key, label: def.label, text };
       })
       .filter((face): face is CardFace => face !== null);
