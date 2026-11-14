@@ -6,6 +6,7 @@ import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import type { CardSource } from '@/lib/study/cards';
 import { DEFAULT_CONFIG, type StudyConfig } from '@/lib/study/config';
 import { weightsFromHistory } from '@/lib/study/priority';
+import { OWN_LINE_MARKER } from '@/lib/drugs/import-format';
 import { buildQuiz, capQuiz } from '@/lib/study/quiz';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 
@@ -943,7 +944,7 @@ describe('a regimen in the quiz', () => {
     values: {
       regimen: value({
         value: names
-          .map((name) => `### ${name}\nMetastatic colorectal cancer, ${name} line\n- ${generic} <- this drug`)
+          .map((name) => `### ${name}\nMetastatic colorectal cancer, ${name} line\n- ${generic}${OWN_LINE_MARKER}`)
           .join('\n\n'),
       }),
     },
@@ -962,7 +963,7 @@ describe('a regimen in the quiz', () => {
     });
 
     expect(question.prompt)
-      .toBe('FOLFOX — what is it for, and what is Bevacizumab\'s part in it?');
+      .toBe('FOLFOX — what is it for, and what is in it?');
     // One protocol's words, not two protocols joined.
     expect(question.options[question.correctIndex]).not.toContain('FOLFIRI');
   });
@@ -989,9 +990,53 @@ describe('a regimen in the quiz', () => {
 
     expect(question.prompt).toContain('FOLFOX:');
     expect(question.prompt).not.toContain('Bevacizumab');
-    // The marker stays: *which drug fills this slot* is the question it leaves.
-    expect(question.prompt).toContain('<- this drug');
+    // The blank is the slot: *which drug fills this one* is what it leaves.
+    expect(question.prompt).toContain('———');
     expect(question.options).toContain('Bevacizumab');
+  });
+
+  /* The importer composes a protocol onto every drug in it, so a quiz over the
+     seven drugs in FOLFOX used to ask about FOLFOX seven times. */
+  it('asks about a protocol once, however many of its members are in scope', () => {
+    const shared = [
+      protocols('bevacizumab', 'Bevacizumab', 'FOLFOX'),
+      protocols('oxaliplatin', 'Oxaliplatin', 'FOLFOX'),
+      protocols('leucovorin', 'Leucovorin', 'FOLFOX'),
+      protocols('cetuximab', 'Cetuximab', 'CAPEOX'),
+      protocols('irinotecan', 'Irinotecan', 'FOLFIRINOX'),
+    ];
+
+    const names = buildQuiz(shared, defs, config({ fields: ['regimen'] }), {
+      rng: first, direction: 'drug_to_fields',
+    }).map((question) => question.questionKey);
+
+    expect(names).toEqual([
+      'drug_to_fields:regimen:folfox',
+      'drug_to_fields:regimen:capeox',
+      'drug_to_fields:regimen:folfirinox',
+    ]);
+  });
+
+  it('gives the protocol to a drug being asked about, not to the first one holding it', () => {
+    const scoped = [
+      protocols('bevacizumab', 'Bevacizumab', 'FOLFOX'),
+      { ...protocols('oxaliplatin', 'Oxaliplatin', 'FOLFOX'), tags: ['onc'] },
+      protocols('cetuximab', 'Cetuximab', 'CAPEOX'),
+      protocols('irinotecan', 'Irinotecan', 'FOLFIRINOX'),
+    ];
+    // Bevacizumab holds FOLFOX and comes first, but is out of scope -- claiming
+    // it by pool order would drop FOLFOX out of the quiz entirely.
+    scoped[0] = { ...scoped[0], tags: [] };
+
+    const questions = buildQuiz(scoped, defs, config({
+      fields: ['regimen'],
+      scope: { ...DEFAULT_CONFIG.scope, tags: ['onc'] },
+    }), { rng: first, direction: 'drug_to_fields' });
+
+    const folfox = questions.filter((question) =>
+      question.questionKey === 'drug_to_fields:regimen:folfox');
+
+    expect(folfox.map((question) => question.slug)).toEqual(['oxaliplatin']);
   });
 
   it('names the protocol on a profile line too, and hides the drug in it', () => {

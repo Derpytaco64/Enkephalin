@@ -3353,6 +3353,52 @@ value's provenance line prints -- *from PHRM 532 content*, on 1,136 live values.
 `docs/drug-import.md` now says so under `scope`, because a file whose exam label lacks the year
 would create a second, undated tag beside the real one.
 
+### One protocol, one card -- and markdown drawn as markdown (2026-11-14)
+
+*Can we make it so there aren't repeat regimens between drugs? Wouldn't there be 3 cards for a
+single regimen if all three of its drugs are in the set being studied?*
+
+Yes, and there were. The importer composes a regimen onto **every** drug in it -- which is what
+makes it readable on a profile, where you are there to find that drug's dose -- so FOLFOX is written
+out on seven drugs and FOLFIRI on eight. Split by heading, that was 169 protocol cards across the
+database for **55 protocols**. Seven FOLFOX cards with the same words in them.
+
+So the first drug to reach a protocol owns its card and the rest say nothing about it. The order is
+the deck's, which is alphabetical by generic name, so a given scope gives the same owner every time.
+A *different* scope can give a different owner, and that does re-file the schedule; the alternative
+is naming an owner from the whole database, which would drop FOLFOX out of any deck its owner was
+not in. The quiz does the same, with one addition: drugs **in scope** claim first, because its
+candidate pool is the whole database (that is where distractors come from) and claiming by pool
+order would hand FOLFOX to a drug nobody is being asked about.
+
+**With one card for the protocol, the question stopped naming a drug.** *FOLFOX -- what is it for,
+and what is in it?* Naming a member would make it that member's card again. The *← this drug*
+marker comes off the text for the same reason -- there is no "this drug" left for the arrow to point
+at -- and nothing is lost in the facts-to-drug direction, where `maskGeneric` already replaces the
+owner's name with a blank, and the blank is a better marker than the arrow was.
+
+What this gives up: a class that rewords **one member's** copy of a protocol is not heard unless
+that member owns it. Nothing in the database does that today -- all 54 shared protocols are
+byte-identical apart from the marker -- and a protocol worded two ways is a thing to notice rather
+than to study twice.
+
+*Markdown formatting doesn't appear to be showing on flashcards and possibly not in quizzes either.*
+
+Also true, and older than the regimens: `formatFieldValue` hands a card the words in a row, and the
+study screens printed that with `whitespace-pre-line`. Right for a search index, wrong for the one
+field whose **shape is the answer** -- a regimen read `- Oxaliplatin --- 85 mg/m2 IV day 1` with its
+hyphens showing, and a decision tree arrived as one paragraph.
+
+`Prose` -- the profile's own renderer -- now draws a markdown field on both screens: the answer side
+of a card, the clue side of a facts-to-drug prompt, and a quiz option. It is told which text is
+markdown rather than sniffing for a leading hyphen, because a runner has no field definitions and a
+dose that happened to start with one would become a list: `CardFace.prose`,
+`StudyCardSpec.promptProse` and `QuizQuestion.prose` carry it from the builder.
+
+**Never folded inside a button or a prompt.** `Prose` grew a `fold` flag for it: a `<details>`
+inside a quiz option is a control inside a control, and a prompt is a question rather than a
+document. The deck's *answer* still folds, which is what folding was built for.
+
 ### A protocol is a card (2026-11-14)
 
 *Can we make each subheading of regimens quizable instead of the whole thing so it is easier to

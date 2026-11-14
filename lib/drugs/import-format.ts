@@ -792,6 +792,15 @@ export function parseDrugImport(raw: string): ParseResult {
  * The member's own line is marked, because the point of reading this on
  * dabrafenib's profile is to find dabrafenib's dose in it.
  */
+/**
+ * What marks the member whose profile this copy of a protocol is on.
+ *
+ * Exported because the study side takes it back off: a flashcard about FOLFOX
+ * is built once, not once per member, so there is no "this drug" for the arrow
+ * to point at. See `partsOf` in `lib/study/cards.ts`.
+ */
+export const OWN_LINE_MARKER = ' ← this drug';
+
 export function renderRegimen(regimen: ImportRegimen, forDrug: string): string {
   const lines: string[] = [`### ${regimen.name}`, ''];
 
@@ -802,7 +811,7 @@ export function renderRegimen(regimen: ImportRegimen, forDrug: string): string {
     const parts = [component.drug];
     if (component.dose) parts.push(component.dose);
     if (component.role !== 'component') parts.push(`(${component.role})`);
-    lines.push(`- ${parts.join(' — ')}${mine ? ' ← this drug' : ''}`);
+    lines.push(`- ${parts.join(' — ')}${mine ? OWN_LINE_MARKER : ''}`);
   }
 
   if (regimen.flow) {

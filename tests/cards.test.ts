@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { fieldDefs, type FieldValue } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { listFieldDefs, type FieldDef } from '@/lib/fields/registry';
+import { OWN_LINE_MARKER } from '@/lib/drugs/import-format';
 import { buildCards, type CardSource } from '@/lib/study/cards';
 import { DEFAULT_CONFIG, type StudyConfig } from '@/lib/study/config';
 
@@ -90,7 +91,8 @@ describe('buildCards', () => {
     const cards = buildCards([source()], defs, config({ fields: ['moa'], direction: 'fields_to_drug' }));
 
     expect(cards[0].prompt).toContain('GABA-A positive allosteric modulator');
-    expect(cards[0].faces).toEqual([{ key: 'generic', label: 'Drug', text: 'Alprazolam' }]);
+    expect(cards[0].faces)
+      .toEqual([{ key: 'generic', label: 'Drug', text: 'Alprazolam', prose: false }]);
   });
 
   it('does not ask about an affirmed absence, because it is not a question', () => {
@@ -403,7 +405,7 @@ describe('a regimen asked protocol by protocol', () => {
     'Adjuvant colon cancer, stage III',
     '',
     '- Oxaliplatin --- 85 mg/m2 IV day 1',
-    '- Bevacizumab --- Metastatic, RAS-mutated <- this drug',
+    `- Bevacizumab --- Metastatic, RAS-mutated${OWN_LINE_MARKER}`,
     '',
     '### FOLFIRI',
     '',
@@ -434,7 +436,10 @@ describe('a regimen asked protocol by protocol', () => {
 
     // The field's own template -- *which named regimens include X* -- asks
     // about all of them, and the protocol has already been named.
-    expect(folfox.prompt).toBe('FOLFOX — what is it for, and what is Bevacizumab\'s part in it?');
+    // No drug in it: FOLFOX is one protocol wherever you meet it, and one
+    // card -- naming a member would make it that member's card, and the seven
+    // drugs on it would have seven cards saying the same thing.
+    expect(folfox.prompt).toBe('FOLFOX — what is it for, and what is in it?');
     expect(folfox.faces[0].text).toContain('Adjuvant colon cancer');
     expect(folfox.faces[0].text).not.toContain('FOLFIRI');
   });
@@ -512,21 +517,62 @@ describe('a regimen asked protocol by protocol', () => {
       [withRegimen([
         '### Lazertinib + bevacizumab',
         'EGFR-mutated lung cancer',
-        '- Bevacizumab <- this drug',
+        `- Bevacizumab${OWN_LINE_MARKER}`,
       ].join('\n'))],
       defs,
       config({ fields: ['regimen'], direction: 'fields_to_drug' }),
     );
     expect(named.prompt).not.toMatch(/bevacizumab/i);
     expect(named.prompt).toContain('Lazertinib + ');
-    // The marker stays, which is what makes it a question: *which drug fills
-    // this slot*.
-    expect(folfox.prompt).toContain('<- this drug');
+
+    // The blank is the slot, which is what makes it a question: *which drug
+    // fills this one*. It is also why the marker is not needed to say so.
+    expect(folfox.prompt).toContain('———');
     expect(folfox.faces[0].text).toBe('Bevacizumab');
   });
 
   it('leaves the drug named where the drug is not the answer', () => {
     const [folfox] = buildCards([withRegimen()], defs, config({ fields: ['regimen'] }));
     expect(folfox.faces[0].text).toContain('Bevacizumab');
+  });
+
+  /* The importer composes a protocol onto every drug in it -- that is what
+     makes it readable on a profile -- so FOLFOX is written out on seven drugs
+     and a deck holding all seven used to ask about it seven times. */
+  it('builds one card per protocol, not one per drug in it', () => {
+    const oxaliplatin = source({
+      drugId: 'id-oxaliplatin',
+      slug: 'oxaliplatin',
+      generic: 'Oxaliplatin',
+      values: { ...source().values, regimen: value({ value: REGIMEN }) },
+    });
+
+    const cards = buildCards([oxaliplatin, withRegimen()], defs, config({ fields: ['regimen'] }));
+
+    expect(cards.map((card) => card.faces[0].label)).toEqual(['FOLFOX', 'FOLFIRI']);
+    // The first drug in the deck owns them -- `sources` is alphabetical by
+    // generic name, so the same scope gives the same owner every time.
+    expect(new Set(cards.map((card) => card.slug))).toEqual(new Set(['oxaliplatin']));
+  });
+
+  it('leaves a drug no regimen card when every protocol of it is spoken for', () => {
+    const twin = source({
+      drugId: 'id-oxaliplatin', slug: 'oxaliplatin', generic: 'Oxaliplatin',
+      values: { ...source().values, regimen: value({ value: REGIMEN }) },
+    });
+
+    // Not a fallback to a whole-field card: the field splits, and everything
+    // it splits into has already been asked.
+    const cards = buildCards([twin, withRegimen()], defs, config({ fields: ['regimen'] }));
+    expect(cards.filter((card) => card.slug === 'bevacizumab')).toEqual([]);
+  });
+
+  it('takes the *this drug* marker off, there being no this drug any more', () => {
+    const [folfox] = buildCards([withRegimen()], defs, config({ fields: ['regimen'] }));
+
+    // The importer marks the member whose profile a copy is on, which is right
+    // on a profile and meaningless on a card built once for the protocol.
+    expect(folfox.faces[0].text).not.toContain('this drug');
+    expect(folfox.faces[0].text).toContain('Bevacizumab --- Metastatic, RAS-mutated');
   });
 });

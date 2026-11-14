@@ -40,6 +40,15 @@ export type QuizQuestion = {
   fieldLabel: string;
   direction: StudyDirection;
   prompt: string;
+  /**
+   * Whether this field's words are markdown, and so want drawing as the
+   * headings, paragraphs and nested lists they are.
+   *
+   * Which half of the question that applies to follows from the direction:
+   * asked drug-to-fields the **options** are the field's words, asked the
+   * other way round the **prompt** carries them as the clue.
+   */
+  prose: boolean;
   options: string[];
   correctIndex: number;
   /**
@@ -156,12 +165,7 @@ function qualifiersOf(def: FieldDef, source: CardSource, atoms: string[]): (stri
  * templates are admin-editable, so the only safe assumption is that a question
  * ends in a question mark.
  */
-function qualify(
-  def: Asking,
-  prompt: string,
-  qualifier: string | null,
-  generic: string,
-): string {
+function qualify(def: Asking, prompt: string, qualifier: string | null): string {
   if (qualifier === null) return prompt;
 
   // A protocol **replaces** the question rather than narrowing it. *Which
@@ -169,7 +173,7 @@ function qualify(
   // a sentence; the name has already been given, so what is left to ask is
   // what FOLFOX is for and what this drug does in it. Shared with the deck, so
   // one protocol is one question wherever it is met.
-  if (def.key === REGIMEN_KEY) return partPrompt(generic, { name: qualifier, slug: '', text: '' });
+  if (def.key === REGIMEN_KEY) return partPrompt({ name: qualifier, slug: '', text: '' });
 
   return `${prompt.replace(/\s*\?\s*$/, '')} for ${qualifier.toLowerCase()}?`;
 }
@@ -247,7 +251,13 @@ type Candidate = {
  * `FieldDef`, and taking it this way is what lets a bundle of fields be asked
  * by exactly the same code as a single one.
  */
-type Asking = { key: string; label: string; promptTemplate: string | null };
+type Asking = {
+  key: string;
+  label: string;
+  promptTemplate: string | null;
+  /** See `QuizQuestion.prose`. A bundle of several fields is never one. */
+  prose: boolean;
+};
 
 /** Fisher-Yates over a copy, with the rng injectable so tests are decidable. */
 function shuffled<T>(items: T[], rng: () => number): T[] {
@@ -415,6 +425,9 @@ export function buildQuiz(
       label: selected.map((def) => def.label).join(', '),
       // A field's own wording asks about that field; a bundle is not that.
       promptTemplate: null,
+      // Nor is a bundle one field's prose: it is a stack of `Label: value`
+      // lines, several fields deep, and it is meant to read flat.
+      prose: false,
     };
 
     const candidates: Candidate[] = sources.flatMap((source) => {
@@ -444,10 +457,58 @@ export function buildQuiz(
     });
     if (candidates.length === 0) continue;
 
-    ask(def, candidates);
+    const about: Asking = {
+      key: def.key,
+      label: def.label,
+      promptTemplate: def.promptTemplate,
+      prose: def.dataType === 'markdown',
+    };
+
+    ask(about, def.key === REGIMEN_KEY ? onePerProtocol(candidates, asked) : candidates);
   }
 
   return questions;
+}
+
+/**
+ * One candidate per protocol, rather than one per drug in it.
+ *
+ * The importer composes a regimen onto every member, so FOLFOX is written out
+ * on seven drugs. Left alone, a quiz over those seven asks about FOLFOX seven
+ * times with the same answer -- the flashcard deck has the same problem and
+ * `buildCards` solves it the same way.
+ *
+ * **Drugs in scope get first claim.** The pool here is the whole database,
+ * because that is where distractors come from; claiming by database order
+ * would hand FOLFOX to a drug that is not being asked about and the protocol
+ * would never come up. A stable sort, so the order inside each half is still
+ * alphabetical and the same scope gives the same owner every time.
+ */
+function onePerProtocol(candidates: Candidate[], asked: Set<string>): Candidate[] {
+  const inScopeFirst = [...candidates].sort((a, b) =>
+    Number(asked.has(b.source.drugId)) - Number(asked.has(a.source.drugId)));
+
+  const claimed = new Set<string>();
+
+  return inScopeFirst.flatMap((candidate) => {
+    const kept = candidate.atoms
+      .map((_, at) => at)
+      .filter((at) => {
+        const name = candidate.qualifiers[at];
+        if (name === null) return true;
+        if (claimed.has(partSlug(name))) return false;
+        claimed.add(partSlug(name));
+        return true;
+      });
+
+    if (kept.length === 0) return [];
+    return [{
+      source: candidate.source,
+      atoms: kept.map((at) => candidate.atoms[at]),
+      keys: kept.map((at) => candidate.keys[at]),
+      qualifiers: kept.map((at) => candidate.qualifiers[at]),
+    }];
+  });
 }
 
 /**
@@ -595,13 +656,13 @@ function factQuestion(
     fieldLabel: def.label,
     variant: asked.wordedBy?.[def.key] ?? null,
     direction: 'drug_to_fields',
+    prose: def.prose,
     prompt: qualify(
       def,
       def.promptTemplate
         ? def.promptTemplate.replaceAll('{{generic}}', asked.generic)
         : `${asked.generic} — ${def.label}?`,
       qualifier,
-      asked.generic,
     ),
     options: laid.map((option) => option.text),
     correctIndex: laid.findIndex((option) => option.text === correct),
@@ -686,6 +747,7 @@ function nameQuestion(
     fieldLabel: def.label,
     variant: asked.wordedBy?.[def.key] ?? null,
     direction: 'fields_to_drug',
+    prose: def.prose,
     // A regimen names its members and marks which one this drug is, so asked
     // this way round the clue would hand over its own answer -- the protocol's
     // own name included, a third of them being built out of their members.

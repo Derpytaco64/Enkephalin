@@ -98,3 +98,45 @@ describe('the room above the question', () => {
     expect(DECK_PAGE).toContain('open={!running}');
   });
 });
+
+/**
+ * Markdown drawn as markdown, on the two screens that used to print it raw.
+ *
+ * `formatFieldValue` hands a card the words in a row, which is right for a
+ * search index and was taken for granted on a card too -- so a regimen read
+ * `- Oxaliplatin --- 85 mg/m2 IV day 1` with its hyphens showing and a
+ * decision tree arrived as one paragraph. The fix is `Prose`, the same
+ * renderer the profile uses, and these pin the three places it goes.
+ */
+describe('a markdown field on a study screen', () => {
+  const DECK_RUNNER = readFileSync('app/study/flashcards/session-runner.tsx', 'utf8');
+  const PROSE = readFileSync('app/_components/prose.tsx', 'utf8');
+
+  it('is drawn by the same renderer the profile uses', () => {
+    expect(DECK_RUNNER).toContain("import { Prose } from '@/app/_components/prose'");
+    expect(QUIZ_RUNNER).toContain("import { Prose } from '@/app/_components/prose'");
+  });
+
+  it('is told which text is markdown rather than guessing', () => {
+    // The runners have no field definitions -- they are handed a deck and
+    // draw it -- so the builder has to say. A runner sniffing for a leading
+    // hyphen would turn a dose that happens to start with one into a list.
+    expect(DECK_RUNNER).toContain('face.prose');
+    expect(DECK_RUNNER).toContain('card.promptProse');
+    expect(QUIZ_RUNNER).toContain('question.prose');
+  });
+
+  it('never folds one inside a button or a question', () => {
+    // A `<details>` inside a quiz option is a control inside a control, and a
+    // prompt is a question rather than a document.
+    expect(PROSE).toContain('fold = true');
+    for (const folded of QUIZ_RUNNER.match(/<Prose[\s\S]{0,120}?\/>/g) ?? []) {
+      expect(folded, 'quiz').toContain('fold={false}');
+    }
+    // The deck folds on the answer -- a regimen with several protocols is
+    // what folding is for -- and not on the prompt.
+    const deck = DECK_RUNNER.match(/<Prose[\s\S]{0,120}?\/>/g) ?? [];
+    expect(deck.filter((tag) => tag.includes('fold={false}'))).toHaveLength(1);
+    expect(deck.length).toBeGreaterThan(1);
+  });
+});

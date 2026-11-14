@@ -6,6 +6,7 @@ import { useEffect, useState, useTransition } from 'react';
 import type { StudyConfig } from '@/lib/study/config';
 import type { QuizQuestion } from '@/lib/study/quiz';
 import { LookupPanel, LookupTrigger, type LookupTarget } from '../_components/lookup-panel';
+import { Prose } from '@/app/_components/prose';
 import { VariantPills } from '../_components/variant-pills';
 import type { FinishState } from './actions';
 
@@ -435,7 +436,13 @@ export function QuizRunner({
             question because it changes which answer is right. Never the drug's
             name: asked the other way round, the drug is the answer. */}
         <VariantPills variants={question.variant ? [question.variant] : []} align="end" />
-        <p className="mt-2 whitespace-pre-line text-lg">{question.prompt}</p>
+        {/* Asked facts-to-drug the clue is a field's words and is drawn as
+            them; asked the other way the prompt is a sentence. */}
+        <div className="mt-2 text-lg">
+          {question.prose && question.direction === 'fields_to_drug'
+            ? <Prose text={question.prompt} fold={false} />
+            : <p className="whitespace-pre-line">{question.prompt}</p>}
+        </div>
 
         <ul className="mt-6 space-y-2">
           {question.options.map((option, optionIndex) => {
@@ -462,7 +469,13 @@ export function QuizRunner({
                   {/* min-w-0: a flex child will not shrink below its content
                       without it, so one long option would widen the whole
                       button past the card. */}
-                  <span className="min-w-0 whitespace-pre-line">{option}</span>
+                  {/* Never folded: this is inside a button, and a `<details>`
+                      in a button is a control inside a control. */}
+                  <span className="min-w-0">
+                    {question.prose && question.direction === 'drug_to_fields'
+                      ? <Prose text={option} fold={false} />
+                      : <span className="whitespace-pre-line">{option}</span>}
+                  </span>
                   {answered && isCorrect && (
                     <span className="ml-auto shrink-0 text-xs text-[var(--verified)]">Correct</span>
                   )}

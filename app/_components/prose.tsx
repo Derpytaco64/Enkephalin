@@ -75,13 +75,22 @@ function Nodes({ nodes, startOpen }: { nodes: ProseNode[]; startOpen: boolean })
 /**
  * A markdown field, drawn as the headings, paragraphs and nested lists it is.
  *
- * Profiles only. A card, a search index and a bulk-set preview all want the
- * words in a row, which is what `formatFieldValue` gives them; this is the one
- * place where the shape of the text carries meaning -- a regimen's decision
- * tree, a taper's steps -- and flattening it there loses the answer.
+ * Profiles **and the study screens**. It was profiles only, on the reasoning
+ * that a card wants the words in a row; that was wrong about the one field
+ * whose shape is the answer -- a regimen read `- Oxaliplatin --- 85 mg/m2 IV
+ * day 1` with its hyphens showing, and a decision tree arrived as one
+ * paragraph. A search index and a bulk-set preview still want the flat form,
+ * which is what `formatFieldValue` goes on giving them.
+ *
+ * `fold` is for where a `<details>` cannot go: inside a quiz option, which is
+ * a button, and inside a prompt, which is a question rather than a document.
+ * The headings are then drawn as headings and everything stays open.
  */
-export function Prose({ text }: { text: string }) {
-  const nodes = groupProse(parseProse(text));
+export function Prose({ text, fold = true }: { text: string; fold?: boolean }) {
+  const blocks = parseProse(text);
+  if (!fold) return <Nodes nodes={blocks} startOpen />;
+
+  const nodes = groupProse(blocks);
   const sections = nodes.filter((node) => node.kind === 'section').length;
 
   return <Nodes nodes={nodes} startOpen={sections < 2} />;

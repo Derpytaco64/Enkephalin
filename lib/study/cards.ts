@@ -1,5 +1,6 @@
 import type { FieldValue } from '@/db/schema';
 import { formatFieldValue } from '@/lib/fields/format';
+import { OWN_LINE_MARKER } from '@/lib/drugs/import-format';
 import { splitSections } from '@/lib/fields/prose';
 import type { FieldDef } from '@/lib/fields/registry';
 import { cardKey, partSlug, type StudyConfig } from './config';
@@ -70,7 +71,20 @@ export type CardSource = {
  */
 export type CardVariant = { n: number; label: string; slug: string };
 
-export type CardFace = { key: string; label: string; text: string };
+export type CardFace = {
+  key: string;
+  label: string;
+  text: string;
+  /**
+   * Whether the text is markdown, and so wants drawing as the headings,
+   * paragraphs and nested lists it is rather than as one run of characters.
+   *
+   * Carried on the face because the runner has no field definitions: it is
+   * handed a deck and draws it. Without this a regimen read `- Oxaliplatin
+   * --- 85 mg/m2` with the hyphens showing, which is what prompted it.
+   */
+  prose: boolean;
+};
 
 export type StudyCardSpec = {
   id: string;
@@ -80,6 +94,14 @@ export type StudyCardSpec = {
   cardKey: string;
   fieldKeys: string[];
   prompt: string;
+  /**
+   * Whether the prompt has a markdown field's words inside it.
+   *
+   * Only asked facts-to-drug, where the clue *is* the field's text -- the
+   * other direction's prompt is a question and nothing else. Separate from
+   * `faces[].prose` because in that direction the faces are the drug's name.
+   */
+  promptProse: boolean;
   /** What the reveal shows. */
   faces: CardFace[];
   /**
@@ -184,6 +206,12 @@ export type CardPart = {
  * `splitSections` returns nothing where the prose has words before its first
  * heading, and that is the fallback: such a field is asked whole, exactly as
  * it was before.
+ *
+ * **The *← this drug* marker comes off.** The importer composes a protocol
+ * onto every member and marks the member whose profile it is, which is the
+ * right thing on a profile -- you are there to find that drug's dose. A card
+ * is built once for the protocol and not once per member (see `buildCards`),
+ * so there is no "this drug" left for the arrow to point at.
  */
 export function partsOf(def: FieldDef, value: FieldValue | undefined): CardPart[] {
   if (def.key !== SPLIT_BY_HEADING || value === undefined) return [];
@@ -194,7 +222,9 @@ export function partsOf(def: FieldDef, value: FieldValue | undefined): CardPart[
   return slices.flatMap((slice) => {
     // Through the formatter rather than raw, so a piece of a field is written
     // the way the whole field would have been.
-    const text = answerText(def, { ...value, value: slice.text });
+    const text = answerText(def, {
+      ...value, value: slice.text.replaceAll(OWN_LINE_MARKER, ''),
+    });
     if (text === null) return [];
 
     // Two protocols under one name on one drug would be two cards with one
@@ -215,13 +245,18 @@ export function partsOf(def: FieldDef, value: FieldValue | undefined): CardPart[
  * *Which named regimens include bevacizumab, and at what dose?* is the right
  * question about the whole field and the wrong one about a single protocol --
  * the protocol has already been named, so what is left to ask is what it is
- * for and what this drug does in it.
+ * for and what is in it.
+ *
+ * **No drug in it**, and that is the point of the question rather than an
+ * omission: FOLFOX is one protocol wherever you meet it, and one card. Naming
+ * a member would make it that member's card, and the seven drugs on it would
+ * have seven cards saying the same thing -- see `buildCards`.
  *
  * Shared by the deck and the quiz so one protocol is one question however it
  * is met.
  */
-export function partPrompt(generic: string, part: CardPart): string {
-  return `${part.name} — what is it for, and what is ${generic}'s part in it?`;
+export function partPrompt(part: CardPart): string {
+  return `${part.name} — what is it for, and what is in it?`;
 }
 
 /**
@@ -350,7 +385,7 @@ function promptFor(
 
   // A named piece has already been named, so the field's own question -- which
   // asks about all of them -- is the wrong one to put over it.
-  if (part) return partPrompt(generic, part);
+  if (part) return partPrompt(part);
 
   // A field can carry its own wording, which reads better than a generated
   // question: "What is the mechanism of action of Acyclovir?"
@@ -393,6 +428,30 @@ export function buildCards(
     return [...seen.values()];
   };
 
+  /**
+   * Protocols already given a card, so no protocol gets two.
+   *
+   * The importer composes a regimen onto **every** drug in it -- that is what
+   * makes it readable on a profile -- so FOLFOX is written out on seven drugs
+   * and FOLFIRI on eight. Built per drug, a deck holding all seven asked about
+   * FOLFOX seven times, in seven cards with the same words. 169 protocol cards
+   * across the database; **55 protocols**.
+   *
+   * So the first drug to reach a protocol owns its card, and the others say
+   * nothing about it. The order is `sources`, which is alphabetical by generic
+   * name -- deterministic, so the same scope gives the same owner every time.
+   * A different scope can give a different owner, and that does re-file the
+   * card's schedule; the alternative is naming an owner from the whole
+   * database, which would drop FOLFOX out of any deck its owner is not in.
+   *
+   * What this gives up: a class that rewords one member's copy of a protocol
+   * is not heard unless that member happens to own it. Nothing in the database
+   * does that today -- every duplicate is identical bar the *← this drug*
+   * marker -- and a protocol worded two ways is a thing to notice rather than
+   * to study twice.
+   */
+  const claimed = new Set<string>();
+
   for (const source of sources) {
     if (!inScope(source, config)) continue;
 
@@ -403,14 +462,16 @@ export function buildCards(
         // card whose every field is like that is not built at all, which is
         // the `answered.length === 0` line below.
         const text = worthAsking(def, value) ? answerText(def, value) : null;
-        return text === null ? null : { key: def.key, label: def.label, text };
+        return text === null ? null : {
+          key: def.key, label: def.label, text, prose: def.dataType === 'markdown',
+        };
       })
       .filter((face): face is CardFace => face !== null);
 
     if (answered.length === 0) continue;
 
     const identity: CardFace = {
-      key: subject.identityKey, label: subject.identityLabel, text: source.generic,
+      key: subject.identityKey, label: subject.identityLabel, text: source.generic, prose: false,
     };
 
     /**
@@ -425,7 +486,7 @@ export function buildCards(
         mode: config.mode, direction: config.direction, fieldKeys, part: part?.slug,
       });
       const shown: CardFace = part
-        ? { key: face.key, label: part.name, text: part.text }
+        ? { key: face.key, label: part.name, text: part.text, prose: face.prose }
         : face;
 
       cards.push({
@@ -436,17 +497,29 @@ export function buildCards(
         cardKey: key,
         fieldKeys,
         prompt: promptFor(config, source.generic, [shown], defs, subject, part),
+        promptProse: config.direction === 'fields_to_drug' && shown.prose,
         faces: config.direction === 'fields_to_drug' ? [identity] : [shown],
         variants: variantsOf(source, fieldKeys),
       });
     };
 
-    /** A field asked one protocol at a time, where it is one -- see `partsOf`. */
+    /**
+     * A field asked one protocol at a time, where it is one -- see `partsOf`.
+     *
+     * True means *this field splits*, not *this field produced cards*: a drug
+     * whose every protocol has already been claimed falls through to no card
+     * rather than back to a whole-field one.
+     */
     const split = (face: CardFace): boolean => {
       const def = byKey.get(face.key);
       const parts = def ? partsOf(def, source.values[face.key]) : [];
       if (parts.length === 0) return false;
-      for (const part of parts) one(face, part);
+
+      for (const part of parts) {
+        if (claimed.has(part.slug)) continue;
+        claimed.add(part.slug);
+        one(face, part);
+      }
       return true;
     };
 
@@ -476,6 +549,8 @@ export function buildCards(
       cardKey: key,
       fieldKeys,
       prompt: promptFor(config, source.generic, answered, defs, subject),
+      promptProse: config.direction === 'fields_to_drug'
+        && answered.some((face) => face.prose),
       faces: config.direction === 'fields_to_drug' ? [identity] : answered,
       variants: variantsOf(source, fieldKeys),
     });

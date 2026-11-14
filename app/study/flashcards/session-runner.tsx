@@ -5,6 +5,7 @@ import {
   type CSSProperties, useCallback, useEffect, useMemo, useState,
 } from 'react';
 import type { StudyCardSpec } from '@/lib/study/cards';
+import { Prose } from '@/app/_components/prose';
 import { VariantPills } from '../_components/variant-pills';
 import { sessionRules, type StudyConfig } from '@/lib/study/config';
 import {
@@ -162,7 +163,14 @@ export function SessionRunner({
             the question means: *what is the mechanism* and *what does PHRM 535
             say the mechanism is* have different right answers. */}
         <VariantPills variants={card.variants} align="end" />
-        <p className="mt-2 whitespace-pre-line text-lg">{card.prompt}</p>
+        {/* Asked facts-to-drug the prompt *is* a field's words, so it is drawn
+            as the lists and steps they are. Flat, because a question is not a
+            document and a triangle to open half of one is not a question. */}
+        <div className="mt-2 text-lg">
+          {card.promptProse
+            ? <Prose text={card.prompt} fold={false} />
+            : <p className="whitespace-pre-line">{card.prompt}</p>}
+        </div>
 
         {revealed ? (
           <dl className="mt-6 space-y-4 border-t border-[var(--border)] pt-4">
@@ -176,7 +184,11 @@ export function SessionRunner({
                       right. */}
                   <span className="normal-case"><VariantPills variants={card.variants} /></span>
                 </dt>
-                <dd className="mt-1 whitespace-pre-line">{face.text}</dd>
+                <dd className="mt-1">
+                  {face.prose
+                    ? <Prose text={face.text} />
+                    : <span className="whitespace-pre-line">{face.text}</span>}
+                </dd>
               </div>
             ))}
           </dl>
