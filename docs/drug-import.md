@@ -67,7 +67,7 @@ lives in a drawn grid. What you are looking for inside a figure:
 - **A table of agents**, where the drug's class, route or place in therapy is in a column heading
   and nowhere in the body text.
 
-Read the figure, then write what it says in the three constructs the prose renderer understands: a
+Read the figure, then write what it says in the constructs the prose renderer understands: a
 table becomes **one bullet per row**, an algorithm becomes **nested bullets**, a schedule becomes
 **numbered steps**. See *Markdown, and the four things it may contain* — the rule against tables
 there is a rule about the **output**, not permission to skip the input. Do not transcribe a grid as
@@ -751,19 +751,31 @@ drug exists.
 
 **A single-drug "regimen" is refused too.** Monotherapy is the drug's own `dosing` field.
 
-**The `name` is a flashcard.** Each protocol becomes its own study card -- *FOLFOX: what is it for,
-and what is bevacizumab's part in it?* -- rather than one card holding all nineteen of carboplatin's.
-Two consequences for whoever writes the file. The name is the question, so it has to be the one a
-clinician would recognise and not a description of it. And the name is what the card's schedule is
-filed under, so renaming a protocol in a later import starts that card's history over -- reordering
-them does not.
+**The `name` is a flashcard, and exactly one.** Each protocol becomes its own study card — *FOLFOX —
+what is it for, and what is in it?* — rather than one card holding all nineteen of carboplatin's.
+And since the app writes the protocol onto every drug in it, the deck keeps **one** card per
+protocol however many of its members are in the set being studied: the first drug to reach it owns
+the card and the rest say nothing about it.
+
+Three consequences for whoever writes the file:
+
+- **The name is the question**, so it has to be the one a clinician would recognise rather than a
+  description of the protocol.
+- **The question does not name a drug**, so the name has to stand up alone. *Platinum doublet* is a
+  card nobody can answer; *Carboplatin + paclitaxel* is one they can.
+- **The name is what the card's schedule is filed under.** Renaming a protocol in a later import
+  starts that card's history over — reordering them does not.
+
+None of this thins the data. Every member drug still carries the whole protocol on its profile, with
+its own line marked, and still turns up when you search for the protocol by name; the deduplication
+happens when a deck or a paper is built and nowhere else.
 
 ---
 
 ## Markdown, and the four things it may contain
 
 Every markdown field — `dosing`, `moa`, `regimen`, `flow`, anything you declare — is rendered by
-`lib/fields/prose.ts`, which understands exactly three constructs:
+`lib/fields/prose.ts`, which understands exactly four constructs:
 
 1. **Paragraphs.** Blank line between them.
 2. **Nested bullets.** `- ` for each, **two spaces per level**, three levels deep at most.
@@ -994,6 +1006,8 @@ look for.
 - [ ] **Every value is a short fragment, and each fact is in exactly one field.** Shorter wording,
       never fewer facts.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
+- [ ] **Every regimen `name` stands up on its own** — it is the whole of the question its card asks,
+      and the card never names a drug beside it.
 - [ ] **`class` is left out unless the deck's own name must win.** A new drug's class is looked up
       from the FDA's own vocabulary; a paraphrase written here overrides that and sticks.
 - [ ] **Every `class` is capitalised the way the library writes it** — `"Cephalosporin
