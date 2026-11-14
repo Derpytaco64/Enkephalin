@@ -312,6 +312,41 @@ To roll back, check out the previous commit and run the same command. Note that
 migrations do not come with down-steps, so a rollback across a migration is a
 restore from backup, not a `git checkout`.
 
+### When the server runs an image rather than a source tree
+
+**The ZimaOS install does.** `zimaos-paste-this.yml` says `image:
+dt64/enkephalin:latest`, because the App Store importer only pulls — so that
+box has no source tree, `git pull` on your laptop moves nothing on it, and
+`--build` has nothing to build. **Pushing to GitHub does not update it
+either**: nothing watches the repo, and there is no CI. The image itself has to
+be rebuilt and republished, and the Zima told to pull the new one.
+
+```bash
+# on the machine with the code, on the branch you mean -- check first
+git rev-parse --abbrev-ref HEAD
+docker build -t dt64/enkephalin:latest .
+docker push dt64/enkephalin:latest
+```
+
+Then on the Zima: ZimaOS's own update action for the app, or from its terminal,
+whatever recreates the container has to **pull first** — recreating reuses the
+image already on the box, and `latest` is a name rather than a promise.
+
+```bash
+docker compose -p enkephalin pull web
+docker compose -p enkephalin up -d web
+```
+
+If the app looks unchanged after all that, ask the box what it is running
+before suspecting the code:
+
+```bash
+docker image inspect dt64/enkephalin:latest --format '{{.Created}}'
+```
+
+A timestamp older than the commit you are looking for means the deploy did not
+happen, and no amount of reading the source will explain the behaviour.
+
 ## Backups
 
 The data lives in the `enkephalin-db` volume. `docker compose down` leaves it
@@ -336,7 +371,9 @@ backup.
 
 ## Things that will bite you
 
-- **Changes not showing up.** The image is built. `docker compose up -d --build`.
+- **Changes not showing up.** The image is built. `docker compose up -d --build`
+  where there is a source tree; where there is not — the ZimaOS install — a
+  rebuild and a `push`, then a `pull` on the box. A commit is not a deploy.
 - **Signed in, then immediately signed out.** `BETTER_AUTH_URL` does not match
   the address in the browser's bar, scheme included.
 - **The build dies with no error.** Out of memory. Add swap, or build elsewhere

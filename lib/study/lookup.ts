@@ -45,6 +45,13 @@ export type LookupField = {
   group: string;
   lines: string[];
   /**
+   * Whether those lines are markdown, so the panel can draw a protocol's
+   * headings and bullets instead of printing its markers. The server says so
+   * rather than the panel sniffing: a dose that happens to start with a hyphen
+   * is not a list.
+   */
+  prose: boolean;
+  /**
    * Whose wording this line is, where it is somebody's -- the same
    * `{ n, label, slug }` a card's pill carries, so the panel and the card
    * name a version identically or not at all.
@@ -74,11 +81,18 @@ export type LookupCard = {
 const MAX_HITS = 8;
 
 /**
- * The same words the profile page shows, as flat lines.
+ * The same words the profile page shows, a line at a time.
  *
- * Flat because the panel is a reminder, not a second profile: one list of
- * lines per field reads at a glance and survives a 400px-wide overlay, where
- * the page's paragraphs and markers would not.
+ * A list comes apart into its items and everything else is one line, because
+ * the panel is a reminder rather than a second profile and a labelled row
+ * reads at a glance in a 400px overlay.
+ *
+ * Markdown is the exception, and it is why `prose` exists: a regimen's shape
+ * *is* its answer -- which protocol, which drugs under it, at what dose -- and
+ * flattening that into paragraphs printed the `###` and the hyphens as
+ * characters. The paragraphs still come back one per blank line, which the
+ * panel joins again before drawing; the split and the join are each other's
+ * inverse, so nothing is lost on the way through.
  */
 function linesOf(formatted: FormattedField, def: FieldDef): string[] {
   switch (formatted.kind) {
@@ -219,11 +233,17 @@ export async function lookupDrug(
             }
           : fields[def.key];
 
+        const formatted = formatFieldValue(def, value);
+
         return {
           key: def.key,
           label: def.label,
           group,
-          lines: linesOf(formatFieldValue(def, value), def),
+          lines: linesOf(formatted, def),
+          // The formatted kind rather than the definition's: a markdown field
+          // with nothing in it formats as an empty label, and "Not recorded
+          // yet" is a sentence, not a document.
+          prose: formatted.kind === 'markdown',
           version: authors[def.key] ?? null,
         };
       }),

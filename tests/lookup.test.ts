@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
 import {
@@ -145,6 +146,55 @@ describe('lookupDrug', () => {
   it('has nothing to show for a drug that is not there', async () => {
     expect(await lookupDrug('aspirin')).toBeNull();
   });
+
+  /* The panel is opened mid-question to check an answer against the profile,
+     so a field that reads as folded protocols on the profile and as a
+     paragraph of `###` and hyphens in the panel is two answers to one
+     question. The panel draws it; the lookup has to hand it over whole. */
+  it('hands a markdown field over as markdown, markers and all', async () => {
+    const text = [
+      '### FOLFOX',
+      '',
+      'Metastatic colorectal cancer.',
+      '',
+      '- Oxaliplatin 85 mg/m2 IV day 1',
+      '- Fluorouracil 400 mg/m2 IV bolus, then 2400 mg/m2 over 46 h',
+    ].join('\n');
+
+    const [before] = await db.select({ fields: drugs.fields })
+      .from(drugs).where(eq(drugs.slug, 'simvastatin'));
+    await db.update(drugs)
+      .set({
+        fields: {
+          ...before.fields,
+          regimen: {
+            value: text, status: 'ok', source: 'test',
+            updatedAt: new Date().toISOString(), updatedBy: null,
+          },
+        },
+      })
+      .where(eq(drugs.slug, 'simvastatin'));
+
+    const card = await lookupDrug('simvastatin');
+    const regimen = card!.groups.flatMap((group) => group.fields)
+      .find((field) => field.key === 'regimen')!;
+
+    expect(regimen.prose).toBe(true);
+    // The split into paragraphs and the panel's join are each other's
+    // inverse, so the renderer is handed the text as it was written.
+    expect(regimen.lines.join('\n\n')).toBe(text);
+  });
+
+  it('does not call an empty markdown field prose', async () => {
+    // "Not recorded yet" is a sentence, not a document, and running it
+    // through the renderer would wrap a label in a paragraph.
+    const card = await lookupDrug('simvastatin-ezetimibe');
+    const regimen = card!.groups.flatMap((group) => group.fields)
+      .find((field) => field.key === 'regimen')!;
+
+    expect(regimen.prose).toBe(false);
+    expect(regimen.lines).toEqual(['None']);
+  });
 });
 
 /* The rules the panel exists under, asserted against the source because they
@@ -242,5 +292,13 @@ describe('the rules the lookup panel runs under', () => {
 
   it('opens the full profile in a new tab, since a session is in memory', () => {
     expect(panel).toContain('target="_blank"');
+  });
+
+  it('draws a markdown field with the renderer the profile uses', () => {
+    // Told which field that is, as the runners are: the panel holds no field
+    // definitions, and sniffing for a leading hyphen would turn a dose that
+    // starts with one into a bullet list.
+    expect(panel).toContain("import { Prose } from '@/app/_components/prose'");
+    expect(panel).toContain('field.prose');
   });
 });

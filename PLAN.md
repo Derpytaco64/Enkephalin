@@ -3399,6 +3399,19 @@ dose that happened to start with one would become a list: `CardFace.prose`,
 inside a quiz option is a control inside a control, and a prompt is a question rather than a
 document. The deck's *answer* still folds, which is what folding was built for.
 
+*The drug panel isn't displaying the markdown format either.*
+
+It was not, and it is the same bug one layer along: `lookupDrug` flattened every field to lines,
+"because the panel is a reminder, not a second profile". True of a list, false of the one field
+whose shape is its content -- and the panel is opened **to check an answer against the profile**, so
+a regimen that reads as folded protocols on the profile and as a paragraph of `###` in the panel is
+two answers to one question. `LookupField` now carries `prose`, set from the *formatted* kind rather
+than the definition's, so an empty regimen stays the sentence *None* instead of becoming a document.
+The lines still arrive one per blank line and the panel joins them back; the split and the join are
+each other's inverse. Folding is left to `Prose`'s own rule, which shuts a field once it has several
+protocols -- inside an overlay that already scrolls, that is exactly where the headings want to be a
+list you pick from.
+
 ### A protocol is a card (2026-11-14)
 
 *Can we make each subheading of regimens quizable instead of the whole thing so it is easier to

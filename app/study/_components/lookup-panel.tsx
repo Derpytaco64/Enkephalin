@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Prose } from '@/app/_components/prose';
 import type { LookupCard, LookupHit } from '@/lib/study/lookup';
 import type { CardVariant } from '@/lib/study/cards';
 import { lookupDrugAction, searchDrugsAction } from './lookup-actions';
@@ -317,9 +318,22 @@ export function LookupPanel({
                            bury the two lines that are somebody else's. */
                         version={field.version && field.version.n > 1 ? field.version : null}
                       >
-                        {field.lines.map((line, index) => (
-                          <span key={index} className="block whitespace-pre-line">{line}</span>
-                        ))}
+                        {/* A markdown field keeps its shape here, drawn by
+                            the profile's own renderer: the panel is opened to
+                            check an answer against the profile, so a regimen
+                            that reads as folded protocols on one and as a
+                            paragraph of `###` on the other is two answers.
+                            Folding is left to `Prose` -- shut once there are
+                            several protocols, which is when the headings
+                            become the list you pick from inside an overlay
+                            that already scrolls. */}
+                        {field.prose ? (
+                          <Prose text={field.lines.join('\n\n')} />
+                        ) : (
+                          field.lines.map((line, index) => (
+                            <span key={index} className="block whitespace-pre-line">{line}</span>
+                          ))
+                        )}
                       </Row>
                     ))}
                   </dl>
