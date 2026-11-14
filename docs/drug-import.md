@@ -593,7 +593,7 @@ for it:
 
 ```json
 "declare": [
-  { "key": "ae", "label": "Adverse Effects", "type": "markdown", "group": "Clinical",
+  { "key": "ae", "label": "Adverse effects", "type": "markdown", "group": "Clinical",
     "prompt": "What are the notable adverse effects of {{generic}}?" }
 ]
 ```
@@ -601,7 +601,7 @@ for it:
 | Key | Required | What it is |
 |---|---|---|
 | `key` | **yes** | `snake_case`, permanent, keys the stored values |
-| `label` | **yes** | What a reader sees, **in Title Case**: `"Adverse Effects"`, `"Additional Notes"` |
+| `label` | **yes** | What a reader sees, **in sentence case** like every field already there: `"Adverse effects"`, `"Additional notes"` |
 | `type` | **yes** | `text`, `markdown`, `list`, `enum`, `number` or `bool`. A `list` field's values follow the same string-or-list rule as `route` |
 | `group` | no | Where it sits on the profile |
 | `prompt` | no | The question a flashcard asks. `{{generic}}` is the drug's name |
@@ -621,15 +621,23 @@ off the two things that still matter:
   your fields cannot be sent to one of theirs — one would overwrite the other, so the import refuses
   it rather than losing half your work.
 
-**Capitalise the label, every word of it.** `Adverse Effects`, `Additional Notes`, `Clinical
-Pearls`, `Pharmacokinetics` — not *Adverse effects*. A label is the name of a section on a profile
-and the heading on a flashcard, and it is read next to the labels of every other field, so a
-sentence-cased one is the odd one out in a list. The exceptions are the class rule's: a joining word
-stays lowercase (`Dosing in Renal Impairment`), an acronym keeps its own case (`CYP Interactions`),
-and anything after a hyphen follows the hyphen rule (`Non-renal Clearance`).
+**Write the label in sentence case.** `Adverse effects`, `Additional notes`, `Clinical pearls`,
+`Pharmacokinetics` — not *Adverse Effects*. A label is the name of a section on a profile and the
+heading on a flashcard, and it is read next to the labels of every other field. This app's own are
+*Mechanism of action*, *Black box warning*, *Controlled schedule*, *Brand names* — every one of
+them sentence case — so a Title-Cased label is the odd one out in that list, and an import never
+renames an existing field to match.
+
+Capitals are for what would carry one in an ordinary sentence: an acronym keeps its own case
+(`CYP interactions`), a proper noun stays one (`FDA labelling`), and nothing else is lifted —
+`Dosing in renal impairment`, `Non-renal clearance`.
+
+**This is the opposite of the `class` rule**, and deliberately so. A drug class is a name the FDA's
+vocabulary writes in Title Case and the library prints verbatim; a field label is this app's own
+furniture, and it matches the furniture already in the room.
 
 The `key` is unaffected and stays `snake_case`: it is the address, never shown, and the two have
-different jobs — `adverse_effects` keys the values, *Adverse Effects* is what a reader sees.
+different jobs — `adverse_effects` keys the values, *Adverse effects* is what a reader sees.
 
 A key that already exists is left exactly as it is: an import never renames a field, never changes
 its type, and never revives a deleted one — so a field the app already holds keeps whatever label it
@@ -637,7 +645,7 @@ was created with, and this rule is about the ones your file creates.
 
 ### `pearl` — and what is not one
 
-Declared rather than shipped: this app has a *Clinical Pearls* field because a lecture asked for one.
+Declared rather than shipped: this app has a *Clinical pearls* field because a lecture asked for one.
 It is the field most often filled with something that belongs elsewhere, so it has a test of its own.
 
 **A value is a pearl only if one of these is true:**
@@ -683,12 +691,12 @@ pharmacokinetics.
 **Leave `pearl` out when nothing qualifies**, which is most drugs in most lectures. No `pearl` key
 says nothing about the drug, and saying nothing is correct — see *absent, blank and none* at the top.
 
-### `notes` — Additional Notes
+### `notes` — Additional notes
 
 Declared rather than shipped, like `pearl`:
 
 ```json
-{ "key": "notes", "label": "Additional Notes", "type": "markdown", "group": "Clinical",
+{ "key": "notes", "label": "Additional notes", "type": "markdown", "group": "Clinical",
   "prompt": "What else is worth knowing about {{generic}}?" }
 ```
 
@@ -991,9 +999,9 @@ look for.
 - [ ] Nothing is declared twice for one idea, and nothing is declared that the field table already has.
 - [ ] **Each drug appears once in the file**, holding what every deck in scope said about it — not
       once per lecture, which is two entries fighting over one version.
-- [ ] **Every declared `label` is in Title Case** — `"Additional Notes"`, not *Additional notes* —
-      with joining words, acronyms and hyphens as the `class` rule has them. The `key` stays
-      `snake_case`.
+- [ ] **Every declared `label` is in sentence case** — `"Additional notes"`, not *Additional Notes*
+      — matching the fields the app already has. An acronym or a proper noun keeps its own case.
+      The `key` stays `snake_case`. (The `class` rule is the opposite, and still is.)
 - [ ] Every markdown value uses only paragraphs, nested bullets, numbered steps and headings.
 - [ ] **No markdown value contains a semicolon.** Each idea is on its own line — a bullet, or a
       sub-bullet under the one it qualifies. (A `list` field may still use `;` between items.)
@@ -1041,9 +1049,9 @@ Trimmed from `16.Melanoma.pdf` — four drugs of the eleven in the deck, two reg
   "write": "fill",
 
   "declare": [
-    { "key": "ae", "label": "Adverse Effects", "type": "markdown", "group": "Clinical",
+    { "key": "ae", "label": "Adverse effects", "type": "markdown", "group": "Clinical",
       "prompt": "What are the notable adverse effects of {{generic}}?" },
-    { "key": "pearl", "label": "Clinical Pearls", "type": "markdown", "group": "Clinical",
+    { "key": "pearl", "label": "Clinical pearls", "type": "markdown", "group": "Clinical",
       "prompt": "What is worth knowing about using {{generic}} that the other fields do not say?" },
     { "key": "pk", "label": "Pharmacokinetics", "type": "markdown", "group": "Clinical",
       "prompt": "How is {{generic}} metabolised and eliminated?" }
