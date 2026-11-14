@@ -926,3 +926,82 @@ describe('a dosing split by indication', () => {
     expect(questions[0].questionKey).toBe('drug_to_fields:dosing');
   });
 });
+
+/**
+ * A regimen asked one named protocol at a time.
+ *
+ * The flashcard deck makes one card per protocol; the quiz asks about one of
+ * them, which is the same rule every multi-valued field follows here -- a drug
+ * with six indications is asked about one indication, not about all six.
+ */
+describe('a regimen in the quiz', () => {
+  const protocols = (slug: string, generic: string, ...names: string[]) => source({
+    slug,
+    generic,
+    drugClass: 'Antineoplastic',
+    tags: ['onc'],
+    values: {
+      regimen: value({
+        value: names
+          .map((name) => `### ${name}\nMetastatic colorectal cancer, ${name} line\n- ${generic} <- this drug`)
+          .join('\n\n'),
+      }),
+    },
+  });
+
+  const onc = () => [
+    protocols('bevacizumab', 'Bevacizumab', 'FOLFOX', 'FOLFIRI'),
+    protocols('cetuximab', 'Cetuximab', 'CAPEOX'),
+    protocols('panitumumab', 'Panitumumab', 'FOLFIRINOX'),
+    protocols('irinotecan', 'Irinotecan', 'Nivolumab + ipilimumab'),
+  ];
+
+  it('asks about a protocol by name rather than about the whole field', () => {
+    const [question] = buildQuiz(onc(), defs, config({ fields: ['regimen'] }), {
+      rng: first, direction: 'drug_to_fields',
+    });
+
+    expect(question.prompt)
+      .toBe('FOLFOX — what is it for, and what is Bevacizumab\'s part in it?');
+    // One protocol's words, not two protocols joined.
+    expect(question.options[question.correctIndex]).not.toContain('FOLFIRI');
+  });
+
+  it('files two protocols as two questions, not one that keeps changing', () => {
+    const keys = new Set(
+      [0.0, 0.99].map((roll) => buildQuiz(onc(), defs, config({ fields: ['regimen'] }), {
+        rng: () => roll, direction: 'drug_to_fields',
+      }).find((question) => question.slug === 'bevacizumab')?.questionKey),
+    );
+
+    expect(keys).toEqual(new Set([
+      'drug_to_fields:regimen:folfox',
+      'drug_to_fields:regimen:folfiri',
+    ]));
+  });
+
+  /* A regimen names its members and marks which one the drug is, so asked
+     this way round the clue would hand over its own answer. */
+  it('blanks the drug out of a clue that is asking for it', () => {
+    const [question] = buildQuiz(onc(), defs, config({ fields: ['regimen'] }), {
+      rng: first, direction: 'fields_to_drug',
+    });
+
+    expect(question.prompt).toContain('FOLFOX:');
+    expect(question.prompt).not.toContain('Bevacizumab');
+    // The marker stays: *which drug fills this slot* is the question it leaves.
+    expect(question.prompt).toContain('<- this drug');
+    expect(question.options).toContain('Bevacizumab');
+  });
+
+  it('names the protocol on a profile line too, and hides the drug in it', () => {
+    const [question] = buildQuiz(onc(), defs, config({
+      fields: ['regimen'], mode: 'inclusive',
+    }), { rng: first, direction: 'fields_to_drug' });
+
+    // Every option is a profile here, so every one carries a protocol name --
+    // which is what keeps it from being a tell.
+    expect(question.prompt).toContain('Regimens — FOLFOX:');
+    expect(question.prompt).not.toContain('Bevacizumab');
+  });
+});

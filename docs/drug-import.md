@@ -751,6 +751,13 @@ drug exists.
 
 **A single-drug "regimen" is refused too.** Monotherapy is the drug's own `dosing` field.
 
+**The `name` is a flashcard.** Each protocol becomes its own study card -- *FOLFOX: what is it for,
+and what is bevacizumab's part in it?* -- rather than one card holding all nineteen of carboplatin's.
+Two consequences for whoever writes the file. The name is the question, so it has to be the one a
+clinician would recognise and not a description of it. And the name is what the card's schedule is
+filed under, so renaming a protocol in a later import starts that card's history over -- reordering
+them does not.
+
 ---
 
 ## Markdown, and the four things it may contain

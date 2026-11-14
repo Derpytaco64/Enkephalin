@@ -387,3 +387,146 @@ describe('buildCards', () => {
     expect(cards[0].prompt.startsWith('Which drug?')).toBe(true);
   });
 });
+
+/**
+ * A regimen is asked one protocol at a time.
+ *
+ * *Can we make each subheading of regimens quizable instead of the whole thing
+ * so it is easier to block out?* -- 2026-11-14. The field holds up to nineteen
+ * named protocols on one drug, and one card for the lot is a card nobody can
+ * grade: you either know all nineteen or you do not.
+ */
+describe('a regimen asked protocol by protocol', () => {
+  const REGIMEN = [
+    '### FOLFOX',
+    '',
+    'Adjuvant colon cancer, stage III',
+    '',
+    '- Oxaliplatin --- 85 mg/m2 IV day 1',
+    '- Bevacizumab --- Metastatic, RAS-mutated <- this drug',
+    '',
+    '### FOLFIRI',
+    '',
+    'Metastatic colorectal cancer, second line',
+    '',
+    '- Irinotecan --- 180 mg/m2 IV day 1',
+  ].join('\n');
+
+  const withRegimen = (text = REGIMEN) => source({
+    generic: 'Bevacizumab',
+    slug: 'bevacizumab',
+    values: { ...source().values, regimen: value({ value: text }) },
+  });
+
+  it('builds one card per protocol, each scheduled on its own', () => {
+    const cards = buildCards([withRegimen()], defs, config({ fields: ['regimen'] }));
+
+    expect(cards).toHaveLength(2);
+    expect(cards.map((card) => card.faces[0].label)).toEqual(['FOLFOX', 'FOLFIRI']);
+    // Separate keys, or the two would share one schedule and *Again* on the
+    // second would bury the first.
+    expect(cards.map((card) => card.cardKey))
+      .toEqual(['inclusive:drug_to_fields:regimen#folfox', 'inclusive:drug_to_fields:regimen#folfiri']);
+  });
+
+  it('asks for the protocol by name, not for the whole field', () => {
+    const [folfox] = buildCards([withRegimen()], defs, config({ fields: ['regimen'] }));
+
+    // The field's own template -- *which named regimens include X* -- asks
+    // about all of them, and the protocol has already been named.
+    expect(folfox.prompt).toBe('FOLFOX — what is it for, and what is Bevacizumab\'s part in it?');
+    expect(folfox.faces[0].text).toContain('Adjuvant colon cancer');
+    expect(folfox.faces[0].text).not.toContain('FOLFIRI');
+  });
+
+  it('keys a protocol by its name, so reordering the field keeps the schedule', () => {
+    const swapped = [
+      '### FOLFIRI',
+      '',
+      'Metastatic colorectal cancer, second line',
+      '',
+      '- Irinotecan --- 180 mg/m2 IV day 1',
+      '',
+      '### FOLFOX',
+      '',
+      'Adjuvant colon cancer, stage III',
+      '',
+      '- Oxaliplatin --- 85 mg/m2 IV day 1',
+      '- Bevacizumab --- Metastatic, RAS-mutated <- this drug',
+    ].join('\n');
+
+    // Built from the name, not the position: an editor moving FOLFIRI above
+    // FOLFOX must not hand both of them each other's history.
+    expect(new Set(buildCards([withRegimen(swapped)], defs, config({ fields: ['regimen'] }))
+      .map((card) => card.cardKey)))
+      .toEqual(new Set(buildCards([withRegimen()], defs, config({ fields: ['regimen'] }))
+        .map((card) => card.cardKey)));
+  });
+
+  it('asks a regimen without headings whole, as it always was', () => {
+    const cards = buildCards(
+      [withRegimen('Given with a fluoropyrimidine backbone.')],
+      defs,
+      config({ fields: ['regimen'] }),
+    );
+
+    expect(cards).toHaveLength(1);
+    expect(cards[0].faces[0].label).toBe('Regimens');
+    expect(cards[0].prompt).toBe('Which named regimens include Bevacizumab, and at what dose?');
+  });
+
+  it('splits an inclusive card only when the regimen is the whole of it', () => {
+    // Alone, there is nothing to repeat and the protocols separate.
+    expect(buildCards([withRegimen()], defs, config({ fields: ['regimen'] }))).toHaveLength(2);
+
+    // Beside another field, splitting would print the mechanism twice.
+    const bundled = buildCards([withRegimen()], defs, config({ fields: ['moa', 'regimen'] }));
+    expect(bundled).toHaveLength(1);
+    expect(bundled[0].faces.map((face) => face.label))
+      .toEqual(['Mechanism of action', 'Regimens']);
+  });
+
+  it('splits every protocol out in exclusive mode, beside the other fields', () => {
+    const cards = buildCards([withRegimen()], defs, config({
+      fields: ['moa', 'regimen'], mode: 'exclusive',
+    }));
+
+    expect(cards.map((card) => card.faces[0].label))
+      .toEqual(['Mechanism of action', 'FOLFOX', 'FOLFIRI']);
+  });
+
+  /* A regimen names its members and marks which one the drug is, so asked
+     facts-to-drug the clue would hand over its own answer. */
+  it('blanks the drug out of a clue that is asking for it', () => {
+    const [folfox] = buildCards([withRegimen()], defs, config({
+      fields: ['regimen'], direction: 'fields_to_drug',
+    }));
+
+    expect(folfox.prompt).toContain('Which drug?');
+    expect(folfox.prompt).toContain('FOLFOX:');
+    expect(folfox.prompt).not.toContain('Bevacizumab');
+
+    // The protocol's **name** too, where the name is built out of its members:
+    // a third of the real ones are, *lazertinib + amivantamab* among them.
+    const [named] = buildCards(
+      [withRegimen([
+        '### Lazertinib + bevacizumab',
+        'EGFR-mutated lung cancer',
+        '- Bevacizumab <- this drug',
+      ].join('\n'))],
+      defs,
+      config({ fields: ['regimen'], direction: 'fields_to_drug' }),
+    );
+    expect(named.prompt).not.toMatch(/bevacizumab/i);
+    expect(named.prompt).toContain('Lazertinib + ');
+    // The marker stays, which is what makes it a question: *which drug fills
+    // this slot*.
+    expect(folfox.prompt).toContain('<- this drug');
+    expect(folfox.faces[0].text).toBe('Bevacizumab');
+  });
+
+  it('leaves the drug named where the drug is not the answer', () => {
+    const [folfox] = buildCards([withRegimen()], defs, config({ fields: ['regimen'] }));
+    expect(folfox.faces[0].text).toContain('Bevacizumab');
+  });
+});

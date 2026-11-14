@@ -146,14 +146,33 @@ export function fieldsForYear(
  * Exclusive cards name their single field; inclusive cards name the whole set,
  * because "MOA alone" and "MOA plus dosing together" are different things to
  * recall and deserve separate schedules.
+ *
+ * `part` is for a field asked one named piece at a time -- a regimen, where
+ * each heading is a protocol and each protocol is its own card. Built from the
+ * **name** rather than the position, so reordering the protocols in the field
+ * does not shuffle every schedule along with them.
  */
 export function cardKey(input: {
   mode: StudyMode;
   direction: StudyDirection;
   fieldKeys: string[];
+  part?: string;
 }) {
   const fields = [...input.fieldKeys].sort().join(',');
-  return `${input.mode}:${input.direction}:${fields}`;
+  const key = `${input.mode}:${input.direction}:${fields}`;
+  return input.part ? `${key}#${input.part}` : key;
+}
+
+/**
+ * A named piece of a field, as a card key can carry it.
+ *
+ * Its own spelling rather than `tagSlug`: that one lives beside the database
+ * writes and this file is imported by the browser. The rule is the same, and
+ * it has to stay that way for no better reason than that it is the rule --
+ * nothing joins these two slugs together.
+ */
+export function partSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
 
 export function normalizeConfig(partial: Partial<StudyConfig> | null | undefined): StudyConfig {

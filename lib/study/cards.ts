@@ -1,7 +1,8 @@
 import type { FieldValue } from '@/db/schema';
 import { formatFieldValue } from '@/lib/fields/format';
+import { splitSections } from '@/lib/fields/prose';
 import type { FieldDef } from '@/lib/fields/registry';
-import { cardKey, type StudyConfig } from './config';
+import { cardKey, partSlug, type StudyConfig } from './config';
 
 /**
  * One drug with everything a card might need, core fields folded in beside the
@@ -153,6 +154,95 @@ export function worthAsking(def: FieldDef, value: FieldValue | undefined): boole
   return formatFieldValue(def, value).kind !== 'none';
 }
 
+/** The one field whose headings are names rather than structure. */
+const SPLIT_BY_HEADING = 'regimen';
+
+/** A named piece of a field, asked on its own. See `partsOf`. */
+export type CardPart = {
+  /** The heading, as written: *FOLFOX*. It is the card's label and its prompt. */
+  name: string;
+  /** That name as a card key can carry it -- see `cardKey`. */
+  slug: string;
+  text: string;
+};
+
+/**
+ * The named pieces a field is asked one at a time, or empty where it is asked
+ * whole.
+ *
+ * Only the regimen field, and the reason is what a heading means there. In a
+ * mechanism or a dosing note a heading is structure; in a regimen it is the
+ * **name of a protocol** -- FOLFOX, CAPEOX, *lazertinib + amivantamab* -- and
+ * the 61 drugs that have one hold 169 of them between them, up to 19 on a
+ * single drug. One card for the lot cannot be graded: you either know all
+ * nineteen or you do not, and *Again* on the nineteenth buries the eighteen
+ * you had. One card per protocol is the thing you can actually block out.
+ *
+ * Split off the **overlaid** value, so a class that rewords a drug's regimens
+ * is split into that class's protocols and not the drug's own.
+ *
+ * `splitSections` returns nothing where the prose has words before its first
+ * heading, and that is the fallback: such a field is asked whole, exactly as
+ * it was before.
+ */
+export function partsOf(def: FieldDef, value: FieldValue | undefined): CardPart[] {
+  if (def.key !== SPLIT_BY_HEADING || value === undefined) return [];
+
+  const slices = splitSections(value.value ?? '');
+  const seen = new Set<string>();
+
+  return slices.flatMap((slice) => {
+    // Through the formatter rather than raw, so a piece of a field is written
+    // the way the whole field would have been.
+    const text = answerText(def, { ...value, value: slice.text });
+    if (text === null) return [];
+
+    // Two protocols under one name on one drug would be two cards with one
+    // schedule between them. There are none today; there is nothing stopping
+    // one tomorrow.
+    let slug = partSlug(slice.heading);
+    for (let n = 2; seen.has(slug); n += 1) slug = `${partSlug(slice.heading)}-${n}`;
+    seen.add(slug);
+
+    return [{ name: slice.heading, slug, text }];
+  });
+}
+
+/**
+ * How a named piece of a field is asked, where the field's own template cannot
+ * say it.
+ *
+ * *Which named regimens include bevacizumab, and at what dose?* is the right
+ * question about the whole field and the wrong one about a single protocol --
+ * the protocol has already been named, so what is left to ask is what it is
+ * for and what this drug does in it.
+ *
+ * Shared by the deck and the quiz so one protocol is one question however it
+ * is met.
+ */
+export function partPrompt(generic: string, part: CardPart): string {
+  return `${part.name} — what is it for, and what is ${generic}'s part in it?`;
+}
+
+/**
+ * The drug's own name struck out of a clue that is about to ask for it.
+ *
+ * A regimen names its members, and marks which one the drug is: *Bevacizumab
+ * — Metastatic, RAS-mutated or any side ← this drug*. Asked facts-to-drug that
+ * is not a question, it is the answer typed out. Blanked, it becomes the
+ * better question the marker was always pointing at -- which drug fills this
+ * slot in FOLFOX.
+ *
+ * Only where the drug *is* the answer. Asked the other way the name is part of
+ * the protocol and belongs on the card.
+ */
+export function maskGeneric(text: string, generic: string): string {
+  const name = generic.trim();
+  if (name === '') return text;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '———');
+}
+
 export function inScope(source: CardSource, config: StudyConfig) {
   const { scope } = config;
   // Each axis narrows the one before it. Within an axis it is *any*, so two
@@ -235,9 +325,18 @@ function promptFor(
   faces: CardFace[],
   defs: FieldDef[],
   subject: StudySubject,
+  part: CardPart | null = null,
 ) {
   if (config.direction === 'fields_to_drug') {
-    const clues = faces.map((face) => `${face.label}: ${face.text}`).join('\n');
+    const clues = faces
+      // A clue about a protocol must not contain the drug it is asking for --
+      // and that includes the protocol's **name**, a third of which are built
+      // out of their members: *lazertinib + amivantamab*.
+      .map((face) => {
+        const line = `${face.label}: ${face.text}`;
+        return part ? maskGeneric(line, generic) : line;
+      })
+      .join('\n');
 
     // The pair question where the subject has one: shown Xanax, what is
     // wanted is the generic name. The reverse card -- generic shown, brands
@@ -248,6 +347,10 @@ function promptFor(
       : subject.askingWhich;
     return `${asking}\n\n${clues}`;
   }
+
+  // A named piece has already been named, so the field's own question -- which
+  // asks about all of them -- is the wrong one to put over it.
+  if (part) return partPrompt(generic, part);
 
   // A field can carry its own wording, which reads better than a generated
   // question: "What is the mechanism of action of Acyclovir?"
@@ -306,28 +409,62 @@ export function buildCards(
 
     if (answered.length === 0) continue;
 
+    const identity: CardFace = {
+      key: subject.identityKey, label: subject.identityLabel, text: source.generic,
+    };
+
+    /**
+     * One field's card, or one named piece of one field's card.
+     *
+     * A piece takes the protocol's name as its label and its prompt, and its
+     * own slot in the schedule -- that is the whole point of splitting it.
+     */
+    const one = (face: CardFace, part: CardPart | null) => {
+      const fieldKeys = [face.key];
+      const key = cardKey({
+        mode: config.mode, direction: config.direction, fieldKeys, part: part?.slug,
+      });
+      const shown: CardFace = part
+        ? { key: face.key, label: part.name, text: part.text }
+        : face;
+
+      cards.push({
+        id: `${source.slug}:${key}`,
+        drugId: source.drugId,
+        slug: source.slug,
+        generic: source.generic,
+        cardKey: key,
+        fieldKeys,
+        prompt: promptFor(config, source.generic, [shown], defs, subject, part),
+        faces: config.direction === 'fields_to_drug' ? [identity] : [shown],
+        variants: variantsOf(source, fieldKeys),
+      });
+    };
+
+    /** A field asked one protocol at a time, where it is one -- see `partsOf`. */
+    const split = (face: CardFace): boolean => {
+      const def = byKey.get(face.key);
+      const parts = def ? partsOf(def, source.values[face.key]) : [];
+      if (parts.length === 0) return false;
+      for (const part of parts) one(face, part);
+      return true;
+    };
+
     if (config.mode === 'exclusive') {
       // One card per field, each scheduled on its own, so mechanism recall and
       // dosing recall advance at their own rates.
       for (const face of answered) {
-        const fieldKeys = [face.key];
-        const key = cardKey({ mode: config.mode, direction: config.direction, fieldKeys });
-        cards.push({
-          id: `${source.slug}:${key}`,
-          drugId: source.drugId,
-          slug: source.slug,
-          generic: source.generic,
-          cardKey: key,
-          fieldKeys,
-          prompt: promptFor(config, source.generic, [face], defs, subject),
-          faces: config.direction === 'fields_to_drug'
-            ? [{ key: subject.identityKey, label: subject.identityLabel, text: source.generic }]
-            : [face],
-          variants: variantsOf(source, fieldKeys),
-        });
+        if (!split(face)) one(face, null);
       }
       continue;
     }
+
+    // **An inclusive card splits only when the field is the whole card.** The
+    // bundle is one drug's whole selection at once; cutting the regimen out of
+    // it into nineteen cards would print the mechanism and the dosing nineteen
+    // times beside it. Alone -- which is what studying regimens looks like --
+    // there is nothing to repeat, and the protocols separate as they should.
+    if (answered.length === 1 && split(answered[0])) continue;
 
     const fieldKeys = answered.map((face) => face.key);
     const key = cardKey({ mode: config.mode, direction: config.direction, fieldKeys });
@@ -339,10 +476,7 @@ export function buildCards(
       cardKey: key,
       fieldKeys,
       prompt: promptFor(config, source.generic, answered, defs, subject),
-      faces:
-        config.direction === 'fields_to_drug'
-          ? [{ key: subject.identityKey, label: subject.identityLabel, text: source.generic }]
-          : answered,
+      faces: config.direction === 'fields_to_drug' ? [identity] : answered,
       variants: variantsOf(source, fieldKeys),
     });
   }

@@ -162,3 +162,49 @@ export function groupProse(blocks: ProseBlock[]): ProseNode[] {
 
   return root;
 }
+
+/** One top-level heading of a prose field, and the raw text written under it. */
+export type ProseSlice = { heading: string; text: string };
+
+/**
+ * A prose field cut into its named pieces, or empty where it has none.
+ *
+ * The regimen field is the reason: a heading in it is the **name of a
+ * protocol**, and carboplatin's is nineteen of them in eight thousand
+ * characters. One flashcard for the lot is a card nobody can grade -- you
+ * either know all nineteen or you do not -- so each one is asked on its own.
+ * See `partsOf` in `lib/study/cards.ts`.
+ *
+ * Cut at the **shallowest** heading level present rather than at a fixed one,
+ * so a field written with `##` splits the same way as one written with `###`,
+ * and a deeper heading inside a protocol stays part of that protocol.
+ *
+ * **Nothing is returned where words come before the first heading.** Those
+ * words introduce all of the protocols and belong to none of them; splitting
+ * would either orphan them or repeat them on every piece, and asking the field
+ * whole is the honest answer for prose shaped that way.
+ */
+export function splitSections(raw: string): ProseSlice[] {
+  const lines = raw.split('\n');
+  const found = lines
+    .map((line, at) => ({ at, heading: HEADING.exec(line) }))
+    .filter((row): row is { at: number; heading: RegExpExecArray } => row.heading !== null);
+
+  if (found.length === 0) return [];
+
+  const top = Math.min(...found.map((row) => row.heading[1].length));
+  const starts = found.filter((row) => row.heading[1].length === top);
+
+  if (lines.slice(0, starts[0].at).join('\n').trim() !== '') return [];
+
+  return starts
+    .map((start, index) => {
+      const ends = index + 1 < starts.length ? starts[index + 1].at : lines.length;
+      return {
+        heading: start.heading[2].trim(),
+        text: lines.slice(start.at + 1, ends).join('\n').trim(),
+      };
+    })
+    // A heading with nothing under it is a name, not an answer.
+    .filter((slice) => slice.heading !== '' && slice.text !== '');
+}

@@ -23,10 +23,10 @@ import { indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
 import {
-  answerText, DRUG_SUBJECT, inScope, worthAsking,
-  type CardSource, type CardVariant, type StudySubject,
+  answerText, DRUG_SUBJECT, inScope, maskGeneric, partPrompt, partsOf, worthAsking,
+  type CardPart, type CardSource, type CardVariant, type StudySubject,
 } from './cards';
-import type { StudyConfig, StudyDirection } from './config';
+import { partSlug, type StudyConfig, type StudyDirection } from './config';
 import { weightOf, type QuestionWeights } from './priority';
 
 export type QuizQuestion = {
@@ -112,6 +112,12 @@ function atomsOf(def: FieldDef, source: CardSource): string[] | null {
     return source.dosingBranches.map((branch) => branch.text);
   }
 
+  // A regimen is asked one named protocol at a time, for the same reason: the
+  // whole field is nineteen of them and no option anybody reads. The name goes
+  // in the prompt, not in the option -- `partsOf` for why it is split at all.
+  const parts = partsOf(def, source.values[def.key]);
+  if (parts.length > 0) return parts.map((part) => part.text);
+
   const value = source.values[def.key];
   const formatted = formatFieldValue(def, value);
   if (formatted.kind === 'missing') return null;
@@ -129,9 +135,18 @@ function atomsOf(def: FieldDef, source: CardSource): string[] | null {
  * dysfunction**?" with four bare doses under it.
  */
 function qualifiersOf(def: FieldDef, source: CardSource, atoms: string[]): (string | null)[] {
-  if (def.key !== 'dosing' || source.dosingBranches.length === 0) return atoms.map(() => null);
-  return atoms.map((text) =>
-    source.dosingBranches.find((branch) => branch.text === text)?.label ?? null);
+  if (def.key === 'dosing' && source.dosingBranches.length > 0) {
+    return atoms.map((text) =>
+      source.dosingBranches.find((branch) => branch.text === text)?.label ?? null);
+  }
+
+  // By position, not by text: `atomsOf` built the atoms from these same parts
+  // in this same order, and two protocols written up identically would
+  // otherwise both answer to the first one's name.
+  const parts = partsOf(def, source.values[def.key]);
+  if (parts.length > 0) return atoms.map((_, at) => parts[at]?.name ?? null);
+
+  return atoms.map(() => null);
 }
 
 /**
@@ -141,9 +156,53 @@ function qualifiersOf(def: FieldDef, source: CardSource, atoms: string[]): (stri
  * templates are admin-editable, so the only safe assumption is that a question
  * ends in a question mark.
  */
-function qualify(prompt: string, qualifier: string | null): string {
+function qualify(
+  def: Asking,
+  prompt: string,
+  qualifier: string | null,
+  generic: string,
+): string {
   if (qualifier === null) return prompt;
+
+  // A protocol **replaces** the question rather than narrowing it. *Which
+  // named regimens include bevacizumab, and at what dose, for folfox?* is not
+  // a sentence; the name has already been given, so what is left to ask is
+  // what FOLFOX is for and what this drug does in it. Shared with the deck, so
+  // one protocol is one question wherever it is met.
+  if (def.key === REGIMEN_KEY) return partPrompt(generic, { name: qualifier, slug: '', text: '' });
+
   return `${prompt.replace(/\s*\?\s*$/, '')} for ${qualifier.toLowerCase()}?`;
+}
+
+/**
+ * What heads a clue in the facts-to-drug direction.
+ *
+ * A protocol's clue is headed by the protocol, not by the field: *FOLFOX:*
+ * reads as the thing being described where *Regimens:* reads as a category.
+ *
+ * Deliberately the opposite of a dosing branch, which stays unnamed in this
+ * direction -- naming the condition there would all but answer the question,
+ * since the clue is a dose and one drug in the list treats it. A protocol names
+ * a handful of drugs and asks which of them this slot is.
+ */
+function clueLabel(def: Asking, qualifier: string | null): string {
+  return def.key === REGIMEN_KEY && qualifier !== null ? qualifier : def.label;
+}
+
+/**
+ * What a question's qualifier adds to its identity, so two of them are two
+ * questions in the history rather than one that keeps changing its mind.
+ *
+ * An indication goes through the alias table, which is what a dosing branch is
+ * named by; a protocol is slugged the way its card key is, so the deck and the
+ * quiz call the same protocol by the same name.
+ */
+function branchKey(def: Asking, qualifier: string | null): string {
+  if (qualifier === null) return '';
+  const slug = def.key === REGIMEN_KEY
+    ? partSlug(qualifier)
+    : indicationSlug(qualifier) || qualifier;
+  return `:${slug}`;
 }
 
 /**
@@ -253,6 +312,9 @@ function askable(def: FieldDef, source: CardSource): boolean {
   return worthAsking(def, source.values[def.key]);
 }
 
+/** The field asked one named protocol at a time. See `partsOf`. */
+const REGIMEN_KEY = 'regimen';
+
 /**
  * One drug's answer to the whole selection at once, as one option.
  *
@@ -285,7 +347,18 @@ function bundleOf(
     // One of them, as the per-fact question does: a drug with six indications
     // would otherwise make an option nobody reads.
     const at = Math.floor(rng() * atoms.length);
-    lines.push(`${def.label}: ${atoms[at]}`);
+
+    // The exception to the line above, and not a contradiction of it: a
+    // protocol's name is what its line is *about*, where a dosing branch's
+    // condition is a narrowing of the question. Every option here carries one,
+    // because a bundle missing a field is not built at all.
+    //
+    // And the drug's own name comes out of it. The whole question is which
+    // drug this profile belongs to, and a regimen marks its own member.
+    const name = def.key === REGIMEN_KEY ? qualifiersOf(def, source, atoms)[at] : null;
+    const line = `${name === null ? def.label : `${def.label} — ${name}`}: ${atoms[at]}`;
+
+    lines.push(def.key === REGIMEN_KEY ? maskGeneric(line, source.generic) : line);
     keys.push(answerKey(def, source, atoms[at]));
   }
 
@@ -510,7 +583,7 @@ function factQuestion(
   // The branch is part of the identity of the question, not decoration on it:
   // without it, history would file two different questions about sildenafil
   // under one key and report the pair as one thing getting better and worse.
-  const branch = qualifier === null ? '' : `:${indicationSlug(qualifier) || qualifier}`;
+  const branch = branchKey(def, qualifier);
 
   return {
     id: `${asked.slug}:${def.key}${branch}:drug_to_fields`,
@@ -523,10 +596,12 @@ function factQuestion(
     variant: asked.wordedBy?.[def.key] ?? null,
     direction: 'drug_to_fields',
     prompt: qualify(
+      def,
       def.promptTemplate
         ? def.promptTemplate.replaceAll('{{generic}}', asked.generic)
         : `${asked.generic} — ${def.label}?`,
       qualifier,
+      asked.generic,
     ),
     options: laid.map((option) => option.text),
     correctIndex: laid.findIndex((option) => option.text === correct),
@@ -599,7 +674,7 @@ function nameQuestion(
   // would all but answer it, since the clue is already a dose and the only ED
   // drug in the list is the one being asked about.
   const qualifier = candidate.qualifiers[at] ?? null;
-  const branch = qualifier === null ? '' : `:${indicationSlug(qualifier) || qualifier}`;
+  const branch = branchKey(def, qualifier);
 
   return {
     id: `${asked.slug}:${def.key}${branch}:fields_to_drug`,
@@ -611,7 +686,13 @@ function nameQuestion(
     fieldLabel: def.label,
     variant: asked.wordedBy?.[def.key] ?? null,
     direction: 'fields_to_drug',
-    prompt: `${asking}\n\n${def.label}: ${clue}`,
+    // A regimen names its members and marks which one this drug is, so asked
+    // this way round the clue would hand over its own answer -- the protocol's
+    // own name included, a third of them being built out of their members.
+    // See `maskGeneric`.
+    prompt: `${asking}\n\n${def.key === REGIMEN_KEY
+      ? maskGeneric(`${clueLabel(def, qualifier)}: ${clue}`, asked.generic)
+      : `${clueLabel(def, qualifier)}: ${clue}`}`,
     options: laid.map((option) => option.text),
     correctIndex: laid.findIndex((option) => option.text === asked.generic),
     acceptable,

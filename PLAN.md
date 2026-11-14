@@ -3353,6 +3353,53 @@ value's provenance line prints -- *from PHRM 532 content*, on 1,136 live values.
 `docs/drug-import.md` now says so under `scope`, because a file whose exam label lacks the year
 would create a second, undated tag beside the real one.
 
+### A protocol is a card (2026-11-14)
+
+*Can we make each subheading of regimens quizable instead of the whole thing so it is easier to
+block out?*
+
+61 drugs carry a regimen and they hold **169 named protocols** between them -- up to 19 on
+carboplatin, in eight thousand characters. One card for the lot cannot be graded: you either know
+all nineteen or you do not, and pressing *Again* because the nineteenth was shaky buries the
+eighteen you had. So each `###` is its own card now, scheduled on its own.
+
+`splitSections` in `lib/fields/prose.ts` does the cutting, at the **shallowest** heading level
+present so a field written with `##` splits the same way, and a *Choosing it* sub-heading stays
+inside the protocol it belongs to. `partsOf` in `lib/study/cards.ts` decides it applies -- only to
+`regimen`, because only there is a heading the **name of a thing** rather than structure.
+
+**The name is the question.** *Which named regimens include bevacizumab, and at what dose?* asks
+about all of them and is the wrong question about one, so a protocol card asks *FOLFOX -- what is it
+for, and what is Bevacizumab's part in it?* The field keeps its own template for a regimen written
+without headings, which is then asked whole exactly as before. And a field with words before its
+first heading is never cut: those words introduce all of the protocols and belong to none of them.
+
+**The card key carries the protocol**, as `…:regimen#folfox` -- built from the name rather than the
+position, so reordering the protocols in a later import does not hand every card someone else's
+history. Renaming one does start it over, which is the honest answer: a renamed protocol is a
+different question. `docs/drug-import.md` says so under `regimens`.
+
+**An inclusive card splits only when the regimen is the whole of it.** A bundle is one drug's whole
+selection at once; cutting the regimen out of it into nineteen cards would print the mechanism and
+the dosing nineteen times alongside. Studying regimens -- which is regimens selected and nothing
+else -- splits; regimens studied beside the mechanism does not.
+
+The quiz follows the same rule, one protocol at a time, the way a drug with six indications is asked
+about one of them. Two protocols are two entries in the history (`drug_to_fields:regimen:folfox`),
+or one question would be filed as a single thing getting better and worse.
+
+**And the clue stopped answering itself.** A regimen names its members and marks which one the drug
+is -- *Bevacizumab -- Metastatic, RAS-mutated ← this drug* -- so asked facts-to-drug the clue was
+the answer typed out. A third of the protocol names are built out of their members too
+(*lazertinib + amivantamab*). `maskGeneric` strikes the drug's own name out of a clue that is about
+to ask for it, in both screens, leaving the marker: *which drug fills this slot in FOLFOX* is the
+question the arrow was always pointing at. Only where the drug is the answer -- asked the other way
+the name is part of the protocol and stays.
+
+What this costs: the 61 whole-field regimen schedules anyone has already built are orphaned, since
+their key no longer matches. They are the oldest cards in the oncology deck and there are at most 61
+of them per user; re-learning them as 169 is the point of the change rather than a side effect of it.
+
 ### The panel behind the card shows the same version (2026-11-12)
 
 *Does the drug panel after a quiz or card flip show the version that is being asked about, or
