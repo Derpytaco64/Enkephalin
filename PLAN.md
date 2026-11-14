@@ -3412,6 +3412,21 @@ each other's inverse. Folding is left to `Prose`'s own rule, which shuts a field
 protocols -- inside an overlay that already scrolls, that is exactly where the headings want to be a
 list you pick from.
 
+*Displayed answers in the quizzes also are missing markdown.*
+
+The question itself had been fixed and the **review** had not, which is backwards: *What you missed*
+is where a wrong answer is finally read, sitting still, and it was printing the clue, the right
+answer and yours flat. So is the sentence that says what a wrong answer was right about -- the
+`Regimens of Fluorouracil:` half of it is a whole protocol. One `Answer` component now draws any of
+them, told whether it is markdown by the same two facts the live question uses: the clue is the
+field's words asked facts-to-drug, the options are asked the other way round.
+
+Two consequences worth writing down. A quoted protocol reads as punctuation that lost its way, so
+where the fact is markdown it is set above the sentence and the sentence points back at it with
+*that*. And the paragraphs around it had to become divs: a block element inside a `<p>` closes the
+paragraph in the parser and tears the sentence in half, which `tests/study-screen.test.ts` now
+watches for in both runners.
+
 ### A protocol is a card (2026-11-14)
 
 *Can we make each subheading of regimens quizable instead of the whole thing so it is easier to

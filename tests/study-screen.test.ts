@@ -139,4 +139,22 @@ describe('a markdown field on a study screen', () => {
     expect(deck.filter((tag) => tag.includes('fold={false}'))).toHaveLength(1);
     expect(deck.length).toBeGreaterThan(1);
   });
+
+  it('reads back in the review the way it was asked', () => {
+    // *What you missed* is where a wrong answer is finally read, and it was
+    // printing the clue and both answers flat -- so the one field whose shape
+    // is its content arrived there with its markers showing, in the one place
+    // you are sitting still long enough to read it.
+    expect(QUIZ_RUNNER).toContain('clueIsField');
+    expect(QUIZ_RUNNER).toContain('optionsAreFields');
+  });
+
+  it('never draws a block inside a paragraph', () => {
+    // `<p>` is closed by the parser the moment a block element opens inside
+    // it, which tears the sentence in half -- and the markdown renderer is a
+    // block. Anything that may draw a field's words sits in a div.
+    for (const [name, source] of [['quiz', QUIZ_RUNNER], ['deck', DECK_RUNNER]] as const) {
+      expect(source, name).not.toMatch(/<p\b[^>]*>\s*(\{[^}]*\})?\s*<(Prose|Answer|Mismatch)\b/);
+    }
+  });
 });

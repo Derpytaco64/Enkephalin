@@ -79,6 +79,30 @@ function Owners({
 }
 
 /**
+ * A field's words, drawn the way the field is drawn.
+ *
+ * An option *is* a field's value whenever the question asks for a field, and
+ * so is half of the sentence that says what a wrong answer was right about.
+ * Both were printed flat, which put a protocol's `###` and hyphens on the
+ * screen as characters -- in the review especially, which is where a wrong
+ * answer is actually read.
+ *
+ * A block rather than a span when it is markdown, because that is what it is:
+ * the caller gives it a line of its own. Never folded, like everything else in
+ * the quiz -- a triangle between you and the answer you just got wrong is a
+ * click too many.
+ */
+function Answer({ text, prose, tone = '' }: { text: string; prose: boolean; tone?: string }) {
+  if (!prose) return <span className={tone}>{text}</span>;
+
+  return (
+    <div className={tone}>
+      <Prose text={text} fold={false} />
+    </div>
+  );
+}
+
+/**
  * What the answer you gave was actually right about.
  *
  * Marked wrong is the least useful thing a quiz can tell you. The option you
@@ -126,20 +150,25 @@ function Mismatch({
       <>
         <span className="text-[var(--muted)]">{question.fieldLabel} of </span>
         <span className={half}>{owner}</span>
-        <span className="text-[var(--muted)]">: </span>
-        <span className={half}>{fact}</span>
+        <span className="text-[var(--muted)]">:{question.prose ? '' : ' '}</span>
+        <Answer text={fact} prose={question.prose} tone={half} />
       </>
     );
   }
 
   // Options were facts: say whose fact it is -- all of whose, where more than
   // one drug shares it.
+  //
+  // Quoted inline where the fact is a phrase, and set above the sentence where
+  // it is a protocol: quotation marks around something with its own headings
+  // and bullets read as punctuation that lost its way, and the sentence can
+  // point back at it with *that* instead.
   return (
     <>
-      <span className="text-[var(--muted)]">&ldquo;</span>
-      <span className={half}>{chosen}</span>
+      <span className="text-[var(--muted)]">{question.prose ? '' : '“'}</span>
+      <Answer text={chosen} prose={question.prose} tone={half} />
       <span className="text-[var(--muted)]">
-        &rdquo; is the {question.fieldLabel.toLowerCase()} of{' '}
+        {question.prose ? 'That' : '”'} is the {question.fieldLabel.toLowerCase()} of{' '}
       </span>
       {owners.length === 0 ? (
         <span className={half}>{owner}</span>
@@ -196,6 +225,20 @@ function AlsoRight({ question }: { question: QuizQuestion }) {
   const others = question.acceptable
     .filter((text) => text !== question.options[question.correctIndex]);
   if (others.length === 0) return null;
+
+  // Stacked rather than run together with commas where the answers are a
+  // field's words: two protocols joined by a comma read as one long answer
+  // with punctuation in the middle of it.
+  if (question.prose && question.direction === 'drug_to_fields') {
+    return (
+      <div className="text-xs text-[var(--muted)]">
+        Also right:
+        <div className="mt-1 space-y-2">
+          {others.map((text) => <Answer key={text} text={text} prose />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <span className="text-xs text-[var(--muted)]">Also right: {others.join(', ')}</span>
@@ -376,22 +419,40 @@ export function QuizRunner({
             <ul className="mt-3 space-y-4">
               {wrong.map((row) => {
                 const chosen = answers[row.id]?.chosenIndex;
+                // The same rule the question itself was drawn under: the clue
+                // is a field's words asked facts-to-drug, the options are
+                // asked the other way round. The review is where a wrong
+                // answer is finally read, so it has to read as the field.
+                const clueIsField = row.prose && row.direction === 'fields_to_drug';
+                const optionsAreFields = row.prose && row.direction === 'drug_to_fields';
                 return (
                   <li key={row.id} className="rounded border border-[var(--border)] p-4">
-                    <p className="whitespace-pre-line text-sm">{row.prompt}</p>
-                    <p className="mt-2 text-sm">
+                    <div className="text-sm">
+                      {clueIsField
+                        ? <Prose text={row.prompt} fold={false} />
+                        : <p className="whitespace-pre-line">{row.prompt}</p>}
+                    </div>
+                    <div className="mt-2 text-sm">
                       <span className="text-[var(--muted)]">Correct: </span>
-                      <span className="text-[var(--verified)]">{row.options[row.correctIndex]}</span>
-                    </p>
+                      <Answer
+                        text={row.options[row.correctIndex]}
+                        prose={optionsAreFields}
+                        tone="text-[var(--verified)]"
+                      />
+                    </div>
                     {chosen !== undefined && chosen !== null ? (
                       <>
-                        <p className="text-sm">
+                        <div className="text-sm">
                           <span className="text-[var(--muted)]">Your answer: </span>
-                          <span className="text-[var(--flagged)]">{row.options[chosen]}</span>
-                        </p>
-                        <p className="mt-2 text-sm text-[var(--muted)]">
+                          <Answer
+                            text={row.options[chosen]}
+                            prose={optionsAreFields}
+                            tone="text-[var(--flagged)]"
+                          />
+                        </div>
+                        <div className="mt-2 text-sm text-[var(--muted)]">
                           <Mismatch question={row} chosenIndex={chosen} onLookup={setLookup} />
-                        </p>
+                        </div>
                       </>
                     ) : (
                       <p className="text-sm text-[var(--muted)]">Not answered.</p>
@@ -491,12 +552,17 @@ export function QuizRunner({
         {/* A wrong answer is only worth having if you are told what it *was*
             right about: the drug whose mechanism you picked, or the mechanism
             the drug you picked actually has. Knowing it was wrong teaches
-            nothing; knowing what it belonged to is the distinction. */}
+            nothing; knowing what it belonged to is the distinction.
+
+            A div rather than a paragraph, here and in the review: the fact
+            inside it may be a protocol, and a block element inside a `<p>`
+            ends the paragraph early in the parser and tears the sentence in
+            half. */}
         {answered && answer?.chosenIndex !== null && answer?.chosenIndex !== undefined
           && answer.chosenIndex !== question.correctIndex && (
-          <p className="mt-4 rounded border border-[var(--border)] p-3 text-sm">
+          <div className="mt-4 rounded border border-[var(--border)] p-3 text-sm">
             <Mismatch question={question} chosenIndex={answer.chosenIndex} onLookup={setLookup} />
-          </p>
+          </div>
         )}
 
         {answered && <SharedAnswer question={question} onLookup={setLookup} />}
