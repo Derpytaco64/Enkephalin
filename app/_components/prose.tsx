@@ -40,9 +40,26 @@ function Nodes({ nodes, startOpen }: { nodes: ProseNode[]; startOpen: boolean })
 
         if (node.kind === 'section') {
           return (
-            <details key={key} open={startOpen} className="rounded border border-[var(--border)]">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-                {node.heading}
+            <details key={key} open={startOpen} className="group rounded border border-[var(--border)]">
+              <summary className="cursor-pointer px-3 py-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                  {node.heading}
+                </span>
+
+                {/*
+                  What the protocol is for, beside its name, because the names
+                  do not tell three of ceftriaxone's four apart and the
+                  indications do. Two lines while it is shut and all of it once
+                  it is open -- clamped rather than cut, so nothing is lost and
+                  no sentence is chopped mid-abbreviation (*S. aureus*,
+                  *P. aeruginosa*: there is no safe place to split on a full
+                  stop in this library).
+                */}
+                {node.lede !== null && (
+                  <span className="mt-0.5 line-clamp-2 text-sm text-[var(--muted)] group-open:line-clamp-none">
+                    {node.lede}
+                  </span>
+                )}
               </summary>
 
               <div className="border-t border-[var(--border)] px-3 pb-3 pt-2">

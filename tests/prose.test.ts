@@ -138,6 +138,62 @@ describe('folding a regimen on its headings', () => {
     expect(nodes[1].kind === 'section' && nodes[1].body.map((node) => node.kind)).toEqual(['list']);
   });
 
+  it('takes the paragraph a section opens with as its subtitle', () => {
+    // The names of ceftriaxone's protocols do not tell them apart and the
+    // indications do, so a shut fold has to show the indication. It is the
+    // authoring convention the regimen field already follows: all 324 regimen
+    // sections in the library open with one of these.
+    const nodes = groupProse(parseProse([
+      '### Ceftriaxone + doxycycline',
+      '',
+      'Uncomplicated gonorrhea when chlamydia has not been ruled out',
+      '',
+      '- Ceftriaxone 500 mg IM x1',
+      '- Doxycycline 100 mg PO BID x7 days',
+    ].join('\n')));
+
+    const section = nodes[0].kind === 'section' ? nodes[0] : null;
+    expect(section?.lede).toBe('Uncomplicated gonorrhea when chlamydia has not been ruled out');
+    // And out of the body, so it is not drawn twice once the fold is open.
+    expect(section?.body.map((node) => node.kind)).toEqual(['list']);
+  });
+
+  it('takes only the first paragraph, and only before anything else lands', () => {
+    const nodes = groupProse(parseProse([
+      '### FOLFOX',
+      'Adjuvant colon cancer',
+      'A second paragraph is content.',
+      '',
+      '- oxaliplatin 85 mg/m2',
+      '',
+      'Dose-reduce for neuropathy.',
+    ].join('\n')));
+
+    const section = nodes[0].kind === 'section' ? nodes[0] : null;
+    expect(section?.lede).toBe('Adjuvant colon cancer A second paragraph is content.');
+    // The paragraph after the list is not a subtitle arriving late.
+    expect(section?.body.map((node) => node.kind)).toEqual(['list', 'paragraph']);
+  });
+
+  it('leaves a section that opens with a list exactly as it was', () => {
+    // `dosing`, `ae` and `monitoring` are written this way -- 117 sections,
+    // none of them with a subtitle to lift -- so they draw as they always did.
+    const nodes = groupProse(parseProse('### Bleeding\n- Hold for an INR above 5\n- Vitamin K'));
+
+    const section = nodes[0].kind === 'section' ? nodes[0] : null;
+    expect(section?.lede).toBeNull();
+    expect(section?.body.map((node) => node.kind)).toEqual(['list']);
+  });
+
+  it('does not read a nested heading as its parent\u2019s subtitle', () => {
+    const nodes = groupProse(parseProse('## Curative\n### FOLFOX\nAdjuvant colon cancer\n- oxaliplatin'));
+
+    const outer = nodes[0].kind === 'section' ? nodes[0] : null;
+    expect(outer?.lede).toBeNull();
+    const inner = outer?.body[0];
+    expect(inner?.kind === 'section' && inner.lede).toBe('Adjuvant colon cancer');
+  });
+
   it('changes nothing about a field that has no headings at all', () => {
     const blocks = parseProse('Vancomycin 15 mg/kg IV every 12 hours.\n- adjust to a trough of 10 to 20 mg/L');
 

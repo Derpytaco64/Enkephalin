@@ -123,6 +123,25 @@ export type ProseSection = {
   kind: 'section';
   heading: string;
   level: number;
+  /**
+   * The paragraph the section opens with, which is what it is *for*.
+   *
+   * Held apart from the body so a folded section can show it beside its name.
+   * The regimen field is why: a heading there is the drugs in a protocol and
+   * the paragraph under it is the indication, so three of ceftriaxone's four
+   * protocols collapse to *Ceftriaxone + doxycycline*, *Ceftriaxone +
+   * azithromycin*, *Ceftriaxone + doxycycline + metronidazole* -- names that
+   * are nearly the same and never the thing you are picking by, which is
+   * gonorrhea, gonorrhea in pregnancy, or pelvic inflammatory disease.
+   *
+   * Only a paragraph, only the first one, and only where it opens the section.
+   * That is an authoring convention rather than a syntax, so it is read where
+   * it is kept and ignored where it is not: all 324 regimen sections in the
+   * library open this way and none of the 117 in `dosing`, `ae` and
+   * `monitoring` do -- those open with a list and get a null here, which draws
+   * exactly as it did before.
+   */
+  lede: string | null;
   body: ProseNode[];
 };
 
@@ -140,6 +159,11 @@ export type ProseNode = ProseBlock | ProseSection;
  * Text written before any heading belongs to no section and stays where it is:
  * it is the sentence that introduces the protocols, and hiding it behind a
  * triangle would hide the first thing to read.
+ *
+ * A section's own opening paragraph comes out of its body as its `lede`, so a
+ * shut section can still say what it is for. That is the same argument one
+ * level down: a fold is only useful if what you are choosing between is
+ * visible on the outside of it.
  */
 export function groupProse(blocks: ProseBlock[]): ProseNode[] {
   const root: ProseNode[] = [];
@@ -148,6 +172,14 @@ export function groupProse(blocks: ProseBlock[]): ProseNode[] {
 
   for (const block of blocks) {
     if (block.kind !== 'heading') {
+      // The paragraph a section opens with is its subtitle, not its first
+      // sentence of content: taken once, and only while nothing else has
+      // landed under the heading yet.
+      const section = open.length > 0 ? open[open.length - 1] : null;
+      if (section && block.kind === 'paragraph' && section.lede === null && section.body.length === 0) {
+        section.lede = block.text;
+        continue;
+      }
       into().push(block);
       continue;
     }
@@ -155,7 +187,9 @@ export function groupProse(blocks: ProseBlock[]): ProseNode[] {
     // A deeper heading nests, a same-or-shallower one closes what it follows.
     while (open.length > 0 && open[open.length - 1].level >= block.level) open.pop();
 
-    const section: ProseSection = { kind: 'section', heading: block.text, level: block.level, body: [] };
+    const section: ProseSection = {
+      kind: 'section', heading: block.text, level: block.level, lede: null, body: [],
+    };
     into().push(section);
     open.push(section);
   }

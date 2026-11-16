@@ -2959,6 +2959,56 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### A folded protocol says what it is for (2026-11-16)
+
+*I'd like the regimens to have their usage purpose next to them in their
+collapsed form, so you can see like, drug-drug (STI penicillin allergy).*
+
+No data change: the purpose has been in the field all along. A regimen section
+is written heading-then-paragraph —
+
+    ### Ceftriaxone + doxycycline
+
+    Uncomplicated gonorrhea when chlamydia has not been ruled out
+
+    - Ceftriaxone — 500 mg IM x1
+    - Doxycycline — 100 mg PO BID x7 days
+
+— and the fold showed only the heading, so ceftriaxone's exam-4 regimens
+collapsed to *Ceftriaxone + doxycycline*, *Ceftriaxone + azithromycin*,
+*Ceftriaxone + doxycycline + metronidazole*: three names that are nearly the
+same and none of them the thing you are choosing by, which is gonorrhea,
+gonorrhea in pregnancy, or pelvic inflammatory disease. [A regimen folds on its
+protocols](#a-regimen-folds-on-its-protocols-2026-11-12) made the field
+scrollable and left the list you scroll unreadable.
+
+So `groupProse` lifts a section's opening paragraph out of its body as a `lede`
+and the summary draws it under the name. Four things that follow from it:
+
+- **An authoring convention, read where it is kept and ignored where it is
+  not.** All 324 regimen sections in the library open with a paragraph; none of
+  the 117 in `dosing`, `ae` and `monitoring` do -- those open with a list, get a
+  null lede, and draw exactly as they did before. Nothing had to be rewritten
+  and nothing else moved.
+- **Out of the body, not copied.** A `<summary>` stays visible when its
+  `<details>` is open, so lifting it shows it in both states and drawing it in
+  both places would show it twice in one.
+- **Clamped, not cut.** Two lines shut, all of it open, via
+  `line-clamp-2 group-open:line-clamp-none`. The median purpose is 103
+  characters and the longest 356, so something had to give -- but truncating
+  text in this library means splitting on a full stop, and the full stops are
+  in *S. aureus* and *P. aeruginosa*. CSS clamps what is drawn and leaves the
+  string whole.
+- **The name keeps its own line.** The ask was for the purpose beside the name
+  in parentheses, and it is under it instead: a protocol named *Vancomycin or
+  linezolid + two antipseudomonal agents, ventilator-associated pneumonia* is
+  85 characters, which on a phone is already two lines -- inline, the clamp
+  would have eaten the purpose on exactly the regimens that need it most.
+
+Nothing downstream changes: `splitSections` still cuts the raw text for study,
+so a protocol's card still carries its indication in the answer, and the search
+index still reads the flat form.
+
 ### A generation is not a class (2026-11-16)
 
 *The thing that adds the drug class when you import a drug cleared the cephalosporin generation on
