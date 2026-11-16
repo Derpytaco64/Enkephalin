@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import {
-  drugVariantValues, drugTags, drugs, fieldDefs, studyCards, tags, userPreferences, users,
+  drugBrands, drugIndications, drugVariantValues, drugTags, drugs, fieldDefs, indications,
+  studyCards, tags, userPreferences, users,
   type FieldValue,
 } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
@@ -419,6 +420,46 @@ describe('the profile, read through a variant', () => {
     expect(profile?.defs.map((def) => def.key)).toContain('moa');
   });
 
+  it('leaves the brands, indications and schedule out of a strict reading', async () => {
+    // *I am still seeing information from top drug profiles on ID exam drug
+    // versions. I don't want any layering, because it dilutes the information
+    // actually relevant to the exam* -- the owner, 2026-11-16.
+    //
+    // These four live in columns and link tables rather than in `fields`, so
+    // no layer can carry one and they were let through a strict reading on
+    // the reasoning that they are nobody's wording. They are the **base's**,
+    // and a strict page is by construction a page whose base is somebody else
+    // -- so letting them through put the class sheet's brands and indications
+    // under an exam's heading with nothing saying whose they were.
+    const id = await drugId();
+    await db.update(drugs).set({ schedule: 'CIII' }).where(eq(drugs.id, id));
+    await db.insert(drugBrands)
+      .values({ drugId: id, name: 'Synthroid', family: 'Synthroid', sortOrder: 0 });
+    const [indication] = await db
+      .insert(indications)
+      .values({ slug: 'hypothyroidism', label: 'Hypothyroidism' })
+      .returning({ id: indications.id });
+    await db.insert(drugIndications).values({
+      drugId: id, indicationId: indication.id, sortOrder: 0,
+    });
+
+    const strict = await getDrugProfile('levothyroxine', ME, COURSE);
+    expect(strict?.strict).toBe(true);
+    expect(strict?.brands).toEqual([]);
+    const keys = strict?.defs.map((def) => def.key) ?? [];
+    expect(keys).toEqual(['moa']);
+    // The values are still there to be read -- this is about what the page
+    // claims the version taught, not about the drug losing anything.
+    expect(strict?.coreValues.brand).toContain('Synthroid');
+
+    // And the fall-through reading is the whole drug, brands included: it is
+    // the view that answers *what is this version varying from*.
+    const layered = await getDrugProfile('levothyroxine', ME, COURSE, { layered: true });
+    expect(layered?.brands.map((brand) => brand.name)).toEqual(['Synthroid']);
+    expect(layered?.defs.map((def) => def.key)).toContain('indication');
+    expect(layered?.defs.map((def) => def.key)).toContain('controlled');
+  });
+
   it('puts the drug back underneath when the reading asks for it', async () => {
     const profile = await getDrugProfile('levothyroxine', ME, COURSE, { layered: true });
 
@@ -781,20 +822,55 @@ describe('studying a variant', () => {
       expect(deck.cards[0].faces[0].text).toBe('Thyrotoxicosis in weight loss');
     });
 
-    it('goes on asking the core fields, which no version can word', async () => {
-      // The schedule is the sheet's fact rather than a lecture's wording, so
-      // *only what this exam taught* cannot mean *and nothing about the drug*.
-      // Which of these get asked is the field picker's business, where the
-      // reader can already see them.
+    it('asks a core field only where the base is that version', async () => {
+      // The core fields live in columns, so no layer can carry one -- which
+      // made them look like nobody's wording, and they were exempted from the
+      // narrowing on the reasoning that *only what this exam taught* should
+      // not mean *and nothing about the drug*.
+      //
+      // That exemption was the leak the owner reported (2026-11-16): reading
+      // ceftriaxone as Exam 4 showed Exam 4's three fields and then the class
+      // sheet's indications and every brand name under the same heading. A
+      // core field is the **base's**, not nobody's, so it narrows like any
+      // other -- and a lecture that created the drug does own its name,
+      // brands, schedule and indications.
       await db.update(drugs).set({ schedule: 'CIII' }).where(eq(drugs.slug, 'levothyroxine'));
 
-      const deck = await loadDeck(ME, config({
+      const deckOf = (tag: string) => loadDeck(ME, config({
         fields: ['controlled'],
-        scope: { ...DEFAULT_CONFIG.scope, tags: [COURSE] },
+        scope: { ...DEFAULT_CONFIG.scope, tags: [tag] },
       }));
 
+      // The class sheet's schedule, studied as a course that only layers over
+      // this drug: another source's fact, left out.
+      expect((await deckOf(COURSE)).cards).toEqual([]);
+
+      // The same field once that class is whose profile this is. PHRM 535
+      // words nothing of its own, which is what lets it be named the base at
+      // all -- a class that words fields is a version of the drug rather than
+      // where the drug came from.
+      await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: SECOND });
+      const mine = await deckOf(SECOND);
+      expect(mine.cards).toHaveLength(1);
+      expect(mine.cards[0].faces[0].text).toBe('CIII');
+    });
+
+    it('names the version a core field came from, so the card wears a pill', async () => {
+      // *The question origin badge is not showing when it is the first
+      // version, like top drugs and brand name* -- the owner, 2026-11-16. The
+      // core fields are in columns, so `overriddenKeys` could not see them and
+      // they came back unattributed: a brand question wore no pill at all, and
+      // nothing on screen said whose brands they were.
+      const id = await drugId();
+      await db.insert(drugBrands)
+        .values({ drugId: id, name: 'Synthroid', family: 'Synthroid', sortOrder: 0 });
+      await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: SECOND });
+
+      const deck = await loadDeck(ME, config({ fields: ['brand'] }));
+
       expect(deck.cards).toHaveLength(1);
-      expect(deck.cards[0].faces[0].text).toBe('CIII');
+      expect(deck.cards[0].variants)
+        .toEqual([{ n: 1, label: 'PHRM 535', slug: SECOND }]);
     });
 
     it('narrows nothing when no class or exam is in scope', async () => {

@@ -2959,6 +2959,69 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### A core field is the base's, not nobody's (2026-11-16)
+
+*The question origin badge is not showing when it is the first version, like
+top drugs and brand name.*
+
+*Studying with quizzes or flashcards should only show information associated
+with that tag's versions. I am still seeing information from top drug profiles
+on ID exam drug versions. I don't want any layering, because it dilutes the
+information actually relevant to the exam. On the drug profile or in the
+quiz/flashcard set.*
+
+Two reports, one cause. `generic`, `brand`, `indication`, `drug_class` and
+`controlled` live in columns and link tables rather than in `drugs.fields`, so
+`overriddenKeys` cannot see them and `wordedBy` returned them **unattributed**.
+Everything downstream read that as *nobody worded this*:
+
+- The pill is drawn from `wordedBy`, so a brand question wore no badge at all
+  — the first report, exactly.
+- `mayAsk` therefore had to exempt them by hand, or a strict session would have
+  dropped every brand and indication. [A version shows its own words and
+  nothing else](#a-version-shows-its-own-words-and-nothing-else-2026-11-16)
+  took that exemption on the reasoning that a core field is the sheet's fact
+  rather than a lecture's wording, and that *only what this exam taught* should
+  not come to mean *and nothing about the drug*.
+
+That exemption was the whole leak. Reading ceftriaxone as Infectious Disease
+Exam 4 showed Exam 4's three fields and then the class sheet's six indications
+and every brand name, under one heading, with nothing saying they were a
+different source's. Which is the complaint, and it was being caused by the fix
+for the complaint before it.
+
+**A core field is the base's.** No layer can carry one — that is a hard rule,
+not an omission — so whoever the drug's own profile belongs to is who said
+them. `wordedBy` attributes them there, and both reports fall out of it:
+
+- A brand question now wears **V-1 · Top Drugs 2026**, or whichever lecture
+  created the drug.
+- `mayAsk` needs no exemption and no longer has one. A drug a lecture created
+  holds its name, brands, schedule and indications as that lecture's and they
+  are asked; a drug off the class sheet holds the sheet's, and revising one
+  exam those are another source's words.
+
+**In this library that costs almost nothing**, because a lecture creates most
+of the drugs it teaches: 66 of Exam 4's 90 drugs, 47 of Exam 1's 67, 98 of
+Heme/Onc 3's 110. Drugs with something askable after the change: Exam 4 90 of
+90, Exam 1 67 of 67, Exam 2 41 of 43, Heme/Onc 3 103 of 110. The seven that
+drop out are sheet drugs an exam teaches without rewording anything.
+
+**And the profile follows**, which it had to: `getDrugProfile`'s strict reading
+excepted the core fields the same way, so an exam page printed the sheet's
+indications and schedule as rows and the sheet's brands as a section. Strict
+now shows the overridden keys and nothing else, and `brands` comes back empty
+through a layer. The exception is the **name and the class**, which stay: they
+say which drug the page is about rather than what a version taught about it,
+and `drug_class` is a looked-up fact that is not quizzable in the first place.
+
+There is no ambiguity about which base a strict page is varying from, because
+`variantLayerFor` returns null for the base's own tag — asking for the base is
+the drug's own profile, strict never applies to it, and a strict page is
+therefore always a page whose base is somebody else. `&layered=1` is unchanged
+and still the whole drug, which is the view that answers *what is this version
+varying from*.
+
 ### Per drug asks what the drug has (2026-11-16)
 
 *I think quiz and flashcard creation is failing when a field is empty on a

@@ -248,7 +248,18 @@ export async function getDrugProfile(
   const visibleDefs = defs.filter((def) => (strict
     // A reader's own choice still outranks it, which is why this is not simply
     // the set of keys: unticking a field hides it everywhere, including here.
-    ? (visibility[def.key] ?? true) && (def.isCore || overridden.has(def.key))
+    //
+    // The core fields are not excepted (2026-11-16, owner's call: *I don't
+    // want any layering, because it dilutes the information actually relevant
+    // to the exam*). They were, on the reasoning that no layer can word a
+    // drug's name, brands, schedule or indications -- but that made a strict
+    // page the exam's three fields followed by the class sheet's six
+    // indications and every brand name, under one heading, with nothing
+    // saying they were a different source's. A core field is the **base's**,
+    // and reading through a layer the base is by definition somebody else:
+    // `variantLayerFor` returns null for the base's own tag, so a strict page
+    // is only ever a page whose base is not the version being read.
+    ? (visibility[def.key] ?? true) && overridden.has(def.key)
     : visibility[def.key] ?? (def.defaultVisible || answered(def))));
 
   return {
@@ -256,7 +267,17 @@ export async function getDrugProfile(
     // everything downstream -- the formatter, the flag button, the *from X*
     // line -- works on one shape and never has to ask which layer it got.
     drug: variant ? { ...drug, fields } : drug,
-    brands,
+    /**
+     * The brands, which a strict reading has none of.
+     *
+     * They are the base's like any other core field, and a strict page is a
+     * page whose base is somebody else -- so the Brands section is the class
+     * sheet's content sitting under an exam's heading, which is the thing
+     * being taken out. Emptied here rather than hidden in the page, so the
+     * profile answers *what does this version say* in one shape and the
+     * screen does not have to re-derive the rule.
+     */
+    brands: strict ? [] : brands,
     indications: indicationRows.map((row) => row.label),
     /** The five core fields as strings, the way a profile row wants them. */
     coreValues,

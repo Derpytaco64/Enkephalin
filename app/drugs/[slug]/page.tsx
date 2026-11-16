@@ -492,21 +492,23 @@ export default async function DrugProfilePage({
           {strict ? (
             overridden.size === 0 ? (
               <>
-                It has nothing of its own recorded yet, so there is nothing of its below —
-                only the drug’s name, brands, class, schedule and indications, which no version
-                words.
+                It has nothing of its own recorded yet, so there is nothing below it — only the
+                drug’s name and class, which say which drug this is rather than what any version
+                taught about it
               </>
             ) : (
               <>
                 Showing the {overridden.size} field{overridden.size === 1 ? '' : 's'} it words
-                itself, and no others
-                {baseVariant !== null && (
-                  <>
-                    {' '}— what the drug says elsewhere is{' '}
-                    <span className="font-medium text-[var(--fg)]">{baseVariant.label}</span>’s and
-                    is left out
-                  </>
-                )}
+                itself, and no others — the brands, the indications and the schedule included,
+                since those are{' '}
+                {baseVariant === null
+                  ? <>whoever the drug’s own profile belongs to</>
+                  : (
+                    <>
+                      <span className="font-medium text-[var(--fg)]">{baseVariant.label}</span>’s
+                    </>
+                  )}{' '}
+                and not this version’s
               </>
             )
           ) : (

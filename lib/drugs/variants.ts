@@ -42,7 +42,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { drugVariantValues, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
-import { overridable } from '@/lib/fields/constants';
+import { CORE_FIELD_KEYS, overridable } from '@/lib/fields/constants';
 import { isVariantKind, KIND_RANK, VARIANT_KINDS, type VariantKind } from './variant-kinds';
 
 export * from './variant-kinds';
@@ -176,9 +176,21 @@ export type FieldAuthor = { n: number; label: string; slug: string };
  * **The drug's own fields go in first**, where a lecture is whose they are: a
  * drug that arrived with one holds that lecture's wording as its base, so
  * every field it answers is that class's until a layer speaks over the key.
- * `overriddenKeys` is the right test for the base as well as for a layer --
- * it asks which keys hold an answer, and it leaves the core fields out, which
- * are the sheet's.
+ *
+ * **The core fields are the base's too** (2026-11-16, owner's report: *the
+ * origin badge is not showing when it is the first version, like top drugs and
+ * brand name*). They live in columns rather than in `fields`, so
+ * `overriddenKeys` cannot see them and they came back unattributed -- a brand
+ * question wore no pill, and nothing on screen said whose brands they were.
+ * They are the base's by construction: no layer can carry one, so whoever the
+ * profile belongs to is who said them. Attributed whether or not the drug has
+ * a value, because this answers *whose would it be* and a drug with no brands
+ * has no question to ask anyway.
+ *
+ * That is also what lets a study scope narrow them -- see `mayAsk`. A drug a
+ * lecture created holds its name, brands and indications as that lecture's; a
+ * drug off the class sheet holds the sheet's, and revising one exam those are
+ * another source's words.
  *
  * A layer with no `version` still applies its values (`overlayFields` does
  * that) but names nobody: an unnumbered class is one that has said nothing of
@@ -192,9 +204,9 @@ export function wordedBy(
   const authors: Record<string, FieldAuthor> = {};
 
   if (base) {
-    for (const key of overriddenKeys(drugFields)) {
-      authors[key] = { n: 1, label: base.label, slug: base.slug };
-    }
+    const own = { n: 1, label: base.label, slug: base.slug };
+    for (const key of CORE_FIELD_KEYS) authors[key] = own;
+    for (const key of overriddenKeys(drugFields)) authors[key] = own;
   }
   for (const layer of layers) {
     if (!layer.variant) continue;

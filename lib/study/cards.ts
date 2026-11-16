@@ -3,7 +3,6 @@ import { formatFieldValue } from '@/lib/fields/format';
 import { OWN_LINE_MARKER } from '@/lib/drugs/import-format';
 import { splitSections } from '@/lib/fields/prose';
 import type { FieldDef } from '@/lib/fields/registry';
-import { overridable } from '@/lib/fields/constants';
 import { cardKey, partSlug, type StudyConfig } from './config';
 
 /**
@@ -74,11 +73,29 @@ export type CardSource = {
    * It narrows what is **asked** and never what may be a wrong answer:
    * distractors are drawn from the whole database on purpose, and narrowing
    * the pool to one exam's values is how a question runs out of options and
-   * vanishes. The core fields are not in it either -- no version can word a
-   * drug's name, brands, class, schedule or indications, so a strict reading
-   * would drop the sheet's facts about a drug that is genuinely on the exam's
-   * list. Which of those get asked is the field picker's business, where the
-   * reader can already see them.
+   * vanishes.
+   *
+   * **The core fields are in it** (2026-11-16, owner's call, reversing the
+   * exemption this comment used to carry). It said a core field is nobody's
+   * wording, since no layer can override a drug's name, brands, class,
+   * schedule or indications -- and let every one of them through on the
+   * reasoning that dropping the sheet's facts about a drug genuinely on the
+   * exam's list was worse than mixing sources.
+   *
+   * The owner's answer to that was *I don't want any layering, because it
+   * dilutes the information actually relevant to the exam*, and they are
+   * right about the mechanism: the exemption was the whole leak. Reading
+   * ceftriaxone as Exam 4 showed Exam 4's three fields and then the class
+   * sheet's six indications and every brand name, under one heading, with
+   * nothing saying they were a different source's.
+   *
+   * A core field is the **base's**, not nobody's -- `wordedBy` attributes
+   * them there, because no layer can carry one -- so this needs no exemption
+   * to get them right: a drug a lecture created holds its name, brands and
+   * indications as that lecture's and they are asked; a drug off the sheet
+   * holds the sheet's and they are not. In this library that is most of the
+   * exam either way, because a lecture creates most of the drugs it teaches:
+   * 66 of Exam 4's 90, 98 of Heme/Onc 3's 110.
    */
   askOnly?: Set<string>;
 };
@@ -92,11 +109,7 @@ export type CardSource = {
  */
 export function mayAsk(source: CardSource, key: string): boolean {
   if (source.askOnly === undefined) return true;
-  // A core field is nobody's wording -- no version can override a drug's name,
-  // brands, class, schedule or indications -- so a set built from authorship
-  // never holds one, and excluding them would drop the sheet's facts about a
-  // drug that is genuinely on the exam's list.
-  return source.askOnly.has(key) || !overridable(key);
+  return source.askOnly.has(key);
 }
 
 /**

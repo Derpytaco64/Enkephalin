@@ -233,8 +233,11 @@ export async function loadCardSources(
      * a version the session asked for. Two answers to that would be a deck
      * asking Exam 1's mechanism with an Exam 4 pill beside it.
      *
-     * See `CardSource.askOnly` for why the core fields are added back and why
-     * this never touches the distractor pool.
+     * The core fields are in it on the same terms as any other, because
+     * `wordedBy` attributes them to the base -- no layer can carry one, so
+     * whoever the profile belongs to is who said them. See
+     * `CardSource.askOnly` for why that is the answer rather than an
+     * exemption, and why this never touches the distractor pool.
      */
     const applied = appliedTo(drug.id);
     const askOnly = variantSlugs.length === 0
