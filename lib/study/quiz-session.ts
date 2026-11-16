@@ -16,7 +16,9 @@ import type { StudyConfig } from './config';
 import {
   wasMissed, weightsFromHistory, type QuestionWeights,
 } from './priority';
-import { buildQuiz, capQuiz, type QuizDirection, type QuizQuestion } from './quiz';
+import {
+  buildQuiz, capQuiz, silentInScope, type QuizDirection, type QuizQuestion,
+} from './quiz';
 
 export type QuizPaper = {
   /**
@@ -47,6 +49,16 @@ export type QuizPaper = {
    * its own words* is the difference.
    */
   versions: { slug: string; label: string }[];
+  /**
+   * How many drugs in scope the versions in scope worded nothing about.
+   *
+   * *90 drugs, 87 questions* looks broken, and the shortfall has two causes
+   * that want different answers: a question lost for want of a wrong answer is
+   * a bug, and a drug an exam only *mentions* is the scope doing its job.
+   * Counted so the page can say which, rather than leaving a reader to guess
+   * from a number that does not add up.
+   */
+  silent: number;
 };
 
 export type QuizDraw = {
@@ -88,6 +100,7 @@ export async function loadQuiz(config: StudyConfig, draw: QuizDraw = {}): Promis
       ? null
       : questions.filter((question) => wasMissed(weights, question)).length,
     versions: variants,
+    silent: silentInScope(sources, defs, config),
   };
 }
 

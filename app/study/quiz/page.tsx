@@ -118,7 +118,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
   const started = config.fields.length > 0;
   const paper = started
     ? await loadQuiz(config, { direction, weightFor: priority ? session.user.id : null })
-    : { id: 'none', questions: [], available: 0, missed: null, versions: [] };
+    : { id: 'none', questions: [], available: 0, missed: null, versions: [], silent: 0 };
 
   // A per-drug question's fieldKey is the whole selection joined, so history
   // reads back as "Mechanism of action, Dosing" rather than "moa+dosing".
@@ -160,6 +160,12 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       // the difference.
       ...(paper.versions.length > 0
         ? [`only ${paper.versions.map((version) => version.label).join(' and ')}’s own words`]
+        : []),
+      // And the drugs that leaves nothing to ask about, because the shortfall
+      // is otherwise unexplained arithmetic: an exam's list carries drugs it
+      // mentions without rewording, and those have nothing of its to ask.
+      ...(paper.silent > 0
+        ? [`${paper.silent} drug${paper.silent === 1 ? '' : 's'} it words nothing of`]
         : []),
       ...(config.scope.categories.length > 0
         ? [`${config.scope.categories.length} categor${config.scope.categories.length === 1 ? 'y' : 'ies'}`]

@@ -2959,6 +2959,70 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### The best documented drug was the one being dropped (2026-11-16)
+
+*I'm selecting all fields and an ID Exam 4 which has 90 drugs, but when I begin
+the quiz there are only 87 questions. I did this with another tag and it also
+dropped 3 drugs.*
+
+Two causes behind one number, and they want opposite answers.
+
+**A signature with no company is a question with no wrong answers.** [Per drug
+asks what the drug has](#per-drug-asks-what-the-drug-has-2026-11-16) groups
+drugs by the field set they can be asked on, because every option in a bundle
+has to carry the same lines or the shape of it is the tell. The pool is
+therefore the drugs that have *all* of those fields — and a drug with an
+unusually complete profile is the only drug in the database with its exact set.
+Amphotericin B deoxycholate had ten of the selected fields and a pool of
+**one**: itself. No distractor, no question, no explanation. Daptomycin had
+fourteen fields and the same problem; so did cetuximab, pemetrexed,
+lurbinectedin and mirvetuximab soravtansine. **The best documented drugs were
+the ones being dropped**, which is as backwards as this gets.
+
+So a bundle now adds its fields **commonest-first and stops before it costs
+options**: the rarest field is the first to go, because it is the one buying
+the least company per line. Amphotericin is asked on the nine it has company
+on rather than skipped for the one it does not. The target is a full set of
+options *or however many drugs are left*, whichever is smaller — a six-drug
+scope cannot offer four, and measuring against four flat would shrink every
+bundle in a small scope to one field. One field is always kept; `factQuestion`
+still refuses a question with no distractor at all, which is the honest end of
+the line rather than a guess.
+
+Measured on the 2026-11-16 database, with every field selected: **Exam 4 90 of
+90** (was 87), Exam 1 67 of 67, Exam 2 42 of 43, Heme/Onc 3 103 of 110.
+
+**The rest of the shortfall is the scope doing its job, and now says so.** The
+seven Heme/Onc drugs and the one in Exam 2 are drugs those exams carry on their
+list and reword nothing of — acetaminophen, ibuprofen, famotidine,
+epinephrine — so since [a version shows its own words and nothing
+else](#a-version-shows-its-own-words-and-nothing-else-2026-11-16) there is
+nothing of that exam's to ask about them. That is what was asked for, but *110
+drugs, 103 questions* reads as a fault, so `QuizPaper.silent` counts them and
+the summary line says **7 drugs it words nothing of**. Counted rather than
+inferred from the shortfall, because the two causes are a bug and a feature and
+a reader cannot tell them apart from one number.
+
+### A bundle is markdown (2026-11-16)
+
+*The available answers and the wrong answer "here's the drug that answer was
+associated with" text is not rendering as markdown.*
+
+Per-drug questions, and the cause is one word. The bundle carried
+`prose: false`, written on the reasoning that a bundle is not one field's prose
+but a stack of `Label: value` lines *meant to read flat*. The lines were real;
+*flat* was never a rendering. A plain span collapses the breaks between them,
+so a five-field option arrived as one run-on sentence with its bullets and its
+`###` showing as characters — in the option, in the prompt asked the other way
+round, in *also right*, and in the sentence naming what a wrong answer was
+right about, which is where a wrong answer is actually read.
+
+Fourteen of the nineteen quizzable fields are markdown, so a bundle of them is
+markdown by composition. It is drawn as markdown everywhere a bundle is read,
+and the fields are joined by a blank line so each is its own paragraph instead
+of all of them running together. `Answer`, `AlsoRight` and `Mismatch` needed no
+change: they were already asking `question.prose`, and it was lying to them.
+
 ### A core field is the base's, not nobody's (2026-11-16)
 
 *The question origin badge is not showing when it is the first version, like

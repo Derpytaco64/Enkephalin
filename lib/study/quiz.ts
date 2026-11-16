@@ -378,7 +378,56 @@ function bundleOf(
     keys.push(answerKey(def, source, atoms[at]));
   }
 
-  return { text: lines.join(NEWLINE), key: keys.join(' | ') };
+  // A blank line between fields, because each one is its own paragraph and a
+  // single break would run them into one. Read as markdown (`prose` below),
+  // which is what the values in them are: a dosing with two bullets and a
+  // regimen with a heading were being printed with their syntax showing.
+  return { text: lines.join(NEWLINE + NEWLINE), key: keys.join(' | ') };
+}
+
+/**
+ * The fields a session actually asks about, in the order they were picked.
+ *
+ * Quizzable only, and never the subject's own identity key: the drug's name is
+ * the stimulus or the answer, not a thing asked about. Shared with
+ * `silentInScope` below so the two cannot disagree about what was selected.
+ */
+function selectedDefs(
+  defs: FieldDef[],
+  config: StudyConfig,
+  subject: StudySubject,
+): FieldDef[] {
+  const byKey = new Map(defs.map((def) => [def.key, def]));
+  return config.fields
+    .map((key) => byKey.get(key))
+    .filter((def): def is FieldDef => Boolean(def) && def!.isQuizzable)
+    .filter((def) => def.key !== subject.identityKey);
+}
+
+/**
+ * In-scope drugs the versions in scope worded nothing about.
+ *
+ * Not a fault and not a gap in the data: studying an exam asks what that exam
+ * taught, and an exam's list routinely carries drugs it only *mentions* --
+ * seven of Heme/Onc Exam 3's 110 are on the class sheet and reworded by
+ * nothing, so there is nothing of that exam's to ask. What it is, is a number
+ * a reader needs: *110 drugs, 103 questions* looks broken until something says
+ * which three it is not asking about and why.
+ *
+ * Counted here rather than inferred from the shortfall, because a question can
+ * also be lost to having no wrong answer available, and the two have different
+ * answers -- one is the scope doing its job and the other is worth fixing.
+ */
+export function silentInScope(
+  sources: CardSource[],
+  defs: FieldDef[],
+  config: StudyConfig,
+): number {
+  const selected = selectedDefs(defs, config, SUBJECT);
+  if (selected.length === 0) return 0;
+
+  return sources.filter((source) => inScope(source, config)
+    && !selected.some((def) => mayAsk(source, def.key) && atomsOf(def, source) !== null)).length;
 }
 
 export function buildQuiz(
@@ -392,11 +441,7 @@ export function buildQuiz(
   const direction = options.direction ?? config.direction;
   const subject = SUBJECT;
 
-  const byKey = new Map(defs.map((def) => [def.key, def]));
-  const selected = config.fields
-    .map((key) => byKey.get(key))
-    .filter((def): def is FieldDef => Boolean(def) && def!.isQuizzable)
-    .filter((def) => def.key !== subject.identityKey);
+  const selected = selectedDefs(defs, config, subject);
 
   if (selected.length === 0) return [];
 
@@ -468,6 +513,65 @@ export function buildQuiz(
      * and each group is one question's worth of options drawn from everyone in
      * the database who can show those same lines.
      */
+    /*
+     * Which drugs can answer about which field, counted once.
+     *
+     * A signature's pool is then a count rather than a rebuild, which is what
+     * makes the shrinking below cheap enough to do per drug.
+     */
+    const whoHas = new Map<string, Set<string>>();
+    for (const def of selected) {
+      whoHas.set(def.key, new Set(
+        sources.filter((source) => atomsOf(def, source) !== null)
+          .map((source) => source.drugId),
+      ));
+    }
+
+    /**
+     * The fields this drug is asked on: as many as can actually be asked.
+     *
+     * **A signature with no company is a question with no wrong answers**
+     * (bug, 2026-11-16, reported as *90 drugs, 87 questions*). Every option
+     * has to carry the same lines, so the pool is the drugs that have all of
+     * them -- and a drug with an unusually complete profile is the only drug
+     * in the database with its exact set. Amphotericin B deoxycholate has ten
+     * of the selected fields and a pool of **one**: itself. No distractor, no
+     * question, no explanation. The drugs being dropped were the best
+     * documented ones, which is as backwards as it gets.
+     *
+     * So fields are added commonest-first and a field that would cost options
+     * is refused: the rarest is the first to go, because it is the one buying
+     * the least company per line. The target is a full set of options **or
+     * however many are left**, whichever is smaller -- a six-drug library
+     * cannot offer four, and refusing a field for that would shrink every
+     * bundle in a small scope to nothing. One field is always kept, even
+     * where nothing else in the database has it: `factQuestion` still refuses
+     * a question it cannot find a single distractor for, which is the honest
+     * end of the line rather than a guess.
+     */
+    const askOn = (source: CardSource): FieldDef[] => {
+      const mine = selected.filter(
+        (def) => mayAsk(source, def.key) && whoHas.get(def.key)!.has(source.drugId),
+      );
+      if (mine.length === 0) return [];
+
+      const commonest = [...mine]
+        .sort((a, b) => whoHas.get(b.key)!.size - whoHas.get(a.key)!.size);
+
+      const keep = new Set<string>();
+      let pool = sources.map((row) => row.drugId);
+      for (const def of commonest) {
+        const narrowed = pool.filter((drugId) => whoHas.get(def.key)!.has(drugId));
+        if (narrowed.length < Math.min(optionCount, pool.length)) break;
+        pool = narrowed;
+        keep.add(def.key);
+      }
+      if (keep.size === 0) keep.add(commonest[0].key);
+
+      // In the order they were picked, which is the order they are read in.
+      return selected.filter((def) => keep.has(def.key));
+    };
+
     const signatures = new Map<string, FieldDef[]>();
     const askedOn = new Map<string, Set<string>>();
 
@@ -478,9 +582,7 @@ export function buildQuiz(
       // worded -- see `CardSource.askOnly` -- and a field of this drug can be
       // another lecture's, which is a line that does not belong in this
       // version's profile at all.
-      const mine = selected.filter(
-        (def) => mayAsk(source, def.key) && atomsOf(def, source) !== null,
-      );
+      const mine = askOn(source);
       if (mine.length === 0) continue;
 
       const signature = mine.map((def) => def.key).join('+');
@@ -498,9 +600,22 @@ export function buildQuiz(
         label: group.map((def) => def.label).join(', '),
         // A field's own wording asks about that field; a bundle is not that.
         promptTemplate: null,
-        // Nor is a bundle one field's prose: it is a stack of `Label: value`
-        // lines, several fields deep, and it is meant to read flat.
-        prose: false,
+        /*
+         * **A bundle is markdown** (bug, 2026-11-16: *the available answers
+         * and the wrong-answer text are not rendering as markdown*).
+         *
+         * This said `false`, on the reasoning that a bundle is not one
+         * field's prose but a stack of `Label: value` lines meant to read
+         * flat. The lines are real, but *flat* was never a rendering: a plain
+         * span collapses the breaks between them, so a five-field option
+         * arrived as one run-on sentence with `###` and `-` in the middle of
+         * it. Most of the field set is markdown -- fourteen of the nineteen
+         * quizzable fields -- so a bundle of them is markdown by composition,
+         * and it is drawn the same way everywhere a bundle is read: the
+         * option, the prompt asked the other way round, *also right*, and the
+         * sentence naming what a wrong answer was right about.
+         */
+        prose: true,
       };
 
       /*

@@ -1,7 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/db';
-import { accounts, drugs, fieldDefs, quizAnswers, quizAttempts, sessions, tags, users } from '@/db/schema';
+import {
+  accounts, drugs, drugTags, fieldDefs, quizAnswers, quizAttempts, sessions, tags, users,
+} from '@/db/schema';
+import { saveVariantLayer } from '@/lib/drugs/variants';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { DEFAULT_CONFIG } from '@/lib/study/config';
 import { MISSED, NEVER_ASKED, weightOf } from '@/lib/study/priority';
@@ -14,6 +17,7 @@ const USER = 'user-student';
 beforeEach(async () => {
   await db.delete(quizAnswers);
   await db.delete(quizAttempts);
+  await db.delete(drugTags);
   await db.delete(drugs);
   await db.delete(tags);
   await db.delete(fieldDefs);
@@ -75,6 +79,34 @@ describe('loadQuiz', () => {
 
     expect(paper.questions).toHaveLength(2);
     expect(paper.available).toBe(4);
+  });
+
+  it('counts the drugs in scope it has nothing of that version to ask', async () => {
+    // *90 drugs but only 87 questions.* Two causes hide behind one number: a
+    // question lost for want of a wrong answer (a bug, fixed) and a drug an
+    // exam only mentions, which has nothing of that exam's to ask and is the
+    // scope doing exactly what it was asked to. This is the second, counted
+    // so the page can say so instead of leaving a reader with arithmetic that
+    // does not add up.
+    await db.insert(tags).values({ slug: 'exam-1', label: 'Exam 1', kind: 'exam' });
+    const [tag] = await db.select({ id: tags.id }).from(tags);
+    const rows = await db.select({ id: drugs.id, slug: drugs.slug }).from(drugs);
+    await db.insert(drugTags).values(rows.map((row) => ({ drugId: row.id, tagId: tag.id })));
+
+    // The exam words one drug's mechanism and nothing else anywhere.
+    await saveVariantLayer({
+      drugSlug: 'atorvastatin', variantSlug: 'exam-1',
+      values: { moa: 'What the exam says' }, source: '', note: '', userId: USER,
+    });
+
+    const paper = await loadQuiz({
+      ...config,
+      scope: { ...config.scope, tags: ['exam-1'] },
+    });
+
+    expect(paper.questions).toHaveLength(1);
+    // The other three are on the exam's list and it worded nothing of them.
+    expect(paper.silent).toBe(3);
   });
 
   it('gives each draw its own id, so a re-render cannot pass for the same quiz', async () => {

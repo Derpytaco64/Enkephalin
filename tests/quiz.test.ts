@@ -438,6 +438,49 @@ describe('per-drug mode', () => {
     expect(new Set(asked.fromSlug).size).toBe(asked.options.length);
   });
 
+  it('drops the rarest field rather than the drug when nothing else has the set', () => {
+    // The bug (2026-11-16, *90 drugs but only 87 questions*): every option in
+    // a bundle carries the same lines, so the pool is the drugs that have all
+    // of them -- and a drug with an unusually complete profile is the only one
+    // in the database with its exact set. Amphotericin B deoxycholate had ten
+    // selected fields and a pool of one, itself, so it had no distractor and
+    // no question. The best documented drugs were the ones being dropped.
+    const rich = source({
+      slug: 'amphotericin-b', generic: 'Amphotericin B',
+      values: {
+        moa: value({ value: 'Binds ergosterol, forms pores' }),
+        dosing: value({ value: '0.7 mg/kg IV daily' }),
+        // Nothing else in this library has a spectrum, so a bundle of all
+        // three is unaskable and a bundle of the first two is not.
+        spectrum: value({ value: 'Candida, Aspergillus, Mucorales' }),
+      },
+    });
+
+    const questions = buildQuiz([...pool(), rich], defs, perDrug(['moa', 'dosing', 'spectrum']));
+    const asked = questions.find((question) => question.slug === 'amphotericin-b');
+
+    expect(asked).toBeDefined();
+    // The two it has company on, and not the one it is alone in.
+    expect(asked!.fieldKey).toBe('moa+dosing');
+    expect(asked!.options.length).toBeGreaterThan(1);
+    for (const option of asked!.options) expect(option).not.toContain('Spectrum');
+  });
+
+  it('draws a bundle as the markdown its fields are', () => {
+    // *The available answers and the wrong-answer text are not rendering as
+    // markdown* (2026-11-16). A bundle was flagged `prose: false` on the
+    // reasoning that it is a stack of `Label: value` lines rather than one
+    // field's prose -- but a plain span collapses the breaks between them, so
+    // a five-field option arrived as one run-on sentence with its bullets and
+    // headings showing as characters.
+    const [question] = buildQuiz(pool(), defs, perDrug(['moa', 'dosing']));
+
+    expect(question.prose).toBe(true);
+    // A blank line between fields, so each is its own paragraph rather than
+    // all of them run into one.
+    expect(question.options[0]).toContain('\n\n');
+  });
+
   it('keeps the schedule in a bundle even though it is no question alone', () => {
     const drugs = [
       source({
