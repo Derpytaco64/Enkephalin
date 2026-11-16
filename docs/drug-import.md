@@ -261,13 +261,13 @@ the same scope, because merging across scopes would put one class's wording into
 
 Every value you write carries a provenance string, and it is the **name of the narrowest scope you
 gave** — the exam where you named one, the class where the class is all you named. Shown on the
-profile as *from Heme/Onc Exam 3 content*. The same line appears beside every value from the file,
+profile as *from Heme/Onc Exam 3*. The same line appears beside every value from the file,
 so it says whose words these are and nothing else; a file name repeated under fourteen fields is
 noise shaped like information.
 
 It was the class until 2026-11-16 and the reason it moved is worth knowing if you are writing
 several files for one course: a class running four exams produced four layers whose every value read
-*from PHRM 532 content*, which is true of all four and so tells a reader nothing about which lecture
+*from PHRM 532*, which is true of all four and so tells a reader nothing about which lecture
 a line came from. The exam is the thing being revised for, so the exam is what the line names. The
 class is still on the drug — it is the tag.
 
@@ -385,25 +385,38 @@ still creates no duplicate. And **an import never renames a drug it matched**: t
 stays whatever the app already holds, so a file cannot tidy the library's spelling and does not need
 to try. Fixing a stored name is an edit, not an import.
 
+**A generation is not a class, and neither is any other sub-classification.** `class` holds the name
+of the group, and a fact that distinguishes this drug *within* the group goes in `notes`:
+
+| the deck says | write |
+|---|---|
+| `third-generation cephalosporin` | `"class": "Cephalosporin Antibacterial"`, and `- Third-generation cephalosporin` in `notes` |
+| `cefoxitin is a cephamycin` | the same class, and `- Cephamycin` in `notes` |
+
+The guide asked for `"Second-generation Cephalosporin"` until 2026-11-16 and it was the wrong advice,
+so a `class` naming a generation is now **refused** rather than stored. The reason is below, under
+*it matters more than it looks*: the class is a group, and five generations of cephalosporin are five
+small groups that never add up to *cephalosporins*. The generation itself is exam material — it is
+what the lecture is organised around — which is why it moves into a field rather than being dropped.
+
 **Capitalise the class the way the library writes it.** `class` holds an FDA Established
 Pharmacologic Class name — the one class vocabulary this project trusts — and every class the
 library came with is RxNorm's own spelling of one: `Xanthine Oxidase Inhibitor`, `Proton Pump
 Inhibitor`, `Cephalosporin Antibacterial`. A deck writes the same class as lecture prose, and beside
-those a `"second-generation cephalosporin"` reads as a mistake. So **capitalise every word**:
+those a `"proton pump inhibitor"` reads as a mistake. So **capitalise every word**:
 
 | the deck says | write |
 |---|---|
-| `second-generation cephalosporin` | `"Second-generation Cephalosporin"` |
-| `BRAF kinase inhibitor` | `"BRAF Kinase Inhibitor"` |
 | `proton pump inhibitor` | `"Proton Pump Inhibitor"` |
+| `BRAF kinase inhibitor` | `"BRAF Kinase Inhibitor"` |
+| `thiazide-like diuretic` | `"Thiazide-like Diuretic"` |
 
 Four details, each of them a value the library already holds:
 
 - **A joining word stays lowercase**: `"Serotonin and Norepinephrine Reuptake Inhibitor"`.
 - **After a hyphen, a qualifier stays lowercase** — `"Anti-epileptic Agent"`, `"Non-narcotic
-  Antitussive"`, `"Thiazide-like Diuretic"`, `"Potassium-sparing Diuretic"`, and so
-  `"Second-generation Cephalosporin"`. Two nouns hyphenated together both take a capital:
-  `"Sodium-Glucose Cotransporter 2 Inhibitor"`.
+  Antitussive"`, `"Thiazide-like Diuretic"`, `"Potassium-sparing Diuretic"`. Two nouns hyphenated
+  together both take a capital: `"Sodium-Glucose Cotransporter 2 Inhibitor"`.
 - **A Greek letter or a stereochemical prefix stays lowercase, first word or not**:
   `"beta-Adrenergic Blocker"`, `"alpha-1 Adrenergic Agonist"`, `"5-alpha Reductase Inhibitor"`,
   `"l-Thyroxine"`, `"gamma-Aminobutyric Acid A Receptor Positive Modulator"`.
@@ -414,9 +427,12 @@ Four details, each of them a value the library already holds:
 
 **It matters more than it looks.** The class is stored as written and compared as a whole string, so
 the browse rail's class filter, the colour-by-class axis and the quiz's same-class distractors all
-group by the exact value. `Second-generation Cephalosporin` and `second-generation cephalosporin`
-would be two classes with one name, each a smaller group than the lecture meant — and the colour
-coding would give the same class two colours.
+group by the exact value. `Proton Pump Inhibitor` and `proton pump inhibitor` would be two classes
+with one name, each a smaller group than the lecture meant — and the colour coding would give the
+same class two colours. A sub-classification does the same thing on purpose: a drug classed
+`Third-generation Cephalosporin` is in a group of five rather than a group of twenty, so a question
+about it draws its four wrong answers from the four other third-generation cephalosporins, and a
+student who knows the generation can answer without knowing the drug.
 
 **And the class is filled, never corrected** — see `write` above. Where the app already holds a
 class, the file's value is ignored outside `base` mode, so the capitals that stick are the ones a
@@ -489,6 +505,12 @@ So a lecture that says *a BRAF inhibitor* in passing is better served by saying 
 `class` only where you mean *this name, not whatever the lookup finds* — and then the capitalisation
 rule above is yours to follow, because **what you write wins**. The class is filled and never
 corrected, so a value in the file is the one that sticks.
+
+The lookup's answer is the group and never the generation — cefazolin comes back
+`Cephalosporin Antibacterial`, the same as cefepime — and that is the behaviour, not a shortfall.
+RxClass does hold the generation, from ATC and the VA, and it is recorded on the drug as a candidate
+for a person to look at; it is never promoted, because mixing two vocabularies on the axis that
+colours and groups the library puts two spellings of one idea in the filter.
 
 The rest of this section is what the lookup does, which is worth knowing because it is what your
 drug's class will be. To see it for one drug before you hand the file over:
@@ -716,6 +738,11 @@ belong in it:
 - **Resistance that changes which drug you pick** — a positive D-zone test means macrolide
   resistance carries over to clindamycin, so clindamycin is out.
 - **Which brand is which formulation or route** — `Ceftin is PO, Zinacef is IV`.
+- **Where this drug sits inside its class** — `Third-generation cephalosporin`, `Cephamycin`,
+  `Siderophore cephalosporin`. The generation is the thing a cephalosporin lecture is organised
+  around, so it has to be somewhere, and `class` is not that somewhere: `class` is the group the
+  drug is filtered, coloured and quizzed with. Sentence case and singular, because it is a note
+  about one drug and not the name of a group.
 
 That last one is here for a reason worth knowing: a brand row in this app *can* carry a route and a
 form, but the import format has no way to set them — `brands` is a list of names — so until it has,
@@ -978,6 +1005,7 @@ look for.
 | a `format` other than `enkephalin.drugs/1` | the shape would be guessed at |
 | a file with no `scope` | the values would have nowhere to land and nothing to be filtered by |
 | a `topic` in `scope` | what a lecture is about is an indication, and that is a field |
+| a `class` naming a generation | a generation is a group within the group; it belongs in `notes` |
 | a drug with no `generic` | there is nothing to match or create |
 | two drugs with the same `generic` | one of them would silently win |
 | an empty string as a field value | it says neither *none* nor *not said*; use `null` or omit |
@@ -1025,8 +1053,11 @@ look for.
       and the card never names a drug beside it.
 - [ ] **`class` is left out unless the deck's own name must win.** A new drug's class is looked up
       from the FDA's own vocabulary; a paraphrase written here overrides that and sticks.
+- [ ] **No `class` names a generation or any other sub-classification** — `class` is the group the
+      FDA names (`"Cephalosporin Antibacterial"`), and `- Third-generation cephalosporin` is a line
+      in `notes`. A generation in `class` is refused.
 - [ ] **Every `class` is capitalised the way the library writes it** — `"Cephalosporin
-      Antibacterial"`, `"Second-generation Cephalosporin"`. Every word takes a capital, except a
+      Antibacterial"`, `"Proton Pump Inhibitor"`. Every word takes a capital, except a
       joining word and a qualifier after a hyphen; an acronym keeps its own case.
 - [ ] Every combination product is written out in full, with **every component capitalised** —
       `"Amoxicillin/Clavulanate"`. The separator and the spacing do not matter to matching; a

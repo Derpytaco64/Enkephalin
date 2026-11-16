@@ -1,10 +1,10 @@
 /**
- * Rewrites the *from X content* line on a backup's values to name the exam
+ * Rewrites the *from X* line on a backup's values to name the exam
  * rather than the class.
  *
  * Context: `provenanceOf` used to stamp every imported value with the widest
  * scope, so a class running four exams produced four layers whose values all
- * read *from PHRM 532 content* -- true of all four and so distinguishing none.
+ * read *from PHRM 532* -- true of all four and so distinguishing none.
  * It names the narrowest scope since 2026-11-16, which fixes every future
  * import and no value already written. This is the other half.
  *
@@ -62,18 +62,23 @@ const kindOf = new Map(backup.tags.map((tag) => [tag.slug, tag.kind]));
 /**
  * The phrases this rewrites, and nothing else.
  *
- * Only ever a line `provenanceOf` wrote under the old rule: *from <a course in
- * this backup> content*. A citation somebody typed -- an FDA notice, a
- * guideline, a package insert -- is a better source than any tag and is left
- * exactly as it is, as are *class sheet* and *the sheet dosing text*.
+ * Only ever a line `provenanceOf` wrote: *from <a course or exam in this
+ * backup>*, with or without the trailing *content* the line used to carry. A
+ * citation somebody typed -- an FDA notice, a guideline, a package insert --
+ * is a better source than any tag and is left exactly as it is, as are *class
+ * sheet* and *the sheet dosing text*.
+ *
+ * Both spellings and both kinds of tag are listed so that running this over
+ * its own output changes nothing: every line it recognises it rewrites to the
+ * one spelling, and a file already correct comes out byte for byte identical.
  */
-const courseLines = new Set(
+const written = new Set(
   backup.tags
-    .filter((tag) => tag.kind === 'course')
-    .map((tag) => `from ${tag.label} content`),
+    .filter((tag) => tag.kind === 'course' || tag.kind === 'exam')
+    .flatMap((tag) => [`from ${tag.label}`, `from ${tag.label} content`]),
 );
 
-const contentLine = (slug: string) => `from ${labelOf.get(slug) ?? slug} content`;
+const sourceLine = (slug: string) => `from ${labelOf.get(slug) ?? slug}`;
 
 const at = (stamp: string | undefined) => (stamp ? Date.parse(stamp) : Number.NaN);
 
@@ -98,9 +103,9 @@ function relabel(drug: BackupDrug) {
 
   // A layer's own values: the tag it lives on is the answer.
   for (const layer of layers) {
-    const target = contentLine(layer.variant);
+    const target = sourceLine(layer.variant);
     for (const [key, value] of Object.entries(layer.fields)) {
-      if (!value.source || !courseLines.has(value.source) || value.source === target) continue;
+      if (!value.source || !written.has(value.source) || value.source === target) continue;
       changed.push({
         drug: drug.slug, where: labelOf.get(layer.variant) ?? layer.variant, key,
         from: value.source, to: target,
@@ -117,11 +122,11 @@ function relabel(drug: BackupDrug) {
   const baseKind = kindOf.get(base);
   if (baseKind !== 'course' && baseKind !== 'exam') return;
 
-  const target = contentLine(base);
+  const target = sourceLine(base);
   const others = layerTimes(layers).filter((layer) => layer.slug !== base);
 
   for (const [key, value] of Object.entries(drug.fields)) {
-    if (!value.source || !courseLines.has(value.source) || value.source === target) continue;
+    if (!value.source || !written.has(value.source) || value.source === target) continue;
 
     // Written while another exam's lecture was being imported: that import
     // could have filled this gap on the base, and `baseVariant` would then be

@@ -91,6 +91,28 @@ describe('reading a file', () => {
     expect(refusal).toContain('indications');
   });
 
+  it('refuses a generation as a class, and says where it goes', () => {
+    // The guide asked for this spelling until 2026-11-16, so a file written
+    // from an older copy would otherwise put the generation somewhere it
+    // sticks for good: the class is filled and never corrected, and it is the
+    // browse filter, the colour axis and the pool a question draws its wrong
+    // answers from. Five generations are five groups that never add up to
+    // cephalosporins.
+    const refusal = problems(file({
+      drugs: [{ generic: 'Cefuroxime', class: 'Second-generation Cephalosporin' }],
+    }));
+    expect(refusal).toContain('A generation is not a class');
+    // Actionable: the message carries the note to write instead, in the
+    // spelling a note is written in.
+    expect(refusal).toContain('- Second-generation cephalosporin');
+    expect(refusal).toContain('notes');
+
+    // The group's own name is what it is asking for, and goes through.
+    expect(read(file({
+      drugs: [{ generic: 'Cefuroxime', class: 'Cephalosporin Antibacterial' }],
+    })).drugs[0].drugClass).toBe('Cephalosporin Antibacterial');
+  });
+
   it('tells absent, none and blank apart', () => {
     const parsed = read(file({
       drugs: [{ generic: 'nivolumab', fields: { bbw: null, moa: 'PD-1 inhibitor' } }],
@@ -364,7 +386,7 @@ describe('a drug the app has never held', () => {
     // and a new drug whose mechanism lived only in a class layer would read as
     // an empty profile.
     expect(drug.fields.moa.value).toBe('PD-1 inhibitor');
-    expect(drug.fields.moa.source).toBe('from Heme/Onc Exam 3 content');
+    expect(drug.fields.moa.source).toBe('from Heme/Onc Exam 3');
     // null in the file is "there is none", which is an answer and is quizzed.
     expect(drug.fields.bbw).toEqual(expect.objectContaining({ value: null, status: 'none' }));
 
@@ -410,7 +432,7 @@ describe('a drug the app has never held', () => {
     const [held] = await db
       .select().from(drugs).where(eq(drugs.slug, 'amoxicillin-clavulanate'));
     expect(held.fields.moa.value).toBe('Beta-lactam with a beta-lactamase inhibitor');
-    expect(held.fields.moa.source).toBe('from Heme/Onc Exam 3 content');
+    expect(held.fields.moa.source).toBe('from Heme/Onc Exam 3');
     // Matched, not renamed: the app's own spelling is the one on the page.
     expect(held.genericName).toBe('Amoxicillin/ Clavulanate');
   });
@@ -494,7 +516,7 @@ describe('a drug the app already holds', () => {
     // name on each would be noise shaped like information -- and the class,
     // which is what it used to name, is true of all four of its exams at once
     // and so says nothing about which lecture this came from.
-    expect(layer?.fields.moa.source).toBe('from Heme/Onc Exam 3 content');
+    expect(layer?.fields.moa.source).toBe('from Heme/Onc Exam 3');
     // The file name is not lost, it is recorded once -- on the layer.
     expect(layer?.note).toContain('16.Melanoma.pdf');
   });
@@ -765,11 +787,11 @@ describe('whose words a value says it is', () => {
 
   it('names the exam, which is the lecture a reader is revising for', () => {
     expect(scoped({ course: 'PHRM 532', exam: 'Infectious Disease Exam 4 2026' }))
-      .toBe('from Infectious Disease Exam 4 2026 content');
+      .toBe('from Infectious Disease Exam 4 2026');
   });
 
   it('names the class where that is all a file claims', () => {
-    expect(scoped({ course: 'PHRM 532' })).toBe('from PHRM 532 content');
+    expect(scoped({ course: 'PHRM 532' })).toBe('from PHRM 532');
   });
 
   it('is the same scope the values are written to', () => {
@@ -780,7 +802,7 @@ describe('whose words a value says it is', () => {
     const parsed = parseDrugImport(file({ scope: { course: 'PHRM 532', exam: 'ID Exam 4' } }));
     if (!parsed.ok) throw new Error('unreadable');
     const narrowest = parsed.file.scope[parsed.file.scope.length - 1];
-    expect(provenanceOf(parsed.file)).toBe(`from ${narrowest.label} content`);
+    expect(provenanceOf(parsed.file)).toBe(`from ${narrowest.label}`);
     expect(narrowest.kind).toBe('exam');
   });
 });
@@ -794,7 +816,7 @@ describe('the preview', () => {
       }],
     })));
 
-    expect(plan.provenance).toBe('from Heme/Onc Exam 3 content');
+    expect(plan.provenance).toBe('from Heme/Onc Exam 3');
     expect(plan.variant).toEqual({ slug: 'heme-onc-exam-3', label: 'Heme/Onc Exam 3' });
     expect(plan.drugs[0].writes).toEqual([
       // What it would replace, which is the one question a preview answers.

@@ -15,6 +15,7 @@
  * times over four attempts. Nothing is written until the list is empty.
  */
 import { FIELD_DATA_TYPES, FIELD_KEY_PATTERN, type FieldDataType } from '@/lib/fields/constants';
+import { generationNote } from './drug-class';
 import { VARIANT_KINDS, type VariantKind } from './variant-kinds';
 
 export const IMPORT_FORMAT = 'enkephalin.drugs/1';
@@ -315,8 +316,7 @@ function stringList(value: unknown): string[] {
 }
 
 /**
- * The provenance line every value from this file carries: **from PHRM 535
- * content**.
+ * The provenance line every value from this file carries: **from PHRM 535**.
  *
  * The class's name and nothing else, on the owner's call, and the reason it is
  * the right call is that this field is read in a list. A profile shows one
@@ -338,7 +338,7 @@ function stringList(value: unknown): string[] {
  * What was wrong with it is that the tag does not record it *per value*. A
  * class runs four exams, a drug is taught at several of them, and the values
  * end up in four different layers with one line between them: every one read
- * *from PHRM 532 content*, which is true of all four and so distinguishes
+ * *from PHRM 532*, which is true of all four and so distinguishes
  * none. Erythromycin is the case that made it plain -- eight fields on one
  * screen, from three different lectures, all claiming the class. The exam is
  * the thing a reader is revising for and the thing that narrows it to one
@@ -347,10 +347,15 @@ function stringList(value: unknown): string[] {
  *
  * Where a file names only a class, the narrowest *is* the class and nothing
  * changes.
+ *
+ * **No trailing *content*** (2026-11-16, owner's call). The line read *from
+ * Exam 4 content* and the word carried nothing: a reader of a field's source
+ * is not wondering whether the exam supplied content. It is a label under a
+ * value, read in a list of them, and the shortest true label wins.
  */
 export function provenanceOf(file: ImportFile): string {
   const narrowest = file.scope[file.scope.length - 1]?.label;
-  return narrowest ? `from ${narrowest} content` : `from ${file.source.file}`;
+  return narrowest ? `from ${narrowest}` : `from ${file.source.file}`;
 }
 
 /**
@@ -533,6 +538,23 @@ function readDrug(raw: unknown, at: number, problems: ImportProblem[]): ImportDr
   }
 
   const named = `${where} (${generic})`;
+
+  // Refused rather than stored, because the class is filled and never
+  // corrected: a generation written here splits one class into five for good,
+  // and the five are the browse filter, the colour axis and the pool the quiz
+  // draws same-class distractors from. The guide asked for this spelling until
+  // 2026-11-16 and sixteen cephalosporins are still being sorted out, so the
+  // message says where the fact goes rather than only that it cannot stay.
+  const generation = generationNote(text(raw.class));
+  if (generation) {
+    problems.push({
+      where: `${named}.class`,
+      message: `A generation is not a class. Write the class the FDA gives the whole group `
+        + `("Cephalosporin Antibacterial") and put "- ${generation}" in this drug's `
+        + `"notes" field, where a fact about one drug belongs.`,
+    });
+  }
+
   const fields: Record<string, ImportValue> = {};
 
   if (raw.fields !== undefined) {

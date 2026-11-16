@@ -2959,13 +2959,86 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### A generation is not a class (2026-11-16)
+
+*The thing that adds the drug class when you import a drug cleared the cephalosporin generation on
+some cephalosporins. This is important info for infectious disease.*
+
+Nothing cleared anything, and what actually happened is worse than a deletion because it was
+invisible and permanent. `class` held the generation for eleven cephalosporins and the FDA's group
+name for five, so the library had twenty cephalosporins in six classes — *Second-generation
+Cephalosporin*, *Third-generation Cephalosporin*, *Fifth-generation Cephalosporin*, *Cephalosporin
+Antibacterial*, *Siderophore Cephalosporin* and the two combinations — none of which groups with
+any other.
+
+**The split is the bug, not the spelling.** The class is stored as written and compared as a whole
+string, so it *is* the browse rail's filter, the colour-by-class axis and the pool a question draws
+its same-class distractors from. Five generations are five small groups that never add up to
+*cephalosporins*: you cannot filter to them, each generation gets its own colour, and a cefuroxime
+question drew its four wrong answers from the four other second-generation cephalosporins — a
+narrower and easier question than the lecture asked, answerable by a student who knows the
+generation and not the drug.
+
+**The asymmetry is what made it look like a deletion.** A cephalosporin a lecture *created* kept
+the class that lecture wrote, generation and all. One already on the class sheet had RxNav's EPC —
+*Cephalosporin Antibacterial*, which names no generation, by design, because [promoting ATC or the
+VA alongside it](#drug-class--resolved-via-rxnorm-done) would put two vocabularies on the axis that
+colours and groups the library. And the class is **filled and never corrected**, so the generation
+in the lecture's file was dropped on arrival. Five of the twenty, and they are the five anyone
+actually sees: cefazolin, cephalexin, ceftriaxone, cefepime, cefdinir.
+
+So the generation goes to `notes`, where a fact about one drug belongs and where nothing groups by
+it, and `class` holds the group. Three parts:
+
+- **`parseDrugImport` refuses a `class` naming a generation** and the message carries the line to
+  write instead. Refused rather than ignored, the same as [a `topic`
+  scope](#the-provenance-line-names-the-exam-not-the-class-2026-11-16): the guide asked for
+  `"Second-generation Cephalosporin"` until today, so a file written from an older copy would
+  otherwise put a value somewhere it sticks for good. `generationNote` reads either spelling — a
+  lecture leads with the generation, ATC and the VA trail it — and returns the one form a note is
+  written in.
+- **`docs/drug-import.md` says it twice**, in the `class` rules and in the `notes` field, because
+  the file's author is usually another model handed that document and nothing else.
+- **`scripts/class-generation-to-notes.ts` fixes the existing data**, on a backup file rather than
+  in the database, so the correction is a diff you can read first. Eleven classes unified and 39
+  notes written across 16 drugs; the corrected file differs from the original only in `source`
+  strings, those 39 `notes` values and those 11 `drugClass` values.
+
+Two decisions inside the script worth keeping. **The group's spelling is learned from the backup,
+not typed** — the class to file a cephalosporin under is whatever this library's cephalosporins
+without a generation are already called, by vote, because a class the script invented would be a
+seventh spelling of the thing it is unifying. And **a generation already lost to the lookup is read
+back out of `class_candidates`**, where RxClass's ATC and VA answers have been sitting on cefazolin
+since the day it was seeded — the same rule the class itself follows: looked up, not remembered.
+
+**The note goes on every version the drug has**, which is the one place this touches
+[a version shows its own words and nothing
+else](#a-version-shows-its-own-words-and-nothing-else-2026-11-16). A generation is true in every
+lecture that teaches the drug, and a version now shows and asks only what that version worded — so
+a note left on the base alone would be missing from the exam pages, which is the one place it is
+being revised. The attribution is the lecture whose layer it lands in, which is honest for the
+eleven that wrote the generation themselves and fair for the five: the lecture that taught the group
+by generation taught these too, and the import is what dropped it. The five sheet-based drugs also
+get it on their own profile, sourced *from RxClass*, because the sheet never taught generations and
+is not credited with one.
+
+Three cephalosporins are reported and left alone. The two combination products genuinely are not
+the class their cephalosporin half is. Cefiderocol's *Siderophore Cephalosporin* is a real
+distinction and a judgement call — whether it is a class or a note is not something a script can
+read off the row. And cefadroxil has no class at all, which is a different bug: the drug editor's
+lookup is the fix for that.
+
 ### The backup carries the corrected provenance (2026-11-16)
 
-`scripts/relabel-provenance.ts` rewrites the *from X content* line on a **backup file** rather than
-on the database, which makes the whole correction a diff you can read before any of it is live:
-restoring the result is how it lands. 1,738 of the 3,141 source strings in the 2026-11-16 backup
-moved, 453 in exam layers and 1,285 on base profiles, and nothing else in the file changed — the
-two files are identical once every `source` is blanked.
+`scripts/relabel-provenance.ts` rewrites the provenance line on a **backup file** rather than on the
+database, which makes the whole correction a diff you can read before any of it is live: restoring
+the result is how it lands. 1,738 of the 3,141 source strings in the 2026-11-16 backup moved, 453 in
+exam layers and 1,285 on base profiles, and nothing else in the file changed — the two files are
+identical once every `source` is blanked.
+
+It recognises both spellings — with the trailing *content* and without — and on both kinds of tag,
+so running it over its own output changes nothing and a file already correct comes out byte for byte
+identical. That is what makes it safe to run after the word was dropped rather than only before.
 
 A layer's values are exactly recoverable: the layer belongs to a tag and that tag is the exam. A base
 profile's are recoverable where the drug came in with one lecture, which `baseVariant` records — with
@@ -3005,6 +3078,10 @@ distinguishing none. Eight fields on one screen, from three lectures, all claimi
 `provenanceOf` takes `scope[scope.length - 1]` — the exam where a file names one, the class where it
 names only a class. The class has not left the page: it is still the tag, which is what the old
 reasoning got right about tags.
+
+**And the trailing *content* is gone** (owner's call, same day): the line reads *from Infectious
+Disease Exam 4 2026*. A reader of a field's source is not wondering whether the exam supplied
+content. It is a label under a value, read in a list of them, and the shortest true label wins.
 
 **The stored values are not retrospectively right.** 453 values sitting in exam layers say *from
 PHRM 532 content*, *from PSCI 414 content* or *from PHRM 535 content*, and 746 base values say the

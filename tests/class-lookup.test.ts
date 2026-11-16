@@ -11,6 +11,7 @@ import {
   spellings,
   type FetchJson,
 } from '@/lib/drugs/class-lookup';
+import { generationNote } from '@/lib/drugs/drug-class';
 import { createDrug } from '@/lib/drugs/mutations';
 
 /**
@@ -305,5 +306,58 @@ describe('creating a drug', () => {
     expect(drug.drugClass).toBeNull();
     // Nothing was established, so nothing is claimed -- including the flag.
     expect(drug.needsReview).toBe(false);
+  });
+});
+
+/**
+ * The generation, which is not a class.
+ *
+ * The library held sixteen cephalosporins in six classes until 2026-11-16 --
+ * each generation its own, because a lecture wrote one in `class` and the class
+ * is filled and never corrected. Since the class is the browse filter, the
+ * colour axis and the pool a question draws its wrong answers from, that is
+ * five small groups where there should be one, and a cefuroxime question whose
+ * four distractors are the four other second-generation cephalosporins.
+ *
+ * So the generation moved to `notes`, and this reads it back out of whichever
+ * spelling it is written in -- a lecture leads with it, ATC and the VA trail it
+ * -- and returns the one form a note is written in.
+ */
+describe('a generation is not a class', () => {
+  it('reads the generation a lecture leads with', () => {
+    expect(generationNote('Second-generation Cephalosporin'))
+      .toBe('Second-generation cephalosporin');
+    expect(generationNote('third-generation cephalosporin'))
+      .toBe('Third-generation cephalosporin');
+  });
+
+  it('reads the generation ATC and the VA trail, and the plural they name it in', () => {
+    // Both of these are sitting in cefazolin's class_candidates, recorded by
+    // the lookup and never promoted, which is where the five the import lost
+    // were recovered from.
+    expect(generationNote('First-generation cephalosporins'))
+      .toBe('First-generation cephalosporin');
+    expect(generationNote('CEPHALOSPORIN 1ST GENERATION'))
+      .toBe('First-generation cephalosporin');
+    expect(generationNote('CEPHALOSPORIN 4TH GENERATION'))
+      .toBe('Fourth-generation cephalosporin');
+  });
+
+  it('leaves a class that names no generation alone', () => {
+    // The group's own name, the two combination products, and the qualifier
+    // that is a real distinction rather than a generation: none of them is this.
+    expect(generationNote('Cephalosporin Antibacterial')).toBeNull();
+    expect(generationNote('Cephalosporin/beta-Lactamase Inhibitor')).toBeNull();
+    expect(generationNote('Siderophore Cephalosporin')).toBeNull();
+    expect(generationNote('Proton Pump Inhibitor')).toBeNull();
+    expect(generationNote(null)).toBeNull();
+    expect(generationNote('  ')).toBeNull();
+  });
+
+  it('does not read a generation out of prose that merely mentions one', () => {
+    // `notes` is where the generation goes, and a note is not a class name:
+    // nothing here should come back as one if this ever ran over a field value.
+    expect(generationNote('Covers more gram-negatives than the second-generation agents'))
+      .toBeNull();
   });
 });
