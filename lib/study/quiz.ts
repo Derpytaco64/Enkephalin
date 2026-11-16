@@ -334,9 +334,15 @@ const REGIMEN_KEY = 'regimen';
  * mechanism" but "which of these four drugs is atorvastatin", with four facts'
  * worth of evidence -- and that is the recall an exam actually wants.
  *
- * A drug needs a value for every selected field to be in it. A bundle missing
- * one of them is not merely incomplete, it is a tell: the option with three
- * lines where the others have four is visibly the odd one out.
+ * A drug needs a value for every field **it is handed** to be in it. A bundle
+ * missing one of them is not merely incomplete, it is a tell: the option with
+ * three lines where the others have four is visibly the odd one out.
+ *
+ * Which fields those are is the caller's, not the selection's: `buildQuiz`
+ * asks each drug on the fields it has and draws that question's options from
+ * the drugs that can show the same ones. Handed the whole selection for every
+ * drug, as it was until 2026-11-16, this rule emptied the paper rather than
+ * shortening it.
  */
 function bundleOf(
   defs: FieldDef[],
@@ -434,34 +440,89 @@ export function buildQuiz(
   };
 
   if (config.mode === 'inclusive') {
-    // One question per drug, not per field. `askable` is deliberately not
-    // consulted: "not controlled" is no question on its own, but it is a
-    // perfectly good line of a profile, and the question here is which profile
-    // belongs to which drug.
-    const about: Asking = {
-      key: selected.map((def) => def.key).join('+'),
-      label: selected.map((def) => def.label).join(', '),
-      // A field's own wording asks about that field; a bundle is not that.
-      promptTemplate: null,
-      // Nor is a bundle one field's prose: it is a stack of `Label: value`
-      // lines, several fields deep, and it is meant to read flat.
-      prose: false,
-    };
+    /*
+     * One question per drug, not per field, **on the fields that drug has**.
+     *
+     * `askable` is deliberately not consulted: "not controlled" is no question
+     * on its own, but it is a perfectly good line of a profile, and the
+     * question here is which profile belongs to which drug.
+     *
+     * What a drug is asked on is its own selection, not the whole one (bug,
+     * 2026-11-16, reported as *per drug says there are no questions*). It was
+     * the whole selection, and a drug missing any one field was dropped
+     * entirely -- so the mode was all-or-nothing across the selection and one
+     * thin field emptied the paper. Tick `counseling` and the quiz was empty
+     * every time: no drug in the library has one. Nine fields of the nineteen
+     * are on fewer than a fifth of drugs, and the intersection of a handful of
+     * them is nobody.
+     *
+     * Flashcards have always done the right thing here -- `buildCards` keeps
+     * the fields a drug has and builds the card from those, skipping only a
+     * drug that has none of them -- so the same config gave a usable deck and
+     * an empty quiz, which is exactly what `StudyConfig` exists to prevent.
+     *
+     * The quiz has one constraint a flashcard does not: **every option in a
+     * question must carry the same lines**, or the bundle's shape is the tell
+     * -- the option with two lines where the others have four is visibly the
+     * odd one out. So drugs are grouped by the field set they can be asked on,
+     * and each group is one question's worth of options drawn from everyone in
+     * the database who can show those same lines.
+     */
+    const signatures = new Map<string, FieldDef[]>();
+    const askedOn = new Map<string, Set<string>>();
 
-    const candidates: Candidate[] = sources.flatMap((source) => {
-      const bundle = bundleOf(selected, source, rng);
-      return bundle === null
-        ? []
-        : [{ source, atoms: [bundle.text], keys: [bundle.key], qualifiers: [null] }];
-    });
+    for (const source of sources) {
+      if (!asked.has(source.drugId)) continue;
 
-    // Every selected field, not any of them: the options here are whole
-    // profiles, so a bundle holding one field the version worded and three
-    // from another lecture would be exactly the mixture this rules out. A
-    // drug whose version worded the lot is asked, and its bundle is that
-    // version's throughout -- which is why the bundle itself needs no
-    // narrowing.
-    ask(about, candidates, (source) => selected.every((def) => mayAsk(source, def.key)));
+      // Present, and this version's. Studying an exam asks what that exam
+      // worded -- see `CardSource.askOnly` -- and a field of this drug can be
+      // another lecture's, which is a line that does not belong in this
+      // version's profile at all.
+      const mine = selected.filter(
+        (def) => mayAsk(source, def.key) && atomsOf(def, source) !== null,
+      );
+      if (mine.length === 0) continue;
+
+      const signature = mine.map((def) => def.key).join('+');
+      signatures.set(signature, mine);
+      const who = askedOn.get(signature) ?? new Set<string>();
+      who.add(source.drugId);
+      askedOn.set(signature, who);
+    }
+
+    for (const [signature, group] of signatures) {
+      const who = askedOn.get(signature) ?? new Set<string>();
+
+      const about: Asking = {
+        key: signature,
+        label: group.map((def) => def.label).join(', '),
+        // A field's own wording asks about that field; a bundle is not that.
+        promptTemplate: null,
+        // Nor is a bundle one field's prose: it is a stack of `Label: value`
+        // lines, several fields deep, and it is meant to read flat.
+        prose: false,
+      };
+
+      /*
+       * The options, from the whole database and **not** narrowed by version.
+       *
+       * `bundleOf` still refuses a drug missing any of these fields, which is
+       * what keeps the four options the same shape. But a drug is in here on
+       * what it *has*, where it is asked on what its version *worded*: narrow
+       * the pool by the version too and an exam's thirty drugs are the only
+       * wrong answers available, which is how a question runs out of options
+       * and quietly disappears. Same rule as the per-fact pool below.
+       */
+      const candidates: Candidate[] = sources.flatMap((source) => {
+        const bundle = bundleOf(group, source, rng);
+        return bundle === null
+          ? []
+          : [{ source, atoms: [bundle.text], keys: [bundle.key], qualifiers: [null] }];
+      });
+
+      ask(about, candidates, (source) => who.has(source.drugId));
+    }
+
     return questions;
   }
 

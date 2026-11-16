@@ -400,8 +400,8 @@ export function QuizRunner({
       <div className="mt-10 rounded border border-[var(--border)] p-4 sm:p-6">
         <p className="font-medium">No questions.</p>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Either nothing in scope has a value for the fields you picked, or the scope is down to a
-          single drug — a multiple-choice question needs someone else to disagree with.
+          Either nothing in scope has a value for any of the fields you picked, or the scope is down
+          to a single drug — a multiple-choice question needs someone else to disagree with.
         </p>
       </div>
     );

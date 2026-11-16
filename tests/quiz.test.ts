@@ -371,7 +371,13 @@ describe('per-drug mode', () => {
     expect(question.prompt).toContain('Dosing');
   });
 
-  it('leaves out a drug missing any of the picked fields', () => {
+  it('asks a drug missing a picked field on the fields it does have', () => {
+    // The bug this fixes (2026-11-16): the bundle was the whole selection or
+    // nothing, so one thin field emptied the paper rather than shortening it.
+    // Nine of the nineteen quizzable fields are on fewer than a fifth of the
+    // library and `counseling` is on none of it, so the intersection of a
+    // handful of them is regularly nobody at all. Flashcards have always kept
+    // the fields a drug has; the quiz now does the same.
     const partial = [
       ...pool(),
       source({
@@ -381,10 +387,55 @@ describe('per-drug mode', () => {
     ];
 
     const questions = buildQuiz(partial, defs, perDrug(['moa', 'dosing']));
-    expect(questions.map((question) => question.slug)).not.toContain('ezetimibe');
-    // It is still askable on its own about the field it does have.
-    expect(buildQuiz(partial, defs, config({ fields: ['moa'] })).map((q) => q.slug))
-      .toContain('ezetimibe');
+    const asked = questions.find((question) => question.slug === 'ezetimibe');
+    expect(asked).toBeDefined();
+    // On the one field it has, and said so: the label is what it is asked on.
+    expect(asked!.fieldKey).toBe('moa');
+    expect(asked!.fieldLabel).not.toContain('Dosing');
+
+    // And every option carries the same one line, because the shape of a
+    // bundle is a tell -- the option with a Dosing line where the others have
+    // none would be the answer without reading it.
+    for (const option of asked!.options) {
+      expect(option).toContain('Mechanism');
+      expect(option).not.toContain('Dosing');
+    }
+
+    // The drugs that have both are still asked on both, in the same paper.
+    const whole = questions.find((question) => question.fieldKey === 'moa+dosing');
+    expect(whole).toBeDefined();
+    for (const option of whole!.options) expect(option).toContain('Dosing');
+  });
+
+  it('asks a version on what it worded, and still draws options from everyone', () => {
+    // Studying an exam asks what that exam taught -- `askOnly`. Per drug that
+    // is the same narrowing as a missing field: the line belongs to another
+    // lecture, so it is not in this version's profile. The options are not
+    // narrowed with it, because an exam's thirty drugs are not enough wrong
+    // answers and a question with none of those is a question that vanishes.
+    const scoped = [
+      ...pool(),
+      source({
+        slug: 'ezetimibe', generic: 'Ezetimibe', tags: ['statins', 'exam-2'],
+        values: {
+          moa: value({ value: 'Cholesterol absorption inhibition' }),
+          dosing: value({ value: '10 mg by mouth once a day' }),
+        },
+        // The exam worded the mechanism; the dosing is the class sheet's.
+        askOnly: new Set(['moa']),
+      }),
+    ];
+
+    const [asked] = buildQuiz(scoped, defs, {
+      ...perDrug(['moa', 'dosing']),
+      scope: { ...perDrug(['moa', 'dosing']).scope, tags: ['exam-2'] },
+    });
+
+    expect(asked.slug).toBe('ezetimibe');
+    expect(asked.fieldKey).toBe('moa');
+    // Four options from a six-drug library, not from the one drug in scope.
+    expect(asked.options.length).toBeGreaterThan(1);
+    expect(new Set(asked.fromSlug).size).toBe(asked.options.length);
   });
 
   it('keeps the schedule in a bundle even though it is no question alone', () => {

@@ -2959,6 +2959,56 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### Per drug asks what the drug has (2026-11-16)
+
+*I think quiz and flashcard creation is failing when a field is empty on a
+drug. I try to make a quiz with per drug instead of per fact and it says there
+are no questions.*
+
+Right about the quiz, and right about why. Per-drug mode built one option out
+of **every** selected field and dropped any drug missing one of them, so the
+mode was all-or-nothing across the selection: one thin field emptied the paper
+rather than shortening it.
+
+The library makes that fatal rather than occasional. Of the nineteen quizzable
+fields, nine are on fewer than a fifth of the 523 drugs — `supportive` on 7,
+`contraindications` on 10, `reversal` on 1, and **`counseling` on none of
+them** — so any selection touching `counseling` produced exactly zero
+questions, every time, with no explanation. On Infectious Disease Exam 4's 90
+drugs, seven fields gave **2** questions. `moa + dosing + counseling` gave 0.
+
+**Flashcards were already right**, which is what makes this a bug rather than a
+policy: `buildCards` keeps the fields a drug has and skips only a drug with
+none of them. One `StudyConfig`, two surfaces, and [the whole point of
+that](#study-configuration-inclusive-vs-exclusive) is that they agree — instead it
+gave a usable deck and an empty paper.
+
+So a drug is asked on the fields it has. The quiz has one constraint a
+flashcard does not: **every option in a question must carry the same lines**,
+or the bundle's shape is the tell — the option with two lines where the others
+have four is the answer without reading it. So drugs are grouped by the field
+set they can be asked on, and each group draws its options from everyone in the
+database who can show those same lines. `bundleOf` is unchanged and still
+refuses a drug missing any field it is handed; what changed is that the caller
+hands it a field set per drug instead of the whole selection.
+
+Exam 4's seven-field quiz goes from 2 questions to 90, across 18 field sets —
+28 drugs asked on indication and dosing, 11 on indication, mechanism, dosing
+and adverse effects, 8 on indication alone. The last group is the honest cost:
+a one-field bundle is a per-fact question wearing per-drug clothes. It is still
+what flashcards do with the same drug, and the alternative is the drug not
+being asked at all.
+
+**The pool is not narrowed with the question.** A drug is in the options on
+what it *has* and is asked on what its version *worded*, which are different
+tests: narrow the pool by the version too and an exam's thirty drugs are the
+only wrong answers available, which is [how a question runs out of options and
+quietly disappears](#a-version-shows-its-own-words-and-nothing-else-2026-11-16).
+
+And the empty-paper message said *nothing in scope has a value for the fields
+you picked*, which was true and read as *for any of them*. It says *any* now,
+because that is the rule it is now describing.
+
 ### A folded protocol says what it is for (2026-11-16)
 
 *I'd like the regimens to have their usage purpose next to them in their

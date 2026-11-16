@@ -81,6 +81,29 @@ describe('buildCards', () => {
     expect(cards[0].faces.map((face) => face.label)).toEqual(['Mechanism of action', 'Dosing']);
   });
 
+  it('keeps the fields a drug has when it has not got them all', () => {
+    // The counterpart of the quiz's per-drug bug (2026-11-16): a card made of
+    // several fields is built from the ones the drug actually has, and only a
+    // drug with none of them is skipped. Pinned here because the two surfaces
+    // read one `StudyConfig` and the whole point of that is that they agree --
+    // the quiz dropped the drug where this kept it, so one selection gave a
+    // usable deck and an empty paper.
+    const thin = source({
+      slug: 'ezetimibe', generic: 'Ezetimibe',
+      values: { moa: value({ value: 'Cholesterol absorption inhibition' }) },
+    });
+
+    const cards = buildCards([thin], defs, config({ fields: ['moa', 'dosing'], mode: 'inclusive' }));
+    expect(cards).toHaveLength(1);
+    expect(cards[0].fieldKeys).toEqual(['moa']);
+
+    // A drug with none of them is still no card, which is the only case that
+    // should be empty.
+    const bare = source({ slug: 'nothing', generic: 'Nothing', values: {} });
+    expect(buildCards([bare], defs, config({ fields: ['moa', 'dosing'], mode: 'inclusive' })))
+      .toEqual([]);
+  });
+
   it('asks with the field prompt template when it has one', () => {
     const cards = buildCards([source()], defs, config({ fields: ['moa'] }));
     expect(cards[0].prompt).toBe('What is the mechanism of action of Alprazolam?');
