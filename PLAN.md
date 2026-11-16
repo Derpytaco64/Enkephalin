@@ -2869,6 +2869,152 @@ unoffered value costs nothing: `TAG_KINDS` no longer lists it, so nothing can cr
 that made this cheap is the one already written down in `lib/tags/constants.ts` — the list a form may
 offer and the list the database holds are two different lists.
 
+### A version shows its own words and nothing else (2026-11-16)
+
+*When I study for a specific exam, I only want info sourced from that exam to show up in questions.
+I want the layers to only display their imported information from their exam at the moment.*
+
+The owner's call, and it narrows the two places a version is read.
+
+**On a profile**, `?as=infectious-disease-exam-4-2026` shows the fields Exam 4 words and leaves the
+rest off the page — not as "not recorded yet", which would claim a gap the drug has not got, but
+absent, with the banner saying how many fields the version holds and whose the rest would have been.
+The core fields stay: the name, the brands, the class, the schedule and the indications are columns
+no version can override, and a reading that dropped them would be a page about nothing.
+`?as=…&layered=1` is the way back to the fall-through reading, which is still the one that answers
+*what is this class varying from* — one link, because that is a question asked occasionally and
+never the one a reader arrives with.
+
+**In a session**, a field is asked only where a version in scope is the version that worded it.
+`CardSource.askOnly` carries the set and `mayAsk` is the one test, consulted by both builders and
+both quiz modes. Four things about it are decisions:
+
+- **Authorship, not storage.** The set is read off `wordedBy`, which is already what the V-n pills
+  are drawn from — so a card is asked about a field exactly when the pill on it would name a version
+  the session asked for. That also catches the drugs a lecture *created*: their wording is the base
+  with no layer anywhere, `wordedBy` names the base for those, and without it a lecture's own deck
+  could not ask about the drugs it brought in.
+- **It never touches the distractor pool.** Wrong answers are drawn from the whole database on
+  purpose — see *A capped quiz asks what you got wrong first* and the four-statins argument in
+  `lib/study/quiz.ts`. Narrowing them to one exam's values is how a question runs out of options and
+  silently disappears.
+- **A list in scope narrows nothing.** A list can name which version it means per drug, and
+  studying Top Drugs 2026 is not studying the class that list points at: the pointer says which
+  wording to prefer where there is one. Only a class or an exam in the scope turns the narrowing on
+  — and then the pointers count, because a course like PHRM 532 holds no wording of its own and
+  reads each drug as one of its exams.
+- **Per-drug mode needs every selected field.** Its options are whole profiles, so a bundle holding
+  one field the exam worded and three from another lecture is exactly the mixture being ruled out.
+
+The quiz's summary line says *only Infectious Disease Exam 4 2026's own words* when this is on,
+because a short paper otherwise looks broken: an exam scope with every field ticked can draw thirty
+questions where the drug list draws three hundred, and that sentence is the difference.
+
+What this gives up is the argument the layer was built on — a correction to the base no longer
+improves what an exam page shows, because the exam page no longer shows the base. The storage is
+unchanged, so nothing is lost and `layered=1` still reads the old way; it is the default view that
+moved.
+
+### Paging through the list you came from (2026-11-16)
+
+*On the drug list view I would like a way to pass through drugs in the current filtered list. You
+filter to a specific exam and it shows you the 90 drugs in it, you click the third one, and there
+would be a way to swipe or page left/right to the second or the fourth.*
+
+The hard part was not the arrows, it was *which list*. Browse filtering is client-side — the rail
+holds every row and ranks, searches and narrows them in the browser — so the profile had no idea
+what list it had been opened from. Three ways to tell it:
+
+- **Carry the ordered slugs in the URL.** 90 slugs is over a kilobyte, 523 is four, and the second
+  drug would arrive knowing only its own neighbours.
+- **Leave a trail in `sessionStorage`.** Cheap and exact, and this app keeps no state there: the
+  rail's own filters live in the URL *so that every view is bookmarkable*, and a pager that worked
+  only in the tab that opened it would be the first thing here that could not be linked to.
+- **Carry the filter and recompute.** Which is what it does. The row's link is
+  `/drugs/<slug>?tag=infectious-disease-exam-4-2026`, and the profile re-runs the same filter to
+  find its own place in it.
+
+That required the filter to stop being part of the screen, so `lib/drugs/filter.ts` is the rail's
+ranking and predicates moved out whole and unchanged — the Fuse index, the two-tier search, every
+`if` of the narrowing. Both readers call it now, which is the point: a second implementation of
+*which drugs are showing* would page through a slightly different list than the one that was
+clicked, which is the kind of bug nobody reports and everybody distrusts. `tests/browse.test.ts`
+asserts the pager walks `selectDrugs`'s order at every position, search ranking included.
+
+Four details worth keeping:
+
+- **No pager without a filter.** All 523 drugs in alphabetical order is not a list anybody chose,
+  and the index read it would cost is skipped entirely.
+- **It will not place a drug the filter does not select.** A link can be edited and a drug can be
+  untagged after the link was made; *4 of 90* on a drug that is not one of the 90 is worse than no
+  pager.
+- **No wrapping.** Arriving back at the first drug after the last reads as a bug the first time it
+  happens, and *this is the last one* is worth knowing when you are working through an exam.
+- **The reading travels with you.** Stepping to the next drug keeps `?as=`, because paging through
+  an exam's drugs is one task and setting the version again ninety times is not part of it.
+
+Three ways to move, since this is read on a phone and on a laptop: the two pills, the arrow keys
+(ignored while a text field has focus, or with a modifier held, which is the browser's own history
+gesture), and a horizontal swipe — told apart from a scroll by having travelled further sideways
+than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
+render, because paging is the thing you do repeatedly here.
+
+### The backup carries the corrected provenance (2026-11-16)
+
+`scripts/relabel-provenance.ts` rewrites the *from X content* line on a **backup file** rather than
+on the database, which makes the whole correction a diff you can read before any of it is live:
+restoring the result is how it lands. 1,738 of the 3,141 source strings in the 2026-11-16 backup
+moved, 453 in exam layers and 1,285 on base profiles, and nothing else in the file changed — the
+two files are identical once every `source` is blanked.
+
+A layer's values are exactly recoverable: the layer belongs to a tag and that tag is the exam. A base
+profile's are recoverable where the drug came in with one lecture, which `baseVariant` records — with
+one hazard, that `fill` writes a field nobody has recorded yet to the drug *itself*, so a later
+lecture can leave a value in an earlier exam's base with nothing in the row to say so. The
+timestamps say what the row does not: an import writes its values within a second of each other and
+the imports are hours or days apart, so the script holds back and reports any base value written
+within two minutes of another exam's import. On this backup that was none of them.
+
+### The provenance line names the exam, not the class (2026-11-16)
+
+*Erythromycin is showing information from multiple sources on its Infectious Disease Exam 4 page.
+Some info also seems to originate from just a class tag, PHRM 532, when those should be the exam
+their info is relevant to.*
+
+Two things, one of them a misreading the page invited and the other a decision reversed.
+
+**Reading a drug as an exam shows the exam's wording over the drug's own, and always has.** That is
+the layer design and not a fault: erythromycin's Exam 4 layer words three fields — dosing, route
+and notes, all of it newborn eye prophylaxis out of the STI lecture — and the mechanism, spectrum,
+adverse effects, kinetics and interactions below them are the drug's own. What the page did not say
+is **whose** the drug's own are. It read *3 fields below are its own wording; the rest are the
+drug's*, which invites the assumption that the remainder is neutral ground — the class sheet, or
+nobody. For erythromycin it is Infectious Disease Exam 1 2026: the drug arrived in a lecture import,
+so that lecture's wording is its base, and the exam-4 page was quietly showing two exams at once
+with nothing naming the second. The banner now finishes the sentence — *the rest are the drug's own
+— Infectious Disease Exam 1 2026's* — which is the fact the variant **editor** has always printed
+per field (*The drug says, from X*) and the screen people actually read never did.
+
+**And the provenance line now names the narrowest scope.** [One provenance line, and it names the
+class](#one-provenance-line-and-it-names-the-class-2026-11-09) chose the widest on the reasoning
+that the class is who says so and the exam is merely where within the class it was said — the tag
+recording the exam by being the tag. What that missed is that the tag does not record it *per
+value*. PHRM 532 runs four exams, erythromycin is taught at three of them, its values live in three
+different places, and every one of them read *from PHRM 532 content*: true of all four exams and so
+distinguishing none. Eight fields on one screen, from three lectures, all claiming the class. So
+`provenanceOf` takes `scope[scope.length - 1]` — the exam where a file names one, the class where it
+names only a class. The class has not left the page: it is still the tag, which is what the old
+reasoning got right about tags.
+
+**The stored values are not retrospectively right.** 453 values sitting in exam layers say *from
+PHRM 532 content*, *from PSCI 414 content* or *from PHRM 535 content*, and 746 base values say the
+same. The layer values are exactly recoverable — a layer's tag *is* the exam, so the line can be
+rewritten from where the value lives. The base values are not: a field a later lecture filled on
+the drug itself is indistinguishable from one the first import wrote, the audit log records
+`drug.field` without the import's scope, and `base_variant_tag_id` answers for the profile as a
+whole rather than per field. So a backfill can fix the layers and the bases whose drug came in with
+one lecture, and must leave the rest alone rather than guess. Not yet run.
+
 ### One provenance line, and it names the class (2026-11-09)
 
 *We should have all the variants just say "from [class title] content".*
@@ -5474,6 +5620,46 @@ from the same `drug_class` (so "which cardioselective beta blocker…" is a real
 **easy** mode draws at random. In inclusive `fields→drug` questions the wrong options are *coherent
 composites* — all fields taken from one wrong drug — never a scramble across drugs, which would be
 spottable without knowing any pharmacology.
+
+### Just the ones you missed (2026-11-16)
+
+The results screen offered two next moves and neither was the obvious one. *Again* redraws from the
+same filters, which is right when the paper went well and wrong when it did not: the nine questions
+you missed are exactly the nine worth sitting again, and a redraw scatters them back into a pool of
+two hundred. The priority weighting makes them *likelier* next time — it cannot make them the
+paper. So there is a third button, shown only when there is something to retake: **Just the 9 you
+missed**.
+
+**It is the same questions, not a new draw over the same drugs.** Redrawing would ask a different
+field or a different direction about the same drug, which is a reasonable feature and not this one.
+The paper is cut from the one in hand, client-side, with no server round trip — the questions are
+already there, and fetching would be a chance to get different ones.
+
+**The options are shuffled, and so is the order of the paper.** `retakeOf` in `lib/study/quiz.ts`
+does both. You have just watched option 3 turn green, so re-serving the options in place asks you
+to remember a *position* rather than a fact, and the review screen you read on the way here listed
+the misses in the order they were asked. The question's identity does not move: `id`,
+`questionKey`, the drug and the field are untouched, because it *is* the same question — history
+files the second answer under the first, and the weighting sees a miss followed by a right answer
+rather than two unrelated rows. Five of a question's fields are indexed by option (`options`,
+`fromSlug`, `fromGeneric`, `fromFact`, `fromOwners`) and permute together; moving four of five is
+how the review comes to tell you your wrong answer belonged to a drug it does not.
+
+**Each round is its own attempt.** The answers are cleared rather than merged, so the score line,
+the review and *Just the N you missed* always speak about the round in hand, and the round before
+it is in *Previous quizzes* as the paper it was — 11/20, then 4/9. That also means a retake feeds
+the weighting like any other paper, which is the point: getting it right the second time is
+evidence, and it should count as some.
+
+**Missed means missed, not answered wrongly.** The retake takes the same list the *What you missed*
+section does, so a question you ran out of time on is in it. That is the opposite of the weighting's
+rule — see below, where a skipped question carries no weight at all — and the two are not in
+conflict: *you did not answer this* is not evidence about the material, which is why it cannot
+reorder a future draw, but it is an excellent reason to be asked now.
+
+The button waits for the attempt to be recorded before it will do anything, which is the same gate
+*Again* has and for the same reason: the write runs in an effect on the runner, and clearing the
+answers under it drops the paper just sat.
 
 ### A capped quiz asks what you got wrong first (2026-11-02)
 

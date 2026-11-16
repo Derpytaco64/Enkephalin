@@ -46,8 +46,28 @@ export type ProfileBrand = {
  * comes back null and the base profile is returned. That keeps the picker on
  * the page in agreement with the tag filter in the browser, which both read
  * `drug_tags`.
+ *
+ * **A version reads as only its own words, unless `layered` asks otherwise**
+ * (2026-11-16, owner's call). Reading a drug as an exam used to show the
+ * exam's values over the drug's, which is what a layer is and is still how a
+ * value is *stored* -- but it meant erythromycin as Exam 4 showed three of
+ * Exam 4's fields over five of Exam 1's, two exams on one screen under one
+ * heading. Revising for an exam, what the other exams said is not context, it
+ * is noise, so the fall-through is off by default and `layered` is the way
+ * back to it -- the one reading where a class's wording can be compared with
+ * what it is varying from.
+ *
+ * Which fields are *shown* follows the same rule: the keys the version worded,
+ * plus the core fields, and nothing else. Not the usual visibility rule, which
+ * would print "not recorded yet" under a mechanism the drug has and the exam
+ * merely did not teach -- a gap where there is none.
  */
-export async function getDrugProfile(slug: string, userId?: string, variantSlug?: string) {
+export async function getDrugProfile(
+  slug: string,
+  userId?: string,
+  variantSlug?: string,
+  options: { layered?: boolean } = {},
+) {
   const [drug] = await db.select().from(drugs).where(eq(drugs.slug, slug));
   if (!drug) return null;
 
@@ -174,7 +194,15 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
     indication: indicationRows.map((row) => row.label).join('\n'),
   };
 
-  const fields = variant ? overlayFields(drug.fields, variant.fields) : drug.fields;
+  /** Which keys this version words itself, which is what a strict reading is. */
+  const overridden = variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>();
+  const strict = variant !== null && options.layered !== true;
+
+  const fields = variant === null
+    ? drug.fields
+    : strict
+      ? Object.fromEntries([...overridden].map((key) => [key, variant.fields[key]]))
+      : overlayFields(drug.fields, variant.fields);
 
   /** Whether this drug says anything under this field, blank-as-an-answer included. */
   const answered = (def: FieldDef) => {
@@ -217,9 +245,11 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
    * why the old meaning was so sharp: there was no way back.
    */
   const visibility = prefs[0]?.fieldVisibility ?? {};
-  const visibleDefs = defs.filter(
-    (def) => visibility[def.key] ?? (def.defaultVisible || answered(def)),
-  );
+  const visibleDefs = defs.filter((def) => (strict
+    // A reader's own choice still outranks it, which is why this is not simply
+    // the set of keys: unticking a field hides it everywhere, including here.
+    ? (visibility[def.key] ?? true) && (def.isCore || overridden.has(def.key))
+    : visibility[def.key] ?? (def.defaultVisible || answered(def))));
 
   return {
     // The fields a reader sees. Through a variant this is the overlay, so
@@ -248,7 +278,16 @@ export async function getDrugProfile(slug: string, userId?: string, variantSlug?
      */
     baseVariant,
     /** Which keys this variant speaks about, so the page can mark them. */
-    overridden: variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>(),
+    overridden,
+    /**
+     * Whether this reading is the version's own words alone.
+     *
+     * True on every version reading but the one that asked to be layered, and
+     * false on the drug's own profile, where there is no version to be strict
+     * about. The page says which it is: a reader who cannot tell a profile
+     * with five fields from a drug with five facts has been misled.
+     */
+    strict,
     /**
      * Every version's stored layer, only when the table was asked for.
      *

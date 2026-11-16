@@ -399,24 +399,72 @@ describe('the profile, read through a variant', () => {
     expect(profile?.variants).toHaveLength(3);
   });
 
-  it('reads the class\'s wording where it has one, and the drug\'s elsewhere', async () => {
+  it('reads only the wording that version has, and leaves the rest out', async () => {
+    // *I want the layers to only display their imported information from their
+    // exam* -- the owner's call, 2026-11-16. The class words the mechanism and
+    // says nothing about the warning, so the warning is not on this screen: it
+    // is some other lecture's, and on an exam page another exam's wording is
+    // not context.
     const profile = await getDrugProfile('levothyroxine', ME, COURSE);
 
+    expect(profile?.strict).toBe(true);
     expect(profile?.drug.fields.moa.value).toBe('T4 analogue, converted peripherally to T3');
     expect(profile?.drug.fields.moa.source).toBe('PSCI 413 — 14.Thyroid.pdf');
+    expect(profile?.drug.fields.bbw).toBeUndefined();
+    expect([...(profile?.overridden ?? [])]).toEqual(['moa']);
+
+    // And the rows follow: a field left out is left out rather than printed as
+    // "not recorded yet", which would be a gap where the drug has none.
+    expect(profile?.defs.map((def) => def.key)).not.toContain('bbw');
+    expect(profile?.defs.map((def) => def.key)).toContain('moa');
+  });
+
+  it('puts the drug back underneath when the reading asks for it', async () => {
+    const profile = await getDrugProfile('levothyroxine', ME, COURSE, { layered: true });
+
+    expect(profile?.strict).toBe(false);
+    expect(profile?.drug.fields.moa.value).toBe('T4 analogue, converted peripherally to T3');
     expect(profile?.drug.fields.bbw.value).toBe('Thyrotoxicosis in weight loss');
     expect([...(profile?.overridden ?? [])]).toEqual(['moa']);
   });
 
   it('shows the drug\'s own improvements through the class that did not mention them', async () => {
     // The argument for a layer over a copy, as a test: fix the base, and every
-    // class's view of it is fixed too.
+    // class's view of it is fixed too. Read layered, because that is the
+    // reading the property is about -- what a version is varying *from*. The
+    // storage is a layer either way; only the default view is strict.
     await db.update(drugs).set({
       fields: { moa: value('Replaces T4'), bbw: value('Thyrotoxicosis; not for obesity') },
     }).where(eq(drugs.slug, 'levothyroxine'));
 
-    const profile = await getDrugProfile('levothyroxine', ME, COURSE);
+    const profile = await getDrugProfile('levothyroxine', ME, COURSE, { layered: true });
     expect(profile?.drug.fields.bbw.value).toBe('Thyrotoxicosis; not for obesity');
+  });
+
+  it('names the base as well as the variant, so a profile can say whose the rest are', async () => {
+    // The data behind the line on the banner. Reading levothyroxine as the
+    // exam shows the exam's wording for whatever it words and the *class's*
+    // for everything else -- the class being where this drug's own profile
+    // came from -- and a page that says only "the rest are the drug's" leaves
+    // the reader to assume the remainder is neutral ground. It is another
+    // lecture's.
+    await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: SECOND });
+    await saveVariantLayer({
+      drugSlug: 'levothyroxine', variantSlug: EXAM,
+      values: { bbw: 'What the exam says instead' }, source: '', note: '', userId: ME,
+    });
+
+    const profile = await getDrugProfile('levothyroxine', ME, EXAM);
+    expect(profile?.variant?.slug).toBe(EXAM);
+    expect([...(profile?.overridden ?? [])]).toEqual(['bbw']);
+    expect(profile?.baseVariant).toMatchObject({ slug: SECOND, label: 'PHRM 535' });
+
+    // Which is worth naming precisely because of what the layered reading
+    // puts back: the mechanism under the exam's warning is the other class's,
+    // and *the rest are the drug's own* is only half of that sentence.
+    const layered = await getDrugProfile('levothyroxine', ME, EXAM, { layered: true });
+    expect(layered?.drug.fields.moa.value).toBe('Replaces T4');
+    expect(layered?.baseVariant).toMatchObject({ slug: SECOND });
   });
 
   it('ignores a variant the drug is not in', async () => {
@@ -671,6 +719,108 @@ describe('studying a variant', () => {
     }));
 
     expect(deck.cards[0].faces[0].text).toBe('Replaces T4');
+  });
+
+  /**
+   * *When I study for a specific exam, I only want info sourced from that exam
+   * to show up in questions* -- the owner's call, 2026-11-16.
+   *
+   * The case behind it is erythromycin, which is on three of the ID exams: its
+   * Exam 4 layer words dosing, route and notes, and the mechanism underneath
+   * them is Exam 1's lecture. A deck scoped to Exam 4 asked that mechanism,
+   * which is Exam 1 revision wearing an Exam 4 label. Here the class words
+   * `moa` and says nothing about `bbw`.
+   */
+  describe('and only what that version worded', () => {
+    it('does not ask a field the version in scope never spoke about', async () => {
+      const deck = await loadDeck(ME, config({
+        fields: ['bbw'],
+        scope: { ...DEFAULT_CONFIG.scope, tags: [COURSE] },
+      }));
+
+      expect(deck.cards).toHaveLength(0);
+    });
+
+    it('still holds the value, because a wrong answer may come from anywhere', async () => {
+      // The narrowing is about what is *asked*. Shrinking the distractor pool
+      // to one exam's values is how a question runs out of wrong answers and
+      // disappears, which is the opposite of what was asked for.
+      const [source] = await loadCardSources([COURSE]);
+      expect(source.values.bbw?.value).toBe('Thyrotoxicosis in weight loss');
+      expect(source.askOnly && [...source.askOnly]).toEqual(['moa']);
+    });
+
+    it('asks it again when the version that worded it is the one in scope', async () => {
+      await saveVariantLayer({
+        drugSlug: 'levothyroxine', variantSlug: EXAM,
+        values: { bbw: 'What the exam says instead' }, source: '', note: '', userId: ME,
+      });
+
+      const deck = await loadDeck(ME, config({
+        fields: ['bbw'],
+        scope: { ...DEFAULT_CONFIG.scope, tags: [EXAM] },
+      }));
+
+      expect(deck.cards).toHaveLength(1);
+      expect(deck.cards[0].faces[0].text).toBe('What the exam says instead');
+    });
+
+    it('asks the base where the base is that version', async () => {
+      // A lecture that created a drug leaves its wording as the base, with no
+      // layer anywhere -- `wordedBy` names the base for those, so studying
+      // that class asks them. Without this, the drugs a lecture brought in
+      // would be the ones its own deck could not ask about.
+      await setBaseVariant({ drugSlug: 'levothyroxine', variantSlug: SECOND });
+
+      const deck = await loadDeck(ME, config({
+        fields: ['bbw'],
+        scope: { ...DEFAULT_CONFIG.scope, tags: [SECOND] },
+      }));
+
+      expect(deck.cards).toHaveLength(1);
+      expect(deck.cards[0].faces[0].text).toBe('Thyrotoxicosis in weight loss');
+    });
+
+    it('goes on asking the core fields, which no version can word', async () => {
+      // The schedule is the sheet's fact rather than a lecture's wording, so
+      // *only what this exam taught* cannot mean *and nothing about the drug*.
+      // Which of these get asked is the field picker's business, where the
+      // reader can already see them.
+      await db.update(drugs).set({ schedule: 'CIII' }).where(eq(drugs.slug, 'levothyroxine'));
+
+      const deck = await loadDeck(ME, config({
+        fields: ['controlled'],
+        scope: { ...DEFAULT_CONFIG.scope, tags: [COURSE] },
+      }));
+
+      expect(deck.cards).toHaveLength(1);
+      expect(deck.cards[0].faces[0].text).toBe('CIII');
+    });
+
+    it('narrows nothing when no class or exam is in scope', async () => {
+      const [source] = await loadCardSources();
+      expect(source.askOnly).toBeUndefined();
+
+      const deck = await loadDeck(ME, config({ fields: ['bbw'] }));
+      expect(deck.cards).toHaveLength(1);
+    });
+
+    it('narrows nothing when the scope is a list, even one naming a version', async () => {
+      // Studying a list is not studying the version it points at. The pointer
+      // says which wording to prefer where some class has one, and narrowing
+      // Top Drugs 2026 to the handful of fields a class reworded would empty
+      // the deck somebody asked for.
+      await pointTagsAtVariant({
+        drugId: await drugId(), variantSlug: COURSE, tagSlugs: ['top-drugs-2026'],
+      });
+
+      const deck = await loadDeck(ME, config({
+        fields: ['bbw'],
+        scope: { ...DEFAULT_CONFIG.scope, tags: ['top-drugs-2026'] },
+      }));
+
+      expect(deck.cards).toHaveLength(1);
+    });
   });
 });
 

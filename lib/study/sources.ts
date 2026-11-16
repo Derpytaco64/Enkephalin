@@ -195,6 +195,25 @@ export async function loadCardSources(
       };
     });
 
+  /**
+   * The versions in play for one drug, as slugs -- the set a field has to be
+   * worded by to be asked about.
+   *
+   * **Only a class or an exam in the scope narrows a session**, which is the
+   * `variantSlugs.length` gate below rather than anything here. Studying a
+   * *list* that happens to name a version per drug is not studying that
+   * version: the pointer says which wording to prefer where there is one, and
+   * narrowing Top Drugs 2026 to the handful of fields some class reworded
+   * would empty the deck somebody asked for.
+   *
+   * The pointers are in the set all the same, because once a class *is* the
+   * scope they are part of what it means. A course that holds no wording of
+   * its own and reads each drug as one of its exams -- which is what PHRM 532
+   * does -- would otherwise admit nothing at all.
+   */
+  const appliedTo = (drugId: string) =>
+    new Set([...(byMembership.get(drugId) ?? []), ...variantSlugs]);
+
   return drugRows.map((drug) => {
     const brands = brandsByDrug.get(drug.id) ?? [];
     const indicationLabels = indicationsByDrug.get(drug.id) ?? [];
@@ -205,6 +224,22 @@ export async function loadCardSources(
     // same function, which is why it is not a loop written here.
     const authors = wordedBy(drug.fields, bases.get(drug.id), layersFor(drug.id));
     const routeValue = drug.fields.route?.value ?? '';
+
+    /**
+     * Which of this drug's fields the versions in scope actually worded.
+     *
+     * Read off `authors`, which is the same record the pills are drawn from --
+     * so a card is asked about a field exactly when the pill on it would name
+     * a version the session asked for. Two answers to that would be a deck
+     * asking Exam 1's mechanism with an Exam 4 pill beside it.
+     *
+     * See `CardSource.askOnly` for why the core fields are added back and why
+     * this never touches the distractor pool.
+     */
+    const applied = appliedTo(drug.id);
+    const askOnly = variantSlugs.length === 0
+      ? undefined
+      : new Set(Object.keys(authors).filter((key) => applied.has(authors[key].slug)));
 
     return {
       drugId: drug.id,
@@ -221,6 +256,7 @@ export async function loadCardSources(
       dosingBranches: [...(branchesByDrug.get(drug.id)?.values() ?? [])],
       needsPairingReview: drug.needsPairingReview,
       wordedBy: authors,
+      askOnly,
       values: {
         // The variant layers first, so a class's own wording is what the card
         // asks about. In the order the caller gave them, which is the order

@@ -329,13 +329,28 @@ function stringList(value: unknown): string[] {
  * So the file name is not lost, it is recorded once: `noteOf` puts it on the
  * layer, where it belongs and where the editor already shows it.
  *
- * The widest scope rather than the narrowest, because this says who says so and
- * the class is who -- the exam is where within the class it was said, which the
- * tag records by being the tag.
+ * **The narrowest scope, which is the exam where a file names one** (2026-11-16,
+ * owner's call, reversing the line this comment used to carry). It said the
+ * widest, on the reasoning that the class is who says so and the exam is merely
+ * where within the class it was said -- and that the tag records the exam by
+ * being the tag.
+ *
+ * What was wrong with it is that the tag does not record it *per value*. A
+ * class runs four exams, a drug is taught at several of them, and the values
+ * end up in four different layers with one line between them: every one read
+ * *from PHRM 532 content*, which is true of all four and so distinguishes
+ * none. Erythromycin is the case that made it plain -- eight fields on one
+ * screen, from three different lectures, all claiming the class. The exam is
+ * the thing a reader is revising for and the thing that narrows it to one
+ * lecture, so the exam is what the line now names. The class is still on the
+ * page: it is the tag, which is what the old reasoning got right about tags.
+ *
+ * Where a file names only a class, the narrowest *is* the class and nothing
+ * changes.
  */
 export function provenanceOf(file: ImportFile): string {
-  const widest = file.scope[0]?.label;
-  return widest ? `from ${widest} content` : `from ${file.source.file}`;
+  const narrowest = file.scope[file.scope.length - 1]?.label;
+  return narrowest ? `from ${narrowest} content` : `from ${file.source.file}`;
 }
 
 /**

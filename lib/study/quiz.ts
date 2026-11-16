@@ -23,7 +23,7 @@ import { indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue } from '@/lib/fields/format';
 import type { FieldDef } from '@/lib/fields/registry';
 import {
-  answerText, DRUG_SUBJECT, inScope, maskGeneric, partPrompt, partsOf, worthAsking,
+  answerText, DRUG_SUBJECT, inScope, maskGeneric, mayAsk, partPrompt, partsOf, worthAsking,
   type CardPart, type CardSource, type CardVariant, type StudySubject,
 } from './cards';
 import { partSlug, type StudyConfig, type StudyDirection } from './config';
@@ -399,9 +399,27 @@ export function buildQuiz(
   );
   const questions: QuizQuestion[] = [];
 
-  /** Both modes end the same way: one builder or the other, per drug. */
-  const ask = (about: Asking, candidates: Candidate[]) => {
-    for (const candidate of candidates.filter((row) => asked.has(row.source.drugId))) {
+  /**
+   * Both modes end the same way: one builder or the other, per drug.
+   *
+   * @param worded Whether this drug may be asked *this* question, which is
+   *   where a session scoped to a class or an exam narrows the paper to what
+   *   that version actually worded. Per mode rather than inside, because the
+   *   two modes ask different things: one field, or the whole selection.
+   *
+   * The pool handed to the builders is the unfiltered one either way. The
+   * distractors are drawn from the whole database on purpose -- see
+   * `candidates` below -- and narrowing them to one exam's values is how a
+   * question runs out of wrong answers and quietly disappears.
+   */
+  const ask = (
+    about: Asking,
+    candidates: Candidate[],
+    worded: (source: CardSource) => boolean,
+  ) => {
+    for (const candidate of candidates.filter(
+      (row) => asked.has(row.source.drugId) && worded(row.source),
+    )) {
       // Decided per question, so one quiz holds both kinds rather than the
       // whole quiz landing on one side of a coin toss.
       const asksForTheDrug = direction === 'random'
@@ -437,7 +455,13 @@ export function buildQuiz(
         : [{ source, atoms: [bundle.text], keys: [bundle.key], qualifiers: [null] }];
     });
 
-    ask(about, candidates);
+    // Every selected field, not any of them: the options here are whole
+    // profiles, so a bundle holding one field the version worded and three
+    // from another lecture would be exactly the mixture this rules out. A
+    // drug whose version worded the lot is asked, and its bundle is that
+    // version's throughout -- which is why the bundle itself needs no
+    // narrowing.
+    ask(about, candidates, (source) => selected.every((def) => mayAsk(source, def.key)));
     return questions;
   }
 
@@ -464,7 +488,25 @@ export function buildQuiz(
       prose: def.dataType === 'markdown',
     };
 
-    ask(about, def.key === REGIMEN_KEY ? onePerProtocol(candidates, asked) : candidates);
+    // Studying a version asks what that version worded, and this field of
+    // this drug may be another lecture's -- see `CardSource.askOnly`.
+    const worded = (source: CardSource) => mayAsk(source, def.key);
+
+    ask(
+      about,
+      // A protocol's one card goes to a drug that can actually be asked about
+      // it. `onePerProtocol` prefers the drugs in scope for exactly this
+      // reason -- a claim by a drug nobody is asking means the protocol never
+      // comes up -- and a narrowed session needs the same preference narrowed
+      // the same way.
+      def.key === REGIMEN_KEY
+        ? onePerProtocol(candidates, new Set(
+          [...asked].filter((drugId) => candidates
+            .some((row) => row.source.drugId === drugId && worded(row.source))),
+        ))
+        : candidates,
+      worded,
+    );
   }
 
   return questions;
@@ -819,4 +861,46 @@ export function capQuiz(
     ? shuffled(questions, rng)
     : weightedOrder(questions, weights, rng);
   return maxCards <= 0 ? ordered : ordered.slice(0, maxCards);
+}
+
+/**
+ * The same questions, asked again, with everything that was a position moved.
+ *
+ * A retake of what you missed is worth nothing if it is the same card with the
+ * answer in the same place: you have just watched option 3 turn green, so
+ * re-serving the options in their original order asks you to remember a
+ * *position* rather than the fact. The order of the paper moves too, for the
+ * same reason -- the review screen you just read listed the misses in the
+ * order they were asked.
+ *
+ * What does not move is the question's identity. `id`, `questionKey`, the drug
+ * and the field are untouched, because it is the same question: history should
+ * file the second answer under the first, and the priority weighting should see
+ * a miss followed by a right answer rather than two unrelated rows.
+ *
+ * Reason this is not two lines at the call site: five of a question's fields
+ * are indexed *by option* and have to move together. Permuting four of them
+ * is how the review ends up telling you that a wrong answer belonged to a drug
+ * it does not.
+ */
+export function retakeOf(
+  questions: QuizQuestion[],
+  rng: () => number = Math.random,
+): QuizQuestion[] {
+  return shuffled(questions, rng).map((question) => {
+    const order = shuffled(question.options.map((_, at) => at), rng);
+    const reorder = <T>(list: T[]): T[] => order.map((at) => list[at]);
+
+    return {
+      ...question,
+      options: reorder(question.options),
+      correctIndex: order.indexOf(question.correctIndex),
+      fromSlug: reorder(question.fromSlug),
+      fromGeneric: reorder(question.fromGeneric),
+      fromFact: reorder(question.fromFact),
+      // Guarded for the same reason the review reads it with `?.`: a paper is
+      // held in memory, and one drawn before this field existed has none.
+      fromOwners: question.fromOwners ? reorder(question.fromOwners) : question.fromOwners,
+    };
+  });
 }

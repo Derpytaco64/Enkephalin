@@ -11,7 +11,7 @@ import { db } from '@/db';
 import { quizAnswers, quizAttempts } from '@/db/schema';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { loadCardSources } from './sources';
-import { membershipVariants, variantSlugsAmong } from '@/lib/drugs/variants';
+import { membershipVariants, variantsAmong } from '@/lib/drugs/variants';
 import type { StudyConfig } from './config';
 import {
   wasMissed, weightsFromHistory, type QuestionWeights,
@@ -35,6 +35,18 @@ export type QuizPaper = {
    * clean record it did not check.
    */
   missed: number | null;
+  /**
+   * The versions whose own words this paper is limited to, where the scope
+   * named any -- see `CardSource.askOnly`.
+   *
+   * On the paper rather than worked out again by the page, because the page
+   * would have to ask the database which of its scope tags can carry a version
+   * and that question is already answered here. It exists so a short paper
+   * explains itself: scoping to an exam and picking every field can draw
+   * thirty questions where the drug list would draw three hundred, and *only
+   * its own words* is the difference.
+   */
+  versions: { slug: string; label: string }[];
 };
 
 export type QuizDraw = {
@@ -55,12 +67,12 @@ export async function loadQuiz(config: StudyConfig, draw: QuizDraw = {}): Promis
   // two surfaces must agree about that or a quiz would ask what the deck
   // never taught.
   const [variants, byMembership] = await Promise.all([
-    variantSlugsAmong(config.scope.tags),
+    variantsAmong(config.scope.tags),
     membershipVariants(config.scope.tags),
   ]);
 
   const [sources, defs, weights] = await Promise.all([
-    loadCardSources(variants, byMembership),
+    loadCardSources(variants.map((version) => version.slug), byMembership),
     listFieldDefs(),
     weightFor === null ? null : questionWeights(weightFor),
   ]);
@@ -75,6 +87,7 @@ export async function loadQuiz(config: StudyConfig, draw: QuizDraw = {}): Promis
     missed: weights === null
       ? null
       : questions.filter((question) => wasMissed(weights, question)).length,
+    versions: variants,
   };
 }
 

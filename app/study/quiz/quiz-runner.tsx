@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 import type { StudyConfig } from '@/lib/study/config';
-import type { QuizQuestion } from '@/lib/study/quiz';
+import { retakeOf, type QuizQuestion } from '@/lib/study/quiz';
 import { LookupPanel, LookupTrigger, type LookupTarget } from '../_components/lookup-panel';
 import { Prose } from '@/app/_components/prose';
 import { VariantPills } from '../_components/variant-pills';
@@ -275,7 +275,18 @@ export function QuizRunner({
   // 83, with a "what you missed" list of questions nobody was asked. The page
   // keys this component on a fresh paper id, so starting one really does start
   // one; anything else leaves the paper in hand alone.
-  const [questions] = useState(served);
+  //
+  // Replaced only from inside: a retake of the questions you missed is a new
+  // paper cut from the one in hand, which is a thing this component knows and
+  // the server does not. Never re-synced from props.
+  const [questions, setQuestions] = useState(served);
+  // How many the paper started with, which stops being `questions.length` the
+  // moment a retake narrows it -- the only thing that still speaks for the
+  // original draw is the sentence under *Again*.
+  const [paperSize] = useState(served.length);
+  // 1 is the paper as drawn; 2 and up are retakes of what was missed in the
+  // round before. Only ever read to say so on screen.
+  const [round, setRound] = useState(1);
   const [index, setIndex] = useState(0);
   const [lookup, setLookup] = useState<LookupTarget | null>(null);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
@@ -315,6 +326,35 @@ export function QuizRunner({
   function next() {
     if (index + 1 < questions.length) setIndex(index + 1);
     else setFinished(true);
+  }
+
+  /**
+   * The ones you missed, asked again, without leaving the page.
+   *
+   * *Again* redraws from the filters, which is the right thing when the paper
+   * went well and the wrong thing when it did not: the nine you missed are
+   * exactly the nine worth sitting again, and a redraw scatters them back into
+   * a pool of two hundred. The priority weighting makes them *likelier* next
+   * time; this makes them the paper.
+   *
+   * Local, with no server round trip, because the questions are already here
+   * and drawing them again is the one thing that must not happen -- the whole
+   * point is that these are the same questions. `retakeOf` moves the option
+   * order so it is not a test of where the green border was.
+   *
+   * The answers are cleared rather than merged. Scores, the review and the
+   * score line all read `answers` through the current `questions`, so a round
+   * is only ever the round in hand; the rounds before it are in the history,
+   * each recorded as its own attempt.
+   */
+  function retake(missed: QuizQuestion[]) {
+    setQuestions(retakeOf(missed));
+    setRound(round + 1);
+    setAnswers({});
+    setIndex(0);
+    setLookup(null);
+    setSaved(null);
+    setFinished(false);
   }
 
   // Keyboard on a laptop: 1-4 answers, space or enter moves on.
@@ -375,6 +415,11 @@ export function QuizRunner({
         <div className="rounded border border-[var(--border)] p-4 sm:p-6">
           <p className="text-lg font-medium">
             {score} of {questions.length} — {Math.round((score / questions.length) * 100)}%
+            {round > 1 && (
+              <span className="ml-2 text-sm font-normal text-[var(--muted)]">
+                on the ones you missed
+              </span>
+            )}
           </p>
           <p className="mt-1 text-sm text-[var(--muted)]">
             {saved === null
@@ -393,6 +438,20 @@ export function QuizRunner({
             >
               {starting ? 'Drawing…' : 'Again'}
             </button>
+            {/* Gated on the attempt being written for the same reason *Again*
+                is: the write runs in an effect on this component, and clearing
+                the answers under it drops the result of the paper just sat. */}
+            {wrong.length > 0 && (
+              <button
+                type="button"
+                disabled={saved === null}
+                onClick={() => retake(wrong)}
+                title="The same questions, in a new order, with their options shuffled"
+                className="btn btn-quiet"
+              >
+                Just the {wrong.length} you missed
+              </button>
+            )}
             {/* A button, not a link. It does the same kind of thing the
                 button beside it does -- start a quiz -- and two controls with
                 one job should not be two different shapes. */}
@@ -400,8 +459,9 @@ export function QuizRunner({
               Another quiz
             </Link>
             <span className="text-xs text-[var(--muted)]">
-              Again redraws these {questions.length} question
-              {questions.length === 1 ? '' : 's'}&rsquo; worth from the same filters.
+              Again draws a new {paperSize}-question paper from the same filters.
+              {wrong.length > 0
+                && ' The one beside it asks these same questions, options shuffled.'}
             </span>
           </div>
         </div>
@@ -485,9 +545,13 @@ export function QuizRunner({
   return (
     <div className="mt-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm text-[var(--muted)]">
+        {/* *Drawn from 83* is a fact about the draw, and a retake was not
+            drawn -- it is the questions you missed, all of them. */}
         <span>
           Question {index + 1} of {questions.length}
-          {available > questions.length && ` · drawn from ${available}`}
+          {round > 1
+            ? ' · the ones you missed'
+            : available > questions.length ? ` · drawn from ${available}` : ''}
         </span>
         <span>{score} right of {done} answered</span>
       </div>

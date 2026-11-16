@@ -118,7 +118,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
   const started = config.fields.length > 0;
   const paper = started
     ? await loadQuiz(config, { direction, weightFor: priority ? session.user.id : null })
-    : { id: 'none', questions: [], available: 0, missed: null };
+    : { id: 'none', questions: [], available: 0, missed: null, versions: [] };
 
   // A per-drug question's fieldKey is the whole selection joined, so history
   // reads back as "Mechanism of action, Dosing" rather than "moa+dosing".
@@ -152,6 +152,14 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       config.fields.map(labelFor).join(', '),
       ...(config.scope.tags.length > 0
         ? [listRows.find((tag) => tag.slug === config.scope.tags[0])?.label ?? config.scope.tags[0]]
+        : []),
+      // Said because a short paper otherwise looks broken. Scoping to an exam
+      // asks what that exam taught and nothing else -- see
+      // `CardSource.askOnly` -- so picking every field can draw thirty
+      // questions where the drug list would draw three hundred, and this is
+      // the difference.
+      ...(paper.versions.length > 0
+        ? [`only ${paper.versions.map((version) => version.label).join(' and ')}’s own words`]
         : []),
       ...(config.scope.categories.length > 0
         ? [`${config.scope.categories.length} categor${config.scope.categories.length === 1 ? 'y' : 'ies'}`]

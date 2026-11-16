@@ -42,7 +42,7 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { drugVariantValues, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
-import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
+import { overridable } from '@/lib/fields/constants';
 import { isVariantKind, KIND_RANK, VARIANT_KINDS, type VariantKind } from './variant-kinds';
 
 export * from './variant-kinds';
@@ -106,28 +106,17 @@ export type SaveResult =
   | { ok: true; overrides: number }
   | { ok: false; message: string };
 
-// `isCore`, not every entry: `CORE_FIELD_DEFS` is the whole sheet field set --
-// mechanism, dosing, the black box warning -- and only five of its rows are
-// backed by their own column. Reading it as "all of these are core" is a quiet
-// way to make every field unoverridable, which is what it did once.
-const CORE_KEYS = new Set(
-  CORE_FIELD_DEFS.filter((def) => def.isCore).map((def) => def.key),
-);
-
 /**
- * Whether a field can carry a variant's own value.
+ * The variant rule about core fields, kept where every reader of it already
+ * imports from.
  *
- * The core fields cannot, and not as an omission: `generic`, `brand`,
- * `indication`, `drug_class` and `controlled` are columns and link rows rather
- * than entries in `drugs.fields`, and a class claiming a different generic
- * name is not a variation of a drug, it is a different drug. Brands and
- * indications are entities with their own tables and their own pairing rules,
- * so a class wanting to differ on those is a bigger change than this one and
- * deliberately out of it.
+ * It lived here, as its own copy of the core key set, until the study loader
+ * needed the same question answered -- see `lib/fields/constants.ts`, which is
+ * where a fact about a field belongs and which is client-safe. Re-exported
+ * rather than moved out of reach, because `overridable` *is* the variant rule
+ * and this is the file that states them.
  */
-export function overridable(key: string): boolean {
-  return !CORE_KEYS.has(key);
-}
+export { overridable };
 
 /**
  * The reading rule, and the only piece of this worth testing on its own.
@@ -470,6 +459,20 @@ export async function allVariantLayers(
  * it wins for the same reason on every screen, because every caller asks this.
  */
 export async function variantSlugsAmong(slugs: string[]): Promise<string[]> {
+  return (await variantsAmong(slugs)).map((row) => row.slug);
+}
+
+/**
+ * The same question with the labels kept, for a screen that has to name them.
+ *
+ * A session narrowed to a version's own words says so in words -- *only
+ * Infectious Disease Exam 4 2026's* -- and the label was already being read
+ * and thrown away here. Sorted the same way, because the order is the overlay
+ * order either way and two spellings of that would be two answers.
+ */
+export async function variantsAmong(
+  slugs: string[],
+): Promise<{ slug: string; label: string }[]> {
   const wanted = slugs.filter(Boolean);
   if (wanted.length === 0) return [];
 
@@ -478,7 +481,7 @@ export async function variantSlugsAmong(slugs: string[]): Promise<string[]> {
     .from(tags)
     .where(and(isVariantTag, inArray(tags.slug, wanted)));
 
-  return rows.sort(byOverlayOrder).map((row) => row.slug);
+  return rows.sort(byOverlayOrder).map((row) => ({ slug: row.slug, label: row.label }));
 }
 
 /**

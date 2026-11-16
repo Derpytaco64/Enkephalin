@@ -259,10 +259,17 @@ the same scope, because merging across scopes would put one class's wording into
 }
 ```
 
-Every value you write carries a provenance string, and it is the **class name only** — shown on
-the profile as *from PHRM 535 content*. The same line appears beside every value from the file, so
-it says whose words these are and nothing else; a file name repeated under fourteen fields is noise
-shaped like information.
+Every value you write carries a provenance string, and it is the **name of the narrowest scope you
+gave** — the exam where you named one, the class where the class is all you named. Shown on the
+profile as *from Heme/Onc Exam 3 content*. The same line appears beside every value from the file,
+so it says whose words these are and nothing else; a file name repeated under fourteen fields is
+noise shaped like information.
+
+It was the class until 2026-11-16 and the reason it moved is worth knowing if you are writing
+several files for one course: a class running four exams produced four layers whose every value read
+*from PHRM 532 content*, which is true of all four and so tells a reader nothing about which lecture
+a line came from. The exam is the thing being revised for, so the exam is what the line names. The
+class is still on the drug — it is the tag.
 
 The file name is not lost. The whole of `source` is recorded **once**, as the note on the class's
 version of each drug, which is where somebody checking a value goes next. So fill it in properly —

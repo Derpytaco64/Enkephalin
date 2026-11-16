@@ -7,7 +7,7 @@ import type { CardSource } from '@/lib/study/cards';
 import { DEFAULT_CONFIG, type StudyConfig } from '@/lib/study/config';
 import { weightsFromHistory } from '@/lib/study/priority';
 import { OWN_LINE_MARKER } from '@/lib/drugs/import-format';
-import { buildQuiz, capQuiz } from '@/lib/study/quiz';
+import { buildQuiz, capQuiz, retakeOf } from '@/lib/study/quiz';
 import { fieldKeysParam, manyParam } from '@/lib/study/search-params';
 
 let defs: FieldDef[];
@@ -744,6 +744,63 @@ describe('capQuiz', () => {
     // pool eventually, which is the difference between priority and a grudge
     // list.
     expect(seen.size).toBe(questions.length);
+  });
+});
+
+describe('retakeOf', () => {
+  it('asks the same questions again, and keeps every option pointing at its own drug', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
+    const retake = retakeOf(questions);
+
+    expect(retake).toHaveLength(questions.length);
+    expect(retake.map((question) => question.id).sort())
+      .toEqual(questions.map((question) => question.id).sort());
+
+    for (const after of retake) {
+      const before = questions.find((question) => question.id === after.id)!;
+
+      // Same question, same identity: history files the second answer under
+      // the first, and the weighting sees one question answered twice.
+      expect(after.questionKey).toBe(before.questionKey);
+      expect(after.drugId).toBe(before.drugId);
+      expect(after.fieldKey).toBe(before.fieldKey);
+      expect(after.direction).toBe(before.direction);
+
+      // Same four options, and the right one is still the right one.
+      expect([...after.options].sort()).toEqual([...before.options].sort());
+      expect(after.options[after.correctIndex]).toBe(before.options[before.correctIndex]);
+
+      // The five lists indexed by option moved together. Read back per option
+      // text rather than per position, which is the only way to catch one of
+      // them having been left behind.
+      for (const [at, option] of after.options.entries()) {
+        const was = before.options.indexOf(option);
+        expect(after.fromSlug[at]).toBe(before.fromSlug[was]);
+        expect(after.fromGeneric[at]).toBe(before.fromGeneric[was]);
+        expect(after.fromFact[at]).toBe(before.fromFact[was]);
+        expect(after.fromOwners[at]).toEqual(before.fromOwners[was]);
+      }
+    }
+  });
+
+  it('moves the answer, so a retake is not a test of where the green border was', () => {
+    const [question] = buildQuiz(pool(), defs, config({ fields: ['moa'] }));
+
+    const slots = new Set<number>();
+    for (let run = 0; run < 60; run += 1) {
+      slots.add(retakeOf([question])[0].correctIndex);
+    }
+    expect(slots.size).toBe(question.options.length);
+  });
+
+  it('reorders the paper too, since the review listed the misses in order', () => {
+    const questions = buildQuiz(pool(), defs, config({ fields: ['moa', 'dosing'] }));
+
+    const firsts = new Set<string>();
+    for (let run = 0; run < 60; run += 1) {
+      firsts.add(retakeOf(questions)[0].id);
+    }
+    expect(firsts.size).toBeGreaterThan(1);
   });
 });
 

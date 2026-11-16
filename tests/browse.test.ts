@@ -9,6 +9,10 @@ import { getDrugIndex } from '@/lib/drugs/browse';
 import { saveVariantLayer } from '@/lib/drugs/variants';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import { matchesTags, tagList } from '@/lib/tags/constants';
+import {
+  filterParams, filtersFrom, isFiltered, placeInList, selectDrugs,
+  EMPTY_FILTERS, type DrugFilters,
+} from '@/lib/drugs/filter';
 
 beforeEach(async () => {
   await db.delete(brandIndications);
@@ -301,5 +305,103 @@ describe('filtering the list by several tags', () => {
       expect(matchesTags(row.tags, [...row.tags, 'a-tag-nothing-carries'])).toBe(false);
       expect(matchesTags(row.tags, [...row.tags, 'a-tag-nothing-carries'], 'any')).toBe(true);
     }
+  });
+});
+
+/**
+ * Paging from one drug to the next one in the list you were looking at.
+ *
+ * *Filter to an exam, open the third drug, then page to the second and the
+ * fourth* -- the owner's ask, 2026-11-16. The reason this is the rail's own
+ * filter function rather than a query of its own: a second idea of "which
+ * drugs are showing" would page through a slightly different list than the one
+ * that was clicked.
+ */
+describe('paging through the filtered list', () => {
+  const filters = (partial: Partial<DrugFilters> = {}): DrugFilters =>
+    ({ ...EMPTY_FILTERS, ...partial });
+
+  it('walks the filtered list, and says where in it you are', async () => {
+    const { rows } = await getDrugIndex();
+    // The two ACE inhibitors, alphabetically: enalapril then lisinopril.
+    const picked = filters({ drugClass: 'ACE' });
+
+    expect(selectDrugs(rows, picked).map((row) => row.slug))
+      .toEqual(['enalapril', 'lisinopril']);
+
+    const first = placeInList(rows, picked, 'enalapril');
+    expect(first).toMatchObject({
+      at: 1,
+      total: 2,
+      prev: null,
+      next: { slug: 'lisinopril', generic: 'Lisinopril' },
+    });
+
+    const second = placeInList(rows, picked, 'lisinopril');
+    expect(second).toMatchObject({
+      at: 2,
+      total: 2,
+      prev: { slug: 'enalapril', generic: 'Enalapril' },
+      next: null,
+    });
+  });
+
+  it('does not wrap around at either end', () => {
+    // Arriving back at the first drug after the last reads as a bug the first
+    // time it happens, and the ends of a list are information: *this is the
+    // last one* is worth knowing when you are working through an exam.
+    expect(placeInList([], filters({ drugClass: 'ACE' }), 'enalapril')).toBeNull();
+  });
+
+  it('refuses to place a drug the filter does not select', async () => {
+    // A link can be edited and a drug can be untagged after the link was made.
+    // A pager claiming *4 of 90* on a drug that is not one of the 90 would be
+    // worse than no pager at all.
+    const { rows } = await getDrugIndex();
+    expect(placeInList(rows, filters({ drugClass: 'ACE' }), 'alprazolam')).toBeNull();
+  });
+
+  it('has nothing to page through in a list of one', async () => {
+    const { rows } = await getDrugIndex();
+    expect(placeInList(rows, filters({ schedule: 'CIV' }), 'alprazolam')).toBeNull();
+  });
+
+  it('is off entirely when no filter is on', () => {
+    // All 523 drugs in alphabetical order is not a list somebody chose, so the
+    // profile does not offer to page through it -- and does not pay for the
+    // index read either.
+    expect(isFiltered(filters())).toBe(false);
+    expect(isFiltered(filters({ tag: 'top-drugs-2026' }))).toBe(true);
+  });
+
+  it('survives the round trip through a URL, which is where it travels', () => {
+    const picked = filters({ tag: 'top-drugs-2026,heme-onc-exam-3', q: 'ace', tagsAny: '1' });
+    const params = filterParams(picked);
+
+    expect(params.get('tag')).toBe('top-drugs-2026,heme-onc-exam-3');
+    expect(params.get('tagsany')).toBe('1');
+    // Unset filters leave nothing behind, which is what keeps a row link short
+    // and a bookmark readable.
+    expect(params.has('class')).toBe(false);
+    expect(filtersFrom((param) => params.get(param))).toEqual(picked);
+  });
+
+  it('walks the list the rail drew, search ranking included', async () => {
+    // The invariant the whole thing rests on, asserted over every position
+    // rather than at one of them: a search *ranks* its results, so the pager
+    // has to step through that ranking and not a tidier alphabetical one. Any
+    // disagreement here is an arrow that goes somewhere the screen did not.
+    const { rows } = await getDrugIndex();
+    const picked = filters({ q: 'ACE' });
+    const list = selectDrugs(rows, picked);
+
+    expect(list.length).toBeGreaterThan(1);
+    list.forEach((row, at) => {
+      const place = placeInList(rows, picked, row.slug)!;
+      expect(place.at).toBe(at + 1);
+      expect(place.total).toBe(list.length);
+      expect(place.prev?.slug ?? null).toBe(list[at - 1]?.slug ?? null);
+      expect(place.next?.slug ?? null).toBe(list[at + 1]?.slug ?? null);
+    });
   });
 });

@@ -3,6 +3,7 @@ import { formatFieldValue } from '@/lib/fields/format';
 import { OWN_LINE_MARKER } from '@/lib/drugs/import-format';
 import { splitSections } from '@/lib/fields/prose';
 import type { FieldDef } from '@/lib/fields/registry';
+import { overridable } from '@/lib/fields/constants';
 import { cardKey, partSlug, type StudyConfig } from './config';
 
 /**
@@ -53,7 +54,50 @@ export type CardSource = {
    * record and an empty one mean the same thing: the drug's own words.
    */
   wordedBy?: Record<string, CardVariant>;
+  /**
+   * The keys this session may be **asked** about, where studying a version
+   * narrowed it. Absent means all of them, which is every session with no
+   * class or exam in its scope.
+   *
+   * *Studying for Exam 4 should only ask what Exam 4 taught* -- the owner's
+   * call, 2026-11-16, and the thing it rules out is a real one: erythromycin
+   * is on three of the ID exams, its Exam 4 layer words dosing, route and
+   * notes, and the mechanism underneath them is **Exam 1's** lecture. A deck
+   * scoped to Exam 4 was asking that mechanism, which is Exam 1 revision
+   * wearing an Exam 4 label.
+   *
+   * So a field is asked only where the version in scope is the version that
+   * worded it -- `wordedBy`, which already answers exactly that, including
+   * for the drugs whose *own profile* is a lecture's (there the base is the
+   * author and the layer table holds nothing).
+   *
+   * It narrows what is **asked** and never what may be a wrong answer:
+   * distractors are drawn from the whole database on purpose, and narrowing
+   * the pool to one exam's values is how a question runs out of options and
+   * vanishes. The core fields are not in it either -- no version can word a
+   * drug's name, brands, class, schedule or indications, so a strict reading
+   * would drop the sheet's facts about a drug that is genuinely on the exam's
+   * list. Which of those get asked is the field picker's business, where the
+   * reader can already see them.
+   */
+  askOnly?: Set<string>;
 };
+
+/**
+ * Whether this session may ask about this field of this drug.
+ *
+ * One function rather than the check written out at each site, because there
+ * are four of them -- two builders, two modes -- and the one that was spelled
+ * differently would be the bug.
+ */
+export function mayAsk(source: CardSource, key: string): boolean {
+  if (source.askOnly === undefined) return true;
+  // A core field is nobody's wording -- no version can override a drug's name,
+  // brands, class, schedule or indications -- so a set built from authorship
+  // never holds one, and excluding them would drop the sheet's facts about a
+  // drug that is genuinely on the exam's list.
+  return source.askOnly.has(key) || !overridable(key);
+}
 
 /**
  * A version of a profile, as a card has to show it: the number and whose it is.
@@ -457,6 +501,12 @@ export function buildCards(
 
     const answered = selected
       .map((def) => {
+        // Studying a version studies what that version worded, and a field it
+        // did not word is another lecture's -- see `askOnly`. Treated exactly
+        // like a field the drug has none of, so a card made only of those is
+        // not built and a card that groups several keeps the ones that are the
+        // version's.
+        if (!mayAsk(source, def.key)) return null;
         const value = source.values[def.key];
         // A field the drug has none of is not asked -- see `worthAsking`. A
         // card whose every field is like that is not built at all, which is

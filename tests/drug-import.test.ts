@@ -8,7 +8,7 @@ import {
 } from '@/db/schema';
 import { CORE_FIELD_DEFS } from '@/lib/fields/core-fields';
 import {
-  applyFieldMap, IMPORT_FORMAT, parseDrugImport, regimenFieldFor, renderRegimen,
+  applyFieldMap, IMPORT_FORMAT, parseDrugImport, provenanceOf, regimenFieldFor, renderRegimen,
   TARGET_DRUG, TARGET_UNDECIDED, type ImportValue,
 } from '@/lib/drugs/import-format';
 import { formatFieldValue } from '@/lib/fields/format';
@@ -364,7 +364,7 @@ describe('a drug the app has never held', () => {
     // and a new drug whose mechanism lived only in a class layer would read as
     // an empty profile.
     expect(drug.fields.moa.value).toBe('PD-1 inhibitor');
-    expect(drug.fields.moa.source).toBe('from PHRM 535 content');
+    expect(drug.fields.moa.source).toBe('from Heme/Onc Exam 3 content');
     // null in the file is "there is none", which is an answer and is quizzed.
     expect(drug.fields.bbw).toEqual(expect.objectContaining({ value: null, status: 'none' }));
 
@@ -410,7 +410,7 @@ describe('a drug the app has never held', () => {
     const [held] = await db
       .select().from(drugs).where(eq(drugs.slug, 'amoxicillin-clavulanate'));
     expect(held.fields.moa.value).toBe('Beta-lactam with a beta-lactamase inhibitor');
-    expect(held.fields.moa.source).toBe('from PHRM 535 content');
+    expect(held.fields.moa.source).toBe('from Heme/Onc Exam 3 content');
     // Matched, not renamed: the app's own spelling is the one on the page.
     expect(held.genericName).toBe('Amoxicillin/ Clavulanate');
   });
@@ -490,9 +490,11 @@ describe('a drug the app already holds', () => {
     // the file named both.
     const layer = await variantLayerFor(drug.id, 'heme-onc-exam-3');
     expect(layer?.fields.moa.value).toBe('Prodrug; methylates DNA at O6-guanine');
-    // The class and nothing else: this line is read once per field, and
-    // fourteen copies of a file name is noise shaped like information.
-    expect(layer?.fields.moa.source).toBe('from PHRM 535 content');
+    // The exam and nothing else: this line is read once per field, so a file
+    // name on each would be noise shaped like information -- and the class,
+    // which is what it used to name, is true of all four of its exams at once
+    // and so says nothing about which lecture this came from.
+    expect(layer?.fields.moa.source).toBe('from Heme/Onc Exam 3 content');
     // The file name is not lost, it is recorded once -- on the layer.
     expect(layer?.note).toContain('16.Melanoma.pdf');
   });
@@ -753,6 +755,36 @@ describe('a regimen across the drugs in it', () => {
   });
 });
 
+describe('whose words a value says it is', () => {
+  /** The file read, with no database in it: this is a question about the file. */
+  const scoped = (scope: Record<string, string>) => {
+    const parsed = parseDrugImport(file({ scope }));
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.problems));
+    return provenanceOf(parsed.file);
+  };
+
+  it('names the exam, which is the lecture a reader is revising for', () => {
+    expect(scoped({ course: 'PHRM 532', exam: 'Infectious Disease Exam 4 2026' }))
+      .toBe('from Infectious Disease Exam 4 2026 content');
+  });
+
+  it('names the class where that is all a file claims', () => {
+    expect(scoped({ course: 'PHRM 532' })).toBe('from PHRM 532 content');
+  });
+
+  it('is the same scope the values are written to', () => {
+    // The two were allowed to disagree and did: the layer went to the exam and
+    // the line on every value in it named the class, so a profile reading four
+    // exams' wording had one provenance for all four. Pinned together here
+    // because that is the invariant, not the string.
+    const parsed = parseDrugImport(file({ scope: { course: 'PHRM 532', exam: 'ID Exam 4' } }));
+    if (!parsed.ok) throw new Error('unreadable');
+    const narrowest = parsed.file.scope[parsed.file.scope.length - 1];
+    expect(provenanceOf(parsed.file)).toBe(`from ${narrowest.label} content`);
+    expect(narrowest.kind).toBe('exam');
+  });
+});
+
 describe('the preview', () => {
   it('says where each value would go before anything is written', async () => {
     const plan = await planDrugImport(read(file({
@@ -762,7 +794,7 @@ describe('the preview', () => {
       }],
     })));
 
-    expect(plan.provenance).toBe('from PHRM 535 content');
+    expect(plan.provenance).toBe('from Heme/Onc Exam 3 content');
     expect(plan.variant).toEqual({ slug: 'heme-onc-exam-3', label: 'Heme/Onc Exam 3' });
     expect(plan.drugs[0].writes).toEqual([
       // What it would replace, which is the one question a preview answers.
