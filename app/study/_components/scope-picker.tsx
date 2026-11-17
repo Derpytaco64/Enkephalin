@@ -16,7 +16,38 @@ export type ScopeOption = {
    * of exactly one thing.
    */
   group?: string;
+  /**
+   * The other ways this option's condition is written up, where it is written
+   * up more than one way -- see `indicationOptions`.
+   *
+   * The indications axis offers **conditions** now rather than every wording
+   * of one, which is the only way a 730-entry vocabulary is a list anybody
+   * reads. These keep that from costing anything: they are what the filter
+   * searches besides the label, so typing "ventilator" still finds *Pneumonia*
+   * and "rhinosinusitis" still finds *Sinusitis*, and they are the tooltip, so
+   * a reader can see what a condition covers before ticking it.
+   */
+  qualifiers?: string[];
 };
+
+/** The line break inside a tooltip, spelled so no tool can eat it. */
+const NEWLINE = String.fromCharCode(10);
+
+/**
+ * What an option covers, for the hover.
+ *
+ * Only the indications axis has anything to add: a condition is offered once
+ * and carries every wording of it, so this is where a reader checks that
+ * *Pneumonia* means CAP and HAP/VAP and PJP before ticking it. A bare label
+ * everywhere else, which is what `title` held before.
+ */
+function tooltip(option: ScopeOption): string {
+  const qualifiers = option.qualifiers ?? [];
+  if (qualifiers.length === 0) return option.label;
+
+  const bullet = `${NEWLINE}• `;
+  return `${option.label}${NEWLINE}${bullet.trimStart()}${qualifiers.join(bullet)}`;
+}
 
 /**
  * One narrowing axis -- categories, indications -- as a collapsible list of
@@ -81,7 +112,9 @@ export function ScopePicker({
     // An option already ticked stays visible whatever the filter says, so
     // narrowing the list can never hide what it is about to submit.
     return options.filter(
-      (option) => option.label.toLowerCase().includes(needle) || chosen.includes(option.slug),
+      (option) => option.label.toLowerCase().includes(needle)
+        || (option.qualifiers ?? []).some((text) => text.toLowerCase().includes(needle))
+        || chosen.includes(option.slug),
     );
   }, [options, filter, chosen]);
 
@@ -180,7 +213,12 @@ export function ScopePicker({
                         checked={chosen.includes(option.slug)}
                         onChange={() => toggle(option.slug)}
                       />
-                      <span className="truncate" title={option.label}>{option.label}</span>
+                      <span
+                        className="truncate"
+                        title={tooltip(option)}
+                      >
+                        {option.label}
+                      </span>
                       <span className="ml-auto text-xs text-[var(--muted)]">{option.count}</span>
                     </label>
                   ))}

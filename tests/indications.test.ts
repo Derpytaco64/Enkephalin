@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canonicalIndication, indicationOptions, indicationSlug, nearestIndication,
+  canonicalIndication, indicationHeads, indicationOptions, indicationSlug, nearestIndication,
+  qualifierOf,
 } from '@/lib/drugs/indications';
 
 describe('indicationSlug', () => {
@@ -96,6 +97,136 @@ describe('nearestIndication', () => {
   });
 });
 
+describe('indicationHeads', () => {
+  it('lets the vocabulary name its own heads', () => {
+    // No curated list of conditions: "Gonorrhea" is a head because the library
+    // already writes it on its own and writes longer things containing it.
+    const heads = indicationHeads([
+      'Gonorrhea',
+      'Gonorrhea in pregnancy',
+      'Uncomplicated gonorrhea (first line)',
+      'Hypertension',
+    ]);
+
+    expect(heads.get('Gonorrhea in pregnancy')).toBe('Gonorrhea');
+    expect(heads.get('Uncomplicated gonorrhea (first line)')).toBe('Gonorrhea');
+    // Its own head, which is what every unqualified indication gets.
+    expect(heads.get('Gonorrhea')).toBe('Gonorrhea');
+    expect(heads.get('Hypertension')).toBe('Hypertension');
+  });
+
+  it('takes the condition named first, not the one named loudest', () => {
+    // The bug this rule exists for: "Antibiotic" is a real label, genuinely
+    // present in the longer wording, and 50 characters in. Position is what
+    // keeps a skin infection from filing itself under a drug class.
+    const heads = indicationHeads([
+      'Antibiotic',
+      'Skin and soft tissue infections',
+      'Severe purulent skin and soft tissue infection after oral antibiotics',
+    ]);
+
+    expect(heads.get('Severe purulent skin and soft tissue infection after oral antibiotics'))
+      .toBe('Skin and soft tissue infections');
+  });
+
+  it('matches across a plural, because the sources do not agree about one', () => {
+    const heads = indicationHeads([
+      'Intra-abdominal infections',
+      'Complicated intra-abdominal infection, with metronidazole',
+    ]);
+
+    expect(heads.get('Complicated intra-abdominal infection, with metronidazole'))
+      .toBe('Intra-abdominal infections');
+  });
+
+  it('follows a chain to the condition at the end of it', () => {
+    // "Adjunct for hypoxemic Pneumocystis pneumonia" nominates "Pneumocystis
+    // pneumonia", which nominates "Pneumonia". A head has to be a condition,
+    // not another qualified indication, or the picker offers two entries where
+    // a reader expects one.
+    const heads = indicationHeads([
+      'Pneumonia',
+      'Pneumocystis pneumonia',
+      'Adjunct for hypoxemic Pneumocystis pneumonia',
+    ]);
+
+    expect(heads.get('Adjunct for hypoxemic Pneumocystis pneumonia')).toBe('Pneumonia');
+  });
+
+  it('never reads non-small cell lung cancer as small cell', () => {
+    // Two different diseases with different treatment, and one spelling sits
+    // inside the other. The hyphen is the only thing separating them, so it
+    // counts as part of the word.
+    const heads = indicationHeads([
+      'Metastatic non-small cell lung cancer, ALK-positive, first line',
+      'Relapsed small cell lung cancer',
+    ]);
+
+    expect(heads.get('Metastatic non-small cell lung cancer, ALK-positive, first line'))
+      .toBe('Non-small cell lung cancer (NSCLC)');
+    expect(heads.get('Relapsed small cell lung cancer')).toBe('Small cell lung cancer (SCLC)');
+  });
+
+  it('groups a condition the sources spell two ways with no word in common', () => {
+    // "rhinosinusitis" is one word, so no boundary matching finds "sinusitis"
+    // inside it. This is what `HEAD_PHRASES` is for.
+    const heads = indicationHeads([
+      'Sinusitis',
+      'Acute bacterial rhinosinusitis (first line)',
+    ]);
+
+    expect(heads.get('Acute bacterial rhinosinusitis (first line)')).toBe('Sinusitis');
+  });
+
+  it('refuses to let a strategy be a condition', () => {
+    // Expedited partner therapy is how a drug is given. Without the override
+    // it wins on position -- it is a label of its own and it comes first.
+    const heads = indicationHeads([
+      'Gonorrhea',
+      'Expedited partner therapy',
+      'Expedited partner therapy for gonorrhea',
+    ]);
+
+    expect(heads.get('Expedited partner therapy for gonorrhea')).toBe('Gonorrhea');
+    // On its own it is still the only thing it can be.
+    expect(heads.get('Expedited partner therapy')).toBe('Expedited partner therapy');
+  });
+});
+
+describe('qualifierOf', () => {
+  it('keeps the connective where the condition came first', () => {
+    // "in pregnancy" says more than "pregnancy", and "when chlamydia has not
+    // been ruled out" says much more than the noun phrase inside it.
+    expect(qualifierOf('Gonorrhea in pregnancy', 'Gonorrhea')).toBe('in pregnancy');
+    expect(qualifierOf('Gonorrhea when chlamydia has not been ruled out', 'Gonorrhea'))
+      .toBe('when chlamydia has not been ruled out');
+    expect(qualifierOf('Gonorrhea, alternative with gentamicin', 'Gonorrhea'))
+      .toBe('alternative with gentamicin');
+  });
+
+  it('drops the connective left dangling where the condition came last', () => {
+    expect(qualifierOf('Expedited partner therapy for gonorrhea', 'Gonorrhea'))
+      .toBe('Expedited partner therapy');
+  });
+
+  it('leaves a bracket it did not open', () => {
+    // Trimming punctuation by character class ate the closing bracket, which
+    // is a worse read than the tidying was worth.
+    expect(qualifierOf('Gonorrhea, alternative to ceftriaxone (with azithromycin)', 'Gonorrhea'))
+      .toBe('alternative to ceftriaxone (with azithromycin)');
+  });
+
+  it('gives up rather than cut a condition out of the middle', () => {
+    // "Uncomplicated (first line)" is damage, not a qualifier, so the caller
+    // shows the whole label -- never wrong, only longer.
+    expect(qualifierOf('Uncomplicated gonorrhea (first line)', 'Gonorrhea')).toBeNull();
+  });
+
+  it('is null where the label is the head', () => {
+    expect(qualifierOf('Gonorrhea', 'Gonorrhea')).toBeNull();
+  });
+});
+
 describe('indicationOptions', () => {
   it('counts drugs rather than rows', () => {
     // The vocabulary makes two spellings one row, so the double-counting this
@@ -109,12 +240,29 @@ describe('indicationOptions', () => {
     ]);
 
     expect(options).toEqual([
-      { slug: 'hypertension', label: 'Hypertension', count: 1 },
-      { slug: 'seizures', label: 'Seizures', count: 2 },
+      { slug: 'hypertension', label: 'Hypertension', count: 1, qualifiers: [] },
+      { slug: 'seizures', label: 'Seizures', count: 2, qualifiers: [] },
     ]);
   });
 
   it('ignores a row with no slug', () => {
     expect(indicationOptions([{ drugId: 'a', slug: '', label: '  ' }])).toEqual([]);
+  });
+
+  it('offers one condition and carries every wording of it', () => {
+    // The bug: 730 labels in the picker, 68% of them worth a single drug, and
+    // picking one narrowed 41 drugs to one. A suggestion list that punishes
+    // you for using it is worse than no suggestion list.
+    const options = indicationOptions([
+      { drugId: 'a', slug: 'pneumonia', label: 'Pneumonia' },
+      { drugId: 'b', slug: 'community-acquired-pneumonia-cap', label: 'Community-acquired pneumonia (CAP)' },
+      { drugId: 'c', slug: 'pneumonia-in-pregnancy', label: 'Pneumonia in pregnancy' },
+    ]);
+
+    expect(options).toHaveLength(1);
+    expect(options[0].slug).toBe('pneumonia');
+    expect(options[0].count).toBe(3);
+    // The head's own wording is not a qualifier of itself.
+    expect(options[0].qualifiers).toEqual(['Community-acquired pneumonia (CAP)', 'in pregnancy']);
   });
 });

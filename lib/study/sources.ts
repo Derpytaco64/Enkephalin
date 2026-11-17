@@ -19,6 +19,7 @@ import {
   type FieldValue,
 } from '@/db/schema';
 import { toSig } from '@/lib/dosing/sig';
+import { canonicalIndication, indicationHeads, indicationSlug } from '@/lib/drugs/indications';
 import {
   allVariantLayers, baseVariantsByDrug, numberedVariantsByDrug, overlayFields, wordedBy,
 } from '@/lib/drugs/variants';
@@ -173,6 +174,20 @@ export async function loadCardSources(
   const brandsByDrug = group(brandRows, 'name');
   const indicationsByDrug = group(indicationRows, 'label');
   const indicationSlugsByDrug = group(indicationRows, 'slug');
+
+  /*
+   * Which condition each indication is a kind of -- see `indicationHeads`.
+   *
+   * Scoping a deck to an indication matched the stored slug exactly, which was
+   * right while the vocabulary was 95 short strings and silently wrong at 730:
+   * ticking *Pneumonia* built a deck of **6 drugs out of 41**, because the
+   * other 35 are filed under *Community-acquired pneumonia (CAP)*,
+   * *Hospital-acquired and ventilator-associated pneumonia (HAP/VAP)* and
+   * thirty-two more wordings of the same condition. A wrong deck, not an
+   * untidy one -- which is the failure `lib/drugs/indications.ts` opens by
+   * saying it exists to prevent.
+   */
+  const headByLabel = indicationHeads(indicationRows.map((row) => row.label));
   const tagsByDrug = group(tagRows, 'slug');
 
   /**
@@ -252,9 +267,22 @@ export async function loadCardSources(
       schedule: drug.schedule,
       routes: routeValue ? routeValue.split('\n').map((route) => route.trim()).filter(Boolean) : [],
       tags: tagsByDrug.get(drug.id) ?? [],
-      // The stored slug, which is the same row the picker listed -- so the
-      // scope a link carries and the drugs it selects cannot drift apart.
-      indications: [...new Set(indicationSlugsByDrug.get(drug.id) ?? [])],
+      /*
+       * The stored slug **and** its head's, so one array answers the only
+       * question the scope asks of it: is this drug for that.
+       *
+       * Both, rather than heads alone: a saved session or a shared link holds
+       * whatever slug the picker offered when it was made, and a scope that
+       * stopped recognising an exact indication would quietly empty a deck
+       * somebody had kept. The picker offers heads now -- see
+       * `indicationOptions` -- so new scopes carry the head and old ones go on
+       * working.
+       */
+      indications: [...new Set([
+        ...(indicationSlugsByDrug.get(drug.id) ?? []),
+        ...(indicationsByDrug.get(drug.id) ?? [])
+          .map((label) => indicationSlug(headByLabel.get(canonicalIndication(label)) ?? label)),
+      ])],
       dosingSig: sigByDrug.get(drug.id) ?? null,
       dosingBranches: [...(branchesByDrug.get(drug.id)?.values() ?? [])],
       needsPairingReview: drug.needsPairingReview,

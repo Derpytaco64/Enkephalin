@@ -268,7 +268,7 @@ export default async function FlashcardsPage({ searchParams }: { searchParams: P
             <ScopePicker
               name="ind"
               legend="Indications"
-              description="What the drug is used for, in the sheet’s own words. Pick several for the drugs treating any of them."
+              description="The condition a drug is used for. Every wording of it comes along, so picking one is the whole condition — filter by any of them."
               filterLabel="Filter indications"
               options={indicationChoices}
               selected={config.scope.indications}

@@ -2959,6 +2959,107 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### An indication has a condition and a qualifier (2026-11-16)
+
+*There appears to be 4 different gonorrhea. I don't want them collapsed
+necessarily, but I'm worried the drug list search won't work as well when
+searching by indication.*
+
+Nine, in fact. And pneumonia has 35.
+
+[An indication is a row, shared between drugs](#an-indication-is-a-row-shared-between-drugs-2026-11-02)
+left the wording uncurated on purpose, and `lib/drugs/indications.ts` opens by saying
+the vocabulary needed no curation because *the texts group themselves* — 95
+distinct strings over 249 rows, Hypertension sixteen times. **That premise died
+with the lecture imports.** They write an indication as a whole clinical
+*situation*, which is the right thing to teach and the wrong thing to file
+under: **730 distinct wordings over 1,266 rows, 68% of them used exactly
+once**, median 52 characters, longest 246. *Gonorrhea in pregnancy when
+chlamydia is not ruled out*. *Uncomplicated urogenital or rectal gonorrhea when
+ceftriaxone is unavailable*.
+
+Nothing was mistyped and nothing is a duplicate — each says something different
+and true — so `ALIASES` could not help, and `mergeIndications` would have
+deleted the difference. The three surfaces failed differently, which is why
+this took measuring rather than reading:
+
+| | drug list filter | main search box | study scope |
+|---|---|---|---|
+| | substring | fuzzy + substring | **exact slug** |
+| gonorrhea | 6 / 6 | 6 | **2** |
+| pneumonia | 41 / 41 | 41 | **6** |
+| tuberculosis | 15 / 15 | 15 | **2** |
+
+**The drug list was never broken.** `narrowDrugs` matches an indication on
+substring, built so a half-typed "beta" narrows before you pick a suggestion,
+and that is exactly what saves it: typing "pneumonia" keeps all 41 drugs across
+all 35 wordings.
+
+**The study scope was badly broken, and silently.** `inScope` compared the
+stored slug for equality, so ticking *Pneumonia* built a deck of 6 drugs out of
+41 — which is precisely the failure the indications module opens by saying it
+exists to prevent: *picking "Seizure" and silently missing the two drugs the
+sheet wrote "Seizures" for is a wrong deck, not an untidy one*. It was doing
+that at 35 times the scale.
+
+**And the suggestion lists argued against themselves.** Both the browse
+datalist and the study scope picker listed all 730 wordings, 495 of them worth
+a single drug. Typing "pneumonia" offered 35 suggestions for one condition —
+and *picking* one narrowed 41 drugs to one. A suggestion list that punishes you
+for using it is worse than none.
+
+#### The fix is to group without collapsing
+
+Every indication keeps its words and gains a **head**: the condition it is a
+kind of. *Gonorrhea in pregnancy* is the condition *Gonorrhea* qualified by *in
+pregnancy*. The profile still shows the lecture's wording exactly — nothing is
+merged, renamed or shortened — and only the grouping changes: the pickers offer
+343 conditions instead of 730 wordings, and a scope matches on the head.
+
+**The vocabulary names its own heads.** A label that turns up inside another
+label is a condition the library already treats as a thing, which found 95
+heads with no curated list to go stale. Nominations are settled by **position,
+earliest first**, because a clinical phrase names its condition before it
+qualifies it — and that one rule is what stops *Severe purulent skin and soft
+tissue infection (failed incision and drainage plus oral antibiotics)* filing
+itself under *Antibiotic*, which is a real label, genuinely present, and 87
+characters in. Chains are followed to their root, so a head is always a
+condition: *Adjunct for hypoxemic Pneumocystis pneumonia* → *Pneumocystis
+pneumonia* → *Pneumonia*.
+
+`HEAD_PHRASES` adds only what containment cannot see, and every entry is a
+clinical statement written out rather than inferred. Oncology is most of it: it
+writes the stage, the mutation and the line into the indication, so the bare
+condition is never a label — 66 non-small cell lung cancer wordings sat under
+40 heads, not one of which was lung cancer. The hyphen counts as part of a word
+there, or *non-small cell* reads as the *small cell* inside it, which is a
+different disease with different treatment.
+
+**Derived, not stored.** No column, no migration, and nothing for a backup to
+carry: the head follows from the labels, so a file exported before any of this
+restores and comes up grouped. A stored head would be a second source of truth
+that goes stale the moment a wording is renamed.
+
+The qualifier is read off only where it comes away cleanly — a head at the very
+start or the very end. Cutting one out of the middle is damage, not a
+qualifier (*Uncomplicated gonorrhea (first line)* → *Uncomplicated (first
+line)*), so that case shows the label whole: never wrong, only longer.
+
+Measured after: the picker offers 343 conditions; *Non-small cell lung cancer
+(NSCLC)* 50 drugs over 67 wordings, *Pneumonia* 41 over 35, *Colorectal cancer*
+23 over 22, *Gonorrhea* 6 over 9. Costing nothing on the way in, because the
+scope still answers to an exact wording as well as a head — a shared link made
+before this goes on working — and the picker filters on the qualifiers, so
+typing "ventilator" still finds *Pneumonia* and "rhinosinusitis" still finds
+*Sinusitis*.
+
+`scripts/indication-heads.ts` reports every assignment over a backup and flags
+the ones to look at: a head that *leads* with a strategy rather than a
+condition, which is the one mistake the rule cannot fix on its own.
+`docs/drug-import.md`, "Name the condition, then qualify it", is the rule for
+writing them — condition first, strategies are qualifiers, and the tumour type
+written out in full.
+
 ### The best documented drug was the one being dropped (2026-11-16)
 
 *I'm selecting all fields and an ID Exam 4 which has 90 drugs, but when I begin

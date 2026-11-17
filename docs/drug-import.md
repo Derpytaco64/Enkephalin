@@ -349,7 +349,7 @@ The class and the schedule are *filled* and never corrected, except in `base` mo
 | `generic` | **yes** | The generic name, **capitalised**: `"Nivolumab"`, `"Iron sucrose"` |
 | `aliases` | no | Other names the deck uses: `["T-VEC", "Talimogene"]`. Matching only, so case changes nothing — capitalise them the same way regardless |
 | `brands` | no | Trade names: `["Opdivo"]`. Only ones the deck names |
-| `indications` | no | What it is used for, **as specifically as the deck says it** |
+| `indications` | no | What it is used for, **as specifically as the deck says it** — condition first, then the qualifier ([how](#name-the-condition-then-qualify-it)) |
 | `class` | no | Usually leave it out — a drug created without one gets its FDA class looked up. Write one only to override that, **capitalised**: `"Cephalosporin Antibacterial"` |
 | `schedule` | no | `CI`–`CV`, and only for a controlled substance |
 | `fields` | no | Everything else. See the field set below |
@@ -491,6 +491,66 @@ deck actually scopes the drug to:
 The biomarker belongs in the indication when it is what *selects* the drug. That is the same fact
 the dosing flow turns on, and saying it twice in two places is correct: one is what the drug is
 for, the other is how you choose it.
+
+### Name the condition, then qualify it
+
+An indication is read as two things: the **condition** it is for, and the **qualifier** that says
+which clinical situation. `"Gonorrhea in pregnancy"` is the condition *Gonorrhea* qualified by *in
+pregnancy*.
+
+Nothing is merged and nothing is shortened — the drug's profile shows your wording exactly as you
+wrote it, qualifier and all. The condition is what the drug list filters on and what a study scope
+collects, so it is the half that has to be findable.
+
+**Write the condition in the words the library already uses, and put it first.** The condition is
+read as the first one recognised in the string, because a clinical phrase names its condition
+before it qualifies it.
+
+| | |
+|---|---|
+| ✅ `Gonorrhea in pregnancy when chlamydia is not ruled out` | the condition leads |
+| ✅ `Acute otitis media (first line in children)` | a modifier in front of the condition is fine |
+| ✅ `Community-acquired pneumonia (CAP)` | `pneumonia` is in there, so it files under *Pneumonia* |
+| ❌ `Expedited partner therapy for gonorrhea` | names a *strategy* first; use `Gonorrhea, expedited partner therapy` |
+| ❌ `Severe purulent infection after oral antibiotics` | no condition in it at all — say which infection |
+| ❌ `GC in pregnancy` | an abbreviation nothing else uses; see [Acronyms](#acronyms) |
+
+**Do not invent a new condition name for a qualified case.** The temptation is to write the whole
+situation as if it were its own disease, which buries the drug where nobody will look for it:
+
+| | |
+|---|---|
+| ✅ `Uncomplicated urogenital or rectal gonorrhea when ceftriaxone is unavailable` | still says *gonorrhea* |
+| ❌ `Ceftriaxone-unavailable urogenital infection` | a condition that exists nowhere else |
+
+**In oncology, the tumour comes first and everything else is a qualifier.** The stage, the
+mutation, the line of therapy and the partner drug are all qualifiers of one condition, and the
+condition is the tumour type written out in full:
+
+```json
+"indications": [
+  "Metastatic non-small cell lung cancer, ALK-positive, first line",
+  "Adjuvant non-small cell lung cancer after resection, platinum doublet"
+]
+```
+
+Both of those file under *Non-small cell lung cancer (NSCLC)*. Write `non-small cell lung cancer`
+in full rather than `NSCLC` alone — the two spellings are the same condition only because the
+library is told so, and the long form is the one it is told about.
+
+**The condition must be a condition.** These are how a drug is given, not what it treats, and a
+line that leads with one of them has no condition in it:
+
+> expedited partner therapy · step-down therapy · empiric coverage · defined therapy ·
+> monotherapy · adjunct · prophylaxis *(unless you say prophylaxis **of what**)*
+
+Each of them is a perfectly good qualifier. `Gonorrhea, expedited partner therapy` is right;
+`Expedited partner therapy for gonorrhea` is the same words in the order that loses the drug.
+
+**Check your work on the Indications admin screen.** Every wording that qualifies a condition says
+which condition it is `under`. If one of yours is under the wrong condition, or is its own
+condition when it should not be, the wording is what to fix — and the fix is almost always to move
+the condition to the front.
 
 ### The class is looked up, so you can leave it out
 
@@ -1048,6 +1108,9 @@ look for.
       class, and no approval years. Most drugs have none — leave the key out.
 - [ ] **Every value is a short fragment, and each fact is in exactly one field.** Shorter wording,
       never fewer facts.
+- [ ] **Every indication names its condition, and names it first.** A strategy is not a condition:
+      `Gonorrhea, expedited partner therapy`, never `Expedited partner therapy for gonorrhea`. The
+      tumour type is written out in full. Nothing invents a condition for a qualified case.
 - [ ] Every regimen component names a drug that is in `drugs` or already in the app.
 - [ ] **Every regimen `name` stands up on its own** — it is the whole of the question its card asks,
       and the card never names a drug beside it.

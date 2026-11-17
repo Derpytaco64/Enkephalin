@@ -9,6 +9,7 @@ import {
   deleteIndication, listIndications, mergeIndications, renameIndication,
   resolveIndications, setDrugIndicationLinks, unusedIndications,
 } from '@/lib/drugs/indication-store';
+import { loadCardSources } from '@/lib/study/sources';
 
 const ADMIN = 'user-admin';
 
@@ -209,10 +210,15 @@ describe('listIndications', () => {
     await setDrugIndicationLinks(two, ['Anxiety']);
     await resolveIndications(['Nothing uses this']);
 
+    // Each one its own condition: none of these three wordings sits inside
+    // another, which is the ordinary case for the vocabulary.
     expect(await listIndications()).toEqual([
-      { id: expect.any(String), slug: 'anxiety', label: 'Anxiety', drugs: 2 },
-      { id: expect.any(String), slug: 'insomnia', label: 'Insomnia', drugs: 1 },
-      { id: expect.any(String), slug: 'nothing-uses-this', label: 'Nothing uses this', drugs: 0 },
+      { id: expect.any(String), slug: 'anxiety', label: 'Anxiety', drugs: 2, head: 'Anxiety' },
+      { id: expect.any(String), slug: 'insomnia', label: 'Insomnia', drugs: 1, head: 'Insomnia' },
+      {
+        id: expect.any(String), slug: 'nothing-uses-this', label: 'Nothing uses this',
+        drugs: 0, head: 'Nothing uses this',
+      },
     ]);
   });
 });
@@ -228,5 +234,50 @@ describe('the audit trail', () => {
     expect(rows.map((row) => row.action).sort())
       .toEqual(['indication.merge', 'indication.rename']);
     expect(rows.every((row) => row.actorId === ADMIN && row.targetType === 'indication')).toBe(true);
+  });
+});
+
+describe('the condition a wording files under', () => {
+  it('scopes a deck to every wording of the condition picked', async () => {
+    /*
+     * The bug, reported as "I am still seeing information from top drug
+     * profiles" and found while measuring it: a study scope matched the stored
+     * indication slug *exactly*, so ticking Pneumonia built a deck of the one
+     * drug written up as "Pneumonia" and left out the ones written up as
+     * "Community-acquired pneumonia (CAP)" and "Hospital-acquired and
+     * ventilator-associated pneumonia (HAP/VAP)" -- a wrong deck, silently.
+     */
+    const plain = await seedDrug('amoxicillin');
+    const cap = await seedDrug('azithromycin');
+    const hap = await seedDrug('cefepime');
+    const other = await seedDrug('lisinopril');
+    await setDrugIndicationLinks(plain, ['Pneumonia']);
+    await setDrugIndicationLinks(cap, ['Community-acquired pneumonia (CAP)']);
+    await setDrugIndicationLinks(hap, ['Hospital-acquired pneumonia, empiric']);
+    await setDrugIndicationLinks(other, ['Hypertension']);
+
+    const sources = await loadCardSources([], new Map());
+    const inPneumonia = sources
+      .filter((source) => source.indications.includes('pneumonia'))
+      .map((source) => source.slug)
+      .sort();
+
+    expect(inPneumonia).toEqual(['amoxicillin', 'azithromycin', 'cefepime']);
+    // And the drug's own slug still selects it, so a saved session or a shared
+    // link made before the picker offered conditions goes on working.
+    expect(sources.find((source) => source.slug === 'azithromycin')!.indications)
+      .toContain('community-acquired-pneumonia-cap');
+  });
+
+  it('says which condition each wording is under', async () => {
+    const drug = await seedDrug('amoxicillin');
+    await setDrugIndicationLinks(drug, ['Pneumonia', 'Community-acquired pneumonia (CAP)']);
+
+    const listed = await listIndications();
+    const byLabel = new Map(listed.map((row) => [row.label, row.head]));
+
+    expect(byLabel.get('Community-acquired pneumonia (CAP)')).toBe('Pneumonia');
+    // Its own, which is what the admin screen leaves unsaid.
+    expect(byLabel.get('Pneumonia')).toBe('Pneumonia');
   });
 });

@@ -4,7 +4,20 @@ import { useMemo, useState } from 'react';
 import { submitTo } from '@/app/_components/submit';
 import type { Result } from '@/lib/drugs/indication-store';
 
-export type IndicationItem = { slug: string; label: string; drugs: number };
+export type IndicationItem = {
+  slug: string;
+  label: string;
+  drugs: number;
+  /**
+   * The condition this wording is a kind of -- see `indicationHeads`.
+   *
+   * Shown because this is the screen where it gets reviewed: the pickers and
+   * the study scopes group on it, so a wording filed under the wrong condition
+   * is a wording that cannot be found, and the only way to notice is to see
+   * the two side by side. Equal to the label for most of the vocabulary.
+   */
+  head: string;
+};
 
 const control = 'rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm';
 
@@ -41,7 +54,10 @@ export function IndicationList({
   const shown = useMemo(() => {
     const needle = filter.trim().toLowerCase();
     if (!needle) return items;
-    return items.filter((item) => item.label.toLowerCase().includes(needle));
+    // The head too, so filtering for "pneumonia" brings up every wording of
+    // it rather than only the ones that spell it that way.
+    return items.filter((item) => item.label.toLowerCase().includes(needle)
+      || item.head.toLowerCase().includes(needle));
   }, [items, filter]);
 
   /** One runner for all three, so a refusal always lands somewhere visible. */
@@ -96,6 +112,14 @@ export function IndicationList({
                   {item.label}
                 </button>
                 <span className="font-mono text-xs text-[var(--muted)]">{item.slug}</span>
+                {/* Only where it differs: saying "Gonorrhea files under
+                    Gonorrhea" on 290 of 343 rows would bury the 53 that
+                    actually say something. */}
+                {item.head !== item.label && (
+                  <span className="text-xs text-[var(--muted)]">
+                    under <span className="text-[var(--fg)]">{item.head}</span>
+                  </span>
+                )}
                 <span className="ml-auto text-sm text-[var(--muted)]">
                   {item.drugs === 0
                     ? 'no drugs'

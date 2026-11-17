@@ -26,6 +26,13 @@ export default async function IndicationsPage() {
         New entries are made by writing one into a drug, not here: an indication nothing is for is
         a word with nothing to say. Any that end up that way are counted below and can be cleared.
       </p>
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        A wording that qualifies a condition says which condition it{'’'}s{' '}
+        <em>under</em>. That grouping is what the pickers offer and what a study scope matches, so
+        nine wordings of gonorrhea are one thing to tick and still nine different things to learn.
+        Nothing is merged — a wording filed under the wrong condition is worth fixing here, and
+        the wrong condition is the thing to look for.
+      </p>
 
       <IndicationList
         items={items}

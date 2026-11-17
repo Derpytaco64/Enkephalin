@@ -12,7 +12,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../db/index.ts';
 import { auditLog, drugIndications, indications } from '../../db/schema.ts';
-import { canonicalIndication, indicationSlug } from './indications.ts';
+import { canonicalIndication, indicationHeads, indicationSlug } from './indications.ts';
 
 export type IndicationRow = { id: string; slug: string; label: string };
 
@@ -113,8 +113,17 @@ export async function setDrugIndicationLinks(
   return { labels: rows.map((row) => row.label), created };
 }
 
-/** The vocabulary with how many drugs carry each, for a picker or a list. */
-export async function listIndications(): Promise<(IndicationRow & { drugs: number })[]> {
+/**
+ * The vocabulary with how many drugs carry each, and the condition each one is
+ * a kind of, for a picker or a list.
+ *
+ * The head is derived here rather than stored -- see `indicationHeads` -- so
+ * the admin list is showing the same grouping the pickers and the study scopes
+ * use, and a head cannot be left behind by a rename.
+ */
+export async function listIndications(): Promise<
+  (IndicationRow & { drugs: number; head: string })[]
+> {
   const rows = await db
     .select({
       id: indications.id,
@@ -127,7 +136,11 @@ export async function listIndications(): Promise<(IndicationRow & { drugs: numbe
     .groupBy(indications.id, indications.slug, indications.label)
     .orderBy(asc(indications.label));
 
-  return rows;
+  const heads = indicationHeads(rows.map((row) => row.label));
+  return rows.map((row) => ({
+    ...row,
+    head: heads.get(canonicalIndication(row.label)) ?? row.label,
+  }));
 }
 
 async function audit(input: {

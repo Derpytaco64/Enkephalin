@@ -5,6 +5,7 @@ import {
 } from '@/db/schema';
 import { allVariantLayers, numberedVariantsByDrug } from '@/lib/drugs/variants';
 import { UNCATEGORIZED } from '@/lib/drugs/drug-class';
+import { indicationOptions, indicationSlug } from '@/lib/drugs/indications';
 import { formatFieldValue, splitList, type FormattedField } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
 
@@ -243,7 +244,21 @@ export async function getDrugIndex(): Promise<{ rows: DrugIndexRow[]; facets: Br
         ...[...new Set(rows.map((r) => r.drugClass).filter((c): c is string => Boolean(c)))].sort(byName),
         ...(rows.some((r) => !r.drugClass) ? [UNCATEGORIZED] : []),
       ],
-      indications: [...new Set(rows.flatMap((r) => r.indications))].sort(byName),
+      /*
+       * **Conditions, not wordings** -- see `indicationOptions`.
+       *
+       * This listed every label, which at 730 of them was a suggestion list
+       * that argued against itself: typing "pneumonia" offered 35 suggestions
+       * for one condition, and taking any of them narrowed 41 drugs to one.
+       * The filter matches on substring (see `narrowDrugs`), so picking the
+       * head *Pneumonia* keeps every wording of it -- which is what somebody
+       * typing "pneumonia" meant in the first place.
+       */
+      indications: indicationOptions(
+        rows.flatMap((row) => row.indications.map(
+          (label) => ({ drugId: row.slug, slug: indicationSlug(label), label }),
+        )),
+      ).map((option) => option.label),
       schedules: [...new Set(rows.map((r) => r.schedule).filter((s): s is string => Boolean(s)))].sort(byName),
       // Out of the field's own values rather than a column: route is a list
       // field, so "PO; IV" on one drug is two options for the rail.
