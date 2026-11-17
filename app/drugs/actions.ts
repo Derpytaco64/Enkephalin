@@ -13,13 +13,17 @@ import {
   type IdentityInput,
   type Result,
 } from '@/lib/drugs/mutations';
+import { normalizeNewlines } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireAdmin } from '@/lib/session';
 
 // Each action re-checks the role: the page guard protects the render, not a
 // direct POST to the action.
 
-const text = (formData: FormData, name: string) => String(formData.get(name) ?? '');
+// Through `normalizeNewlines`, because a textarea submits CRLF and the
+// markdown parser cannot read a line that ends in one -- see its comment.
+const text = (formData: FormData, name: string) =>
+  normalizeNewlines(String(formData.get(name) ?? ''));
 
 function identity(formData: FormData): IdentityInput {
   return {

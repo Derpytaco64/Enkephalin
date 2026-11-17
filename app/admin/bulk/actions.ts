@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { normalizeNewlines } from '@/lib/fields/format';
 import { setFieldAcross, type BulkOutcome } from '@/lib/admin/bulk';
 import { listFieldDefs } from '@/lib/fields/registry';
 import { requireAdmin } from '@/lib/session';
@@ -34,7 +35,9 @@ export async function bulkSetAction(formData: FormData): Promise<BulkResult> {
     def,
     slugs,
     {
-      value: String(formData.get('value') ?? ''),
+      // CRLF from the textarea, which the markdown parser cannot read --
+      // see `normalizeNewlines`.
+      value: normalizeNewlines(String(formData.get('value') ?? '')),
       source: String(formData.get('source') ?? ''),
       status: String(formData.get('status') ?? ''),
     },

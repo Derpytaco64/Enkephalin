@@ -103,12 +103,42 @@ function Nodes({ nodes, startOpen }: { nodes: ProseNode[]; startOpen: boolean })
  * a button, and inside a prompt, which is a question rather than a document.
  * The headings are then drawn as headings and everything stays open.
  */
-export function Prose({ text, fold = true }: { text: string; fold?: boolean }) {
+export function Prose({ text, fold = true, sort = false }: {
+  text: string;
+  fold?: boolean;
+  /**
+   * Order the folded sections by name instead of by where they were written.
+   *
+   * For the two fields whose sections are a **set** rather than a sequence:
+   * dosing, whose headings are indications, and regimen, whose headings are
+   * protocol names. Nineteen of either in the order three lectures happened to
+   * mention them is a list you read end to end to find one entry; alphabetical
+   * is a list you can land in.
+   *
+   * Off everywhere else, and off by default, because a heading can just as
+   * easily be a step: sorting "Induction, Consolidation, Maintenance" into
+   * "Consolidation, Induction, Maintenance" would be telling a lie about the
+   * order of treatment. The caller knows which field it is holding; this
+   * component does not.
+   */
+  sort?: boolean;
+}) {
   const blocks = parseProse(text);
   if (!fold) return <Nodes nodes={blocks} startOpen />;
 
-  const nodes = groupProse(blocks);
-  const sections = nodes.filter((node) => node.kind === 'section').length;
+  const grouped = groupProse(blocks);
+  const sections = grouped.filter((node) => node.kind === 'section').length;
+
+  // Only the sections move. Anything before the first heading introduces all
+  // of them and belongs where it was put.
+  const nodes = sort
+    ? [
+      ...grouped.filter((node) => node.kind !== 'section'),
+      ...grouped
+        .filter((node) => node.kind === 'section')
+        .sort((a, b) => a.heading.localeCompare(b.heading, undefined, { sensitivity: 'base' })),
+    ]
+    : grouped;
 
   return <Nodes nodes={nodes} startOpen={sections < 2} />;
 }

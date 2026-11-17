@@ -177,11 +177,24 @@ const HEAD_PHRASES: { phrase: string; head: string }[] = [
   // written two ways, and the longer one is the wording the guidelines use.
   { phrase: 'skin and soft tissue infection', head: 'Skin and soft tissue infections' },
   { phrase: 'skin infection', head: 'Skin and soft tissue infections' },
+  // The sources write the fungus three ways for one condition, and the one
+  // they agree on is the disease: oropharyngeal, esophageal, vulvovaginal and
+  // invasive candidiasis are all candidiasis. Candidemia is it in the blood --
+  // the same condition, named for where it was found.
+  { phrase: 'candidiasis', head: 'Candidiasis' },
+  { phrase: 'candidemia', head: 'Candidiasis' },
+  { phrase: 'candida infection', head: 'Candidiasis' },
+  // Four antiretrovirals on ID Exam 4, and switching a suppressed patient is
+  // a thing you do about HIV rather than a condition of its own.
+  { phrase: 'switch during viral suppression', head: 'HIV treatment' },
   // Expedited partner therapy is how a drug is given, not what it treats, and
   // it is a label in its own right -- so without these it wins the position
-  // tie below and takes two infections with it.
-  { phrase: 'expedited partner therapy for gonorrhea', head: 'Gonorrhea' },
+  // tie below and takes three infections with it. Gonorrhea by default:
+  // doxycycline's own dosing for it reads "with cefixime for gonorrhea", and
+  // azithromycin is the one that says chlamydia, which the longer phrase
+  // catches first.
   { phrase: 'expedited partner therapy for chlamydia', head: 'Chlamydia' },
+  { phrase: 'expedited partner therapy', head: 'Gonorrhea' },
 ];
 
 /**

@@ -26,6 +26,8 @@
  * reads as itself in the raw text, in a backup file, and on a phone.
  */
 
+import { normalizeNewlines } from './format';
+
 export type ProseBlock =
   | { kind: 'heading'; text: string; level: number }
   | { kind: 'paragraph'; text: string }
@@ -75,7 +77,7 @@ export function parseProse(raw: string): ProseBlock[] {
     }
   };
 
-  for (const line of raw.split('\n')) {
+  for (const line of normalizeNewlines(raw).split('\n')) {
     if (line.trim() === '') {
       flush();
       continue;
@@ -219,7 +221,7 @@ export type ProseSlice = { heading: string; text: string };
  * whole is the honest answer for prose shaped that way.
  */
 export function splitSections(raw: string): ProseSlice[] {
-  const lines = raw.split('\n');
+  const lines = normalizeNewlines(raw).split('\n');
   const found = lines
     .map((line, at) => ({ at, heading: HEADING.exec(line) }))
     .filter((row): row is { at: number; heading: RegExpExecArray } => row.heading !== null);

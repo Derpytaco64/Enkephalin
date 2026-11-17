@@ -20,14 +20,40 @@ export type FormattedField =
 const TRUE_WORDS = new Set(['true', 'yes', 'y', '1']);
 const FALSE_WORDS = new Set(['false', 'no', 'n', '0']);
 
+/**
+ * One kind of line break, whatever the browser sent.
+ *
+ * **A textarea submits CRLF.** That is the HTML spec, not a quirk: a form
+ * control normalises its value to `\r\n` on submit, so every field edited
+ * through the app arrives with carriage returns in it and every field written
+ * by the importer does not.
+ *
+ * It broke the markdown, and in the way that takes longest to recognise --
+ * *most* of a value, never all of it. `HEADING` and `BULLET` in `prose.ts`
+ * both end `(.*)$`, and `.` matches anything except a line terminator, of
+ * which `\r` is one. So `(.*)` stops before the carriage return, `$` has
+ * nothing left to match, and the line falls through as plain text. The last
+ * line of a value has no `\r` after it and goes on rendering perfectly, which
+ * is how an edited regimen came back reading "### Cefixime + doxycycline"
+ * above a literal hyphen, with one real bullet underneath.
+ *
+ * Called on the way in *and* on the way out: in, so nothing new is stored
+ * with carriage returns; out, because values saved before this fix still have
+ * them and a rendering bug should not wait on a data migration.
+ */
+export function normalizeNewlines(raw: string): string {
+  return raw.replace(/\r\n?/g, '\n');
+}
+
 /** Multi-line for authored content, semicolons for values that arrive inline. */
 export function splitList(raw: string) {
-  const parts = raw.includes('\n') ? raw.split('\n') : raw.split(';');
+  const text = normalizeNewlines(raw);
+  const parts = text.includes('\n') ? text.split('\n') : text.split(';');
   return parts.map((part) => part.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
 }
 
 export function formatFieldValue(def: FieldDef, value: FieldValue | undefined): FormattedField {
-  const raw = value?.value?.trim() ?? '';
+  const raw = normalizeNewlines(value?.value ?? '').trim();
 
   if (!raw) {
     // An explicit "none" outranks the field's default, so one drug can be

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupProse, parseProse, type ProseNode } from '@/lib/fields/prose';
+import { groupProse, parseProse, splitSections, type ProseNode } from '@/lib/fields/prose';
 
 /**
  * The little bit of markdown a field's prose is allowed to be.
@@ -198,5 +198,65 @@ describe('folding a regimen on its headings', () => {
     const blocks = parseProse('Vancomycin 15 mg/kg IV every 12 hours.\n- adjust to a trough of 10 to 20 mg/L');
 
     expect(groupProse(blocks)).toEqual(blocks);
+  });
+});
+
+describe('a value saved through a textarea', () => {
+  /*
+   * A textarea submits CRLF -- the HTML spec says so -- and `HEADING` and
+   * `BULLET` both end `(.*)$`, where `.` matches anything but a line
+   * terminator and `\r` is one. So every line of an edited value fell through
+   * as plain text except the last, which has no carriage return after it:
+   * "### Cefixime + doxycycline" and "- Cefixime" printed as characters while
+   * the bullet below them rendered perfectly.
+   */
+  const CR = String.fromCharCode(13);
+  const LF = String.fromCharCode(10);
+  const crlf = (...lines: string[]) => lines.join(CR + LF);
+
+  it('reads a heading that ends in a carriage return', () => {
+    const blocks = parseProse(crlf('### Cefixime + doxycycline', 'Expedited partner therapy'));
+
+    expect(blocks[0]).toEqual({ kind: 'heading', text: 'Cefixime + doxycycline', level: 3 });
+    expect(blocks[1]).toEqual({ kind: 'paragraph', text: 'Expedited partner therapy' });
+  });
+
+  it('reads every bullet, not only the last one', () => {
+    const blocks = parseProse(crlf(
+      '- Third-generation cephalosporin',
+      '- Not for pharyngeal gonorrhea',
+    ));
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toEqual({
+      kind: 'list',
+      items: [
+        { text: 'Third-generation cephalosporin', depth: 0, marker: null },
+        { text: 'Not for pharyngeal gonorrhea', depth: 0, marker: null },
+      ],
+    });
+  });
+
+  it('still folds a regimen whose headings arrived with carriage returns', () => {
+    const slices = splitSections(crlf(
+      '### Ceftriaxone + doxycycline',
+      '',
+      '- Ceftriaxone 500 mg IM x1',
+      '### Cefixime + doxycycline',
+      '',
+      '- Cefixime 800 mg PO x1',
+    ));
+
+    expect(slices.map((slice) => slice.heading))
+      .toEqual(['Ceftriaxone + doxycycline', 'Cefixime + doxycycline']);
+  });
+
+  it('separates paragraphs across a blank CRLF line', () => {
+    const blocks = parseProse(crlf('First thing', '', 'Second thing'));
+
+    expect(blocks).toEqual([
+      { kind: 'paragraph', text: 'First thing' },
+      { kind: 'paragraph', text: 'Second thing' },
+    ]);
   });
 });

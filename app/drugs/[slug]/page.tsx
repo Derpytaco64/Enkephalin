@@ -5,6 +5,7 @@ import { getDrugIndex } from '@/lib/drugs/browse';
 import { filterParams, filtersFrom, isFiltered, placeInList } from '@/lib/drugs/filter';
 import { ListPager } from './list-pager';
 import { Prose } from '@/app/_components/prose';
+import { SECTIONS_SORTED } from '@/lib/fields/constants';
 import { emptyLabel, formatFieldValue, fromSource } from '@/lib/fields/format';
 import { groupFieldDefs, type FieldDef } from '@/lib/fields/registry';
 import { getDrugProfile } from '@/lib/drugs/profile';
@@ -96,6 +97,39 @@ function SectionHead({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * An explanation that stays out of the way until it is asked for.
+ *
+ * A `<details>` rather than a hover tooltip, and the difference matters on a
+ * phone: hover is a thing a mouse does, and this card is shown *above* the
+ * profile precisely on the screens that have no mouse. Click works on both.
+ *
+ * Absolutely positioned so opening it does not push the pills down the page --
+ * the whole point of folding this away was that the card had three lines of
+ * prose under two lines of pills.
+ */
+function Help({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <details className="relative inline-block font-normal normal-case tracking-normal">
+      <summary
+        aria-label={label}
+        title={label}
+        className="flex h-4 w-4 cursor-pointer list-none items-center justify-center rounded-full
+          border border-[var(--border)] text-[10px] leading-none text-[var(--muted)]
+          hover:border-[var(--fg)] hover:text-[var(--fg)]"
+      >
+        ?
+      </summary>
+      <div
+        className="absolute left-0 top-5 z-20 w-64 rounded border border-[var(--border)]
+          bg-[var(--surface)] p-2 text-xs text-[var(--muted)] shadow-lg"
+      >
+        {children}
+      </div>
+    </details>
+  );
+}
+
 function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefined }) {
   const formatted = formatFieldValue(def, value);
 
@@ -116,7 +150,7 @@ function FieldBody({ def, value }: { def: FieldDef; value: FieldValue | undefine
       // as a nested decision and `Prose` is the one reader that keeps the
       // nesting. Everything else -- cards, search, bulk previews -- wants the
       // flat paragraphs, which is why the formatter still produces them.
-      return <Prose text={value?.value ?? ''} />;
+      return <Prose text={value?.value ?? ''} sort={SECTIONS_SORTED.has(def.key)} />;
     case 'bool':
       return <p>{formatted.value ? 'Yes' : 'No'}</p>;
     case 'enum':
@@ -398,6 +432,209 @@ export default async function DrugProfilePage({
     return `/drugs/${neighbour.slug}?${params.toString()}` as Route;
   };
 
+
+  /*
+   * Which version of this profile to read, built once and shown twice.
+   *
+   * It lives in the right-hand column, where the tags already are and in
+   * their format -- pills, because each one stands for a thing and goes to a
+   * place. That column stacks underneath the profile on a narrow screen,
+   * which put the answer to *which version am I looking at* below everything
+   * it applies to. So the same card is rendered above the profile instead
+   * while the column is stacked, and the column keeps it once there is room.
+   *
+   * One `const` rather than a component: it closes over a dozen values that
+   * would otherwise all become props, and nothing outside this page can use
+   * it.
+   */
+  const versionsCard = (worded.length > 0 || baseVariant !== null
+    || (isAdmin && silent.length > 0))
+    ? (
+          <section className={CARD}>
+            <SectionHead>
+              Versions
+              {(worded.length > 0 || baseVariant !== null) && (
+                <Help label="What a version is">
+                  {worded.length > 0 && (
+                    <p>
+                      A class or exam is read in <em>its own words</em> where it has them, and
+                      the drug&rsquo;s everywhere else.
+                    </p>
+                  )}
+                  {/* Said differently for a class and for a list, because the
+                      two are different facts. A class *teaches* the base --
+                      the lecture that created the drug wrote it, and there is
+                      nothing under it for that class to differ from. A list
+                      only says where the profile came from; it cannot word a
+                      drug its own way at all, which is why no pill of its own
+                      was ever missing. */}
+                  {baseVariant !== null && (
+                    <p className={worded.length > 0 ? 'mt-2' : ''}>
+                      <span className="font-mono whitespace-nowrap">V-1</span> is the
+                      drug&rsquo;s own profile
+                      {isVariantKind(baseVariant.kind) ? (
+                        <>
+                          , which is what {baseVariant.label} teaches: it arrived with that
+                          lecture, so there is nothing underneath it for {baseVariant.label} to
+                          differ from.
+                        </>
+                      ) : (
+                        <> &mdash; the wording it arrived with, on {baseVariant.label}.</>
+                      )}
+                    </p>
+                  )}
+                </Help>
+              )}
+            </SectionHead>
+            <ul className="mt-3 flex flex-wrap gap-1">
+              <li>
+                <Link
+                  href={`/drugs/${drug.slug}`}
+                  title={baseVariant === null
+                    ? 'The drug’s own profile'
+                    : isVariantKind(baseVariant.kind)
+                      ? `The drug’s own profile — the words ${baseVariant.label} teaches`
+                      : `The drug’s own profile — the wording it arrived with, `
+                        + `on ${baseVariant.label}`}
+                  className={`pill pill-xs pill-soft ${
+                    variant === null && !layers ? 'pill-on' : 'pill-edge'}`}
+                >
+                  {/* **V-1, and named where a lecture wrote it.** *The
+                      drug's own* beside *V-1 Exam 2* and *V-2 Exam 3* read
+                      like the one nobody had sourced, when it was Exam 1's --
+                      the first lecture into a drug the app had never held
+                      writes the drug itself, and that is the whole of why.
+
+                      So it takes the first number rather than a marker of
+                      its own, which is what makes *V-2* mean *there are two
+                      versions of this drug*. */}
+                  {/* Never broken across two lines. A pill is an
+                      inline-flex row, so a label long enough to wrap
+                      squeezes this item until the browser takes the
+                      hyphen as a break and leaves *V-* above *2*. */}
+                  <span className="font-mono whitespace-nowrap">V-1</span>{' '}
+                  {baseVariant?.label ?? 'the drug’s own'}
+                </Link>
+              </li>
+              {worded.map((option) => (
+                <li key={option.slug}>
+                  <Link
+                    href={`/drugs/${drug.slug}?as=${encodeURIComponent(option.slug)}`}
+                    title={`${option.overrides} field${option.overrides === 1 ? '' : 's'} its own way`}
+                    className={`pill pill-xs pill-soft ${
+                      variant?.slug === option.slug ? 'pill-on' : 'pill-edge'}`}
+                  >
+                    {/* The number is the identifier a card showed you, so it
+                        leads. A class with nothing of its own has none --
+                        see PLAN, *V-n is the version*. */}
+                    {option.n !== null && (
+                      <span className="font-mono whitespace-nowrap">V-{option.n}</span>
+                    )}
+                    {option.n !== null ? ' ' : ''}{option.label}
+                  </Link>
+                </li>
+              ))}
+              {worded.length > 0 && (
+                <li>
+                  <Link
+                    href={`/drugs/${drug.slug}?as=${ALL_VARIANTS}`}
+                    className={`pill pill-xs pill-soft ${layers ? 'pill-on' : 'pill-edge'}`}
+                  >
+                    Compare all
+                  </Link>
+                </li>
+              )}
+            </ul>
+            {isAdmin && variant !== null && (
+              <Link
+                href={`/drugs/${drug.slug}/variant/${encodeURIComponent(variant.slug)}`}
+                className="pill pill-xs pill-edge mt-2"
+              >
+                Edit what {variant.label} says
+              </Link>
+            )}
+
+            {/* The classes this drug is in that have said nothing of their
+                own, offered to admins only and as *write one*, not as a
+                version to read.
+
+                They used to sit in the row above as ordinary version pills,
+                which is what made two tags look like two copies of the drug:
+                importing a lecture scoped to a class and an exam tagged
+                ipilimumab twice, and the profile answered with two versions
+                where the lecture had worded nothing differently at all. A
+                class with nothing of its own is not another version -- which
+                is the rule `numberedVariantsByDrug` has always applied to the
+                browse count and the study pills, written down in
+                `lib/drugs/browse.ts`, and this card was the one place
+                disagreeing with it. */}
+            {isAdmin && silent.length > 0 && (
+              <div className={worded.length > 0 ? 'mt-3 border-t border-[var(--border)] pt-3' : ''}>
+                <p className="text-xs text-[var(--muted)]">
+                  {worded.length > 0 ? 'Nothing of their own yet' : 'No class words this drug differently'}
+                </p>
+                <ul className="mt-1.5 flex flex-wrap gap-1">
+                  {silent.map((option) => (
+                    <li key={option.slug}>
+                      <Link
+                        href={`/drugs/${drug.slug}/variant/${encodeURIComponent(option.slug)}`}
+                        title={`Write what ${option.label} says about ${drug.genericName}`}
+                        className="pill pill-xs pill-edge"
+                      >
+                        {option.label} +
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Whose words the drug itself holds, which is a fact only a
+                person knows for the hundreds imported before the column
+                existed. A lecture that creates a drug now records it on the
+                way in -- see `createDrug` -- so this is for those, and for
+                fixing a wrong one.
+
+                Only the classes with nothing of their own are offered: one
+                that words the drug differently is a version of it, and the
+                same class cannot be both. `setBaseVariant` refuses it
+                anyway, which is where the rule lives. */}
+            {isAdmin && (silent.length > 0 || baseVariant !== null) && (
+              <form
+                action={setBaseVariantAction}
+                className="mt-3 border-t border-[var(--border)] pt-3"
+              >
+                <input type="hidden" name="slug" value={drug.slug} />
+                <label htmlFor="base-variant" className="text-xs text-[var(--muted)]">
+                  Whose words is the drug&rsquo;s own profile?
+                </label>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <select
+                    id="base-variant"
+                    name="variant"
+                    defaultValue={baseVariant?.slug ?? ''}
+                    className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
+                  >
+                    <option value="">Nobody in particular</option>
+                    {/* The one it already names comes first and is not
+                        duplicated below: the versions list leaves the base's
+                        class out, so it would otherwise be missing from its
+                        own control. */}
+                    {baseVariant !== null && (
+                      <option value={baseVariant.slug}>{baseVariant.label}</option>
+                    )}
+                    {silent.map((option) => (
+                      <option key={option.slug} value={option.slug}>{option.label}</option>
+                    ))}
+                  </select>
+                  <button type="submit" className="pill pill-xs">Save</button>
+                </div>
+              </form>
+            )}
+          </section>
+    )
+    : null;
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -474,6 +711,11 @@ export default async function DrugProfilePage({
           )}
         </div>
       </header>
+
+      {/* Above the profile only while the right-hand column is stacked
+          underneath it -- see `versionsCard`. Hidden rather than moved, so
+          the column keeps the card the moment there is room for it. */}
+      {versionsCard && <div className="mt-3 lg:hidden">{versionsCard}</div>}
 
       {variant !== null && (
         <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--muted)]">
@@ -736,181 +978,7 @@ export default async function DrugProfilePage({
 
               Links, not a control: every version is a URL, so this needs no
               JavaScript and `?as=` stays the whole of the memory. */}
-          {(worded.length > 0 || baseVariant !== null || (isAdmin && silent.length > 0)) && (
-            <section className={CARD}>
-              <SectionHead>Versions</SectionHead>
-              <ul className="mt-3 flex flex-wrap gap-1">
-                <li>
-                  <Link
-                    href={`/drugs/${drug.slug}`}
-                    title={baseVariant === null
-                      ? 'The drug’s own profile'
-                      : isVariantKind(baseVariant.kind)
-                        ? `The drug’s own profile — the words ${baseVariant.label} teaches`
-                        : `The drug’s own profile — the wording it arrived with, `
-                          + `on ${baseVariant.label}`}
-                    className={`pill pill-xs pill-soft ${
-                      variant === null && !layers ? 'pill-on' : 'pill-edge'}`}
-                  >
-                    {/* **V-1, and named where a lecture wrote it.** *The
-                        drug's own* beside *V-1 Exam 2* and *V-2 Exam 3* read
-                        like the one nobody had sourced, when it was Exam 1's --
-                        the first lecture into a drug the app had never held
-                        writes the drug itself, and that is the whole of why.
-
-                        So it takes the first number rather than a marker of
-                        its own, which is what makes *V-2* mean *there are two
-                        versions of this drug*. */}
-                    {/* Never broken across two lines. A pill is an
-                        inline-flex row, so a label long enough to wrap
-                        squeezes this item until the browser takes the
-                        hyphen as a break and leaves *V-* above *2*. */}
-                    <span className="font-mono whitespace-nowrap">V-1</span>{' '}
-                    {baseVariant?.label ?? 'the drug’s own'}
-                  </Link>
-                </li>
-                {worded.map((option) => (
-                  <li key={option.slug}>
-                    <Link
-                      href={`/drugs/${drug.slug}?as=${encodeURIComponent(option.slug)}`}
-                      title={`${option.overrides} field${option.overrides === 1 ? '' : 's'} its own way`}
-                      className={`pill pill-xs pill-soft ${
-                        variant?.slug === option.slug ? 'pill-on' : 'pill-edge'}`}
-                    >
-                      {/* The number is the identifier a card showed you, so it
-                          leads. A class with nothing of its own has none --
-                          see PLAN, *V-n is the version*. */}
-                      {option.n !== null && (
-                        <span className="font-mono whitespace-nowrap">V-{option.n}</span>
-                      )}
-                      {option.n !== null ? ' ' : ''}{option.label}
-                    </Link>
-                  </li>
-                ))}
-                {worded.length > 0 && (
-                  <li>
-                    <Link
-                      href={`/drugs/${drug.slug}?as=${ALL_VARIANTS}`}
-                      className={`pill pill-xs pill-soft ${layers ? 'pill-on' : 'pill-edge'}`}
-                    >
-                      Compare all
-                    </Link>
-                  </li>
-                )}
-              </ul>
-              {worded.length > 0 && (
-                <p className="mt-2 text-xs text-[var(--muted)]">
-                  A class or exam is read in <em>its own words</em> where it has them, and the
-                  drug&rsquo;s everywhere else.
-                </p>
-              )}
-              {/* Said differently for a class and for a list, because the two
-                  are different facts. A class *teaches* the base -- the lecture
-                  that created the drug wrote it, and there is nothing under it
-                  for that class to differ from. A list only says where the
-                  profile came from; it cannot word a drug its own way at all,
-                  which is why no pill of its own was ever missing. */}
-              {baseVariant !== null && (
-                <p className="mt-2 text-xs text-[var(--muted)]">
-                  <span className="font-mono whitespace-nowrap">V-1</span> is the drug&rsquo;s own profile
-                  {isVariantKind(baseVariant.kind) ? (
-                    <>
-                      , which is what {baseVariant.label} teaches: it arrived with that lecture, so
-                      there is nothing underneath it for {baseVariant.label} to differ from.
-                    </>
-                  ) : (
-                    <> &mdash; the wording it arrived with, on {baseVariant.label}.</>
-                  )}
-                </p>
-              )}
-              {isAdmin && variant !== null && (
-                <Link
-                  href={`/drugs/${drug.slug}/variant/${encodeURIComponent(variant.slug)}`}
-                  className="pill pill-xs pill-edge mt-2"
-                >
-                  Edit what {variant.label} says
-                </Link>
-              )}
-
-              {/* The classes this drug is in that have said nothing of their
-                  own, offered to admins only and as *write one*, not as a
-                  version to read.
-
-                  They used to sit in the row above as ordinary version pills,
-                  which is what made two tags look like two copies of the drug:
-                  importing a lecture scoped to a class and an exam tagged
-                  ipilimumab twice, and the profile answered with two versions
-                  where the lecture had worded nothing differently at all. A
-                  class with nothing of its own is not another version -- which
-                  is the rule `numberedVariantsByDrug` has always applied to the
-                  browse count and the study pills, written down in
-                  `lib/drugs/browse.ts`, and this card was the one place
-                  disagreeing with it. */}
-              {isAdmin && silent.length > 0 && (
-                <div className={worded.length > 0 ? 'mt-3 border-t border-[var(--border)] pt-3' : ''}>
-                  <p className="text-xs text-[var(--muted)]">
-                    {worded.length > 0 ? 'Nothing of their own yet' : 'No class words this drug differently'}
-                  </p>
-                  <ul className="mt-1.5 flex flex-wrap gap-1">
-                    {silent.map((option) => (
-                      <li key={option.slug}>
-                        <Link
-                          href={`/drugs/${drug.slug}/variant/${encodeURIComponent(option.slug)}`}
-                          title={`Write what ${option.label} says about ${drug.genericName}`}
-                          className="pill pill-xs pill-edge"
-                        >
-                          {option.label} +
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Whose words the drug itself holds, which is a fact only a
-                  person knows for the hundreds imported before the column
-                  existed. A lecture that creates a drug now records it on the
-                  way in -- see `createDrug` -- so this is for those, and for
-                  fixing a wrong one.
-
-                  Only the classes with nothing of their own are offered: one
-                  that words the drug differently is a version of it, and the
-                  same class cannot be both. `setBaseVariant` refuses it
-                  anyway, which is where the rule lives. */}
-              {isAdmin && (silent.length > 0 || baseVariant !== null) && (
-                <form
-                  action={setBaseVariantAction}
-                  className="mt-3 border-t border-[var(--border)] pt-3"
-                >
-                  <input type="hidden" name="slug" value={drug.slug} />
-                  <label htmlFor="base-variant" className="text-xs text-[var(--muted)]">
-                    Whose words is the drug&rsquo;s own profile?
-                  </label>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <select
-                      id="base-variant"
-                      name="variant"
-                      defaultValue={baseVariant?.slug ?? ''}
-                      className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
-                    >
-                      <option value="">Nobody in particular</option>
-                      {/* The one it already names comes first and is not
-                          duplicated below: the versions list leaves the base's
-                          class out, so it would otherwise be missing from its
-                          own control. */}
-                      {baseVariant !== null && (
-                        <option value={baseVariant.slug}>{baseVariant.label}</option>
-                      )}
-                      {silent.map((option) => (
-                        <option key={option.slug} value={option.slug}>{option.label}</option>
-                      ))}
-                    </select>
-                    <button type="submit" className="pill pill-xs">Save</button>
-                  </div>
-                </form>
-              )}
-            </section>
-          )}
+          {versionsCard && <div className="hidden lg:block">{versionsCard}</div>}
 
           {shownGroups.length > 0 && (
             <section className={CARD}>

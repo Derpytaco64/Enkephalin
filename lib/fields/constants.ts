@@ -109,3 +109,16 @@ export const CORE_FIELD_KEYS: ReadonlySet<string> = new Set(
 export function overridable(key: string): boolean {
   return !CORE_FIELD_KEYS.has(key);
 }
+
+/**
+ * The fields whose headings are a **set** rather than a sequence, and so read
+ * better in alphabetical order than in the order three lectures happened to
+ * mention them.
+ *
+ * Dosing's headings are indications; a regimen's are protocol names.
+ * Nineteen of either in arrival order is a list you read end to end to find
+ * one entry. Everywhere else a heading can just as easily be a step, and
+ * sorting "Induction, Consolidation, Maintenance" would tell a lie about the
+ * order of treatment -- so this is a list of two and not a default.
+ */
+export const SECTIONS_SORTED: ReadonlySet<string> = new Set(['dosing', 'regimen']);

@@ -1,12 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { SECTIONS_SORTED } from '@/lib/fields/constants';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Prose } from '@/app/_components/prose';
 import type { LookupCard, LookupHit } from '@/lib/study/lookup';
 import type { CardVariant } from '@/lib/study/cards';
 import { lookupDrugAction, searchDrugsAction } from './lookup-actions';
 import { VariantPills } from './variant-pills';
+
+/** A blank line between two field values, spelled so no tool can eat it. */
+const NEWLINE = String.fromCharCode(10);
 
 /** The drug a trigger names, which is what the panel opens on. */
 export type LookupTarget = { slug: string; generic: string };
@@ -328,7 +332,7 @@ export function LookupPanel({
                             become the list you pick from inside an overlay
                             that already scrolls. */}
                         {field.prose ? (
-                          <Prose text={field.lines.join('\n\n')} />
+                          <Prose text={field.lines.join(NEWLINE + NEWLINE)} sort={SECTIONS_SORTED.has(field.key)} />
                         ) : (
                           field.lines.map((line, index) => (
                             <span key={index} className="block whitespace-pre-line">{line}</span>

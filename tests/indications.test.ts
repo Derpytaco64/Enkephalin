@@ -188,8 +188,43 @@ describe('indicationHeads', () => {
     ]);
 
     expect(heads.get('Expedited partner therapy for gonorrhea')).toBe('Gonorrhea');
-    // On its own it is still the only thing it can be.
-    expect(heads.get('Expedited partner therapy')).toBe('Expedited partner therapy');
+    // Bare, too. Doxycycline carries the unqualified wording and its own
+    // dosing for it reads "with cefixime for gonorrhea", so the condition is
+    // known even where the indication does not name it. Azithromycin is the
+    // one that means chlamydia, and says so.
+    expect(heads.get('Expedited partner therapy')).toBe('Gonorrhea');
+
+    const chlamydia = indicationHeads([
+      'Chlamydia',
+      'Expedited partner therapy',
+      'Expedited partner therapy for chlamydia',
+    ]);
+    expect(chlamydia.get('Expedited partner therapy for chlamydia')).toBe('Chlamydia');
+  });
+
+  it('files the antiretroviral switches under HIV', () => {
+    // Four combination antiretrovirals on ID Exam 4. Switching a suppressed
+    // patient is something you do about HIV, not a condition of its own.
+    const heads = indicationHeads([
+      'HIV treatment',
+      'Switch during viral suppression',
+      'Switch during viral suppression in adults',
+    ]);
+
+    expect(heads.get('Switch during viral suppression')).toBe('HIV treatment');
+    expect(heads.get('Switch during viral suppression in adults')).toBe('HIV treatment');
+  });
+
+  it('calls candidiasis candidiasis wherever the fungus is found', () => {
+    const heads = indicationHeads([
+      'Vulvovaginal candidiasis',
+      'Oropharyngeal candidiasis (first line)',
+      'Step-down therapy for susceptible invasive candidiasis',
+      'Candidemia in non-neutropenic patients (or an echinocandin)',
+      'Candida infection',
+    ]);
+
+    for (const label of heads.keys()) expect(heads.get(label)).toBe('Candidiasis');
   });
 });
 

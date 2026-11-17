@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/session';
 import { saveVariantLayer, type SaveResult } from '@/lib/drugs/variants';
+import { normalizeNewlines } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
 
 export type VariantState = SaveResult;
@@ -35,7 +36,10 @@ export async function saveVariantLayerAction(formData: FormData): Promise<Varian
     // Absent is not empty: a field the form did not render must not be read as
     // an instruction to clear this version's value for it.
     if (raw === null) continue;
-    values[def.key] = String(raw);
+    // A textarea submits CRLF, which the markdown parser cannot read -- see
+    // `normalizeNewlines`. Normalised here rather than deeper in, so what is
+    // stored is what the importer would have stored.
+    values[def.key] = normalizeNewlines(String(raw));
   }
 
   const result = await saveVariantLayer({
