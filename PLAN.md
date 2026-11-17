@@ -2959,6 +2959,118 @@ gesture), and a horizontal swipe — told apart from a scroll by having travelle
 than up, with a 60px floor so a shaky tap is not a page turn. Both neighbours are prefetched on
 render, because paging is the thing you do repeatedly here.
 
+### The list you opened from survives the version you read (2026-11-16)
+
+Four things about the profile, reported together, and three of them are the
+same complaint: the page knows something the reader has to work out again.
+
+**Opened from a filtered list with no version named, a drug now reads as the
+version the filter was about.** Narrow to ID Exam 4, click a drug, and the
+profile opened the drug's own words — which for a drug five lectures have
+written up is the one reading the filter said you did not want, with the one
+you did two clicks away in a column that may be stacked below the whole
+profile. It takes the first filtered tag the drug actually *words*; a tag it
+merely carries is not a version of it. Costs a second read of the profile, so
+it is behind both conditions — no `?as=` in the URL, and a filter naming a tag
+this drug words — and paging to a neighbour carries `as` explicitly, so
+stepping through a list pays it once at most.
+
+**The version pills carry the list.** They built a bare
+`/drugs/slug?as=...`, which threw away the filter and with it the pager, since
+[the pager only exists while the URL carries
+one](#paging-through-the-list-you-came-from-2026-11-16). Filter to an
+exam, open a drug, look at what another exam says about it, and the way back to
+the other eighty-nine drugs was the browser's back button. `neighbourHref`
+already did this for stepping sideways; `readingHref` is the same idea for
+switching version.
+
+**The Versions card is shown above the profile while the right-hand column is
+stacked underneath it.** Same card, built once, hidden at whichever width it is
+not wanted — the column keeps it as soon as there is room. It was answering
+*which version am I reading* below everything it applies to.
+
+**Dosing and regimen sections sort by name.** Their headings are a *set* —
+indications, and protocol names — and nineteen of either in the order three
+lectures happened to mention them is a list you read end to end to find one
+entry. Off by default and off everywhere else, because a heading can just as
+easily be a step, and reordering *Induction, Consolidation, Maintenance* would
+be a lie about the order of treatment.
+
+And the reading banner is a line and a switch instead of a paragraph. Four
+clauses naming the version, counting its fields, saying which of the drug's own
+were excluded and whose they were, then a link phrased as what it gets you:
+every clause true, the whole of it a wall of grey above the profile, re-read on
+every drug and every version switch. A reader needs two of those continuously —
+which version, and whether gaps are being filled — and the rest once. So the
+two are the line and the rest is behind a `?`, which is the affordance the
+Versions card now uses for its own explanation.
+
+The `?` is a `<details>`, not a hover. Hover is a thing a mouse does, and the
+card it sits in is shown above the profile precisely on the screens that have
+none.
+
+### A textarea submits CRLF, and the markdown could not read it (2026-11-16)
+
+*I tried to edit some drug version text and it came back looking like this.*
+
+A regimen reading `### Cefixime + doxycycline` over a literal hyphen, with one
+real bullet underneath it. The shape is the whole diagnosis: *most* of the
+value lost its markdown, never all of it, and what survived was always the last
+line.
+
+A textarea normalises its value to CRLF on submit — that is the HTML spec, not
+a quirk — so every field edited through the app arrives with carriage returns
+and every field written by the importer does not. `HEADING` and `BULLET` both
+end `(.*)$`, and `.` matches anything except a line terminator, of which `\r`
+is one. So `(.*)` stops before the carriage return, `$` has nothing left to
+match, and the line falls through as plain text. The last line of a value has
+no `\r` after it and goes on rendering perfectly.
+
+`normalizeNewlines` runs on the way in — both form actions and the bulk setter
+— so nothing new is stored with carriage returns in it, and on the way out —
+`parseProse`, `splitSections`, `formatFieldValue` — because the values already
+saved through the form still have them and a rendering bug should not wait on a
+data migration.
+
+Worth noticing what it was *not*. Nothing was lost, nothing was escaped, and no
+value was truncated: the characters were all there the whole time, and the
+parser was refusing to see them. Four tests pin it, one per shape that broke.
+
+### A dosing list is not a dosing fold (2026-11-16)
+
+*Some drugs and versions are missing the collapsable dosing format
+(doxycycline V-5).*
+
+[A regimen folds on its protocols](#a-regimen-folds-on-its-protocols-2026-11-12)
+folds a dosing or regimen field on its `###` headings, so a drug dosed six ways
+is six sections you can land in. That only happens where the source wrote
+headings, and one lecture did not: **22 of the 24 values this finds come from
+Infectious Disease Exam 3**, which wrote every indication as a labelled
+top-level bullet — `- Impetigo: 7 days PO` — instead. Identical information,
+much worse reading, and worst exactly where there is most of it.
+
+`scripts/dosing-sections.ts` converts them on a backup file, as a reviewable
+diff: 24 values, 65,184 leaves unchanged either side of it, every one of the 24
+a `value`.
+
+Two decisions in it. A label carrying a dose (`mg`, a number) is a dose that
+happens to contain a colon, not an indication, so it is left alone. And a
+**stray** top-level bullet — one of the five values has one — cannot stay where
+it is: everything after a heading belongs to that heading, so leaving
+oseltamivir's `- Renally adjust` in place files it under *Children*, which is
+false, and there is no position after the last section either. So a stray is
+hoisted above the first heading, where `splitSections` leaves it out of every
+section and the profile shows it always, unfolded. All four turned out to be
+general notes about the drug rather than about one indication, which is why
+that is the right place — and why every hoisted line is printed in full rather
+than counted.
+
+Sub-bullets keep their indent. De-indenting them looked right, since the parent
+bullet's label has become the heading — but the parent's *value* is still a
+bullet in the body, and doxycycline's `- 1-2 weeks` with `- Up to 3-4 weeks if
+improving` under it is a rule and its exception. Flattened to two siblings it
+reads as two alternatives.
+
 ### An indication has a condition and a qualifier (2026-11-16)
 
 *There appears to be 4 different gonorrhea. I don't want them collapsed

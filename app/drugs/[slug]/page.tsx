@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDrugIndex } from '@/lib/drugs/browse';
 import { filterParams, filtersFrom, isFiltered, placeInList } from '@/lib/drugs/filter';
+import { tagList } from '@/lib/tags/constants';
 import { ListPager } from './list-pager';
 import { Prose } from '@/app/_components/prose';
 import { SECTIONS_SORTED } from '@/lib/fields/constants';
@@ -309,15 +310,52 @@ export default async function DrugProfilePage({
   // once is a question nobody asks -- you are revising for one of them. (A
   // study session is the opposite case and does stack them: see
   // `variantSlugsAmong`.)
+  /**
+   * The list this drug was opened from. Parsed before the profile is read,
+   * because which *version* to open can depend on it -- see below.
+   */
+  const listFilters = filtersFrom((param) => {
+    const value = search[param as keyof typeof search];
+    return Array.isArray(value) ? value[0] : value;
+  });
+
   const asked = Array.isArray(search.as) ? search.as[0] : search.as;
   // A version shows its own words and nothing else. `?layered=1` puts the
   // drug's underneath again, which is the reading that answers *what is this
   // class varying from* -- one link, because it is a question asked
   // occasionally and never the one a reader arrives with.
-  const profile = await getDrugProfile(slug, session.user.id, asked, {
-    layered: search.layered === '1',
-  });
-  if (!profile) notFound();
+  const layered = search.layered === '1';
+  const opened = await getDrugProfile(slug, session.user.id, asked, { layered });
+  if (!opened) notFound();
+
+  /**
+   * Opened from a filtered list with no version named: **read it as the
+   * version the filter was about.**
+   *
+   * Narrowing the list to ID Exam 4 and clicking a drug used to open the
+   * drug's own profile, which for a drug five lectures have written up is the
+   * one reading the filter said you did not want -- and the version you did
+   * want is two clicks away, in a column that may be stacked below the whole
+   * profile. The filter already said which exam this is about.
+   *
+   * The first filtered tag this drug actually **words**, in the order they
+   * were picked. A tag it merely carries is not a version of it -- the same
+   * rule `worded` applies below -- and falling back to the drug's own profile
+   * is right there, because that is what the drug says.
+   *
+   * It costs a second read of the profile, which is why it is behind both
+   * conditions: no `?as=` in the URL, and a filter that names a tag this drug
+   * words. Paging to a neighbour carries `as` explicitly (`neighbourHref`),
+   * so stepping through a list pays this once at most.
+   */
+  const fromFilter = asked === undefined
+    ? tagList(listFilters.tag)
+      .find((tag) => opened.variants.some((option) => option.slug === tag && option.n !== null))
+    : undefined;
+
+  const profile = fromFilter === undefined
+    ? opened
+    : await getDrugProfile(slug, session.user.id, fromFilter, { layered }) ?? opened;
 
   const {
     drug, brands, indications, tags, defs, siblings, variants, variant, overridden, layers,
@@ -407,10 +445,6 @@ export default async function DrugProfilePage({
    * The index is read for this, which is not a cheap query, so it is read
    * **only** when there is a filter to apply.
    */
-  const listFilters = filtersFrom((param) => {
-    const value = search[param as keyof typeof search];
-    return Array.isArray(value) ? value[0] : value;
-  });
   const place = isFiltered(listFilters)
     ? placeInList((await getDrugIndex()).rows, listFilters, slug)
     : null;
@@ -424,6 +458,26 @@ export default async function DrugProfilePage({
    * profile on arrival, which is what `variantLayerFor` already does for a tag
    * the drug does not carry.
    */
+  /**
+   * This drug, read another way, **without losing the list**.
+   *
+   * The version pills built a bare `/drugs/slug?as=...`, so switching version
+   * threw away the filter the drug was opened from -- and with it the pager,
+   * which only exists while the URL carries one. Filter the list to an exam,
+   * open a drug, look at what another exam says, and the way back to the
+   * other eighty-nine drugs was the browser's back button.
+   *
+   * `layered` rides along for the same reason it does on a neighbour: it is
+   * part of how you are reading, not which drug you are on.
+   */
+  const readingHref = (as: string | null) => {
+    const params = filterParams(listFilters);
+    if (as !== null) params.set('as', as);
+    if (search.layered === '1') params.set('layered', '1');
+    const query = params.toString();
+    return (query ? `/drugs/${drug.slug}?${query}` : `/drugs/${drug.slug}`) as Route;
+  };
+
   const neighbourHref = (neighbour: { slug: string } | null) => {
     if (neighbour === null) return null;
     const params = filterParams(listFilters);
@@ -489,7 +543,7 @@ export default async function DrugProfilePage({
             <ul className="mt-3 flex flex-wrap gap-1">
               <li>
                 <Link
-                  href={`/drugs/${drug.slug}`}
+                  href={readingHref(null)}
                   title={baseVariant === null
                     ? 'The drug’s own profile'
                     : isVariantKind(baseVariant.kind)
@@ -519,7 +573,7 @@ export default async function DrugProfilePage({
               {worded.map((option) => (
                 <li key={option.slug}>
                   <Link
-                    href={`/drugs/${drug.slug}?as=${encodeURIComponent(option.slug)}`}
+                    href={readingHref(option.slug)}
                     title={`${option.overrides} field${option.overrides === 1 ? '' : 's'} its own way`}
                     className={`pill pill-xs pill-soft ${
                       variant?.slug === option.slug ? 'pill-on' : 'pill-edge'}`}
@@ -537,7 +591,7 @@ export default async function DrugProfilePage({
               {worded.length > 0 && (
                 <li>
                   <Link
-                    href={`/drugs/${drug.slug}?as=${ALL_VARIANTS}`}
+                    href={readingHref(ALL_VARIANTS)}
                     className={`pill pill-xs pill-soft ${layers ? 'pill-on' : 'pill-edge'}`}
                   >
                     Compare all
@@ -718,77 +772,108 @@ export default async function DrugProfilePage({
       {versionsCard && <div className="mt-3 lg:hidden">{versionsCard}</div>}
 
       {variant !== null && (
-        <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--muted)]">
-          Reading this drug as <span className="font-medium text-[var(--fg)]">{variant.label}</span>{' '}
-          teaches it.{' '}
-          {/* Three readings, and the sentence has to say which one is on
-              screen, because a profile showing five fields and a drug with
-              five facts look identical.
+        /*
+         * Which reading is on screen, as a line and a switch.
+         *
+         * It was a paragraph -- four clauses naming the version, counting the
+         * fields, saying which of the drug's own were excluded and whose they
+         * were, then a link phrased as what it gets you. Every clause was
+         * true and the whole was a wall of grey text above the profile,
+         * re-read on every drug and every version switch. A reader needs two
+         * things here continuously -- which version, and whether gaps are
+         * being filled -- and the rest once.
+         *
+         * So the two live in the line and the explanation lives behind the
+         * `?`, which is the same affordance the Versions card uses.
+         */
+        <div
+          className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border
+            border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--muted)]"
+        >
+          <span>
+            Reading as <span className="font-medium text-[var(--fg)]">{variant.label}</span>
+            {' — '}
+            {overridden.size === 0
+              ? 'nothing of its own yet'
+              : `${overridden.size} field${overridden.size === 1 ? '' : 's'} of its own`}
+          </span>
 
-              Strict is the default and the reason is erythromycin: it is on
-              three of the ID exams, and read as Exam 4 the layered view showed
-              three of Exam 4's fields over five of *Exam 1's* -- two exams
-              under one heading, with the only clue a provenance line that said
-              the class. Revising for an exam, another exam's wording is not
-              context. So the fall-through is a link rather than the view. */}
-          {strict ? (
-            overridden.size === 0 ? (
-              <>
-                It has nothing of its own recorded yet, so there is nothing below it — only the
-                drug’s name and class, which say which drug this is rather than what any version
-                taught about it
-              </>
-            ) : (
-              <>
-                Showing the {overridden.size} field{overridden.size === 1 ? '' : 's'} it words
-                itself, and no others — the brands, the indications and the schedule included,
-                since those are{' '}
-                {baseVariant === null
-                  ? <>whoever the drug’s own profile belongs to</>
-                  : (
-                    <>
-                      <span className="font-medium text-[var(--fg)]">{baseVariant.label}</span>’s
-                    </>
-                  )}{' '}
-                and not this version’s
-              </>
-            )
-          ) : (
-            overridden.size === 0 ? (
-              <>It has nothing of its own recorded yet, so every value below is the drug’s own</>
-            ) : (
-              <>
-                {overridden.size} field{overridden.size === 1 ? '' : 's'} below{' '}
-                {overridden.size === 1 ? 'is' : 'are'} its own wording, marked where they are; the
-                rest are the drug’s own
-                {/* And whose those are, which is the half that was missing.
-                    *The rest are the drug's* leaves a reader to assume the
-                    remainder is neutral ground -- the class sheet, or nobody.
-                    It frequently is not. The edit screen has always named it
-                    per field -- "The drug says, from X" -- and this is the
-                    same fact on the screen people actually read. */}
-                {baseVariant !== null && (
-                  <> — <span className="font-medium text-[var(--fg)]">{baseVariant.label}</span>’s</>
-                )}
-              </>
-            )
-          )}
-          .{' '}
-          {/* The way between the two readings, stated as what it gets you
-              rather than as the name of a mode. */}
+          {/* A link, not a control, like every other reading in the app: the
+              reading is the URL, so this needs no JavaScript and survives
+              being shared. `role="switch"` is what makes it read as one to a
+              screen reader, since visually it already is. */}
           <Link
-            href={strict
-              ? `/drugs/${drug.slug}?as=${encodeURIComponent(variant.slug)}&layered=1`
-              : `/drugs/${drug.slug}?as=${encodeURIComponent(variant.slug)}`}
-            className="underline"
+            href={readingHref(variant.slug) + (strict ? '&layered=1' : '') as Route}
+            role="switch"
+            aria-checked={!strict}
+            className="ml-auto flex items-center gap-2 text-xs hover:text-[var(--fg)]"
           >
-            {strict
-              ? 'Show the drug’s own words underneath'
-              : 'Show only what this version words'}
+            <span
+              aria-hidden="true"
+              className={`flex h-4 w-7 shrink-0 items-center rounded-full border p-0.5
+                transition-colors ${strict
+            ? 'border-[var(--border)]'
+            : 'border-[var(--verified)] bg-[var(--verified)]'}`}
+            >
+              <span
+                className={`h-3 w-3 rounded-full bg-[var(--fg)] transition-transform ${
+                  strict ? '' : 'translate-x-3'}`}
+              />
+            </span>
+            Fill gaps from other versions
           </Link>
-          .
-          {variant.note && <> {variant.note}</>}
-        </p>
+
+          <Help label="What this reading shows">
+            {/* Three readings, and something has to say which one is on
+                screen, because a profile showing five fields and a drug with
+                five facts look identical.
+
+                Strict is the default and the reason is erythromycin: it is on
+                three of the ID exams, and read as Exam 4 the layered view
+                showed three of Exam 4's fields over five of *Exam 1's* -- two
+                exams under one heading, with the only clue a provenance line
+                that said the class. Revising for an exam, another exam's
+                wording is not context. */}
+            {strict ? (
+              overridden.size === 0 ? (
+                <p>
+                  {variant.label} has nothing of its own recorded yet, so there is nothing below
+                  it — only the drug’s name and class, which say which drug this is rather than
+                  what any version taught about it.
+                </p>
+              ) : (
+                <p>
+                  Showing the {overridden.size} field{overridden.size === 1 ? '' : 's'}{' '}
+                  {variant.label} words itself, and no others — the brands, the indications and
+                  the schedule included, since those are{' '}
+                  {baseVariant === null
+                    ? 'whoever the drug’s own profile belongs to'
+                    : `${baseVariant.label}’s`}{' '}
+                  and not this version’s.
+                </p>
+              )
+            ) : (
+              overridden.size === 0 ? (
+                <p>
+                  {variant.label} has nothing of its own recorded yet, so every value below is
+                  the drug’s own.
+                </p>
+              ) : (
+                <p>
+                  {overridden.size} field{overridden.size === 1 ? '' : 's'} below{' '}
+                  {overridden.size === 1 ? 'is' : 'are'} {variant.label}’s own wording, marked
+                  where they are; the rest are the drug’s own
+                  {/* And whose those are, which is the half that was missing.
+                      *The rest are the drug's* leaves a reader to assume the
+                      remainder is neutral ground -- the class sheet, or
+                      nobody. It frequently is not. */}
+                  {baseVariant !== null && ` — ${baseVariant.label}’s`}.
+                </p>
+              )
+            )}
+            {variant.note && <p className="mt-2">{variant.note}</p>}
+          </Help>
+        </div>
       )}
 
       {drug.needsPairingReview && (
