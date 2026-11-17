@@ -165,8 +165,10 @@ export async function previewMerge(fromSlug: string, intoSlug: string): Promise<
     fromRegimens, intoRegimens, fromCards, intoCards, answers] = await Promise.all([
     db.select({ name: drugBrands.name }).from(drugBrands).where(eq(drugBrands.drugId, from.id)),
     db.select({ name: drugBrands.name }).from(drugBrands).where(eq(drugBrands.drugId, into.id)),
-    db.select({ id: drugIndications.indicationId }).from(drugIndications).where(eq(drugIndications.drugId, from.id)),
-    db.select({ id: drugIndications.indicationId }).from(drugIndications).where(eq(drugIndications.drugId, into.id)),
+    db.select({ id: drugIndications.indicationId, variant: drugIndications.variantTagId })
+      .from(drugIndications).where(eq(drugIndications.drugId, from.id)),
+    db.select({ id: drugIndications.indicationId, variant: drugIndications.variantTagId })
+      .from(drugIndications).where(eq(drugIndications.drugId, into.id)),
     db.select({ id: drugTags.tagId }).from(drugTags).where(eq(drugTags.drugId, from.id)),
     db.select({ id: drugTags.tagId }).from(drugTags).where(eq(drugTags.drugId, into.id)),
     db.select({ id: dosingRegimens.id }).from(dosingRegimens).where(eq(dosingRegimens.drugId, from.id)),
@@ -177,7 +179,10 @@ export async function previewMerge(fromSlug: string, intoSlug: string): Promise<
   ]);
 
   const heldBrands = new Set(intoBrands.map((row) => fold(row.name)));
-  const heldInds = new Set(intoInds.map((row) => row.id));
+  // The indication and the version together, which is what the merge itself
+  // dedups on -- see `key` there.
+  const held = (row: { id: string; variant: string | null }) => `${row.id}:${row.variant ?? ''}`;
+  const heldInds = new Set(intoInds.map(held));
   const heldTags = new Set(intoTags.map((row) => row.id));
   const heldCards = new Set(intoCards.map((row) => `${row.user}:${row.key}`));
 
@@ -202,8 +207,8 @@ export async function previewMerge(fromSlug: string, intoSlug: string): Promise<
         dropped: fromBrands.filter((row) => heldBrands.has(fold(row.name))).map((row) => row.name),
       },
       indications: {
-        moved: fromInds.filter((row) => !heldInds.has(row.id)).map((row) => labelOf.get(row.id) ?? '?'),
-        dropped: fromInds.filter((row) => heldInds.has(row.id)).map((row) => labelOf.get(row.id) ?? '?'),
+        moved: fromInds.filter((row) => !heldInds.has(held(row))).map((row) => labelOf.get(row.id) ?? '?'),
+        dropped: fromInds.filter((row) => heldInds.has(held(row))).map((row) => labelOf.get(row.id) ?? '?'),
       },
       tags: { moved: movedTags, dropped: fromTags.length - movedTags },
       // All or nothing: half of one drug's regimens beside half of another's
@@ -246,19 +251,37 @@ export async function mergeDrugs(
     /* Indications first, because `brand_indications` points at a
        `drug_indications` row rather than at the vocabulary: a brand that moves
        must find its pairing already pointing at the survivor's row. */
+    /*
+     * Keyed by the indication **and the version**, because that is what
+     * `drug_indications_unique` is keyed by since migration 0018: the survivor
+     * holding a condition on its own profile and the loser holding it as Exam
+     * 3's are two different statements and both survive the merge. Keying on
+     * the indication alone would silently drop the lecture's.
+     */
+    const key = (row: { indicationId: string; variantTagId: string | null }) =>
+      `${row.indicationId}:${row.variantTagId ?? ''}`;
+
     const mine = await tx
-      .select({ id: drugIndications.id, indicationId: drugIndications.indicationId })
+      .select({
+        id: drugIndications.id,
+        indicationId: drugIndications.indicationId,
+        variantTagId: drugIndications.variantTagId,
+      })
       .from(drugIndications)
       .where(eq(drugIndications.drugId, into.id));
-    const myRow = new Map(mine.map((row) => [row.indicationId, row.id]));
+    const myRow = new Map(mine.map((row) => [key(row), row.id]));
 
     const theirs = await tx
-      .select({ id: drugIndications.id, indicationId: drugIndications.indicationId })
+      .select({
+        id: drugIndications.id,
+        indicationId: drugIndications.indicationId,
+        variantTagId: drugIndications.variantTagId,
+      })
       .from(drugIndications)
       .where(eq(drugIndications.drugId, from.id));
 
     for (const row of theirs) {
-      const already = myRow.get(row.indicationId);
+      const already = myRow.get(key(row));
       if (already === undefined) continue;
 
       // Both drugs were for this. Re-point the loser's brand pairings at the

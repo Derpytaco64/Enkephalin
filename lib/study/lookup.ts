@@ -176,7 +176,7 @@ export async function lookupDrug(
   const profile = await getDrugProfile(slug, userId);
   if (profile === null) return null;
 
-  const { drug, brands, indications, defs } = profile;
+  const { drug, brands, indications, indicationsByVariant, defs } = profile;
 
   const [scopeVariants, byMembership, base, options, stored] = await Promise.all([
     variantSlugsAmong(scopeTags),
@@ -200,11 +200,25 @@ export async function lookupDrug(
   // reorder them, or it would show the losing value as the winning one.
   const layers = [...(byMembership.get(drug.id) ?? []), ...scopeVariants].map((tag) => ({
     fields: stored.get(tag) ?? {},
+    // The one core field a version can hold its own of -- see `wordedBy`.
+    coreKeys: indicationsByVariant.has(tag) ? ['indication'] : [],
     variant: numbered.get(tag) ?? null,
   }));
 
   const fields = overlayFields(drug.fields, ...layers.map((layer) => layer.fields));
   const authors = wordedBy(drug.fields, base, layers);
+
+  /*
+   * What the scope says the drug is for, by the same rule the card used: the
+   * last version in scope with its own list, and the drug's own where there is
+   * none. The panel is opened *from* a card to check what the card said, so
+   * showing the union here would answer a question the card was not asking.
+   */
+  const indicationLayer = [...layers].reverse()
+    .find((layer) => layer.variant !== null && layer.coreKeys.length > 0);
+  const scopedIndications = indicationLayer === undefined
+    ? indications
+    : indicationsByVariant.get(indicationLayer.variant!.slug) ?? indications;
 
   // Core fields live in their own columns; the rest come out of the JSONB.
   // Identity is not repeated as a field row -- the card's heading is already
@@ -214,7 +228,7 @@ export async function lookupDrug(
     drug_class: drug.drugClass,
     controlled: drug.schedule,
     brand: brands.map((brand) => brand.name).join('\n'),
-    indication: indications.join('\n'),
+    indication: scopedIndications.join('\n'),
   };
   const SKIP = new Set(['generic', 'drug_class', 'controlled', 'brand', 'indication']);
 
@@ -255,7 +269,7 @@ export async function lookupDrug(
     drugClass: drug.drugClass,
     schedule: drug.schedule,
     brands: brands.map((brand) => brand.name),
-    indications,
+    indications: scopedIndications,
     groups,
     // Deduplicated by slug and ordered by number, which puts V-1 first without
     // having to say so: the base is 1 and a layer is 2 or more.

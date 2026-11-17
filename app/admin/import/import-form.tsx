@@ -58,7 +58,17 @@ function DrugRow({
       {(drug.brands.adding.length > 0 || drug.indications.adding.length > 0 || drug.tags.length > 0) && (
         <p className="mt-1 text-xs text-[var(--muted)]">
           {drug.brands.adding.length > 0 && <>brands + {drug.brands.adding.join(', ')}. </>}
-          {drug.indications.adding.length > 0 && <>indications + {drug.indications.adding.join('; ')}. </>}
+          {/* Whose indications they become, because since migration 0018 that
+              is a real choice: under this version where it is differing, on
+              the drug where this file's class is whose profile it already is. */}
+          {drug.indications.adding.length > 0 && (
+            <>
+              {drug.indications.to === 'variant' && variant !== null
+                ? `${variant}’s indications`
+                : 'indications'}
+              {' + '}{drug.indications.adding.join('; ')}.{' '}
+            </>
+          )}
           {drug.tags.length > 0 && <>tagged {drug.tags.join(', ')}.</>}
         </p>
       )}

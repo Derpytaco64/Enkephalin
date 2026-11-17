@@ -358,7 +358,7 @@ export default async function DrugProfilePage({
     : await getDrugProfile(slug, session.user.id, fromFilter, { layered }) ?? opened;
 
   const {
-    drug, brands, indications, tags, defs, siblings, variants, variant, overridden, layers,
+    drug, brands, tags, defs, siblings, variants, variant, overridden, layers,
     baseVariant, strict,
     // Core fields read from their own columns rather than the JSONB, resolved
     // in `getDrugProfile` because its visibility rule reads them too.
@@ -844,12 +844,15 @@ export default async function DrugProfilePage({
               ) : (
                 <p>
                   Showing the {overridden.size} field{overridden.size === 1 ? '' : 's'}{' '}
-                  {variant.label} words itself, and no others — the brands, the indications and
-                  the schedule included, since those are{' '}
+                  {variant.label} words itself, and no others — the brands and the schedule
+                  included, since those are{' '}
                   {baseVariant === null
                     ? 'whoever the drug’s own profile belongs to'
                     : `${baseVariant.label}’s`}{' '}
-                  and not this version’s.
+                  and not this version’s. The indications are here if{' '}
+                  {overridden.has('indication')
+                    ? 'this version teaches its own, which it does'
+                    : 'this version teaches its own — it does not, so they are absent'}.
                 </p>
               )
             ) : (

@@ -38,10 +38,12 @@
  * and still not in `variantOptionsFor` -- it is the one version there is no
  * `?as=` for, because it is what `?as=` falls back to.
  */
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
-import { drugVariantValues, drugTags, drugs, tags, type FieldValue } from '@/db/schema';
+import {
+  drugIndications, drugVariantValues, drugTags, drugs, tags, type FieldValue,
+} from '@/db/schema';
 import { CORE_FIELD_KEYS, overridable } from '@/lib/fields/constants';
 import { isVariantKind, KIND_RANK, VARIANT_KINDS, type VariantKind } from './variant-kinds';
 
@@ -192,6 +194,13 @@ export type FieldAuthor = { n: number; label: string; slug: string };
  * drug off the class sheet holds the sheet's, and revising one exam those are
  * another source's words.
  *
+ * **A core field a version does word is that version's**, which since
+ * migration 0018 is `indication`: an indication belongs to the class or exam
+ * that taught the drug for it, so the four of them that are columns on the
+ * drug stay the base's and that one does not. The caller says which, in
+ * `coreKeys` -- this function cannot see the indication rows, and giving it
+ * the database would make the one shared answer two.
+ *
  * A layer with no `version` still applies its values (`overlayFields` does
  * that) but names nobody: an unnumbered class is one that has said nothing of
  * its own, and there is nothing for it to have worded.
@@ -199,7 +208,12 @@ export type FieldAuthor = { n: number; label: string; slug: string };
 export function wordedBy(
   drugFields: Record<string, FieldValue>,
   base: { label: string; slug: string } | null | undefined,
-  layers: { fields: Record<string, FieldValue>; variant: FieldAuthor | null }[],
+  layers: {
+    fields: Record<string, FieldValue>;
+    variant: FieldAuthor | null;
+    /** Core keys this version holds its own of -- `indication`, or none. */
+    coreKeys?: readonly string[];
+  }[],
 ): Record<string, FieldAuthor> {
   const authors: Record<string, FieldAuthor> = {};
 
@@ -211,6 +225,7 @@ export function wordedBy(
   for (const layer of layers) {
     if (!layer.variant) continue;
     for (const key of overriddenKeys(layer.fields)) authors[key] = layer.variant;
+    for (const key of layer.coreKeys ?? []) authors[key] = layer.variant;
   }
 
   return authors;
@@ -301,9 +316,17 @@ export async function baseVariantsByDrug(): Promise<Map<string, BaseVariant>> {
  * Exam 1's wording, Exam 1 is not also a version of it: offering both would
  * put the same class in the picker twice -- once named and once as *the drug's
  * own* -- which is the confusion the attribution exists to end.
+ *
+ * **A version that teaches only what the drug is for is still a version**
+ * (migration 0018). Ten drugs in the live data are mentioned by a lecture only
+ * to say what it treats them for -- acetaminophen for the fever in
+ * pharyngitis, epinephrine for taxane reactions -- and before indications
+ * could belong to a version there was no way to say that at all. Numbering off
+ * the field layer alone would leave those unnumbered and so unreachable: no
+ * pill, no `?as=`, and a card whose indications nothing on screen attributed.
  */
 export async function variantOptionsFor(drugId: string): Promise<VariantOption[]> {
-  const [member, layers, base] = await Promise.all([
+  const [member, layers, ownIndications, base] = await Promise.all([
     db
       .select({ tagId: tags.id, slug: tags.slug, label: tags.label, kind: tags.kind })
       .from(drugTags)
@@ -313,12 +336,23 @@ export async function variantOptionsFor(drugId: string): Promise<VariantOption[]
       .select({ tagId: drugVariantValues.tagId, fields: drugVariantValues.fields })
       .from(drugVariantValues)
       .where(eq(drugVariantValues.drugId, drugId)),
+    db
+      .selectDistinct({ tagId: drugIndications.variantTagId })
+      .from(drugIndications)
+      .where(and(eq(drugIndications.drugId, drugId), isNotNull(drugIndications.variantTagId))),
     baseVariantOf(drugId),
   ]);
 
-  const countByTag = new Map(
-    layers.map((layer) => [layer.tagId, overriddenKeys(layer.fields).length]),
-  );
+  // `indication` is a field key like any other, so a version that holds its own
+  // list has worded one field -- which is exactly how the profile counts it.
+  const teaches = new Set(ownIndications.map((row) => row.tagId!));
+  const countByTag = new Map<string, number>();
+  for (const layer of layers) {
+    countByTag.set(layer.tagId, overriddenKeys(layer.fields).length);
+  }
+  for (const tagId of teaches) {
+    countByTag.set(tagId, (countByTag.get(tagId) ?? 0) + 1);
+  }
 
   // Sorted before numbering, and numbered only across the ones with a stored
   // layer -- the same two rules `numberedVariantsByDrug` follows, so V-2 means
@@ -507,10 +541,15 @@ export async function variantsAmong(
  * *amoxicillin [V-2] Infectious Disease*. Same set, same order, so V-2 means
  * the same thing in both places.
  *
- * Only variants with stored values are counted, which is why this reads the
+ * Only variants that say something are counted, which is why this reads the
  * layer table rather than membership: a class that says nothing of its own is
  * not another version of the drug, and offering it would be offering a choice
  * that changes nothing.
+ *
+ * **And indications are something to say** (migration 0018), so a version that
+ * teaches only what the drug is for is counted too -- the same rule, and the
+ * same union, as `variantOptionsFor`. Those two have to agree exactly: V-2
+ * here is the V-2 the profile's picker offers.
  */
 export type NumberedVariant = {
   slug: string;
@@ -523,23 +562,51 @@ export type NumberedVariant = {
 };
 
 export async function numberedVariantsByDrug(): Promise<Map<string, NumberedVariant[]>> {
-  const rows = await db
-    .select({
-      drugId: drugVariantValues.drugId,
-      slug: tags.slug,
-      label: tags.label,
-      kind: tags.kind,
-      fields: drugVariantValues.fields,
-    })
-    .from(drugVariantValues)
-    .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
-    // Membership, same as every other reader: a V-n the profile's dropdown
-    // cannot offer is a number pointing at nothing.
-    .innerJoin(drugTags, and(
-      eq(drugTags.drugId, drugVariantValues.drugId),
-      eq(drugTags.tagId, drugVariantValues.tagId),
-    ))
-    .where(isVariantTag);
+  const [layerRows, indicationRows] = await Promise.all([
+    db
+      .select({
+        drugId: drugVariantValues.drugId,
+        slug: tags.slug,
+        label: tags.label,
+        kind: tags.kind,
+        fields: drugVariantValues.fields,
+      })
+      .from(drugVariantValues)
+      .innerJoin(tags, eq(tags.id, drugVariantValues.tagId))
+      // Membership, same as every other reader: a V-n the profile's dropdown
+      // cannot offer is a number pointing at nothing.
+      .innerJoin(drugTags, and(
+        eq(drugTags.drugId, drugVariantValues.drugId),
+        eq(drugTags.tagId, drugVariantValues.tagId),
+      ))
+      .where(isVariantTag),
+    db
+      .selectDistinct({
+        drugId: drugIndications.drugId,
+        slug: tags.slug,
+        label: tags.label,
+        kind: tags.kind,
+      })
+      .from(drugIndications)
+      .innerJoin(tags, eq(tags.id, drugIndications.variantTagId))
+      .innerJoin(drugTags, and(
+        eq(drugTags.drugId, drugIndications.drugId),
+        eq(drugTags.tagId, drugIndications.variantTagId),
+      ))
+      .where(isVariantTag),
+  ]);
+
+  // One row per (drug, version), counting both halves of what a version can
+  // say: the fields it worded, plus `indication` where it holds its own list.
+  const rows = [
+    ...layerRows.map((row) => ({ ...row, teaches: false })),
+    ...indicationRows
+      .filter((row) => !layerRows.some(
+        (layer) => layer.drugId === row.drugId && layer.slug === row.slug,
+      ))
+      .map((row) => ({ ...row, fields: {} as Record<string, FieldValue>, teaches: true })),
+  ];
+  const teaching = new Set(indicationRows.map((row) => `${row.drugId}:${row.slug}`));
 
   const byDrug = new Map<string, NumberedVariant[]>();
   for (const row of rows) {
@@ -549,7 +616,8 @@ export async function numberedVariantsByDrug(): Promise<Map<string, NumberedVari
       label: row.label,
       kind: row.kind as VariantKind,
       n: 0,
-      overrides: overriddenKeys(row.fields).length,
+      overrides: overriddenKeys(row.fields).length
+        + (teaching.has(`${row.drugId}:${row.slug}`) ? 1 : 0),
     });
     byDrug.set(row.drugId, list);
   }

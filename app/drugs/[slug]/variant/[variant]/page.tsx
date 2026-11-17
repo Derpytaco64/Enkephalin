@@ -20,10 +20,11 @@ type Params = { params: Promise<{ slug: string; variant: string }> };
  * Editing one class's or exam's version of one drug.
  *
  * A screen of its own rather than a layer switch inside the drug editor, and
- * deliberately: that form owns the drug — its brands, its indications, its
- * dosing prose and the regimens read out of it — and none of those can be
- * differed on by a class. What a class differs on is the plain fields, so this
- * is a list of exactly those and nothing else.
+ * deliberately: that form owns the drug — its brands, its dosing prose and the
+ * regimens read out of it — and a class cannot differ on those. What it can
+ * differ on is the plain fields **and what it teaches the drug is for**, which
+ * since migration 0018 is a version's to say; so this is a list of exactly
+ * those and nothing else.
  *
  * Reached from the profile's variant picker, which is where somebody notices
  * that a class says something different.
@@ -91,23 +92,17 @@ export default async function VariantProfileEditPage({ params }: Params) {
         )}
       </p>
 
-      {fields.length === 0 ? (
-        <p className="mt-6 rounded border border-[var(--border)] bg-[var(--surface)] p-4 text-sm">
-          There are no fields to differ on. Every field is either core — the name, the brands, the
-          indications, the class, the schedule, which a variant cannot override — or hidden in your
-          own settings.
-        </p>
-      ) : (
-        <VariantForm
-          action={saveVariantLayerAction}
-          drug={{ slug: profile.drug.slug, generic: profile.drug.genericName }}
-          variant={{ slug: layer.slug, label: layer.label, kind: layer.kind }}
-          fields={fields}
-          source={source}
-          note={layer.note ?? ''}
-          baseLabel={profile.baseVariant?.label ?? null}
-        />
-      )}
+      <VariantForm
+        action={saveVariantLayerAction}
+        drug={{ slug: profile.drug.slug, generic: profile.drug.genericName }}
+        variant={{ slug: layer.slug, label: layer.label, kind: layer.kind }}
+        fields={fields}
+        indications={profile.indicationsByVariant.get(layer.slug) ?? []}
+        baseIndications={profile.indications}
+        source={source}
+        note={layer.note ?? ''}
+        baseLabel={profile.baseVariant?.label ?? null}
+      />
     </main>
   );
 }

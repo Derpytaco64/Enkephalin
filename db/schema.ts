@@ -226,17 +226,51 @@ export const indications = pgTable('indications', {
   label: text('label').notNull(),
 });
 
-/** Which drug is for which indication, in the drug's own order. */
+/**
+ * Which drug is for which indication, in the drug's own order -- and **which
+ * version of the drug says so**.
+ *
+ * `variantTagId` is the class or exam that teaches this drug for this, and
+ * null is the drug's own profile. It is the same sentence
+ * `drug_variant_values` makes about a field, made about an indication, and it
+ * was missing until migration 0018: every lecture that imported a drug
+ * appended to one shared list, so doxycycline accumulated 26 indications on
+ * its own profile from five lectures while each of the five versions held none
+ * -- reported 2026-11-16 as *a bunch of indications got piled on the Top Drugs
+ * 2026 version without the other ones*, which is exactly what it was.
+ *
+ * `on delete cascade`, like `drug_variant_values.tag_id` and unlike
+ * `drug_tags.variant_tag_id`: this is the class's **content**, not a pointer
+ * at it. Deleting Infectious Disease Exam 3 should take away what Exam 3
+ * taught, and leaving the rows behind with a null would quietly move 262
+ * indications onto the drugs' own profiles -- which is the state this column
+ * was added to get out of.
+ *
+ * Nothing requires a variant to be a `course` or an `exam` here, because a
+ * check cannot reach the tags table; `setDrugIndicationLinks` is where that is
+ * enforced, the same way `saveVariantLayer` enforces it for fields.
+ */
 export const drugIndications = pgTable('drug_indications', {
   id: uuid('id').primaryKey().defaultRandom(),
   drugId: uuid('drug_id').notNull().references(() => drugs.id, { onDelete: 'cascade' }),
   indicationId: uuid('indication_id').notNull().references(() => indications.id, { onDelete: 'cascade' }),
+  variantTagId: uuid('variant_tag_id').references(() => tags.id, { onDelete: 'cascade' }),
   sortOrder: integer('sort_order').notNull().default(0),
 }, (t) => [
   index('drug_indications_drug_idx').on(t.drugId),
-  // One drug cannot be for the same indication twice, which free text could
-  // not say and a typo used to work around.
-  uniqueIndex('drug_indications_unique').on(t.drugId, t.indicationId),
+  index('drug_indications_variant_idx').on(t.variantTagId),
+  // One drug cannot be for the same indication twice *in one version*, which
+  // free text could not say and a typo used to work around. Two versions may
+  // both teach it: Exam 1 and Exam 3 both have doxycycline for pneumonia, in
+  // their own words, and collapsing those would be the old bug again.
+  //
+  // Declared over `coalesce(variant_tag_id, zero-uuid)` in migration 0018
+  // rather than over the bare column, because nulls are distinct in Postgres
+  // and the drug's own profile -- the null case -- is most of the table. This
+  // states the columns; `tests/indication-variants.test.ts` checks the index
+  // the database actually has. Same spelling, and the same reason, as
+  // `dosing_regimens_unique`.
+  uniqueIndex('drug_indications_unique').on(t.drugId, t.indicationId, t.variantTagId),
 ]);
 
 export const drugBrands = pgTable('drug_brands', {

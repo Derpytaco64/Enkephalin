@@ -7,6 +7,7 @@
  * nothing.
  */
 import { asc, eq } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import {
   dosingRegimens,
@@ -61,6 +62,8 @@ export async function loadCardSources(
   variantSlugs: string[] = [],
   byMembership: Map<string, string[]> = new Map(),
 ): Promise<CardSource[]> {
+  const indicationTagOf = alias(tags, 'indication_variant_tag');
+
   // Every layer the session might read: the ones the scope named, plus the
   // ones individual lists named for individual drugs.
   const layersWanted = [
@@ -83,9 +86,13 @@ export async function loadCardSources(
         drugId: drugIndications.drugId,
         slug: indications.slug,
         label: indications.label,
+        // Which version teaches it -- null for the drug's own. See
+        // `drug_indications.variant_tag_id`.
+        variant: indicationTagOf.slug,
       })
       .from(drugIndications)
       .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .leftJoin(indicationTagOf, eq(indicationTagOf.id, drugIndications.variantTagId))
       .orderBy(asc(drugIndications.sortOrder)),
     db
       .select({ drugId: drugTags.drugId, slug: tags.slug })
@@ -176,6 +183,28 @@ export async function loadCardSources(
   const indicationSlugsByDrug = group(indicationRows, 'slug');
 
   /*
+   * And the same rows split by whose they are, because an indication belongs
+   * to the version that taught it -- see `drug_indications.variant_tag_id`.
+   *
+   * Two maps rather than one, because the two answer different questions and
+   * the union above is still the right answer to its one: *is this drug for
+   * that condition* is a search, and a deck scoped to pneumonia should hold
+   * every drug any lecture teaches for pneumonia. What the card *says* is the
+   * other question, and that is this.
+   */
+  const ownIndications = new Map<string, string[]>();
+  const indicationsByVariant = new Map<string, Map<string, string[]>>();
+  for (const row of indicationRows) {
+    if (row.variant === null) {
+      ownIndications.set(row.drugId, [...(ownIndications.get(row.drugId) ?? []), row.label]);
+      continue;
+    }
+    const byVariant = indicationsByVariant.get(row.drugId) ?? new Map<string, string[]>();
+    byVariant.set(row.variant, [...(byVariant.get(row.variant) ?? []), row.label]);
+    indicationsByVariant.set(row.drugId, byVariant);
+  }
+
+  /*
    * Which condition each indication is a kind of -- see `indicationHeads`.
    *
    * Scoping a deck to an indication matched the stored slug exactly, which was
@@ -202,6 +231,10 @@ export async function loadCardSources(
       const found = (numbered.get(drugId) ?? []).find((entry) => entry.slug === slug);
       return {
         fields: variantLayers.get(drugId)?.get(slug) ?? {},
+        // The core fields this version words, which is `indication` or
+        // nothing: it is the one of the five that is not a column on the drug,
+        // so it is the one a class can have its own of.
+        coreKeys: indicationsByVariant.get(drugId)?.has(slug) ? ['indication'] : [],
         // Narrowed to the three things a card may show, rather than passed
         // through whole: the kind and the override count are no business of a
         // card, and this payload is sent to the browser for every card in the
@@ -231,13 +264,30 @@ export async function loadCardSources(
 
   return drugRows.map((drug) => {
     const brands = brandsByDrug.get(drug.id) ?? [];
-    const indicationLabels = indicationsByDrug.get(drug.id) ?? [];
+    const layers = layersFor(drug.id);
+
+    /*
+     * What this session says the drug is for: the last version in scope that
+     * teaches its own, and the drug's own where none does.
+     *
+     * The same all-or-nothing rule `overlayFields` applies to every other key,
+     * and read off the same layer list in the same order, so the pill on the
+     * card names the version whose list is on it. Revising Exam 4, doxycycline
+     * is for the six conditions Exam 4 teaches -- not for those plus the
+     * twenty the other four exams taught, which is what one shared list made
+     * every deck say.
+     */
+    const indicationLayer = [...layers].reverse()
+      .find((layer) => layer.variant !== null && layer.coreKeys.includes('indication'));
+    const indicationLabels = indicationLayer === undefined
+      ? ownIndications.get(drug.id) ?? []
+      : indicationsByVariant.get(drug.id)?.get(indicationLayer.variant!.slug) ?? [];
 
     // Who worded each field, in the order the layers apply -- so the last one
     // to speak about a key is the one recorded, which is the one whose value
     // the overlay below kept. The lookup panel asks the same question of the
     // same function, which is why it is not a loop written here.
-    const authors = wordedBy(drug.fields, bases.get(drug.id), layersFor(drug.id));
+    const authors = wordedBy(drug.fields, bases.get(drug.id), layers);
     const routeValue = drug.fields.route?.value ?? '';
 
     /**
@@ -294,7 +344,7 @@ export async function loadCardSources(
         // `variantSlugsAmong` sorted the tags in: course, then exam.
         ...overlayFields(
           drug.fields,
-          ...layersFor(drug.id).map(({ fields }) => fields),
+          ...layers.map(({ fields }) => fields),
         ),
         generic: sheetValue(drug.genericName),
         brand: sheetValue(brands.join('\n') || null),

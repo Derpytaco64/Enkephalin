@@ -13,6 +13,7 @@ import {
 } from '@/lib/drugs/import-format';
 import { formatFieldValue } from '@/lib/fields/format';
 import { applyDrugImport, planDrugImport } from '@/lib/drugs/import';
+import { drugIndicationsByVariant } from '@/lib/drugs/indication-store';
 import {
   membershipVariants, numberedVariantsByDrug, variantLayerFor, variantOptionsFor,
 } from '@/lib/drugs/variants';
@@ -569,6 +570,75 @@ describe('a drug the app already holds', () => {
     // The union, not the scope: an import must not take a drug off a drug list
     // for being in a lecture.
     expect(tagSlugs.sort()).toEqual(['heme-onc-exam-3', 'phrm-535', 'top-drugs-2026']);
+  });
+
+  /*
+   * Indications go to the version too, since migration 0018.
+   *
+   * They used to go on the drug, and the whole union of them: every lecture
+   * read the drug's list, added what it taught, and wrote the lot back. Five
+   * lectures later doxycycline was for 26 conditions on its own profile and
+   * none of its five versions said anything, which is the bug this is the fix
+   * for.
+   */
+  it('files what a lecture teaches the drug for under that lecture', async () => {
+    await apply(file({
+      drugs: [{ generic: 'dacarbazine', indications: ['Metastatic melanoma'] }],
+    }));
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'dacarbazine'));
+    const byVariant = await drugIndicationsByVariant(drug.id);
+
+    expect(byVariant.get('heme-onc-exam-3')).toEqual(['Metastatic melanoma']);
+    expect(byVariant.has(null)).toBe(false);
+  });
+
+  it('leaves what another lecture taught alone', async () => {
+    await apply(file({
+      scope: { course: 'PHRM 535', exam: 'Heme/Onc Exam 3' },
+      drugs: [{ generic: 'dacarbazine', indications: ['Metastatic melanoma'] }],
+    }));
+    await apply(file({
+      scope: { course: 'PHRM 535', exam: 'Heme/Onc Exam 4' },
+      drugs: [{ generic: 'dacarbazine', indications: ['Hodgkin lymphoma'] }],
+    }));
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'dacarbazine'));
+    const byVariant = await drugIndicationsByVariant(drug.id);
+
+    expect(byVariant.get('heme-onc-exam-3')).toEqual(['Metastatic melanoma']);
+    expect(byVariant.get('heme-onc-exam-4')).toEqual(['Hodgkin lymphoma']);
+  });
+
+  it('counts a condition as new even where another version already teaches it', async () => {
+    // What `already` means changed with the column: it is this version's list,
+    // so the preview says *adding* rather than reporting nothing to do and
+    // leaving the version silent.
+    await apply(file({
+      scope: { course: 'PHRM 535', exam: 'Heme/Onc Exam 3' },
+      drugs: [{ generic: 'dacarbazine', indications: ['Metastatic melanoma'] }],
+    }));
+
+    const plan = await planDrugImport(read(file({
+      scope: { course: 'PHRM 535', exam: 'Heme/Onc Exam 4' },
+      drugs: [{ generic: 'dacarbazine', indications: ['Metastatic melanoma'] }],
+    })));
+
+    expect(plan.drugs[0].indications).toEqual({
+      adding: ['Metastatic melanoma'], already: [], to: 'variant',
+    });
+  });
+
+  it('puts them on the drug where the lecture owns its profile', async () => {
+    // A class is not differing from itself: the same rule the fields follow.
+    await apply(file({ drugs: [{ generic: 'temozolomide', indications: ['Glioblastoma'] }] }));
+    await apply(file({ drugs: [{ generic: 'temozolomide', indications: ['Anaplastic astrocytoma'] }] }));
+
+    const [drug] = await db.select().from(drugs).where(eq(drugs.slug, 'temozolomide'));
+    const byVariant = await drugIndicationsByVariant(drug.id);
+
+    expect(byVariant.get(null)).toEqual(['Glioblastoma', 'Anaplastic astrocytoma']);
+    expect(byVariant.has('heme-onc-exam-3')).toBe(false);
   });
 
   it('leaves another lecture’s layer values alone', async () => {

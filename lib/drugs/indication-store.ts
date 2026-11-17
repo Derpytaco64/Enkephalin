@@ -9,9 +9,9 @@
  * it, type one that does not and you have deliberately added a word. Nothing
  * else inserts into `indications`.
  */
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/index.ts';
-import { auditLog, drugIndications, indications } from '../../db/schema.ts';
+import { auditLog, drugIndications, indications, tags } from '../../db/schema.ts';
 import { canonicalIndication, indicationHeads, indicationSlug } from './indications.ts';
 
 export type IndicationRow = { id: string; slug: string; label: string };
@@ -68,7 +68,15 @@ export async function resolveIndications(
 }
 
 /**
- * Points one drug at exactly the indications named, in the order given.
+ * Points one drug at exactly the indications named, in the order given --
+ * **within one version**.
+ *
+ * `variantTagId` names the class or exam whose list this is, and null is the
+ * drug's own. Either way it is the *whole* list for that one version and
+ * nothing else is touched: writing Exam 3's six cannot remove the drug's own
+ * four, and the drug editor saving its own list cannot remove what five
+ * lectures taught. Before migration 0018 there was only one list, so every
+ * import rewrote the union and the last lecture to speak owned all of it.
  *
  * Rows that stay keep their ids, which matters more than it looks: a
  * `brand_indications` pairing hangs off the link row, so rewriting the list
@@ -79,13 +87,17 @@ export async function resolveIndications(
 export async function setDrugIndicationLinks(
   drugId: string,
   texts: string[],
+  variantTagId: string | null = null,
 ): Promise<{ labels: string[]; created: IndicationRow[] }> {
   const { rows, created } = await resolveIndications(texts);
 
-  const existing = await db
-    .select()
-    .from(drugIndications)
-    .where(eq(drugIndications.drugId, drugId));
+  // Scoped to this version, which is what makes the write a layer rather than
+  // a replacement of everything anybody has said about the drug.
+  const scope = variantTagId === null
+    ? and(eq(drugIndications.drugId, drugId), isNull(drugIndications.variantTagId))
+    : and(eq(drugIndications.drugId, drugId), eq(drugIndications.variantTagId, variantTagId));
+
+  const existing = await db.select().from(drugIndications).where(scope);
   const byIndication = new Map(existing.map((row) => [row.indicationId, row]));
 
   const keep = new Set<string>();
@@ -100,7 +112,7 @@ export async function setDrugIndicationLinks(
     }
     const [inserted] = await db
       .insert(drugIndications)
-      .values({ drugId, indicationId: indication.id, sortOrder })
+      .values({ drugId, indicationId: indication.id, variantTagId, sortOrder })
       .returning({ id: drugIndications.id });
     keep.add(inserted.id);
   }
@@ -111,6 +123,38 @@ export async function setDrugIndicationLinks(
   }
 
   return { labels: rows.map((row) => row.label), created };
+}
+
+/**
+ * What one drug is for, by version: the slug of the class or exam that teaches
+ * it, or null for the drug's own.
+ *
+ * One query rather than one per reader, because every screen that shows
+ * indications now has to ask the same two-part question -- what does this
+ * version say, and what does the drug say -- and two spellings of it would be
+ * a profile and a quiz disagreeing about what an exam teaches.
+ */
+export async function drugIndicationsByVariant(
+  drugId: string,
+): Promise<Map<string | null, string[]>> {
+  const rows = await db
+    .select({
+      label: indications.label,
+      variant: tags.slug,
+      sortOrder: drugIndications.sortOrder,
+    })
+    .from(drugIndications)
+    .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+    .leftJoin(tags, eq(tags.id, drugIndications.variantTagId))
+    .where(eq(drugIndications.drugId, drugId))
+    .orderBy(asc(drugIndications.sortOrder));
+
+  const byVariant = new Map<string | null, string[]>();
+  for (const row of rows) {
+    const key = row.variant ?? null;
+    byVariant.set(key, [...(byVariant.get(key) ?? []), row.label]);
+  }
+  return byVariant;
 }
 
 /**

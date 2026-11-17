@@ -72,13 +72,19 @@ export async function getDrugProfile(
   if (!drug) return null;
 
   const variantTagOf = alias(tags, 'variant_tag');
+  const indicationTagOf = alias(tags, 'indication_variant_tag');
 
   const [brandRows, indicationRows, linkRows, tagRows, defs, prefs, siblings] = await Promise.all([
     db.select().from(drugBrands).where(eq(drugBrands.drugId, drug.id)).orderBy(asc(drugBrands.sortOrder)),
+    // Whose indications each row is, left-joined: null is the drug's own, and
+    // that is most of them -- see `drug_indications.variant_tag_id`.
     db
-      .select({ slug: indications.slug, label: indications.label })
+      .select({
+        slug: indications.slug, label: indications.label, variant: indicationTagOf.slug,
+      })
       .from(drugIndications)
       .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .leftJoin(indicationTagOf, eq(indicationTagOf.id, drugIndications.variantTagId))
       .where(eq(drugIndications.drugId, drug.id))
       .orderBy(asc(drugIndications.sortOrder)),
     // `brand_indications` hangs off the link row, not the vocabulary, so a
@@ -186,17 +192,55 @@ export async function getDrugProfile(
   // Built here rather than on the page because the visibility rule below has to
   // ask the same question of them -- *has this drug anything to say under this
   // field* -- and two answers to that would be two profiles.
+  /**
+   * What this reading says the drug is for.
+   *
+   * **An indication belongs to the version that taught it** (migration 0018),
+   * so this is a layer like any other field and is read the same way: the
+   * version's own list where it has one, the drug's own where it does not and
+   * the reading is layered, and nothing where it is strict. Which is what
+   * fixes the complaint the column was added for -- doxycycline's 26
+   * indications were five lectures' work shown under one heading, and reading
+   * it as Exam 4 now shows the six Exam 4 teaches.
+   *
+   * The drug's own profile shows **only its own**, for the same reason: the
+   * other twenty were never the class sheet's to claim. The browse filter and
+   * the study scope still match on every version's -- finding a drug is a
+   * different question from reading one.
+   */
+  const ownIndications = indicationRows.filter((row) => row.variant === null);
+  const variantIndications = variant === null
+    ? []
+    : indicationRows.filter((row) => row.variant === variant.slug);
+
+  /** Which keys this version words itself, which is what a strict reading is. */
+  const overridden = variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>();
+  const strict = variant !== null && options.layered !== true;
+
+  // A core field a version can now word, so it joins the set that decides what
+  // a strict page shows. Before this, `indication` was never in `overridden`
+  // and a strict reading dropped the field entirely -- correct while nobody
+  // but the base could say anything under it, and wrong the moment a lecture
+  // could.
+  if (variantIndications.length > 0) overridden.add('indication');
+
+  /*
+   * All or nothing, which is how `overlayFields` treats every other key: a
+   * version either words this field or falls through to the drug's. Mixing the
+   * two lists would put the pile-up back -- six wordings of gonorrhea under
+   * one heading, three of them another exam's.
+   */
+  const shownIndications = variant === null || !overridden.has('indication')
+    ? (strict ? [] : ownIndications)
+    : variantIndications;
+
   const coreValues: Record<string, string | null> = {
     generic: drug.genericName,
     drug_class: drug.drugClass,
     controlled: drug.schedule,
     brand: brands.map((brand) => brand.name).join('\n'),
-    indication: indicationRows.map((row) => row.label).join('\n'),
+    indication: shownIndications.map((row) => row.label).join('\n'),
   };
-
-  /** Which keys this version words itself, which is what a strict reading is. */
-  const overridden = variant ? new Set(overriddenKeys(variant.fields)) : new Set<string>();
-  const strict = variant !== null && options.layered !== true;
 
   const fields = variant === null
     ? drug.fields
@@ -278,7 +322,22 @@ export async function getDrugProfile(
      * screen does not have to re-derive the rule.
      */
     brands: strict ? [] : brands,
-    indications: indicationRows.map((row) => row.label),
+    /**
+     * **The drug's own**, which is what the drug editor edits and writes back.
+     *
+     * Not the union, and that is load-bearing rather than tidy: the editor
+     * posts this list to `setDrugIndications` with no version named, so a union
+     * here would move every lecture's indications onto the drug's own profile
+     * the first time anybody pressed Save -- the pile-up this column was added
+     * to undo, reintroduced by the repair screen.
+     */
+    indications: ownIndications.map((row) => row.label),
+    /** Every version's list, keyed by slug, with null for the drug's own. */
+    indicationsByVariant: indicationRows.reduce((byVariant, row) => {
+      const key = row.variant ?? null;
+      byVariant.set(key, [...(byVariant.get(key) ?? []), row.label]);
+      return byVariant;
+    }, new Map<string | null, string[]>()),
     /** The five core fields as strings, the way a profile row wants them. */
     coreValues,
     /** Each with the version it reads the drug as -- null for its own words. */

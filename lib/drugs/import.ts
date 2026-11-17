@@ -23,6 +23,7 @@
  * lecture safe on a profile the sheet already seeded.
  */
 import { asc, eq } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import {
   drugBrands, drugIndications, drugTags, drugVariantValues, drugs, indications, tags,
@@ -73,7 +74,13 @@ export type PlannedDrug = {
   /** Identity the import would fill in, where the drug has none. */
   identity: { drugClass: string | null; schedule: string | null };
   brands: { adding: string[]; already: string[] };
-  indications: { adding: string[]; already: string[] };
+  /**
+   * `to` is the version this list belongs to: `drug` for the drug's own,
+   * `variant` for the class or exam this file is -- see `indicationsTo`. The
+   * `already` beside it is that version's list and nobody else's, so a
+   * condition another lecture teaches still reads as this one adding it.
+   */
+  indications: { adding: string[]; already: string[]; to: 'drug' | 'variant' };
   /** Scope tags the drug is not on yet. */
   tags: string[];
   /** Every tag it already carries, so an update can write the union. */
@@ -181,7 +188,8 @@ type Known = {
    */
   bySlug: Map<string, KnownDrug>;
   brandsByDrug: Map<string, string[]>;
-  indicationsByDrug: Map<string, string[]>;
+  /** Per drug, per version -- null is the drug's own. */
+  indicationsByDrug: Map<string, Map<string | null, string[]>>;
   tagsByDrug: Map<string, string[]>;
   tagSlugs: Map<string, string>;
 };
@@ -195,14 +203,24 @@ type Known = {
  * thing an import could do.
  */
 async function readKnown(): Promise<Known> {
+  const indicationTagOf = alias(tags, 'indication_variant_tag');
   const [defs, drugRows, brandRows, indicationRows, tagRows, tagLinks] = await Promise.all([
     listFieldDefs({ includeDeleted: true }),
     db.select().from(drugs).orderBy(asc(drugs.genericName)),
     db.select({ drugId: drugBrands.drugId, name: drugBrands.name }).from(drugBrands),
+    // Whose indications each row is: null for the drug's own -- see
+    // `drug_indications.variant_tag_id`. An import compares itself against
+    // **the version it writes to**, so a lecture that has not mentioned a
+    // condition is adding it even where another lecture already has.
     db
-      .select({ drugId: drugIndications.drugId, label: indications.label })
+      .select({
+        drugId: drugIndications.drugId,
+        label: indications.label,
+        variant: indicationTagOf.slug,
+      })
       .from(drugIndications)
-      .innerJoin(indications, eq(indications.id, drugIndications.indicationId)),
+      .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .leftJoin(indicationTagOf, eq(indicationTagOf.id, drugIndications.variantTagId)),
     db.select({ id: tags.id, slug: tags.slug }).from(tags),
     db.select({ drugId: drugTags.drugId, slug: tags.slug })
       .from(drugTags).innerJoin(tags, eq(tags.id, drugTags.tagId)),
@@ -254,11 +272,11 @@ async function readKnown(): Promise<Known> {
     }
   }
 
-  const indicationsByDrug = new Map<string, string[]>();
+  const indicationsByDrug = new Map<string, Map<string | null, string[]>>();
   for (const row of indicationRows) {
-    const list = indicationsByDrug.get(row.drugId);
-    if (list) list.push(row.label);
-    else indicationsByDrug.set(row.drugId, [row.label]);
+    const byVariant = indicationsByDrug.get(row.drugId) ?? new Map<string | null, string[]>();
+    byVariant.set(row.variant, [...(byVariant.get(row.variant) ?? []), row.label]);
+    indicationsByDrug.set(row.drugId, byVariant);
   }
 
   const tagsByDrug = new Map<string, string[]>();
@@ -621,8 +639,26 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
     }
 
     const already = existing ? known.brandsByDrug.get(existing.id) ?? [] : [];
-    const heldIndications = existing ? known.indicationsByDrug.get(existing.id) ?? [] : [];
     const heldTags = existing ? known.tagsByDrug.get(existing.id) ?? [] : [];
+
+    /**
+     * Where this file's indications go, and whose list they are compared with.
+     *
+     * The same three answers the fields get, for the same reasons: a drug the
+     * app has never held takes everything as its own, a file with no version to
+     * be is writing the drug, and a class that already owns the base cannot
+     * differ from itself. Everything else is this version saying what it
+     * teaches the drug for, which is what `drug_indications.variant_tag_id` was
+     * added to let it say -- before it, every lecture appended to one shared
+     * list and doxycycline ended up for 26 conditions at once.
+     */
+    const indicationsTo: 'drug' | 'variant' = !existing || destination === null || ownsTheBase
+      ? 'drug'
+      : 'variant';
+    const heldIndications = existing
+      ? known.indicationsByDrug.get(existing.id)
+        ?.get(indicationsTo === 'drug' ? null : destination!.slug) ?? []
+      : [];
 
     return {
       generic: existing?.generic ?? entry.generic,
@@ -650,6 +686,7 @@ export async function planDrugImport(file: ImportFile): Promise<ImportPlan> {
           (label) => !heldIndications.some((held) => lower(held) === lower(label)),
         ),
         already: heldIndications,
+        to: indicationsTo,
       },
       tags: scope.map((inScope) => inScope.slug).filter((slug) => !heldTags.includes(slug)),
       heldTags,
@@ -813,13 +850,11 @@ export async function applyDrugImport(
           actorId,
         );
       }
-      if (planned.indications.adding.length > 0) {
-        await setDrugIndications(
-          planned.slug,
-          [...planned.indications.already, ...planned.indications.adding].join('\n'),
-          actorId,
-        );
-      }
+      // Membership before content, which it has to be now: a version can only
+      // hold its own indications on a drug that is on it -- `variantLayerFor`
+      // is the gate, and it reads `drug_tags`. The tags used to be written
+      // last, and the first lecture to teach a drug a new condition had its
+      // indications silently refused.
       if (planned.tags.length > 0) {
         // The union, not the scope: `setDrugTags` replaces membership, and an
         // import must not take a drug off Top Drugs 2026 for being in a
@@ -829,6 +864,23 @@ export async function applyDrugImport(
           [...new Set([...planned.heldTags, ...scopeSlugs])],
           actorId,
         );
+      }
+      if (planned.indications.adding.length > 0) {
+        // This version's whole list, written to this version alone: the union
+        // of what it already said and what the file adds. It used to be the
+        // union across every version, written to the drug -- which is how one
+        // drug came to be for every condition five lectures taught.
+        const written = await setDrugIndications(
+          planned.slug,
+          [...planned.indications.already, ...planned.indications.adding].join('\n'),
+          actorId,
+          planned.indications.to === 'variant' ? plan.variant?.slug ?? null : null,
+        );
+        // Reported rather than swallowed: a refusal here means the version
+        // cannot hold them, and the file's indications would simply vanish.
+        if (!written.ok) {
+          report.problems.push({ where: `drugs (${entry.generic})`, message: written.message });
+        }
       }
     }
 

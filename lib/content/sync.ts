@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 // Relative rather than '@/...' on purpose: scripts/sync-content.ts runs this
 // under `node --experimental-strip-types`, which resolves no path aliases.
 import { db } from '../../db/index.ts';
@@ -203,7 +203,11 @@ async function syncIndications(drugId: string, seed: SeedDrug, report: SyncRepor
     })
     .from(drugIndications)
     .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
-    .where(eq(drugIndications.drugId, drugId));
+    // The drug's own rows only. The sheet is the drug's own profile, so a
+    // lecture's indication is none of its business: matching one would let the
+    // seeder adopt Exam 3's link row as the sheet's -- reordering it, pairing
+    // brands to it, and reporting the drug's own as missing.
+    .where(and(eq(drugIndications.drugId, drugId), isNull(drugIndications.variantTagId)));
   const byIndication = new Map(existing.map((row) => [row.indicationId, row]));
   const seeded = seed.indications ?? [];
 

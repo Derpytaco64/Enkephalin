@@ -16,7 +16,7 @@ import { isUniqueViolation } from '@/lib/db-errors';
 import { classColumns, lookUpDrugClass, type ClassLookup } from '@/lib/drugs/class-lookup';
 import { setDrugIndicationLinks } from '@/lib/drugs/indication-store';
 import { indicationSlug } from '@/lib/drugs/indications';
-import { setBaseVariant } from '@/lib/drugs/variants';
+import { setBaseVariant, variantLayerFor } from '@/lib/drugs/variants';
 import { activesOf, notesFor, parseDosing } from '@/lib/dosing/parse';
 import type { FieldDef } from '@/lib/fields/registry';
 
@@ -196,20 +196,54 @@ export async function setDrugBrands(slug: string, raw: string, actorId: string):
   return { ok: true };
 }
 
-export async function setDrugIndications(slug: string, raw: string, actorId: string): Promise<Result> {
+/**
+ * What one drug is for, as one version says it.
+ *
+ * `variantSlug` names the class or exam whose list this is; omit it for the
+ * drug's own. The write is scoped to that version alone -- see
+ * `setDrugIndicationLinks` -- so a lecture import cannot take away what
+ * another lecture taught, which is what every import did before migration
+ * 0018.
+ *
+ * A version that cannot hold wording is refused rather than silently written
+ * to the drug: `variantLayerFor` is the same gate the field editor uses, so a
+ * tag of the wrong kind, one the drug has left, and the class the base profile
+ * already belongs to are all answered the same way here as there.
+ */
+export async function setDrugIndications(
+  slug: string,
+  raw: string,
+  actorId: string,
+  variantSlug?: string | null,
+): Promise<Result> {
   const drug = await drugBySlug(slug);
   if (!drug) return { ok: false, message: 'That drug no longer exists.' };
+
+  let variantTagId: string | null = null;
+  if (variantSlug) {
+    const layer = await variantLayerFor(drug.id, variantSlug);
+    if (!layer) {
+      return { ok: false, message: 'That version cannot hold its own indications for this drug.' };
+    }
+    variantTagId = layer.tagId;
+  }
 
   // Typed wording joins the shared vocabulary rather than being stored on the
   // drug: type "Seizure" and it finds the "Seizures" row, so there is one of
   // each however the words arrive. Wording that matches nothing is a new entry,
   // and the audit line says which were made so a typo is traceable.
-  const { labels, created } = await setDrugIndicationLinks(drug.id, lines(raw));
+  const { labels, created } = await setDrugIndicationLinks(drug.id, lines(raw), variantTagId);
 
   await touch(drug.id);
   await audit({
     actorId, action: 'drug.indications', drugId: drug.id,
-    diff: { indications: labels, ...(created.length > 0 && { newIndications: created.map((row) => row.label) }) },
+    diff: {
+      indications: labels,
+      // Named in the audit line, because a list of six that replaced a list of
+      // four means nothing without knowing whose four.
+      ...(variantSlug ? { variant: variantSlug } : {}),
+      ...(created.length > 0 && { newIndications: created.map((row) => row.label) }),
+    },
   });
   return { ok: true };
 }

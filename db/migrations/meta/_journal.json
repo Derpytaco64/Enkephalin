@@ -127,6 +127,13 @@
       "when": 1794270000000,
       "tag": "0017_whose_words_the_drug_itself_holds",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794280000000,
+      "tag": "0018_an_indication_belongs_to_a_version",
+      "breakpoints": true
     }
   ]
 }

@@ -109,6 +109,8 @@ export function VariantForm({
   drug,
   variant,
   fields,
+  indications,
+  baseIndications,
   source,
   note,
   baseLabel,
@@ -117,6 +119,10 @@ export function VariantForm({
   drug: { slug: string; generic: string };
   variant: { slug: string; label: string; kind: string };
   fields: VariantField[];
+  /** What this version teaches the drug is for, one per line. */
+  indications: string[];
+  /** The drug's own, which an empty box falls through to. */
+  baseIndications: string[];
   source: string;
   note: string;
   /** The class the drug's own profile is the wording of, where it is one. */
@@ -148,6 +154,50 @@ export function VariantForm({
         <p className={hint}>
           One line shown at the top of this version of the profile. For what it does differently
           in general — <em>exam 3 only covers the thioamides</em>.
+        </p>
+      </div>
+
+      {/*
+        Indications, which are a version's to differ on since migration 0018 --
+        the one core field that is not a column on the drug. Its own box rather
+        than a `Row`, because it is not stored in the layer's fields and the
+        hint under it has to explain a different fall-through: an empty box here
+        means *this version teaches the drug for whatever the drug says*, and
+        the drug's own list is what shows.
+      */}
+      <div className="rounded border border-[var(--border)] p-3">
+        <div className="flex flex-wrap items-baseline gap-x-3">
+          <label htmlFor="indications" className="text-sm font-medium">Indications</label>
+          <span className="text-xs text-[var(--muted)]">list</span>
+          {indications.length > 0 && (
+            <span className="text-xs font-medium text-[var(--accent)]">its own</span>
+          )}
+        </div>
+
+        <p className={hint}>
+          {baseIndications.length > 0
+            ? (
+              <>
+                The drug says{baseLabel !== null && <>, from {baseLabel}</>}:{' '}
+                <span className="text-[var(--fg)]">{baseIndications.join('; ')}</span>
+              </>
+            )
+            : 'The drug has nothing recorded for this.'}
+        </p>
+
+        <textarea
+          id="indications"
+          name="indications"
+          defaultValue={indications.join('\n')}
+          rows={4}
+          className={`${control} font-sans`}
+        />
+        <p className={hint}>
+          One per line, and they join the shared vocabulary — type wording that already exists and
+          it files under that condition rather than making a second one. What{' '}
+          <span className="text-[var(--fg)]">{variant.label}</span> teaches this drug for, in its
+          own words: <em>Gonorrhea in pregnancy</em> is a different thing to teach from{' '}
+          <em>Gonorrhea</em>, and both stay.
         </p>
       </div>
 

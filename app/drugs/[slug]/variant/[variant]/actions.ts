@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/session';
+import { setDrugIndications } from '@/lib/drugs/mutations';
 import { saveVariantLayer, type SaveResult } from '@/lib/drugs/variants';
 import { normalizeNewlines } from '@/lib/fields/format';
 import { listFieldDefs } from '@/lib/fields/registry';
@@ -20,6 +21,10 @@ export type VariantState = SaveResult;
  * Every field is sent on every save, blank ones included -- that is how an
  * override is cleared, and `saveVariantLayer` reads an empty box as *this class
  * says what the drug says*.
+ *
+ * Two writes, because a version's wording lives in two tables: the fields in
+ * `drug_variant_values`, and what it teaches the drug is for in
+ * `drug_indications`, which names a version since migration 0018.
  */
 export async function saveVariantLayerAction(formData: FormData): Promise<VariantState> {
   const session = await requireAdmin();
@@ -50,6 +55,26 @@ export async function saveVariantLayerAction(formData: FormData): Promise<Varian
     note: String(formData.get('note') ?? ''),
     userId: session.user.id,
   });
+
+  /*
+   * And what this version teaches the drug is **for**, which is a core field
+   * and so not in the loop above: it lives in `drug_indications` rather than
+   * in the layer's jsonb, and since migration 0018 those rows name a version.
+   *
+   * Written after the layer and only if the layer saved, so a refused save
+   * leaves both halves untouched. An empty box clears this version's list and
+   * the profile falls through to the drug's own, which is the same sentence an
+   * empty field box makes.
+   */
+  if (result.ok && formData.get('indications') !== null) {
+    const indications = await setDrugIndications(
+      drugSlug,
+      normalizeNewlines(String(formData.get('indications'))),
+      session.user.id,
+      variantSlug,
+    );
+    if (!indications.ok) return { ok: false, message: indications.message };
+  }
 
   if (result.ok) {
     revalidatePath(`/drugs/${drugSlug}`);

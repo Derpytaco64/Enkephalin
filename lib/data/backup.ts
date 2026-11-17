@@ -34,6 +34,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 // which resolves no path aliases.
 import { db } from '../../db/index.ts';
 import { resolveIndications } from '../drugs/indication-store.ts';
+import { canonicalIndication } from '../drugs/indications.ts';
 // Client-safe and database-free, so it loads under `--experimental-strip-types`
 // like the rest of this file's imports.
 import { isVariantKind } from '../drugs/variant-kinds.ts';
@@ -132,6 +133,15 @@ export type BackupDrug = {
   /** Absent in files written before this flag existed, which means false. */
   dosingUnique?: boolean;
   sourcePage: number | null;
+  /**
+   * What the drug itself is for: **its own indications, not every version's**.
+   *
+   * An indication belongs to the version that taught it (migration 0018), so a
+   * lecture's are under that lecture in `variants` and this is what the drug's
+   * own profile says. A file written before that has the union here, which
+   * restores as the drug's own -- the state it was exported from, and the state
+   * `scripts/indication-variants.ts` exists to improve on.
+   */
   indications: string[];
   brands: BackupBrand[];
   regimens: BackupRegimen[];
@@ -187,6 +197,9 @@ export type BackupDrug = {
    * Keyed by the variant's tag slug, which is a natural key like everything
    * else in this format -- and only the overridden fields are in it, because
    * that is all the table holds.
+   *
+   * An entry also carries **this version's own indications**, since migration
+   * 0018 -- see `BackupVariantLayer.indications`.
    */
   variants?: BackupVariantLayer[];
 };
@@ -204,6 +217,20 @@ export type BackupVariantLayer = {
   variant: string;
   fields: Record<string, FieldValue>;
   note: string | null;
+  /**
+   * What this version teaches the drug **is for**, where it says so itself.
+   *
+   * `drug_indications.variant_tag_id`, and the reason `indications` on the
+   * drug is now only the drug's own. Absent means this version says nothing
+   * about the subject and the drug's own list stands; an empty array means it
+   * says the drug is for nothing, which is a different sentence and one the
+   * restore writes faithfully.
+   *
+   * A version may appear here with `fields: {}` and nothing but this -- ten
+   * drugs in the live data are mentioned by a lecture only to say what it
+   * treats them for -- so an entry is not evidence of a stored field layer.
+   */
+  indications?: string[];
 };
 
 export type BackupFieldDef = {
@@ -376,6 +403,7 @@ function group<T extends { drugId: string }>(rows: T[]) {
 
 /** `drug_tags.variant_tag_id` resolved to its slug, beside the membership. */
 const variantTagOf = alias(tags, 'variant_tag');
+const indicationTagOf = alias(tags, 'indication_variant_tag');
 
 export async function exportBackup(): Promise<Backup> {
   const [
@@ -388,9 +416,13 @@ export async function exportBackup(): Promise<Backup> {
       .select({
         drugId: drugIndications.drugId,
         label: indications.label,
+        // Whose indication this is -- null for the drug's own. Travels as the
+        // tag's slug like every other reference in this file.
+        variant: indicationTagOf.slug,
       })
       .from(drugIndications)
       .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
+      .leftJoin(indicationTagOf, eq(indicationTagOf.id, drugIndications.variantTagId))
       .orderBy(asc(drugIndications.sortOrder)),
     db.select().from(drugBrands).orderBy(asc(drugBrands.sortOrder)),
     db
@@ -474,6 +506,23 @@ export async function exportBackup(): Promise<Backup> {
   }
 
   const indicationsByDrug = group(indicationRows);
+
+  /**
+   * The indications a version holds its own of, keyed drug then version.
+   *
+   * A version can have these with no `drug_variant_values` row behind it -- ten
+   * drugs in the live data are mentioned by a lecture only to say what it
+   * treats them for -- so the `variants` list below is built from the union of
+   * the two rather than from the layer rows alone. Leaving it at the layers
+   * would export a backup that silently dropped those ten.
+   */
+  const variantIndications = new Map<string, Map<string, string[]>>();
+  for (const row of indicationRows) {
+    if (row.variant === null) continue;
+    const byVariant = variantIndications.get(row.drugId) ?? new Map<string, string[]>();
+    byVariant.set(row.variant, [...(byVariant.get(row.variant) ?? []), row.label]);
+    variantIndications.set(row.drugId, byVariant);
+  }
   const brandsByDrug = group(brandRows);
   const regimensByDrug = group(regimenRows);
   const tagsByDrug = group(drugTagRows);
@@ -505,7 +554,9 @@ export async function exportBackup(): Promise<Backup> {
     needsPairingReview: drug.needsPairingReview,
     dosingUnique: drug.dosingUnique,
     sourcePage: drug.sourcePage,
-    indications: (indicationsByDrug.get(drug.id) ?? []).map((row) => row.label),
+    indications: (indicationsByDrug.get(drug.id) ?? [])
+      .filter((row) => row.variant === null)
+      .map((row) => row.label),
     brands: (brandsByDrug.get(drug.id) ?? []).map((brand) => ({
       name: brand.name,
       family: brand.family,
@@ -547,11 +598,24 @@ export async function exportBackup(): Promise<Backup> {
     baseVariant: drug.baseVariantTagId === null
       ? null
       : tagSlugById.get(drug.baseVariantTagId) ?? null,
-    variants: (variantsByDrug.get(drug.id) ?? []).map((layer) => ({
-      variant: layer.variant,
-      fields: layer.fields,
-      note: layer.note,
-    })),
+    // Every version that says anything of its own: a stored layer, its own
+    // indications, or both.
+    variants: [...new Set([
+      ...(variantsByDrug.get(drug.id) ?? []).map((layer) => layer.variant),
+      ...(variantIndications.get(drug.id)?.keys() ?? []),
+    ])].sort().map((slug) => {
+      const layer = (variantsByDrug.get(drug.id) ?? []).find((row) => row.variant === slug);
+      const own = variantIndications.get(drug.id)?.get(slug);
+      return {
+        variant: slug,
+        fields: layer?.fields ?? {},
+        note: layer?.note ?? null,
+        // Absent rather than empty where this version has none, which is the
+        // same rule `baseVariant` follows: a key that is not there says
+        // nothing, and the restore leaves what it finds alone.
+        ...(own ? { indications: own } : {}),
+      };
+    }),
   }));
 
   const prefsByUser = new Map(prefRows.map((row) => [row.userId, row]));
@@ -1069,20 +1133,79 @@ export async function restoreBackup(input: unknown, mode: RestoreMode): Promise<
           outcome = 'inserted';
         }
 
-        // Indications travel as wording, not as ids, so a backup stays readable
-        // and restores into a database whose vocabulary rows are different objects.
-        // `resolveIndications` is what reunites them: a label the target already
-        // knows joins that row, and one it does not becomes a new entry.
+        /*
+         * Indications travel as wording, not as ids, so a backup stays readable
+         * and restores into a database whose vocabulary rows are different
+         * objects. `resolveIndications` is what reunites them: a label the
+         * target already knows joins that row, and one it does not becomes a
+         * new entry.
+         *
+         * **And each version's own are restored under that version**, since
+         * migration 0018 -- `drug.indications` is the drug's own and a
+         * `variants` entry carries the rest. A version's list is checked the
+         * way its field layer is: a tag the file does not carry, one of the
+         * wrong kind, one the drug is not on, or the class the base profile
+         * already is are all reported and the labels kept **on the drug**,
+         * because the alternative is losing them over an attribution.
+         */
         await tx.delete(drugIndications).where(eq(drugIndications.drugId, drugId));
         const indicationIdByText = new Map<string, string>();
-        const { rows: vocabulary } = await resolveIndications(drug.indications);
-        for (const [index, indication] of vocabulary.entries()) {
-          const [row] = await tx
-            .insert(drugIndications)
-            .values({ drugId, indicationId: indication.id, sortOrder: index })
-            .returning({ id: drugIndications.id });
-          indicationIdByText.set(indication.label, row.id);
+
+        const ownLabels = [...drug.indications];
+        const byVariant: { tagId: string; labels: string[] }[] = [];
+        for (const layer of drug.variants ?? []) {
+          if (!layer.indications) continue;
+          const tagId = tagIdBySlug.get(layer.variant);
+          const kind = tagKindBySlug.get(layer.variant);
+          const ok = tagId !== undefined
+            && kind !== undefined
+            && isVariantKind(kind)
+            && memberships.some((member) => member.tag === layer.variant)
+            && tagId !== baseTagId;
+          if (!ok) {
+            if (layer.indications.length > 0) {
+              report.problems.push(
+                `${drug.slug}: ${layer.indications.length} indication(s) moved to the drug's own `
+                + `profile — "${layer.variant}" cannot hold its own here.`,
+              );
+              ownLabels.push(...layer.indications);
+            }
+            continue;
+          }
+          byVariant.push({ tagId: tagId!, labels: layer.indications });
         }
+
+        // One `resolveIndications` for every label on the drug, so a wording
+        // two versions share is one vocabulary row and the brand pairing below
+        // can find it whichever version wrote it.
+        const { rows: vocabulary } = await resolveIndications([
+          ...ownLabels,
+          ...byVariant.flatMap((entry) => entry.labels),
+        ]);
+        const idByLabel = new Map(vocabulary.map((row) => [row.label, row.id]));
+
+        const write = async (labels: string[], variantTagId: string | null) => {
+          const wanted = [...new Set(
+            labels.map((label) => idByLabel.get(canonicalIndication(label)))
+              .filter((id): id is string => Boolean(id)),
+          )];
+          for (const [index, indicationId] of wanted.entries()) {
+            const [row] = await tx
+              .insert(drugIndications)
+              .values({ drugId, indicationId, variantTagId, sortOrder: index })
+              .returning({ id: drugIndications.id });
+            // The drug's own win the name, because `brand_indications` is the
+            // base's: a brand is the drug's, so the row it pairs to should be
+            // the drug's wherever there is one.
+            const label = vocabulary.find((entry) => entry.id === indicationId)?.label;
+            if (label !== undefined && (variantTagId === null || !indicationIdByText.has(label))) {
+              indicationIdByText.set(label, row.id);
+            }
+          }
+        };
+
+        await write(ownLabels, null);
+        for (const entry of byVariant) await write(entry.labels, entry.tagId);
 
         await tx.delete(drugBrands).where(eq(drugBrands.drugId, drugId));
         for (const [index, brand] of drug.brands.entries()) {

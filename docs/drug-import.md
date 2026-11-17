@@ -335,10 +335,29 @@ nothing to differ from, and a brand-new drug whose mechanism lived only in a cla
 as an empty profile — which looks broken rather than sourced. This is the normal case for an
 oncology lecture, where most of the drugs are not on any top-200 list.
 
-**Core fields are always the drug's own**, whatever `write` says: the generic name, the brands, the
-indications, the class and the controlled schedule. A class cannot differ about what a drug *is* —
-a different generic name is a different drug — so those five are written to the drug, or not at all.
-The class and the schedule are *filled* and never corrected, except in `base` mode.
+**Core fields are the drug's own, except the indications**, whatever `write` says. The generic name,
+the brands, the class and the controlled schedule go to the drug or nowhere: a class cannot differ
+about what a drug *is*, since a different generic name is a different drug. The class and the
+schedule are *filled* and never corrected, except in `base` mode.
+
+**`indications` go to the version this file is**, because what a drug is taught for is exactly the
+kind of thing two lectures say differently. Infectious Disease Exam 4 teaches doxycycline for
+*Chlamydia (first line)* and *Expedited partner therapy*; Exam 3 teaches it for *Impetigo with
+numerous lesions* and eleven more. Both are true, neither is the drug's own general answer, and
+before this they all landed in one list on the drug — so doxycycline came out for 26 conditions at
+once and each of the five versions that taught it held none.
+
+What follows from that, and it is the one thing worth knowing when writing a file:
+
+- **Your `indications` are compared with what this version already says, not with the drug.** A
+  condition another lecture teaches still shows as *adding* in the preview, and should: this version
+  has not said it yet.
+- **Do not copy another lecture's indications in to be safe.** They are not missing. The drug list's
+  filter and the study scope both search every version, so a drug is found by any condition any
+  lecture teaches it for — see [how an indication is grouped](#name-the-condition-then-qualify-it).
+- **They go on the drug itself in the two cases the fields do**: a drug the app has never held, and
+  a file whose class is already whose words the drug's own profile is. The preview says which, as
+  *Exam 4's indications +* or plain *indications +*.
 
 ---
 
@@ -349,7 +368,7 @@ The class and the schedule are *filled* and never corrected, except in `base` mo
 | `generic` | **yes** | The generic name, **capitalised**: `"Nivolumab"`, `"Iron sucrose"` |
 | `aliases` | no | Other names the deck uses: `["T-VEC", "Talimogene"]`. Matching only, so case changes nothing — capitalise them the same way regardless |
 | `brands` | no | Trade names: `["Opdivo"]`. Only ones the deck names |
-| `indications` | no | What it is used for, **as specifically as the deck says it** — condition first, then the qualifier ([how](#name-the-condition-then-qualify-it)) |
+| `indications` | no | What it is used for, **as specifically as the deck says it** — condition first, then the qualifier ([how](#name-the-condition-then-qualify-it)). Filed under this file's version, not on the drug ([why](#write--what-happens-when-the-app-already-knows-something)) |
 | `class` | no | Usually leave it out — a drug created without one gets its FDA class looked up. Write one only to override that, **capitalised**: `"Cephalosporin Antibacterial"` |
 | `schedule` | no | `CI`–`CV`, and only for a controlled substance |
 | `fields` | no | Everything else. See the field set below |

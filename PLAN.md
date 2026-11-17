@@ -3009,6 +3009,93 @@ The `?` is a `<details>`, not a hover. Hover is a thing a mouse does, and the
 card it sits in is shown above the profile precisely on the screens that have
 none.
 
+### An indication belongs to the version that taught it (2026-11-16)
+
+*Can you check on doxycycline as well, it kind of looks like a bunch of
+indications got piled on the Top drugs 2026 version without the other ones?*
+
+Twenty-six of them, and the reading was exactly right. `drug_indications` said
+*this drug is for this* with no room to say who says so, so every lecture that
+imported doxycycline read its list, added what it taught, and wrote the whole
+union back onto the drug. Five lectures later the drug's own profile claimed
+every condition any of them had taught, each of the five versions claimed none,
+and the only honest reading on the screen — the strict one — showed no
+indications at all.
+
+So `drug_indications` has a `variant_tag_id`, and null is the drug's own. It is
+the sentence [a variant layer](#a-course-says-it-differently-2026-11-09) makes
+about a field, made about an indication, and everything downstream follows the
+rule the fields already followed:
+
+**A version shows its own list, or falls through to the drug's — never both.**
+All or nothing, the way `overlayFields` treats every key, because mixing them
+is the pile-up again: six wordings of gonorrhea under one heading, three of them
+another exam's. `indication` joins `overridden` when the version holds its own,
+which is what gets the field onto a strict page at all; before this no layer
+could word a core field and a strict reading dropped it.
+
+**A deck scoped to an exam asks that exam's indications**, with that exam's
+pill on the card, because `wordedBy` now takes the core keys a layer words
+rather than giving all five to the base.
+
+**But finding a drug still searches every version.** *Is this drug for
+pneumonia* is a search, and a deck scoped to pneumonia should hold every drug
+any lecture teaches for pneumonia; *what is this drug for* is the other
+question, and that is the one the version answers. Two maps in the study
+loader, deliberately, for the two questions.
+
+**`on delete cascade`, not `set null`** — the opposite of
+[`drug_tags.variant_tag_id`](#v-3-and-which-version-a-list-means-2026-11-09),
+and for a reason worth writing down. That column is a *pointer* at a class's
+wording, so losing the class should drop the pointer and leave the membership.
+This is the class's content. Deleting Infectious Disease Exam 3 should take away
+what Exam 3 taught; nulling instead would move 262 indications onto the drugs'
+own profiles, which is the state the column exists to get out of.
+
+**A version that teaches only what a drug is for is still a version.** Ten
+drugs are mentioned by a lecture solely to say what it treats them for —
+acetaminophen for the fever in pharyngitis, epinephrine for taxane reactions —
+and numbering off the field layer alone would leave those unnumbered, so
+unreachable by `?as=`, with a card whose indications nothing attributed. `V-n`
+is now "has a stored layer **or** teaches its own indications", in both places
+that number versions.
+
+And the importer writes membership before content, which it has to now: a
+version can only hold indications on a drug that is on it, and the tags used to
+be written last — so the first lecture to teach a drug a new condition would
+have had its indications silently refused.
+
+#### Putting the 1,266 rows already stored where they belong
+
+The column is only half the fix; the other half is the data, and the audit log
+turns out to have kept what was needed. Every `setDrugIndications` wrote the
+**whole list after the write**, so replaying them in order gives what each
+import added — and an import that put a drug on a new list wrote a `drug.tags`
+row in the same breath, whose newly-present slug names the version doing the
+teaching. `scripts/indication-variants.ts` replays that onto a backup file, as a
+reviewable diff: **510 of the 1,266 move to a version**, 262 of them to
+Infectious Disease Exam 3.
+
+Four rules, and the order is the whole of it:
+
+0. **The class sheet wins outright.** A label `data/top-drugs-2026.json` gives
+   the drug is the drug's own, whatever the replay says — the seeder wrote no
+   audit rows, so the first import to touch a seeded drug reports the sheet's
+   indications inside its own list and the replay cannot tell them apart.
+   Doxycycline's *Bacterial infections* is the sheet's one word on the subject,
+   and without this rule it became Exam 1's.
+1. **The tag this drug gained in this import** — 142 of the 200 events.
+2. **The tag the import gained anywhere.** Audit rows cluster inside two
+   seconds, so rows within a minute are one import; this is what covers a
+   lecture's second and third PDF, where the drug was already on the exam.
+3. **The base**, for everything else.
+
+The 676 it cannot explain stay on the drug, and that is right rather than a
+shortfall: 484 belong to a drug **a lecture created**, where the whole profile
+is that lecture's and the indications are already where they belong; 189 are the
+class sheet's wording; 3 were typed by hand. Nothing moves that cannot be
+justified by a row somebody wrote.
+
 ### A textarea submits CRLF, and the markdown could not read it (2026-11-16)
 
 *I tried to edit some drug version text and it came back looking like this.*

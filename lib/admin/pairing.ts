@@ -15,7 +15,7 @@
  * Depakote against Depakote ER is not a pairing question, and three Wellbutrins
  * against one Zyban is.
  */
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/db';
 import { brandIndications, drugBrands, drugIndications, drugs, indications } from '@/db/schema';
 
@@ -87,7 +87,11 @@ export async function pairingDrugs(): Promise<PairingDrug[]> {
     })
       .from(drugIndications)
       .innerJoin(indications, eq(indications.id, drugIndications.indicationId))
-      .where(inArray(drugIndications.drugId, ids))
+      // The drug's own, not every version's. A brand is the drug's -- Vibramycin
+      // is doxycycline's whatever lecture is being revised -- so pairing it to
+      // an exam's indication would be pairing a fact to a wording, and the grid
+      // would grow a row per lecture.
+      .where(and(inArray(drugIndications.drugId, ids), isNull(drugIndications.variantTagId)))
       .orderBy(asc(drugIndications.sortOrder)),
 
     db.select({

@@ -157,7 +157,7 @@ function main() {
         if (raw === null) continue;
 
         const result = toSections(raw);
-        if (result === null) continue;
+        if (result === null || field === undefined) continue;
 
         field.value = result.text;
         changes.push({ where: `${place.where} / ${key}`, ...result.change });
